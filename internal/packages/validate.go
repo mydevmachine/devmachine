@@ -114,6 +114,7 @@ func Validate(dir string) ([]Problem, error) {
 	}
 
 	problems = append(problems, validatePlatforms(m)...)
+	problems = append(problems, validateBootstrap(dir, m)...)
 	problems = append(problems, validateEntrypoint(dir, m)...)
 	problems = append(problems, validateCredentials(m)...)
 	problems = append(problems, validateSkills(dir, m)...)
@@ -167,9 +168,32 @@ func validatePlatforms(m Manifest) []Problem {
 		}
 		seen[p] = true
 	}
-	if m.Scope == ScopeWorkspace && len(m.Platforms) > 0 && !slices.Contains(m.Platforms, PlatformLinux) {
-		at(fmt.Sprintf("a workspace always lives on a Linux server, so a workspace package has to list %q",
-			PlatformLinux))
+	return problems
+}
+
+// validateBootstrap checks the script that prepares a machine for Ansible. It
+// is POSIX sh, not Python: it runs before anything, Python included, is there.
+func validateBootstrap(dir string, m Manifest) []Problem {
+	if m.Bootstrap == "" {
+		return nil
+	}
+	var problems []Problem
+	at := func(what string) {
+		problems = append(problems, Problem{File: FileName, Line: m.Lines["bootstrap"], What: what})
+	}
+	if m.Scope != ScopeMachine {
+		at("`bootstrap` belongs to a machine package: it prepares the machine, not one account on it")
+	}
+	if !insidePackage(m.Bootstrap) {
+		at(fmt.Sprintf("bootstrap %q must stay inside the package", m.Bootstrap))
+		return problems
+	}
+	info, err := os.Stat(filepath.Join(dir, m.Bootstrap))
+	switch {
+	case err != nil:
+		at(fmt.Sprintf("bootstrap %q is not in the package", m.Bootstrap))
+	case info.Mode()&0o111 == 0:
+		at(fmt.Sprintf("bootstrap %q is not executable: chmod +x it", m.Bootstrap))
 	}
 	return problems
 }

@@ -47,12 +47,13 @@ func TestValidateRejectsAPlatformListedTwice(t *testing.T) {
 	problemAbout(t, problems, "twice")
 }
 
-func TestValidateRejectsAMacOSOnlyWorkspacePackage(t *testing.T) {
-	problems, err := Validate(platformPackage(t, ScopeWorkspace, "[macos]"))
-	if err != nil {
-		t.Fatal(err)
+func TestValidateAcceptsAWorkspacePackageForAnySystem(t *testing.T) {
+	for _, platforms := range []string{"[macos]", "[linux]", "[linux, macos]"} {
+		problems, err := Validate(platformPackage(t, ScopeWorkspace, platforms))
+		if err != nil || len(problems) != 0 {
+			t.Fatalf("%s: %v %#v", platforms, err, problems)
+		}
 	}
-	problemAbout(t, problems, "workspace")
 }
 
 func TestSchemaNamesPlatforms(t *testing.T) {
