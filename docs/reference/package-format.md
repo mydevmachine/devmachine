@@ -70,6 +70,9 @@ as `platforms`. The same holds for a `workspace` package: a workspace
 lives on whatever its machine runs, so `[linux]`, `[macos]` and
 `[linux, macos]` are all accepted.
 
+How to write one package for several systems, and the traps on each, is in
+[one package on many systems](../how-it-works/packages-on-many-systems.md).
+
 ### `requires.cli`
 
 Which version of the CLI can run this package: `">= 0.2.0"`, `"> 0.2.0"`

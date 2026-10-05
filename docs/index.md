@@ -118,6 +118,9 @@ these when something behaves in a way that surprises you.
 - [What a machine needs](how-it-works/what-a-machine-needs.md) — what must
   be on a machine before the first sync, what the CLI installs, and why
   installing it on a Mac needs its own yes.
+- [One package on many systems](how-it-works/packages-on-many-systems.md) —
+  how a package runs on Debian, Ubuntu, Arch Linux and macOS, and the traps
+  the built-in packages already hit.
 - [Where a machine is](how-it-works/machine-location.md) — why a machine
   with no location is `external`, and why `create-local` writes `local`.
 - [Versioning your configuration](how-it-works/versioning-your-configuration.md)
