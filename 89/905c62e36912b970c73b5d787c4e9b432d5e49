@@ -7,6 +7,8 @@ internal/remote/macos.go
   s_87d72b62cfc5a1::t_4ba9c6a1e0cce5 74-75
 internal/packages/bootstrap_test.go
   s_87d72b62cfc5a1::t_308a89b0c5650b 1-3,4-7,9,19-20,23-25,29,38-40,44,54,57,62,64-65,73,75
+internal/packages/bootstrapping_test.go
+  s_87d72b62cfc5a1::t_a10efa74082848 1-53
 ---
 {
   "schema_version": "authorship/3.0.0",
