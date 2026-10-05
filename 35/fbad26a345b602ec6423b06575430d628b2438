@@ -1,0 +1,21 @@
+docs/agent-setup.md
+  s_e501c321413d86::t_76f3b7ee412c32 76-78,85-86,106,135-136,145-146,159-164
+docs/guides/a-local-vm-with-lima.md
+  s_e501c321413d86::t_598ed3e461bef2 116-117
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "35fbad26a345b602ec6423b06575430d628b2438",
+  "prompts": {},
+  "sessions": {
+    "s_e501c321413d86": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c1c8a0b3-c0c2-4808-a1ec-80e4f419df68",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
