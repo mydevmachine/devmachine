@@ -1,0 +1,19 @@
+docs/index.md
+  s_080f4178405210::t_0fcf870ccb806f 3-4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0f8714ddfc0f2e74c43a034d3f8271362cf267d7",
+  "prompts": {},
+  "sessions": {
+    "s_080f4178405210": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "53a45adf-41d4-4a52-9180-2df1290e9da9",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
