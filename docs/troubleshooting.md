@@ -546,6 +546,12 @@ run on that system, add the system to its `platforms`. If the machine was
 rebuilt with another system, run `devmachine doctor --machine <name>` so
 the CLI reads it again.
 
+A Mac added by an older CLI may list `essentials`, which runs only on
+Linux. Swap it for what a new Mac starts with:
+`devmachine packages rm essentials --machine <name>`, then
+`devmachine packages add base --machine <name>` and
+`devmachine packages add devmachine-app --machine <name>`.
+
 ## A setting is accepted, but the package still uses its default
 
 **What it means:** A setting reaches the server as

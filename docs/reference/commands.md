@@ -38,7 +38,10 @@ off, and ask SSH (`sshd -T`) that it really is off; install Ansible. The new mac
 package (base, git, firewall, ssh_hardening, caddy and devmachine-app — see
 [what a new machine starts with](../how-it-works/what-a-new-machine-starts-with.md)),
 so the first `sync` installs them; `--no-essentials` leaves it with none. Only a pinned package
-release that has `essentials` gets it — an older one starts empty and says so. If the proof step fails, nothing is locked down and
+release that has `essentials` gets it — an older one starts empty and says so. On a Mac,
+where `essentials` does not run, the machine starts with `base`, `devmachine-app` and the
+package manager package instead, and `setup` says so; with `--no-essentials`, with the package
+manager package alone. If the proof step fails, nothing is locked down and
 the error says where to look. See [setting up a server for the first
 time](../how-it-works/trust-bootstrap.md) for why the order matters.
 
@@ -76,7 +79,7 @@ there.
 | --- | --- |
 | `--force` | discard the existing configuration and start over |
 | `--no-harden` | leave password login on; the key is still installed and proved |
-| `--no-essentials` | start the machine with no packages, instead of `essentials` |
+| `--no-essentials` | start the machine with no packages, instead of `essentials` (on a Mac, instead of `base` and `devmachine-app`) |
 | `--no-aliases` | do not ask about SSH host entries, and do not write them |
 | `--yes` | answer yes to the SSH host entries question, without asking; never installs prerequisites |
 | `--package-manager brew\|ports` | on a Mac with neither or both, the package manager to install Ansible with |

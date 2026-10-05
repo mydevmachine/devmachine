@@ -209,9 +209,11 @@ machine. If they asked for a bare machine, add `--no-essentials` to
 it alone with `devmachine packages add devmachine-app --machine <name>`.
 
 `essentials`, `firewall` and `caddy` run on Linux only, and `sync` refuses
-them on a Mac before it changes anything. For a Mac, add `--no-essentials`
-to `machines add`, then add `base` and, for the macOS app, `devmachine-app`
-with `devmachine packages add <package> --machine <name>`.
+them on a Mac before it changes anything. You do not need to do anything
+about it: when `machines add` finds a Mac, it starts it with `base`,
+`devmachine-app` and the package manager package (`mac-brew` or
+`mac-ports`) instead of `essentials`, and says so. With `--no-essentials`
+it starts with the package manager package alone.
 
 ## 5. Create the workspace
 

@@ -15,6 +15,7 @@ import (
 
 	"github.com/mydevmachine/devmachine/internal/config"
 	"github.com/mydevmachine/devmachine/internal/facts"
+	"github.com/mydevmachine/devmachine/internal/packages"
 	"github.com/mydevmachine/devmachine/internal/remote"
 )
 
@@ -533,5 +534,167 @@ func TestMachinesAddOnAMacWritesTheManagerPackageWithTheMachine(t *testing.T) {
 	}
 	if !slices.Equal(m.Packages, []string{"mac-brew"}) {
 		t.Fatalf("packages = %v", m.Packages)
+	}
+}
+
+func stubReleaseHasOnly(t *testing.T, names ...string) {
+	t.Helper()
+	t.Cleanup(swap(&releaseHasPackage, func(_ context.Context, _, _, name string) bool {
+		return slices.Contains(names, name)
+	}))
+}
+
+// fromLocalPackagesOnly opens the config's own packages folder for any pin,
+// so a test with a pinned release never downloads it.
+func fromLocalPackagesOnly(t *testing.T) {
+	t.Helper()
+	t.Cleanup(swap(&openStore, func(ctx context.Context, dir, _ string) (*packages.Store, error) {
+		return packages.Open(ctx, dir, "")
+	}))
+}
+
+func TestAMacStartsWithBaseAndTheAppInsteadOfEssentials(t *testing.T) {
+	stubReleaseHasOnly(t, "essentials", "base", "devmachine-app")
+	out := &strings.Builder{}
+
+	got, ok := startingPackagesOnMac(context.Background(), t.TempDir(), "v14", "studio", []string{"essentials"}, out)
+	if !ok || !slices.Equal(got, []string{"base", "devmachine-app"}) {
+		t.Fatalf("got %v, %v", got, ok)
+	}
+	want := "studio is a Mac and essentials runs only on Linux, so it starts with base and devmachine-app instead.\n"
+	if out.String() != want {
+		t.Fatalf("said %q, want %q", out.String(), want)
+	}
+}
+
+func TestAMacStartsOnlyWithWhatTheReleaseHas(t *testing.T) {
+	stubReleaseHasOnly(t, "essentials", "base")
+
+	got, ok := startingPackagesOnMac(context.Background(), t.TempDir(), "v14", "studio", []string{"essentials"}, io.Discard)
+	if !ok || !slices.Equal(got, []string{"base"}) {
+		t.Fatalf("got %v, %v", got, ok)
+	}
+}
+
+func TestAMacKeepsPackagesThatAreNotTheDefault(t *testing.T) {
+	stubReleaseHasOnly(t, "essentials", "base", "devmachine-app")
+	for _, current := range [][]string{nil, {"essentials", "docker"}, {"base"}} {
+		out := &strings.Builder{}
+		if got, ok := startingPackagesOnMac(context.Background(), t.TempDir(), "v14", "studio", current, out); ok {
+			t.Fatalf("%v was replaced with %v", current, got)
+		}
+		if out.Len() != 0 {
+			t.Fatalf("%v: said %q", current, out.String())
+		}
+	}
+}
+
+func macSetup(t *testing.T, o setupOptions) ([]string, string) {
+	t.Helper()
+	defer stubLatestPackagesRelease(t, "v14")()
+	stubReleaseHasOnly(t, "essentials", "base", "devmachine-app")
+	fromLocalPackagesOnly(t)
+	stubBootstrap(t, bootstrapStubs{keyWorks: true, kernel: remote.KernelDarwin})
+	mac := &macClient{managers: "brew\n", check: `{"missing":[]}`, apply: appliedBrew}
+	t.Cleanup(swap(&dialWith, func(context.Context, config.Machine, string, remote.Auth) (remote.Client, string, error) {
+		return mac, "203.0.113.20", nil
+	}))
+	recordedObservations(t)
+	dir := t.TempDir()
+	writeFakeBootstrap(t, dir, "mac-brew", "")
+
+	out, err := runSetupIn(t, dir, answers("studio", "203.0.113.20", "alice", "22", "", "1"), o)
+	if err != nil {
+		t.Fatalf("setup returned %v (%s)", err, out)
+	}
+	cfg, err := config.Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return cfg.Machines[0].Packages, out
+}
+
+func TestSetupOnAMacStartsWithBaseTheAppAndTheManager(t *testing.T) {
+	got, out := macSetup(t, setupOptions{noAliases: true})
+	if !slices.Equal(got, []string{"base", "devmachine-app", "mac-brew"}) {
+		t.Fatalf("packages = %v", got)
+	}
+	if !strings.Contains(out, "essentials runs only on Linux") {
+		t.Fatalf("it does not say why: %s", out)
+	}
+	if !strings.Contains(out, "The machine starts with base, devmachine-app and mac-brew.") {
+		t.Fatalf("the closing note does not say what it starts with: %s", out)
+	}
+}
+
+func TestSetupOnAMacWithNoEssentialsStartsWithTheManagerOnly(t *testing.T) {
+	got, out := macSetup(t, setupOptions{noAliases: true, noEssentials: true})
+	if !slices.Equal(got, []string{"mac-brew"}) {
+		t.Fatalf("packages = %v", got)
+	}
+	if strings.Contains(out, "runs only on Linux") {
+		t.Fatalf("it replaced what --no-essentials left out: %s", out)
+	}
+}
+
+func TestMachinesAddOnAMacStartsWithBaseTheAppAndTheManager(t *testing.T) {
+	stubBootstrap(t, bootstrapStubs{keyWorks: true, kernel: remote.KernelDarwin})
+	stubReleaseHasOnly(t, "essentials", "base", "devmachine-app")
+	fromLocalPackagesOnly(t)
+	dir := writeConfigDir(t, "packages: v14\nmachines:\n  - name: server\n    hosts: [203.0.113.10]\n")
+	writeFakeBootstrap(t, dir, "mac-brew", "")
+	mac := &macClient{managers: "brew\n", check: `{"missing":[]}`, apply: appliedBrew}
+	t.Cleanup(swap(&dialWith, func(context.Context, config.Machine, string, remote.Auth) (remote.Client, string, error) {
+		return mac, "203.0.113.20", nil
+	}))
+	recordedObservations(t)
+
+	out := &strings.Builder{}
+	err := runMachinesAdd(context.Background(), dir, strings.NewReader(""), out, setupOptions{
+		address: "203.0.113.20", name: "studio", user: "alice", port: 22, key: "new",
+		noAliases: true, hostKey: commandHostKey(t),
+	})
+	if err != nil {
+		t.Fatalf("machines add returned %v (%s)", err, out)
+	}
+	cfg, err := config.Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, err := cfg.Machine("studio")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(m.Packages, []string{"base", "devmachine-app", "mac-brew"}) {
+		t.Fatalf("packages = %v", m.Packages)
+	}
+}
+
+func TestMachinesAddOnLinuxKeepsTheEssentials(t *testing.T) {
+	steps := stubBootstrap(t, bootstrapStubs{keyWorks: true})
+	stubReleaseHasOnly(t, "essentials", "base", "devmachine-app")
+	dir := writeConfigDir(t, "packages: v14\nmachines:\n  - name: server\n    hosts: [203.0.113.10]\n")
+
+	out := &strings.Builder{}
+	err := runMachinesAdd(context.Background(), dir, strings.NewReader(""), out, setupOptions{
+		address: "203.0.113.30", name: "box", user: "alice", port: 22, key: "new",
+		noAliases: true, hostKey: steps.hostKey,
+	})
+	if err != nil {
+		t.Fatalf("machines add returned %v (%s)", err, out)
+	}
+	cfg, err := config.Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, err := cfg.Machine("box")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(m.Packages, []string{"essentials"}) {
+		t.Fatalf("packages = %v", m.Packages)
+	}
+	if strings.Contains(out.String(), "runs only on Linux") {
+		t.Fatalf("a Linux machine was told about the Mac: %s", out)
 	}
 }

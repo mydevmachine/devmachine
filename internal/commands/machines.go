@@ -534,6 +534,10 @@ func runMachinesAdd(ctx context.Context, dir string, in io.Reader, out io.Writer
 	if err != nil {
 		return err
 	}
+	prep.replaceStarting = func(names []string) error {
+		m.Packages = names
+		return nil
+	}
 	if err := bootstrap(ctx, out, dir, m, key, opts.noHarden, password, prep); err != nil {
 		return err
 	}

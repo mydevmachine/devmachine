@@ -56,6 +56,9 @@ type ansiblePrep struct {
 	installPrerequisites bool
 	// addPackage records a package setup added to the machine.
 	addPackage func(name string) error
+	// replaceStarting swaps a new machine's starting packages for the Mac's.
+	// It is nil where the machine's packages are already the person's.
+	replaceStarting func(names []string) error
 }
 
 // newAnsiblePrep reads the answers a run was given.
@@ -110,6 +113,14 @@ func prepareAnsible(ctx context.Context, client remote.Client, out io.Writer, sy
 	m config.Machine, prep ansiblePrep) error {
 	if !system.MacOS() {
 		return installAnsible(ctx, client, out)
+	}
+	if prep.replaceStarting != nil {
+		if starting, ok := startingPackagesOnMac(ctx, prep.dir, prep.release, m.Name, m.Packages, out); ok {
+			if err := prep.replaceStarting(starting); err != nil {
+				return err
+			}
+			m.Packages = starting
+		}
 	}
 	return prepareMac(ctx, client, out, m, prep)
 }

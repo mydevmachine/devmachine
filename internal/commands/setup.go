@@ -128,6 +128,33 @@ func startingPackages(ctx context.Context, dir, release string, noEssentials boo
 	return []string{essentials}
 }
 
+// macStarting is what a Mac starts with in place of essentials, whose
+// firewall, SSH hardening and Caddy run only on Linux.
+var macStarting = []string{"base", "devmachine-app"}
+
+// startingPackagesOnMac is what a machine written with the default essentials
+// starts with once it turns out to be a Mac. ok is false for any other list,
+// --no-essentials included: that list is the person's, not the default.
+func startingPackagesOnMac(ctx context.Context, dir, release, machine string, current []string,
+	out io.Writer) ([]string, bool) {
+	if !slices.Equal(current, []string{essentials}) {
+		return nil, false
+	}
+	var starting []string
+	for _, name := range macStarting {
+		if releaseHasPackage(ctx, dir, release, name) {
+			starting = append(starting, name)
+		}
+	}
+	instead := "no packages"
+	if len(starting) > 0 {
+		instead = joinAnd(starting)
+	}
+	fmt.Fprintf(out, "%s is a Mac and %s runs only on Linux, so it starts with %s instead.\n",
+		machine, essentials, instead)
+	return starting, true
+}
+
 func newSetupCmd(opts *options) *cobra.Command {
 	var s setupOptions
 
@@ -224,11 +251,16 @@ func runSetup(ctx context.Context, dir string, in io.Reader, out io.Writer, opts
 	fmt.Fprintf(out, "\nwrote %s\n\n", path)
 
 	prep, err := newAnsiblePrep(dir, release, r, in, opts, func(name string) error {
+		m.Packages = append(m.Packages, name)
 		_, err := addMachinePackage(dir, m.Name, name)
 		return err
 	})
 	if err != nil {
 		return err
+	}
+	prep.replaceStarting = func(names []string) error {
+		m.Packages = names
+		return setMachinePackages(dir, m.Name, names)
 	}
 	if err := bootstrap(ctx, out, dir, m, key, opts.noHarden, askingPassword(r, in, out), prep); err != nil {
 		return err
@@ -257,6 +289,8 @@ func nextAfterSetup(machinePackages []string, sshAliases bool) string {
 	if slices.Contains(machinePackages, essentials) {
 		note = "The machine starts with the essentials: base tools, git, a firewall, Caddy and what the macOS app reads.\n" +
 			"To start bare instead, remove `essentials` from config.yml, or run setup with --no-essentials.\n"
+	} else if len(machinePackages) > 0 {
+		note = fmt.Sprintf("The machine starts with %s.\n", joinAnd(machinePackages))
 	}
 	reach := "Once a workspace exists: `devmachine ssh <workspace>` (or `mosh`) reaches it from here.\n"
 	if sshAliases {
@@ -366,6 +400,21 @@ func addMachinePackage(dir, machine, pkg string) (bool, error) {
 		return true, nil
 	}
 	return false, nil
+}
+
+// setMachinePackages replaces a machine's packages in config.yml.
+func setMachinePackages(dir, machine string, names []string) error {
+	cfg, err := config.Load(dir)
+	if err != nil {
+		return err
+	}
+	for i := range cfg.Machines {
+		if cfg.Machines[i].Name == machine {
+			cfg.Machines[i].Packages = names
+			return config.Save(dir, cfg)
+		}
+	}
+	return fmt.Errorf("machine %q is not in %s", machine, config.FileName)
 }
 
 // currentSSHAliases reads the operator's recorded answer back, so the closing

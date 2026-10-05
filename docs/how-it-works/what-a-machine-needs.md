@@ -38,6 +38,11 @@ manager the Mac already has. With neither or both, `setup` asks, or takes
 the Mac has neither Homebrew nor MacPorts: run again with --package-manager brew or --package-manager ports
 ```
 
+The package goes on the machine's list. On a new Mac, `setup` and
+`machines add` also put `base` and `devmachine-app` there in place of
+`essentials`, which runs only on Linux; see [what a new machine starts
+with](what-a-new-machine-starts-with.md#on-a-mac).
+
 `setup` copies the package to `/opt/devmachine/bootstrap/<package>/` and
 runs the script there as the admin login, never as root: Homebrew refuses
 root, so the script reaches root only through `sudo -n` for the steps
