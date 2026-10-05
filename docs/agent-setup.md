@@ -73,13 +73,17 @@ For a server:
 2. How they reach it as root over SSH: with a key already on the server, or
    with the root password their provider gave them.
 3. A name for the server, for example `vps`.
-4. Only if they want an app visible at a URL: a domain, and whether it is at
+4. Where the server is, for example `hostinger`, `home` or `office`. If they
+   do not say, use `external`.
+5. Only if they want an app visible at a URL: a domain, and whether it is at
    Hostinger or Cloudflare. Otherwise skip this.
 
 For a machine on this computer:
 
 1. A name for it, for example `sandbox`: lower-case letters, digits and
    dashes.
+2. Where it is. A VM on this computer is `local`; take another name, such
+   as `laptop`, only if they give one.
 
 For both:
 
@@ -99,7 +103,7 @@ memory and a 20 GiB disk. The first run downloads the image and boots it,
 which takes a few minutes. Then run:
 
 ```
-devmachine machines create-local <name> --add
+devmachine machines create-local <name> --add --location <location>
 ```
 
 This creates the VM and adds it in one step, with no questions: it logs in
@@ -128,7 +132,8 @@ or pass the path of its private key file instead:
 
 ```
 devmachine machines add --address <address> --name <name> \
-  --fingerprint SHA256:… --key agent:SHA256:… [--domain <domain>]
+  --fingerprint SHA256:… --key agent:SHA256:… --location <location> \
+  [--domain <domain>]
 ```
 
 **If only a password logs in**, the password must not pass through you.
@@ -137,7 +142,8 @@ in Claude Code they can type it after `!` in this session:
 
 ```
 pbpaste | devmachine machines add --address <address> --name <name> \
-  --fingerprint SHA256:… --password-stdin [--domain <domain>]
+  --fingerprint SHA256:… --location <location> --password-stdin \
+  [--domain <domain>]
 ```
 
 `pbpaste` is macOS; on Linux, `xclip -o -selection clipboard` does the same.
@@ -149,6 +155,12 @@ the CLI's own when `--key` is left out), proves it works, turns off password log
 editor like VS Code Remote-SSH. Add `--tailscale` only if the person wants to
 reach the machine over Tailscale too. `--domain` is accepted only for the
 first machine.
+
+`--location` only says where the machine is, so a view such as the macOS
+app's network map can group machines by place; it changes nothing about how
+the CLI reaches it. To change it later, run
+`devmachine machines edit <name> --location <location>`. See
+[where a machine is](how-it-works/machine-location.md).
 
 **A person at a terminal of their own** can run `devmachine setup` instead:
 it asks the same questions one by one, and shows the fingerprint to check.

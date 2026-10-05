@@ -113,7 +113,8 @@ then create a workspace acme on it with claude-code.
 
 The agent runs `machines create-local sandbox --add`, which asks nothing:
 the VM was made a moment ago and answers only on your computer, so there is
-no fingerprint for you to check. After that, it creates the workspace, adds
+no fingerprint for you to check. It asks you where the machine is first and
+passes `--location`, `local` unless you name another place. After that, it creates the workspace, adds
 the package, and asks before running `sync`. The steps it follows are in
 [set up devmachine with a coding agent](../agent-setup.md).
 
