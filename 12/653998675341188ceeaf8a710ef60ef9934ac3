@@ -1,0 +1,20 @@
+docs/getting-started.md
+  s_caa006de07d6fd::t_5f889a2cfa7826 24-25
+  s_caa006de07d6fd::t_a8d58e03669003 9-23,26-41,122
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "12653998675341188ceeaf8a710ef60ef9934ac3",
+  "prompts": {},
+  "sessions": {
+    "s_caa006de07d6fd": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d069417c-a3aa-4fac-830c-14e2016f2131",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
