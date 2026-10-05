@@ -3,7 +3,7 @@ description: "Install devmachine, connect a server and open your first workspace
 category: Get started
 level: Beginner
 needs:
-  - "A Debian or Ubuntu VPS"
+  - "A Debian, Ubuntu or Arch Linux VPS"
   - "A Mac or Linux computer"
 related:
   - a-local-vm-with-lima.md
@@ -15,8 +15,10 @@ related:
 The first commands, one at a time: what each asks and what it does. At the
 end you have a workspace called `acme` on your server.
 
-**You need:** a Debian or Ubuntu VPS you can reach as root over SSH, and a
-Mac or Linux computer.
+**You need:** a VPS running Debian, Ubuntu or Arch Linux that you reach over
+SSH as root, or as an admin login with passwordless sudo, and a Mac or Linux
+computer. A Mac can be the machine too: see [what a machine
+needs](../how-it-works/what-a-machine-needs.md).
 
 ## By hand
 

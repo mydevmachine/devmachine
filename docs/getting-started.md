@@ -3,8 +3,11 @@
 devmachine sets up a VPS for you to code on. Each project or client gets its
 own account on the server, called a workspace, with its own tools and logins.
 
-You need a Debian or Ubuntu VPS you can reach as root over SSH, and a Mac or
-Linux computer.
+You need a machine running Debian, Ubuntu, Arch Linux or macOS that you
+reach over SSH as root, or as an admin login with passwordless sudo, and a
+Mac or Linux computer to run the CLI. A Mac as the machine needs Remote
+Login on; `setup` asks whether to use Homebrew or MacPorts, and asks before
+it installs anything. See [what a machine needs](how-it-works/what-a-machine-needs.md).
 
 Pick how to start. Both end in the same place: the CLI installed, your
 server connected, and a workspace to code in.

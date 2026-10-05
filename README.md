@@ -18,14 +18,14 @@
   <a href="https://github.com/mydevmachine/devmachine/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/mydevmachine/devmachine?label=release"></a>
   <a href="LICENSE"><img alt="MIT licence" src="https://img.shields.io/badge/licence-MIT-blue"></a>
   <img alt="Runs on macOS, Linux and Windows through WSL 2" src="https://img.shields.io/badge/runs%20on-macOS%20%7C%20Linux%20%7C%20WSL%202-lightgrey">
-  <img alt="Debian and Ubuntu machines" src="https://img.shields.io/badge/machines-Debian%20%7C%20Ubuntu-lightgrey">
+  <img alt="Debian, Ubuntu, Arch Linux and macOS machines" src="https://img.shields.io/badge/machines-Debian%20%7C%20Ubuntu%20%7C%20Arch%20%7C%20macOS-lightgrey">
 </p>
 
 <p align="center">
   <img src=".github/readme/161-machines-map-selected.webp" alt="The network map in the Devmachine app: the internet at the top, published sites such as app.acme.example.com linked down to five machines — laptop and a Lima VM on this Mac, main and staging at a VPS provider, homebox at home over the tailnet — with the details of the main machine below." width="100%">
 </p>
 
-devmachine turns a Debian or Ubuntu machine into your own coding machine,
+devmachine turns a Debian, Ubuntu, Arch Linux or macOS machine into your own coding machine,
 with one workspace per project. A VPS you rent, an old laptop, or a virtual
 machine on your Mac: devmachine sets it up and locks it down. Each project
 gets an isolated workspace with its own tech stack, logins and AI
@@ -34,7 +34,7 @@ phone, or the Mac app.
 
 - **Open source.** The CLI and every package are open source. Read them, fork
   them, change them.
-- **No lock-in.** Underneath it is plain Linux, SSH and git. Stop using
+- **No lock-in.** Underneath it is plain Linux or macOS, SSH and git. Stop using
   devmachine and your machines still work.
 - **Extensible via packages.** Add a tool with one package, or write your own.
 - **Your machines, your data.** A VPS you rent, a computer you already have,
@@ -52,13 +52,16 @@ devmachine workspaces new acme && devmachine sync    # add a workspace and build
 devmachine ssh acme                                  # step in
 ```
 
-You need a Debian or Ubuntu machine you can reach as root over SSH. No
-server yet? `devmachine machines create-local dev` makes a virtual machine
+You need a machine running Debian, Ubuntu, Arch Linux or macOS that you
+reach over SSH as root, or as an admin login with passwordless sudo. A Mac
+needs Remote Login on and an admin login (root cannot log in there); `setup`
+asks whether to use Homebrew or MacPorts and installs nothing until you say
+yes. No server yet? `devmachine machines create-local dev` makes a virtual machine
 on your own computer.
 
 `setup` checks the machine's fingerprint, so you know you reached your own
 machine. It installs a key only you have, turns off password logins, and
-adds base tools, git, a firewall and Caddy. After `skills add`, any Claude
+on Linux adds base tools, git, a firewall and Caddy. After `skills add`, any Claude
 Code or Codex session can add packages, workspaces and sites for you.
 
 Walk through it slowly in
@@ -97,7 +100,7 @@ coding agent and let it do the work.
 | **Recommended** | **16 GB** | **4 vCPU** | **200 GB** | Several apps and coding agents at once. |
 | Full development | 32 GB | 8 vCPU | 400 GB | Docker and many intensive apps running together. |
 
-An old laptop with Debian or Ubuntu works too. Add the `tailscale` package
+An old laptop with Debian, Ubuntu or Arch Linux works too, and so does a Mac. Add the `tailscale` package
 and you reach it from anywhere, even from outside your home. See
 [Reaching your server](https://mydevmachine.sh/concepts/reaching-your-server/).
 
