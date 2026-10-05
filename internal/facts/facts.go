@@ -167,7 +167,7 @@ func Observe(ctx context.Context, c remote.Client, now time.Time) (Facts, error)
 	}
 
 	f := Facts{
-		ObservedAt:      now,
+		ObservedAt:      now.Truncate(time.Second),
 		System:          values["kernel"],
 		Architecture:    values["machine"],
 		AnsiblePlaybook: values["ansible_playbook"],
