@@ -1,11 +1,20 @@
 # Changelog
 
-What changed in each release of the CLI, newest first. Only changes you can
-see are here; tests, CI and internal work are left out. The full list of
-commits for each version is on the [GitHub releases
+What changed in each release of the CLI and the macOS app, newest first.
+App releases are headed `App vX.Y.Z`. Only changes you can see are here;
+tests, CI and internal work are left out. The full list of commits for each
+CLI version is on the [GitHub releases
 page](https://github.com/mydevmachine/devmachine/releases).
 
 To get the latest version, see [Upgrade](upgrade.md).
+
+## App v0.1.18 — 2026-10-05
+
+### Added
+
+- Drag the sidebar into your own order. A workspace's header moves the whole
+  workspace, Local included; a session moves only inside its own workspace.
+  The order survives a relaunch, and hiding a workspace forgets its place.
 
 ## v0.7.31 — 2026-10-05
 
