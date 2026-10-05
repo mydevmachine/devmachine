@@ -1,0 +1,51 @@
+internal/local/lima_test.go
+  s_87d72b62cfc5a1::t_fa1e09df51d5ea 112,127,142-143,151,166,177,189,245,247-248,260,283,314
+  s_87d72b62cfc5a1::t_5a73b60457a60a 246
+internal/local/machine-arch.yaml
+  s_87d72b62cfc5a1::t_7e0c06d650587e 1-44
+internal/local/distro_test.go
+  s_87d72b62cfc5a1::t_dc84360d000642 1-50,52-99
+  s_87d72b62cfc5a1::t_c534c5eeb006fb 51
+internal/local/size.go
+  s_87d72b62cfc5a1::t_2550e794ea8207 16
+  s_87d72b62cfc5a1::t_66e707efb51ec9 37-42
+docs/reference/commands.md
+  s_87d72b62cfc5a1::t_e6c603f5b68712 269,423-429
+  s_87d72b62cfc5a1::t_018672529d9132 430
+internal/local/distro.go
+  s_87d72b62cfc5a1::t_21a1846690c917 1-35
+scripts/fake-vps.sh
+  s_87d72b62cfc5a1::t_731f53b1b2078e 40-43,64
+docs/guides/a-local-vm-with-lima.md
+  s_87d72b62cfc5a1::t_e6c603f5b68712 34-37
+docs/development.md
+  s_87d72b62cfc5a1::t_e6c603f5b68712 45-52
+internal/local/lima.go
+  s_87d72b62cfc5a1::t_b70c30398b0a43 180-181
+  s_87d72b62cfc5a1::t_15e2f8d03ef804 48-49,53
+  s_87d72b62cfc5a1::t_15c35c97031a75 81
+  s_87d72b62cfc5a1::t_c66e9066faebce 98
+internal/local/size_test.go
+  s_87d72b62cfc5a1::t_fa1e09df51d5ea 14,18,24,78,91
+internal/commands/create_local_test.go
+  s_87d72b62cfc5a1::t_2fbda7708d84d3 26-30,34-36,39,44,204-253
+  s_87d72b62cfc5a1::t_a0c3a884018fd4 25
+internal/commands/machines.go
+  s_87d72b62cfc5a1::t_0724c888e21494 643-646,657-659,667-670,672,683,698,712,727
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "821aa51ff3432b55fb456d6432e5c0bc3eb9bf6b",
+  "prompts": {},
+  "sessions": {
+    "s_87d72b62cfc5a1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5e69ca1d-9900-4500-8ba7-104b479b47eb",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
