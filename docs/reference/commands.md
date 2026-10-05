@@ -1309,7 +1309,13 @@ One tag beyond package names: `credentials`, which only copies shared
 logins — run after `devmachine login` instead of a full sync.
 
 `--check` never writes the lock file. Only your own packages (in
-`<config>/packages/`) are checked before the run. With `--format json`,
+`<config>/packages/`) are checked before the run. Every package's
+`platforms` is checked against the machine's system before the machine is
+changed — from what was last read, then again from what `sync` reads as it
+connects — and a package for another system stops the sync, naming both
+([troubleshooting](../troubleshooting.md#package-x-runs-on-linux-machine-y-is-macos)).
+`sync` also keeps what it read in `<config>/state/machines/<name>.json`
+(see `machines show`). With `--format json`,
 stdout is the result; the plan and machine output go to stderr.
 
 On success, `<config>/packages.lock` records what was applied, at which

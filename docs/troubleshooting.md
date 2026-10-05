@@ -444,6 +444,28 @@ example `some checks failed on far`.
 **What to do:** Look at that machine's block, or run `devmachine doctor
 --machine far` to see only its checks.
 
+## "package X runs on linux; machine Y is macos"
+
+```
+package "firewall" runs on linux; machine "studio" is macos
+```
+
+**What it means:** The package's `package.yml` lists the systems it runs
+on under `platforms`, and the machine's system is not one of them. `sync`
+(and `update`, which syncs) stopped before changing anything on the
+machine. The machine's system is what `setup`, `sync` or `doctor` last
+read from it — `devmachine machines show <name>` prints it — and `sync`
+checks again on what it reads as it connects. The reverse, `runs on macos;
+machine … is linux`, is the same stop for a Mac-only package on a Linux
+server.
+
+**What to do:** Take the package off that machine or workspace with
+`devmachine packages rm <package>` (add `--workspace <name>` for a
+workspace package), then sync again. If the package is your own and does
+run on that system, add the system to its `platforms`. If the machine was
+rebuilt with another system, run `devmachine doctor --machine <name>` so
+the CLI reads it again.
+
 ## A setting is accepted, but the package still uses its default
 
 **What it means:** A setting reaches the server as

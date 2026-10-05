@@ -2,8 +2,10 @@ package commands
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 	"time"
 
@@ -142,6 +144,9 @@ func prepareSync(ctx context.Context, opts *options) (preparedSync, error) {
 	if err := validateLocalPackages(plan); err != nil {
 		return preparedSync{}, err
 	}
+	if err := refuseForeignPackages(plan, machine.Name, knownPlatform(dir, machine)); err != nil {
+		return preparedSync{}, err
+	}
 	summary := provision.Summary(plan)
 	for _, r := range provision.UnresolvedRoutes(plan) {
 		summary = append(summary, fmt.Sprintf("warning: https://%s is left as it is on %s, since %s's address is not known: %v",
@@ -166,7 +171,11 @@ func (p preparedSync) apply(ctx context.Context, opts *options, check bool, tags
 		return provision.Result{}, err
 	}
 	defer client.Close()
-	facts.Record(ctx, p.dir, p.machine.Name, client, time.Now())
+	if observed, ok := facts.Record(ctx, p.dir, p.machine.Name, client, time.Now()); ok {
+		if err := refuseForeignPackages(p.plan, p.machine.Name, observed.Platform()); err != nil {
+			return provision.Result{}, err
+		}
+	}
 
 	result, runErr := provisionerFor(client).Apply(ctx, p.plan, provision.Options{
 		Check: check, Tags: tags, Out: out,
@@ -220,6 +229,47 @@ func validateLocalPackages(plan packages.MachinePlan) error {
 
 	if len(lines) > 0 {
 		return fmt.Errorf("%d problem(s) in your own packages:\n%s", len(lines), strings.Join(lines, "\n"))
+	}
+	return nil
+}
+
+// knownPlatform is the machine's system as package.yml names it, from what was
+// last read, or "" when nothing was: the first sync reads it, so an unknown
+// system is not a reason to refuse.
+func knownPlatform(dir string, m config.Machine) string {
+	if m.Self {
+		return packages.PlatformMacOS
+	}
+	observed, found, err := facts.Load(dir, m.Name)
+	if err != nil || !found {
+		return ""
+	}
+	return observed.Platform()
+}
+
+// refuseForeignPackages stops a sync, before the machine is changed, on a
+// package whose platforms leave out the machine's system.
+func refuseForeignPackages(plan packages.MachinePlan, machine, platform string) error {
+	if platform == "" {
+		return nil
+	}
+	var (
+		lines []string
+		seen  = map[string]bool{}
+	)
+	for _, resolved := range append([]packages.Resolved{plan.OnMachine}, plan.Workspaces...) {
+		for _, found := range resolved.Ordered {
+			m := found.Manifest
+			if len(m.Platforms) == 0 || slices.Contains(m.Platforms, platform) || seen[m.Name] {
+				continue
+			}
+			seen[m.Name] = true
+			lines = append(lines, fmt.Sprintf("package %q runs on %s; machine %q is %s",
+				m.Name, strings.Join(m.Platforms, " and "), machine, platform))
+		}
+	}
+	if len(lines) > 0 {
+		return errors.New(strings.Join(lines, "\n"))
 	}
 	return nil
 }
