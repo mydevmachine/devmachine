@@ -787,6 +787,13 @@ See [packages](../concepts/packages.md).
 `run` keeps its SSH connection open for five minutes and reuses it, so a
 script calling it every few seconds skips the handshake each time.
 
+On a machine whose package manager lives outside the system `PATH` — a
+Mac with MacPorts or Homebrew — `run` puts the machine's `path_prefix`
+(see `machines show`) in front of `PATH`, so `devmachine run 'port
+installed'` finds `port` the way `run 'apt list --installed'` finds
+`apt` on Debian. A Linux machine has no prefix, and the command goes as
+written.
+
 ## upload
 
 ```

@@ -72,6 +72,28 @@ func showMachine(out io.Writer, opts *options, name string) error {
 	return printMachine(out, show)
 }
 
+// withMachinePath puts the machine's path prefix, as last observed, in front of
+// PATH for one command. A machine never read, or one that needs no prefix,
+// gets the command as it was written.
+func withMachinePath(opts *options, m config.Machine, command string) string {
+	dir, _, err := config.Dir(opts.configDir)
+	if err != nil {
+		return command
+	}
+	observed, found, err := facts.Load(dir, m.Name)
+	if err != nil || !found {
+		return command
+	}
+	return withPathPrefix(observed.PathPrefix, command)
+}
+
+func withPathPrefix(prefix []string, command string) string {
+	if len(prefix) == 0 {
+		return command
+	}
+	return "PATH=" + quoteForShell(strings.Join(prefix, ":")) + `:"$PATH"; export PATH; ` + command
+}
+
 func printMachine(out io.Writer, m machineShowJSON) error {
 	w := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
 	row := func(label, value string) { fmt.Fprintf(w, "%s\t%s\n", label, value) }

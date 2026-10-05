@@ -223,7 +223,7 @@ func newRunCmd(opts *options) *cobra.Command {
 			}
 			defer client.Close()
 
-			out, err := client.Run(cmd.Context(), args[0])
+			out, err := client.Run(cmd.Context(), withMachinePath(opts, tgt.machine, args[0]))
 			record(opts, tgt, args[0], err == nil)
 			// The output of a command that failed is usually the explanation,
 			// so it is printed before the error is reported.
