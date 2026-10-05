@@ -92,10 +92,10 @@ func TestTarCarriesGeneratedFilesAndWholeDirectories(t *testing.T) {
 }
 
 func TestTarFollowsADirectoryThatIsASymlink(t *testing.T) {
-	real := t.TempDir()
-	write(t, filepath.Join(real, "tasks", "main.yml"), "---\n")
+	linked := t.TempDir()
+	write(t, filepath.Join(linked, "tasks", "main.yml"), "---\n")
 	link := filepath.Join(t.TempDir(), "base")
-	if err := os.Symlink(real, link); err != nil {
+	if err := os.Symlink(linked, link); err != nil {
 		t.Fatal(err)
 	}
 
