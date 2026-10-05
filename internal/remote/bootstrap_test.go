@@ -222,7 +222,7 @@ func (c *recordingClient) everything() string {
 }
 
 func TestHardenWritesADropInThatSortsFirst(t *testing.T) {
-	c := &recordingClient{}
+	c := hardenClient()
 	if err := Harden(context.Background(), c); err != nil {
 		t.Fatal(err)
 	}
@@ -250,7 +250,7 @@ func TestHardenSaysWhyTheNameSortsFirst(t *testing.T) {
 }
 
 func TestHardenValidatesBeforeReloading(t *testing.T) {
-	c := &recordingClient{}
+	c := hardenClient()
 	if err := Harden(context.Background(), c); err != nil {
 		t.Fatal(err)
 	}
@@ -334,7 +334,70 @@ func TestProveAuthHandsBackTheConnectionItProved(t *testing.T) {
 // clientWithOsRelease answers the questions InstallAnsible asks before it
 // decides anything: which kernel, then which distribution.
 func clientWithOsRelease(body string) *recordingClient {
-	return &recordingClient{output: map[string]string{UnameCommand: "Linux\n", OSReleaseCommand: body}}
+	return &recordingClient{output: map[string]string{
+		UnameCommand:                  "Linux\n",
+		OSReleaseCommand:              body,
+		AsRoot(effectiveConfigScript): sshdTWithPasswords("no"),
+	}}
+}
+
+// sshdTWithPasswords is what `sshd -T` prints, cut down to a few lines.
+func sshdTWithPasswords(answer string) string {
+	return "port 22\npermitrootlogin prohibit-password\npasswordauthentication " + answer +
+		"\nkbdinteractiveauthentication no\n"
+}
+
+// hardenClient is a machine whose sshd reads the drop-in.
+func hardenClient() *recordingClient {
+	return &recordingClient{output: map[string]string{AsRoot(effectiveConfigScript): sshdTWithPasswords("no")}}
+}
+
+// TestHardenProvesPasswordLoginIsOff: a drop-in sshd never reads would let
+// "password login is off" be said of a machine that still takes passwords.
+func TestHardenProvesPasswordLoginIsOff(t *testing.T) {
+	c := hardenClient()
+	if err := Harden(context.Background(), c); err != nil {
+		t.Fatal(err)
+	}
+	joined := c.transcript()
+	reload := strings.Index(joined, "reload")
+	proof := strings.Index(joined, "sshd -T")
+	if reload < 0 || proof < 0 || proof < reload {
+		t.Fatalf("it does not ask sshd after the reload: %s", joined)
+	}
+	if !strings.Contains(c.commands[len(c.commands)-1], "sshd -T") {
+		t.Fatalf("something ran after the proof: %s", joined)
+	}
+	if !strings.Contains(joined, "/usr/sbin:/sbin") {
+		t.Fatalf("sshd -T runs without sbin on PATH: %s", joined)
+	}
+}
+
+func TestHardenTakesTheDropInBackWhenSshdStillAllowsPasswords(t *testing.T) {
+	c := &recordingClient{output: map[string]string{AsRoot(effectiveConfigScript): sshdTWithPasswords("yes")}}
+	err := Harden(context.Background(), c)
+	want := "the drop-in was written but sshd still allows passwords: " + hardeningDropInPath +
+		" is not read by this sshd"
+	if err == nil || err.Error() != want {
+		t.Fatalf("got %v, want %q", err, want)
+	}
+	joined := c.transcript()
+	proof := strings.Index(joined, "sshd -T")
+	removed := strings.LastIndex(joined, "rm -f "+hardeningDropInPath)
+	if removed < proof {
+		t.Fatalf("the drop-in was left behind: %s", joined)
+	}
+	if !strings.Contains(joined[removed:], "reload") {
+		t.Fatalf("sshd was not reloaded without it: %s", joined)
+	}
+}
+
+func TestHardenSaysSoWhenSshdCannotPrintItsConfiguration(t *testing.T) {
+	c := &recordingClient{failOn: "sshd -T"}
+	err := Harden(context.Background(), c)
+	if err == nil || !strings.Contains(err.Error(), "sshd -T") {
+		t.Fatalf("got %v", err)
+	}
 }
 
 func TestInstallAnsiblePicksThePackageManagerFromOsRelease(t *testing.T) {
@@ -626,7 +689,7 @@ func TestCheckRootSuggestsAFileSudoReads(t *testing.T) {
 // sshd that never started has no /run/sshd, and sshd -t refuses without it.
 // Found on a real machine reached only through Tailscale SSH.
 func TestHardenMakesSshdsRuntimeDirectoryBeforeValidating(t *testing.T) {
-	c := &recordingClient{}
+	c := hardenClient()
 	if err := Harden(context.Background(), c); err != nil {
 		t.Fatal(err)
 	}
@@ -673,5 +736,25 @@ func TestInstallAnsibleRefusesASystemThatIsNotLinux(t *testing.T) {
 	}
 	if len(c.commands) != 1 {
 		t.Fatalf("it ran something anyway: %#v", c.commands)
+	}
+}
+
+// TestSshdTOnARealMachineNamesPasswordAuthentication: the proof reads one line
+// of `sshd -T`, so that line has to be there, spelled as parsed.
+func TestSshdTOnARealMachineNamesPasswordAuthentication(t *testing.T) {
+	m := testMachine(t)
+
+	client, _, err := Dial(context.Background(), m, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close()
+
+	out, err := client.Run(context.Background(), AsRoot(effectiveConfigScript))
+	if err != nil {
+		t.Fatalf("sshd -T failed on a real machine: %v", err)
+	}
+	if !strings.Contains(out, "\npasswordauthentication ") {
+		t.Fatalf("sshd -T does not print passwordauthentication:\n%s", out)
 	}
 }

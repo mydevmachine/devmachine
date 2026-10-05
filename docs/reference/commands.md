@@ -33,7 +33,7 @@ your provider's dashboard. Say no and nothing is sent or changed.
 Then it gets the server ready, in order: try the key; if that fails, ask
 for the password (never shown on screen); install the key; open a **new
 connection using only the key** to prove it works; turn password login
-off; install Ansible. The new machine is written with the `essentials`
+off, and ask SSH (`sshd -T`) that it really is off; install Ansible. The new machine is written with the `essentials`
 package (base, git, firewall, ssh_hardening, caddy and devmachine-app — see
 [what a new machine starts with](../how-it-works/what-a-new-machine-starts-with.md)),
 so the first `sync` installs them; `--no-essentials` leaves it with none. Only a pinned package

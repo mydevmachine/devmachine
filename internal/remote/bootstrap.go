@@ -189,7 +189,8 @@ fi
 systemctl reload sshd
 `
 
-// Harden turns password login off, and validates before reloading.
+// Harden turns password login off, validates before reloading, and then asks
+// sshd whether passwords really are off.
 //
 // A configuration sshd refuses plus a reload is a machine nobody can reach
 // again, so validation is not a courtesy: it is the only thing between a typo
@@ -213,7 +214,55 @@ func Harden(ctx context.Context, c Client) error {
 	if _, err := c.Run(ctx, AsRoot(reloadScript)); err != nil {
 		return fmt.Errorf("reloading sshd: %w", err)
 	}
-	return nil
+	return provePasswordLoginOff(ctx, c)
+}
+
+// effectiveConfigScript prints the configuration sshd runs with, every
+// drop-in applied.
+const effectiveConfigScript = `set -eu
+PATH="$PATH:/usr/sbin:/sbin"
+export PATH
+sshd -T
+`
+
+// provePasswordLoginOff asks sshd, not the file, whether passwords are off.
+//
+// A drop-in can be valid and still never read: an sshd_config with no Include
+// of sshd_config.d, or one that sets PasswordAuthentication before the
+// Include. Without this, "password login is off" would be said of a machine
+// that still takes passwords.
+func provePasswordLoginOff(ctx context.Context, c Client) error {
+	effective, err := c.Run(ctx, AsRoot(effectiveConfigScript))
+	if err != nil {
+		return fmt.Errorf("asking sshd -T whether password login is off: %w", err)
+	}
+	if passwordLoginOff(effective) {
+		return nil
+	}
+
+	// A file that does not do what it says misleads whoever reads it next.
+	if _, err := c.Run(ctx, AsRoot("rm -f "+hardeningDropInPath)); err != nil {
+		return fmt.Errorf("sshd still allows passwords and %s could not be taken away again (%w): "+
+			"remove it by hand", hardeningDropInPath, err)
+	}
+	if _, err := c.Run(ctx, AsRoot(reloadScript)); err != nil {
+		return fmt.Errorf("sshd still allows passwords, and reloading it without %s failed: %w",
+			hardeningDropInPath, err)
+	}
+	return fmt.Errorf("the drop-in was written but sshd still allows passwords: %s is not read by this sshd",
+		hardeningDropInPath)
+}
+
+// passwordLoginOff reads `sshd -T` output, which prints every directive in
+// lower case, once, with the value sshd settled on.
+func passwordLoginOff(effective string) bool {
+	for _, line := range strings.Split(effective, "\n") {
+		key, value, ok := strings.Cut(strings.TrimSpace(line), " ")
+		if ok && strings.EqualFold(key, "passwordauthentication") {
+			return strings.EqualFold(strings.TrimSpace(value), "no")
+		}
+	}
+	return false
 }
 
 // OSReleaseCommand reads the file that says which distribution a machine is.

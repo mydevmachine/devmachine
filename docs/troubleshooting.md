@@ -283,6 +283,27 @@ connection you already trust, list every key with
 check the line of the same type. Only a mismatch of the same type means
 something changed.
 
+## "the drop-in was written but sshd still allows passwords"
+
+```
+the drop-in was written but sshd still allows passwords: /etc/ssh/sshd_config.d/00-devmachine-hardening.conf is not read by this sshd
+```
+
+**What it means:** `setup` wrote the file that turns password login off,
+SSH accepted it and was reloaded, and then `sshd -T` — the settings SSH
+really runs with — still said `passwordauthentication yes`. SSH never
+reads that file. Usually the main `/etc/ssh/sshd_config` has no `Include
+/etc/ssh/sshd_config.d/*.conf` line, or sets `PasswordAuthentication yes`
+above it (SSH keeps the first value it finds). The CLI removed the file
+again and reloaded SSH, so the server is as it was: the key is installed
+and proved, and **password login is still on**.
+
+**What to do:** On the server, look at the top of `/etc/ssh/sshd_config`.
+Add `Include /etc/ssh/sshd_config.d/*.conf` as the first line if it is
+missing, or remove the `PasswordAuthentication yes` above it. Then run
+`setup` again. To go on without hardening for now, run it with
+`--no-harden`; password login stays on until `sshd_config` is fixed.
+
 ## "Missing privilege separation directory: /run/sshd"
 
 **What it means:** `sshd -t`, which checks the SSH configuration before

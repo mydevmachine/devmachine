@@ -101,6 +101,17 @@ settings as `60-cloudimg-settings.conf`; a file named `99-` would read
 after it and **silently do nothing** — no warning, password login still
 on despite a successful run.
 
+### Then it asks SSH, not the file
+
+A valid file is not proof that SSH reads it. A server whose main
+`sshd_config` has no `Include` line for `sshd_config.d`, or sets
+`PasswordAuthentication yes` above that line, accepts the file and ignores
+it. So after the reload `setup` runs `sshd -T`, which prints the settings
+SSH is really running with, and requires `passwordauthentication no`. If
+SSH still allows passwords, the file is removed, SSH is reloaded without
+it, and `setup` stops — it never says "password login is off" about a
+server that still takes passwords.
+
 ## An admin login that is not root
 
 Many servers arrive with root closed and an ordinary account that has
