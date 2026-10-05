@@ -13,9 +13,11 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/mydevmachine/devmachine/internal/aliases"
 	"github.com/mydevmachine/devmachine/internal/config"
+	"github.com/mydevmachine/devmachine/internal/facts"
 	"github.com/mydevmachine/devmachine/internal/hostkeys"
 	"github.com/mydevmachine/devmachine/internal/keys"
 	"github.com/mydevmachine/devmachine/internal/packages"
@@ -218,7 +220,7 @@ func runSetup(ctx context.Context, dir string, in io.Reader, out io.Writer, opts
 	}
 	fmt.Fprintf(out, "\nwrote %s\n\n", path)
 
-	if err := bootstrap(ctx, out, m, key, opts.noHarden, askingPassword(r, in, out)); err != nil {
+	if err := bootstrap(ctx, out, dir, m, key, opts.noHarden, askingPassword(r, in, out)); err != nil {
 		return err
 	}
 	if err := offerSSHAliases(r, out, dir, opts.noAliases, opts.yes); err != nil {
@@ -402,6 +404,7 @@ func prepareExisting(ctx context.Context, dir string, out io.Writer, name string
 	if err := installAnsible(ctx, client, out); err != nil {
 		return err
 	}
+	facts.Record(ctx, dir, m.Name, client, time.Now())
 	return nil
 }
 
@@ -816,7 +819,7 @@ func askForKey(r *bufio.Reader, out io.Writer, dir, machine string) (chosenKey, 
 // The order is the whole point and is not negotiable: prove the key on a
 // connection of its own before turning password login off. The other way round
 // is locking the door with the key still inside.
-func bootstrap(ctx context.Context, out io.Writer, m config.Machine, key chosenKey, noHarden bool,
+func bootstrap(ctx context.Context, out io.Writer, dir string, m config.Machine, key chosenKey, noHarden bool,
 	password passwordSource) error {
 	client, address, err := dialWith(ctx, m, m.User, key.auth())
 	unproved := false
@@ -879,7 +882,11 @@ func bootstrap(ctx context.Context, out io.Writer, m config.Machine, key chosenK
 
 	// The last thing done by hand. From here on everything is a play.
 	fmt.Fprintf(out, "installing Ansible...\n")
-	return installAnsible(ctx, client, out)
+	if err := installAnsible(ctx, client, out); err != nil {
+		return err
+	}
+	facts.Record(ctx, dir, m.Name, client, time.Now())
+	return nil
 }
 
 // installWithPassword is the branch for a machine as it was bought: a root

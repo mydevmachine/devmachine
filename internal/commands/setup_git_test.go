@@ -339,7 +339,7 @@ func TestSetupGitWritesTheIgnoreFileIntoADirectoryThatIsAlreadyARepository(t *te
 	if err != nil {
 		t.Fatalf("no .gitignore in a directory that was already a repository: %v", err)
 	}
-	for _, want := range []string{"keys/", "secrets.json", "cache/", "history.log", "*.env"} {
+	for _, want := range []string{"keys/", "secrets.json", "cache/", "history.log", "*.env", "state/"} {
 		if !strings.Contains(string(body), want) {
 			t.Fatalf("the ignore file leaves out %q:\n%s", want, body)
 		}

@@ -9,11 +9,13 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/mydevmachine/devmachine/internal/aliases"
 	"github.com/mydevmachine/devmachine/internal/config"
 	"github.com/mydevmachine/devmachine/internal/credentials"
 	"github.com/mydevmachine/devmachine/internal/dns"
+	"github.com/mydevmachine/devmachine/internal/facts"
 	"github.com/mydevmachine/devmachine/internal/hostkeys"
 	"github.com/mydevmachine/devmachine/internal/packages"
 	"github.com/mydevmachine/devmachine/internal/provision"
@@ -151,6 +153,7 @@ func RunWithScanner(ctx context.Context, dir, machine string, dial Dialer, scan 
 		Detail: fmt.Sprintf("connected through %s", address),
 	})
 	checks = append(checks, remoteChecks(ctx, client)...)
+	facts.Record(ctx, dir, m.Name, client, time.Now())
 	checks = append(checks, sshAliasesCheck(cfg))
 	checks = append(checks, credentialChecks(ctx, client, wanted)...)
 	return append(checks, dnsChecks(ctx, dir, m.Name, baseOf(m), client)...)
@@ -296,6 +299,7 @@ func selfChecks(ctx context.Context, dir string, m config.Machine, dial Dialer, 
 	}
 
 	checks = append(checks, selfAnsibleCheck(ctx, client))
+	facts.Record(ctx, dir, m.Name, client, time.Now())
 
 	base := baseOf(m)
 	if base == "" {

@@ -263,6 +263,7 @@ list --format json`) wins over it.
 
 ```
 devmachine machines list                  each machine, its addresses, port, location and workspaces
+devmachine machines show [name]           one machine, and what it runs as setup, sync or doctor last read it
 devmachine machines add [--location l] [--no-harden] [--no-essentials] [--no-aliases] [--yes]   set up another server and record it
 devmachine machines add --self <name> [--location l]   add your computer as a machine, with no address
 devmachine machines add --name <n> --address <a> --fingerprint <SHA256:…> [--user u] [--port p] [--key new|file|agent:<SHA256:…>] [--location l] [--password-stdin] [--tailscale]   the same, asking nothing
@@ -290,6 +291,43 @@ none), and `self: true` on your own computer. Without `--format json`,
 same machine entries. **Your computer is never picked by default** — a
 command with no `--machine` still acts on the server, even with a self
 machine also configured.
+
+`show` prints one machine — the one named, or the one `--machine` or the
+configuration picks — with what `setup`, `sync` or `doctor` last read
+from it: the system, distribution and version, architecture, package
+manager, init system, where `ansible-playbook` is, and the `PATH` prefix
+`run` uses. It does not connect; `devmachine doctor --machine <name>`
+reads the machine again. `devmachine --format json machines show <name>`
+prints the same entry as `list --format json`, plus `observed`:
+
+```json
+{
+  "name": "studio",
+  "hosts": ["203.0.113.10"],
+  "admin_user": "alice",
+  "port": 22,
+  "workspaces": [],
+  "packages": ["mac-ports"],
+  "location": "external",
+  "observed": {
+    "observed_at": "2026-10-05T15:22:00-03:00",
+    "system": "Darwin",
+    "os_family": "Darwin",
+    "distribution": "MacOSX",
+    "distribution_version": "15.7.9",
+    "pkg_mgr": "macports",
+    "service_mgr": "launchd",
+    "architecture": "x86_64",
+    "ansible_playbook": "/opt/local/bin/ansible-playbook-3.14",
+    "path_prefix": ["/opt/local/bin", "/opt/local/sbin"]
+  }
+}
+```
+
+A machine no command has read yet has no `observed` key. The names
+follow Ansible's facts; `path_prefix` is `[]` on Linux. Why this lives
+beside `config.yml` and not in it: [what the CLI knows about a
+machine](../how-it-works/what-the-cli-knows-about-a-machine.md).
 
 `edit` changes a machine's `settings:` and nothing else, the way
 `workspaces edit` does for a workspace. `--set <package>.<name>=<value>`

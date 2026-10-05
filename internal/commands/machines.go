@@ -27,6 +27,7 @@ func newMachinesCmd(opts *options) *cobra.Command {
 	}
 	cmd.AddCommand(
 		newMachinesListCmd(opts),
+		newMachinesShowCmd(opts),
 		newMachinesAddCmd(opts),
 		newMachinesTrustCmd(opts),
 		newMachinesScanCmd(opts),
@@ -509,7 +510,7 @@ func runMachinesAdd(ctx context.Context, dir string, in io.Reader, out io.Writer
 	// The machine is written only after the bootstrap proved the key. Written
 	// first, a failed run left an entry behind, and running again to fix it
 	// was refused as a name already configured.
-	if err := bootstrap(ctx, out, m, key, opts.noHarden, password); err != nil {
+	if err := bootstrap(ctx, out, dir, m, key, opts.noHarden, password); err != nil {
 		return err
 	}
 	if err := keepHostKey(m, trusted); err != nil {

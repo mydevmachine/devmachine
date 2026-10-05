@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/mydevmachine/devmachine/internal/config"
+	"github.com/mydevmachine/devmachine/internal/facts"
 	"github.com/mydevmachine/devmachine/internal/packages"
 	"github.com/mydevmachine/devmachine/internal/provision"
 	"github.com/mydevmachine/devmachine/internal/remote"
@@ -165,6 +166,7 @@ func (p preparedSync) apply(ctx context.Context, opts *options, check bool, tags
 		return provision.Result{}, err
 	}
 	defer client.Close()
+	facts.Record(ctx, p.dir, p.machine.Name, client, time.Now())
 
 	result, runErr := provisionerFor(client).Apply(ctx, p.plan, provision.Options{
 		Check: check, Tags: tags, Out: out,

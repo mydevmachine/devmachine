@@ -15,6 +15,7 @@ import (
 
 	"github.com/mydevmachine/devmachine/internal/aliases"
 	"github.com/mydevmachine/devmachine/internal/config"
+	"github.com/mydevmachine/devmachine/internal/facts"
 	"github.com/mydevmachine/devmachine/internal/hostkeys"
 	"github.com/mydevmachine/devmachine/internal/keys"
 	"github.com/mydevmachine/devmachine/internal/remote"
@@ -32,6 +33,8 @@ func (nopClient) Run(_ context.Context, command string) (string, error) {
 		return "Linux\n", nil
 	case remote.OSReleaseCommand:
 		return "ID=debian\n", nil
+	case facts.ObserveCommand:
+		return "kernel=Linux\nmachine=x86_64\nansible_playbook=/usr/bin/ansible-playbook\nos-release.ID=debian\n", nil
 	}
 	return "", nil
 }
@@ -239,6 +242,26 @@ func TestSetupWithExistingConfigurationOnlyPreparesTheSelectedMachine(t *testing
 	}
 	if !strings.Contains(out, "without rewriting") || !strings.Contains(out, "Ansible") {
 		t.Fatalf("setup did not explain the resume path: %q", out)
+	}
+	if got, found, _ := facts.Load(dir, "sandbox"); !found || got.Distribution != "Debian" {
+		t.Fatalf("setup kept no facts about the machine it prepared: %#v", got)
+	}
+	if _, found, _ := facts.Load(dir, "main"); found {
+		t.Fatal("setup kept facts about a machine it did not reach")
+	}
+}
+
+func TestSetupKeepsWhatItReadAboutANewMachine(t *testing.T) {
+	stubBootstrap(t, bootstrapStubs{keyWorks: true})
+	dir := t.TempDir()
+
+	if _, err := runSetupIn(t, dir,
+		answers("main", "203.0.113.10", "root", "22", "", "1"), setupOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	got, found, err := facts.Load(dir, "main")
+	if err != nil || !found || got.PkgMgr != "apt" || got.AnsiblePlaybook != "/usr/bin/ansible-playbook" {
+		t.Fatalf("found=%v err=%v %#v", found, err, got)
 	}
 }
 
