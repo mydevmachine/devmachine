@@ -150,6 +150,39 @@ func TestMachinesShowRefusesAMachineThatIsNotConfigured(t *testing.T) {
 	}
 }
 
+// failingObserve is a machine whose read of what it runs fails.
+type failingObserve struct{ factsRemote }
+
+func (failingObserve) Run(_ context.Context, command string) (string, error) {
+	if command == facts.ObserveCommand {
+		return "", errors.New("connection reset")
+	}
+	return "", nil
+}
+
+func TestSyncFallsBackToTheSavedFactsWhenTheReadFails(t *testing.T) {
+	dir := t.TempDir()
+	saveFacts(t, dir, "studio", observedMac)
+
+	observed, fresh := observedForSync(context.Background(), dir, "studio", failingObserve{})
+
+	if fresh {
+		t.Fatal("a failed read was reported as fresh")
+	}
+	m := config.Machine{Name: "studio"}
+	if got := ansiblePlaybookFor(m, observed); got != observedMac.AnsiblePlaybook {
+		t.Fatalf("ansible-playbook = %q, want the saved %q", got, observedMac.AnsiblePlaybook)
+	}
+}
+
+func TestSyncUsesAFreshReadWhenItWorks(t *testing.T) {
+	observed, fresh := observedForSync(context.Background(), t.TempDir(), "arch", factsRemote{observed: archObserved})
+
+	if !fresh || observed.System != "Linux" {
+		t.Fatalf("observed = %+v, fresh = %v", observed, fresh)
+	}
+}
+
 func TestSyncKeepsWhatItReadAboutTheMachine(t *testing.T) {
 	stubSync(t)
 	dialing(t, factsRemote{observed: archObserved})

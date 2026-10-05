@@ -171,7 +171,7 @@ func (p preparedSync) apply(ctx context.Context, opts *options, check bool, tags
 		return provision.Result{}, err
 	}
 	defer client.Close()
-	observed, ok := facts.Record(ctx, p.dir, p.machine.Name, client, time.Now())
+	observed, ok := observedForSync(ctx, p.dir, p.machine.Name, client)
 	if ok {
 		if err := refuseForeignPackages(p.plan, p.machine.Name, observed.Platform()); err != nil {
 			return provision.Result{}, err
@@ -328,6 +328,20 @@ func reportSync(cmd *cobra.Command, opts *options, cfg config.Config, machine st
 func writeLine(out io.Writer, line string) error {
 	_, err := fmt.Fprintln(out, line)
 	return err
+}
+
+// observedForSync is a fresh read of the machine, or, when that read fails,
+// what was saved before: a Mac's ansible-playbook is not on an SSH session's
+// PATH, so losing the saved path would break the sync. fresh is false then.
+func observedForSync(ctx context.Context, dir, machine string, client remote.Client) (observed facts.Facts, fresh bool) {
+	if observed, ok := facts.Record(ctx, dir, machine, client, time.Now()); ok {
+		return observed, true
+	}
+	saved, found, err := facts.Load(dir, machine)
+	if err != nil || !found {
+		return facts.Facts{}, false
+	}
+	return saved, false
 }
 
 // ansiblePlaybookFor is the absolute ansible-playbook a Mac reached over SSH
