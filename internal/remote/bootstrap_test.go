@@ -392,6 +392,21 @@ func TestHardenTakesTheDropInBackWhenSshdStillAllowsPasswords(t *testing.T) {
 	}
 }
 
+// TestHardenReadsSshdTInEitherCase: OpenSSH 10 on Arch prints
+// "PasswordAuthentication no"; older versions print it in lower case.
+func TestHardenReadsSshdTInEitherCase(t *testing.T) {
+	for _, answer := range []string{"PasswordAuthentication no\n", "passwordauthentication no\n"} {
+		c := &recordingClient{output: map[string]string{AsRoot(effectiveConfigScript): "Port 22\n" + answer}}
+		if err := Harden(context.Background(), c); err != nil {
+			t.Fatalf("%q: %v", answer, err)
+		}
+	}
+	c := &recordingClient{output: map[string]string{AsRoot(effectiveConfigScript): "Port 22\nPasswordAuthentication yes\n"}}
+	if err := Harden(context.Background(), c); err == nil {
+		t.Fatal("CamelCase yes was read as no")
+	}
+}
+
 func TestHardenSaysSoWhenSshdCannotPrintItsConfiguration(t *testing.T) {
 	c := &recordingClient{failOn: "sshd -T"}
 	err := Harden(context.Background(), c)
@@ -754,7 +769,7 @@ func TestSshdTOnARealMachineNamesPasswordAuthentication(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sshd -T failed on a real machine: %v", err)
 	}
-	if !strings.Contains(out, "\npasswordauthentication ") {
+	if !strings.Contains(strings.ToLower(out), "\npasswordauthentication ") {
 		t.Fatalf("sshd -T does not print passwordauthentication:\n%s", out)
 	}
 }

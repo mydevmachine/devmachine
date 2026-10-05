@@ -253,8 +253,9 @@ func provePasswordLoginOff(ctx context.Context, c Client) error {
 		hardeningDropInPath)
 }
 
-// passwordLoginOff reads `sshd -T` output, which prints every directive in
-// lower case, once, with the value sshd settled on.
+// passwordLoginOff reads `sshd -T` output, which prints every directive once,
+// with the value sshd settled on. OpenSSH 10 prints the names in CamelCase
+// where older versions print them in lower case, so case is ignored.
 func passwordLoginOff(effective string) bool {
 	for _, line := range strings.Split(effective, "\n") {
 		key, value, ok := strings.Cut(strings.TrimSpace(line), " ")
