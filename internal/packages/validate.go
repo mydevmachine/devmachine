@@ -442,7 +442,11 @@ func validateCredentials(m Manifest) []Problem {
 func scanForApt(dir string) ([]Problem, error) {
 	var problems []Problem
 
-	err := filepath.WalkDir(dir, func(path string, entry fs.DirEntry, err error) error {
+	dir, err := filepath.EvalSymlinks(dir)
+	if err != nil {
+		return nil, fmt.Errorf("resolving %s: %w", dir, err)
+	}
+	err = filepath.WalkDir(dir, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil || entry.IsDir() {
 			return err
 		}

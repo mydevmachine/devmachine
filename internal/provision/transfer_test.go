@@ -91,6 +91,23 @@ func TestTarCarriesGeneratedFilesAndWholeDirectories(t *testing.T) {
 	}
 }
 
+func TestTarFollowsADirectoryThatIsASymlink(t *testing.T) {
+	real := t.TempDir()
+	write(t, filepath.Join(real, "tasks", "main.yml"), "---\n")
+	link := filepath.Join(t.TempDir(), "base")
+	if err := os.Symlink(real, link); err != nil {
+		t.Fatal(err)
+	}
+
+	reader, err := Tar(nil, map[string]string{"roles/base": link})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := namesInTarball(t, reader); !slices.Contains(got, "roles/base/tasks/main.yml") {
+		t.Fatalf("the linked directory's files are missing: %v", got)
+	}
+}
+
 func TestTarKeepsAnExecutableBitOnAScript(t *testing.T) {
 	source := t.TempDir()
 	writeMode(t, filepath.Join(source, "files", "resume"), "#!/bin/sh\n", 0o755)

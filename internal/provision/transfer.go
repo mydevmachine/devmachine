@@ -64,6 +64,12 @@ func addDir(archive *tar.Writer, prefix, source string) error {
 	if _, err := os.Stat(source); err != nil {
 		return fmt.Errorf("reading %s: %w", source, err)
 	}
+	// WalkDir does not follow a root that is a symlink, as a local package
+	// linked into the configuration's packages directory is.
+	source, err := filepath.EvalSymlinks(source)
+	if err != nil {
+		return fmt.Errorf("resolving %s: %w", source, err)
+	}
 
 	return filepath.WalkDir(source, func(current string, entry fs.DirEntry, err error) error {
 		if err != nil {
