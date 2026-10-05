@@ -6,7 +6,39 @@ own account on the server, called a workspace, with its own tools and logins.
 You need a Debian or Ubuntu VPS you can reach as root over SSH, and a Mac or
 Linux computer.
 
-Three commands:
+Pick how to start. Both end in the same place: the CLI installed, your
+server connected, and a workspace to code in.
+
+- **[With the macOS app](#with-the-macos-app)** — a window walks you
+  through it. macOS 14 or later.
+- **[With the CLI](#with-the-cli)** — three commands in a terminal. Mac or
+  Linux.
+
+## With the macOS app
+
+1. Download [Devmachine.dmg](https://github.com/mydevmachine/app-releases/releases/latest/download/Devmachine.dmg),
+   open it, and drag Devmachine to Applications. With Homebrew:
+   `brew install --cask mydevmachine/tap/devmachine-app`.
+2. Open Devmachine and click **Set up devmachine**. It installs the CLI,
+   then runs `devmachine setup` in a terminal inside the window: give it
+   your server's address, check the fingerprint, and say yes to the SSH
+   host entries (the app connects through them). Then it adds the
+   `devmachine-app` package to the server and runs `sync`. You see every
+   command as it runs.
+3. When it says **Devmachine is ready**, click **Restart Devmachine**.
+4. Create your first workspace from any terminal:
+
+   ```
+   devmachine workspaces new acme && devmachine sync
+   ```
+
+   It shows up in the app's sidebar. Click it to open a terminal in it.
+
+A step failed? Click **Try again**, or, if Claude Code or Codex is on your
+Mac, ask it to fix the step for you. More about the app:
+[mydevmachine.sh/app](https://mydevmachine.sh/app/).
+
+## With the CLI
 
 ```
 curl -fsSL https://mydevmachine.sh/install.sh | sh
@@ -87,7 +119,7 @@ really means.
 - **GitHub, signed in once for every workspace:** `devmachine login gh`, then
   `devmachine sync`. See [credentials](concepts/credentials.md).
 - **Docker:** `devmachine packages add docker`, then let the workspace use it
-  with `devmachine workspaces edit acme --set workspace.groups=[docker]`,
+  with `devmachine workspaces edit acme --set 'workspace.groups=[docker]'`,
   then `devmachine sync`.
 - **Anything else:** `devmachine packages list` shows what is available.
   [Packages](concepts/packages.md) says how to add one or write your own.
