@@ -7,6 +7,19 @@ page](https://github.com/mydevmachine/devmachine/releases).
 
 To get the latest version, see [Upgrade](upgrade.md).
 
+## v0.7.31 — 2026-10-05
+
+### Added
+
+- `update --no-machines` brings the CLI, the packages pin and the skills up
+  to date and stops there: no doctor, no sync, no question. `--format json`
+  reports each step.
+- `packages outdated` says which packages release you pin and whether a
+  newer one is out.
+- A short hint, at most once a day and on the first run of a new CLI
+  version, when a newer packages release is out: `run devmachine update`.
+  `DEVMACHINE_NO_UPDATE_HINT=1` turns it off.
+
 ## v0.7.30 — 2026-10-05
 
 ### Added
