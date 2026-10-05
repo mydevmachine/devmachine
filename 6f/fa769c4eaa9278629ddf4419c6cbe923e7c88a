@@ -1,0 +1,47 @@
+internal/commands/machines_location_test.go
+  s_e501c321413d86::t_8163c8deefde25 1-385
+internal/config/location_test.go
+  s_e501c321413d86::t_54ad4f8819d8fb 1-195
+docs/concepts/configuration.md
+  s_e501c321413d86::t_5f3ac0b2de8c39 64,95-97,170-171
+docs/how-it-works/machine-location.md
+  s_e501c321413d86::t_1bff927d2ceb77 1-36
+docs/index.md
+  s_e501c321413d86::t_e89b3eb5cf647d 107-108
+docs/reference/commands.md
+  s_e501c321413d86::t_b07b630b008945 83,261-264,267,269,282-285,296-306,430-432,438
+docs/troubleshooting.md
+  s_e501c321413d86::t_f426fac47e28fa 279-290
+internal/commands/autocommit_test.go
+  s_e501c321413d86::t_4714ecec7492ba 75
+internal/commands/config.go
+  s_e501c321413d86::t_3b32956a6e2d87 107,167
+internal/commands/machines.go
+  s_e501c321413d86::t_954f493d22d30a 12,14,62,67-103,127,157-159,165-169,187,207-210,218,225-228,231,237,261-268,270,280,305-313,319-321,325-346,400-403,455-460,614-627,659,669,689-690,705-709,762-764,768-776,858-859,863-864
+internal/commands/machines_add_test.go
+  s_e501c321413d86::t_cac6734ab44466 70
+internal/commands/machines_test.go
+  s_e501c321413d86::t_a76edaf4af7c75 75,103,137,268
+internal/commands/setup.go
+  s_e501c321413d86::t_e486dbf30dc787 80-82,1025,1050
+internal/config/config.go
+  s_e501c321413d86::t_7f3fa05e145a7f 122-124,492-494,978,991,1086-1104
+internal/config/location.go
+  s_e501c321413d86::t_5a7be77160719b 1-44
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6ffa769c4eaa9278629ddf4419c6cbe923e7c88a",
+  "prompts": {},
+  "sessions": {
+    "s_e501c321413d86": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c1c8a0b3-c0c2-4808-a1ec-80e4f419df68",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
