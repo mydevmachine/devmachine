@@ -3,6 +3,7 @@ package provision
 import (
 	"errors"
 	"flag"
+	"fmt"
 	"maps"
 	"os"
 	osuser "os/user"
@@ -643,7 +644,7 @@ func TestGenerateInstallsSkillsOnlyForWorkspacesSelectingThePackage(t *testing.T
 		t.Fatal(err)
 	}
 	playbook := string(files["site.yml"])
-	for _, want := range []string{workspaceHome + "/.agents/skills/workflow", "global-skills", "remote_src: true"} {
+	for _, want := range []string{workspaceHome(skillAccountsVar("global-skills")) + "/.agents/skills/workflow", "global-skills", "remote_src: true"} {
 		if !strings.Contains(playbook, want) {
 			t.Fatalf("%q is missing:\n%s", want, playbook)
 		}
@@ -693,6 +694,46 @@ func TestGenerateCreatesClaudeLinksOnlyWhereClaudeCodeIsSelected(t *testing.T) {
 	t.Fatal("no Claude skill link task was generated")
 }
 
+// TestGenerateReadsEachWorkspaceAccountBeforeItsSkills: a Mac's homes are in
+// /Users with no group per user, so the home and gid come from the account
+// itself, kept per package so one workspace never gets another's.
+func TestGenerateReadsEachWorkspaceAccountBeforeItsSkills(t *testing.T) {
+	plan := planWith(t, "main", nil, map[string][]string{
+		"alice": {"claude-code", "global-skills"},
+		"bob":   {"claude-code", "global-skills"},
+	})
+	files, err := Generate(plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tasks := tasksIn(t, files["site.yml"])
+	accounts := skillAccountsVar("global-skills")
+	read := -1
+	for i, task := range tasks {
+		if task["register"] == accounts {
+			read = i
+			user := task["user"].(map[string]any)
+			if user["name"] != "{{ devmachine_workspace.user }}" || task["check_mode"] != true || task["changed_when"] != false {
+				t.Fatalf("the account read can change something: %#v", task)
+			}
+			if len(task["loop"].([]any)) != 2 {
+				t.Fatalf("it does not read every workspace: %#v", task["loop"])
+			}
+		}
+		if file, ok := task["file"].(map[string]any); ok && strings.Contains(fmt.Sprint(file["path"]), ".agents/skills") {
+			if read < 0 || read > i {
+				t.Fatalf("a skill task names a home before the account is read: %#v", task)
+			}
+			if !strings.Contains(fmt.Sprint(file["path"]), accounts+".results") {
+				t.Fatalf("the home is not the account's: %#v", file)
+			}
+		}
+	}
+	if read < 0 {
+		t.Fatalf("no task reads the accounts:\n%s", files["site.yml"])
+	}
+}
+
 func TestGenerateLinksSkillsForAntigravityAndCline(t *testing.T) {
 	plan := planWith(t, "main", nil, map[string][]string{
 		"alice": {"antigravity", "global-skills"},
@@ -702,7 +743,7 @@ func TestGenerateLinksSkillsForAntigravityAndCline(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	home := workspaceHome + "/"
+	home := workspaceHome(skillAccountsVar("global-skills")) + "/"
 	type want struct {
 		workspace string
 		dirs      []string
@@ -748,7 +789,7 @@ func TestGenerateLinksSkillsForAntigravityAndCline(t *testing.T) {
 			previous = at
 			task := tasks[at]
 			prepared := task["file"].(map[string]any)
-			if prepared["state"] != "directory" || prepared["owner"] != "{{ devmachine_workspace.user }}" || prepared["group"] != workspaceGroup {
+			if prepared["state"] != "directory" || prepared["owner"] != "{{ devmachine_workspace.user }}" || prepared["group"] != workspaceGroup(skillAccountsVar("global-skills")) {
 				t.Fatalf("%s is not a directory the workspace user owns: %#v", dir, prepared)
 			}
 			assertOnlyWorkspace(t, task, w.workspace)
