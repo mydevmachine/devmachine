@@ -86,7 +86,11 @@
         umask 077
         rel=$1
         user=$(id -un)
-        home=$(getent passwd "$user" | cut -d: -f6)
+        if command -v getent >/dev/null 2>&1; then
+          home=$(getent passwd "$user" | cut -d: -f6)
+        else
+          home=$(dscl . -read "/Users/$user" NFSHomeDirectory 2>/dev/null | cut -d" " -f2-)
+        fi
         outside() {
           echo "~/$rel reaches outside the home of $user through a symbolic link, so the shared login was not copied there" >&2
           exit 1

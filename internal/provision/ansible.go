@@ -402,6 +402,15 @@ func skillTasks(plan packages.MachinePlan, base string) (string, error) {
 	return out.String(), nil
 }
 
+// workspaceHome and workspaceGroup are a workspace account's home and primary
+// group in a generated task. Linux gets /home/<user> and a group named after
+// the user, as before; macOS puts homes in /Users and every account in staff,
+// with no group of the user's own name.
+const (
+	workspaceHome  = "{{ devmachine_workspace.home | default(('/Users/' if ansible_facts['system'] == 'Darwin' else '/home/') ~ devmachine_workspace.user) }}"
+	workspaceGroup = "{{ devmachine_workspace.group | default('staff' if ansible_facts['system'] == 'Darwin' else devmachine_workspace.user) }}"
+)
+
 func writeSkillDirectories(out *strings.Builder, contribution contributedSkills) {
 	name := contribution.found.Manifest.Name
 	for _, dir := range []struct {
@@ -409,12 +418,12 @@ func writeSkillDirectories(out *strings.Builder, contribution contributedSkills)
 		path  string
 		mode  string
 	}{
-		{"canonical skill directory", "/home/{{ devmachine_workspace.user }}/.agents/skills", "0755"},
-		{"skill ownership directory", "/home/{{ devmachine_workspace.user }}/.local/state/devmachine/skills", "0700"},
+		{"canonical skill directory", workspaceHome + "/.agents/skills", "0755"},
+		{"skill ownership directory", workspaceHome + "/.local/state/devmachine/skills", "0700"},
 	} {
 		fmt.Fprintf(out, "    - name: %s prepares the %s\n", name, dir.title)
 		fmt.Fprintf(out, "      file:\n        path: %q\n        state: directory\n", dir.path)
-		out.WriteString("        owner: \"{{ devmachine_workspace.user }}\"\n        group: \"{{ devmachine_workspace.user }}\"\n")
+		out.WriteString("        owner: \"{{ devmachine_workspace.user }}\"\n        group: \"" + workspaceGroup + "\"\n")
 		fmt.Fprintf(out, "        mode: %q\n", dir.mode)
 		writeSkillLoop(out, contribution.workspaces, false)
 		fmt.Fprintf(out, "      tags: [%s]\n\n", name)
@@ -430,14 +439,14 @@ func writeSkillDirectories(out *strings.Builder, contribution contributedSkills)
 		for level := 1; level < len(harness.dir); level++ {
 			parent := strings.Join(harness.dir[:level], "/")
 			fmt.Fprintf(out, "    - name: %s prepares ~/%s for %s skills\n", name, parent, harness.title)
-			fmt.Fprintf(out, "      file:\n        path: %q\n        state: directory\n", "/home/{{ devmachine_workspace.user }}/"+parent)
-			out.WriteString("        owner: \"{{ devmachine_workspace.user }}\"\n        group: \"{{ devmachine_workspace.user }}\"\n")
+			fmt.Fprintf(out, "      file:\n        path: %q\n        state: directory\n", workspaceHome+"/"+parent)
+			out.WriteString("        owner: \"{{ devmachine_workspace.user }}\"\n        group: \"" + workspaceGroup + "\"\n")
 			writeSkillLoop(out, workspaces, false)
 			fmt.Fprintf(out, "      tags: [%s]\n\n", name)
 		}
 		fmt.Fprintf(out, "    - name: %s prepares the %s skill directory\n", name, harness.title)
-		fmt.Fprintf(out, "      file:\n        path: %q\n        state: directory\n", "/home/{{ devmachine_workspace.user }}/"+strings.Join(harness.dir, "/"))
-		out.WriteString("        owner: \"{{ devmachine_workspace.user }}\"\n        group: \"{{ devmachine_workspace.user }}\"\n        mode: \"0755\"\n")
+		fmt.Fprintf(out, "      file:\n        path: %q\n        state: directory\n", workspaceHome+"/"+strings.Join(harness.dir, "/"))
+		out.WriteString("        owner: \"{{ devmachine_workspace.user }}\"\n        group: \"" + workspaceGroup + "\"\n        mode: \"0755\"\n")
 		writeSkillLoop(out, workspaces, false)
 		fmt.Fprintf(out, "      tags: [%s]\n\n", name)
 	}
@@ -446,8 +455,8 @@ func writeSkillDirectories(out *strings.Builder, contribution contributedSkills)
 func writeSkillConvergence(out *strings.Builder, contribution contributedSkills, skill agentskills.Skill, base string) {
 	pkg := contribution.found.Manifest.Name
 	sourceID := pkg
-	destination := "/home/{{ devmachine_workspace.user }}/.agents/skills/" + skill.Name
-	owner := "/home/{{ devmachine_workspace.user }}/.local/state/devmachine/skills/" + skill.Name + ".owner"
+	destination := workspaceHome + "/.agents/skills/" + skill.Name
+	owner := workspaceHome + "/.local/state/devmachine/skills/" + skill.Name + ".owner"
 	variable := strings.NewReplacer("-", "_", ".", "_").Replace(pkg + "_" + skill.Name)
 	destinationResult := "devmachine_skill_" + variable + "_destination"
 	ownerResult := "devmachine_skill_" + variable + "_owner"
@@ -482,13 +491,13 @@ func writeSkillConvergence(out *strings.Builder, contribution contributedSkills,
 
 	fmt.Fprintf(out, "    - name: %s installs the %s skill\n", pkg, skill.Name)
 	fmt.Fprintf(out, "      copy:\n        src: %q\n        dest: %q\n", RolePath(base, contribution.found.Source, pkg, contribution.found.Manifest.Skills.Path, skill.Name)+"/", destination+"/")
-	out.WriteString("        remote_src: true\n        owner: \"{{ devmachine_workspace.user }}\"\n        group: \"{{ devmachine_workspace.user }}\"\n        mode: preserve\n")
+	out.WriteString("        remote_src: true\n        owner: \"{{ devmachine_workspace.user }}\"\n        group: \"" + workspaceGroup + "\"\n        mode: preserve\n")
 	writeSkillLoop(out, contribution.workspaces, false)
 	fmt.Fprintf(out, "      tags: [%s]\n\n", pkg)
 
 	fmt.Fprintf(out, "    - name: %s records ownership of the %s skill\n", pkg, skill.Name)
 	fmt.Fprintf(out, "      copy:\n        content: %q\n        dest: %q\n", sourceID+"\n", owner)
-	out.WriteString("        owner: \"{{ devmachine_workspace.user }}\"\n        group: \"{{ devmachine_workspace.user }}\"\n        mode: \"0600\"\n")
+	out.WriteString("        owner: \"{{ devmachine_workspace.user }}\"\n        group: \"" + workspaceGroup + "\"\n        mode: \"0600\"\n")
 	writeSkillLoop(out, contribution.workspaces, false)
 	fmt.Fprintf(out, "      tags: [%s]\n\n", pkg)
 
@@ -498,11 +507,11 @@ func writeSkillConvergence(out *strings.Builder, contribution contributedSkills,
 			continue
 		}
 		src := strings.Repeat("../", len(harness.dir)) + ".agents/skills/" + skill.Name
-		dest := "/home/{{ devmachine_workspace.user }}/" + strings.Join(harness.dir, "/") + "/" + skill.Name
+		dest := workspaceHome + "/" + strings.Join(harness.dir, "/") + "/" + skill.Name
 		fmt.Fprintf(out, "    - name: %s links the %s skill for %s\n", pkg, skill.Name, harness.title)
 		fmt.Fprintf(out, "      file:\n        src: %q\n        dest: %q\n        state: link\n", src, dest)
 		out.WriteString("        force: \"{{ ansible_check_mode }}\"\n")
-		out.WriteString("        owner: \"{{ devmachine_workspace.user }}\"\n        group: \"{{ devmachine_workspace.user }}\"\n")
+		out.WriteString("        owner: \"{{ devmachine_workspace.user }}\"\n        group: \"" + workspaceGroup + "\"\n")
 		writeSkillLoop(out, workspaces, false)
 		fmt.Fprintf(out, "      tags: [%s]\n\n", pkg)
 	}

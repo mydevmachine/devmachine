@@ -15,6 +15,7 @@ import (
 
 	"github.com/mydevmachine/devmachine/internal/config"
 	"github.com/mydevmachine/devmachine/internal/expose"
+	"github.com/mydevmachine/devmachine/internal/facts"
 	"github.com/mydevmachine/devmachine/internal/keys"
 	"github.com/mydevmachine/devmachine/internal/remote"
 	"github.com/mydevmachine/devmachine/internal/repo"
@@ -500,7 +501,7 @@ func newWorkspacesDestroyCmd(opts *options) *cobra.Command {
 			}
 
 			cmd.Printf("This deletes, on %s:\n", machine.Name)
-			cmd.Printf("  the account %s and everything under /home/%s\n", user, user)
+			cmd.Printf("  the account %s and everything under %s\n", user, homeOf(user, observedSystem(dir, machine.Name)))
 			for _, r := range w.Routes {
 				if keepDNS {
 					cmd.Printf("  https://%s, which will stop answering (its DNS record stays: --keep-dns)\n", r.Host)
@@ -586,7 +587,7 @@ func newWorkspacesDestroyCmd(opts *options) *cobra.Command {
 				"fi"
 			if sitesErr == nil {
 				routesFile := path.Join(sitesDir, expose.WorkspaceFileName(w.Name))
-				script += "\nrm -f " + quoteForShell(routesFile) + " && (systemctl reload caddy || true)"
+				script += "\nrm -f " + quoteForShell(routesFile) + " && " + reloadCaddyScript()
 			}
 
 			out, err := client.Run(cmd.Context(), script)
@@ -948,7 +949,34 @@ func servingClients(ctx context.Context, dir string, cfg config.Config, w config
 		}
 		routesFile := path.Join(sitesDir, expose.WorkspaceFileName(w.Name))
 		out = append(out, servingClient{machine: m.Name, client: client,
-			script: "rm -f " + quoteForShell(routesFile) + " && (systemctl reload caddy || true)"})
+			script: "rm -f " + quoteForShell(routesFile) + " && " + reloadCaddyScript()})
 	}
 	return out, nil
+}
+
+// reloadCaddyScript reloads Caddy through systemd where there is one, and
+// through Caddy's own admin endpoint where there is not, as on a Mac. A Caddy
+// that answers neither does not stop what came before it.
+func reloadCaddyScript() string {
+	return "(systemctl reload caddy 2>/dev/null || caddy reload --config " + quoteForShell(expose.Caddyfile) +
+		" --adapter caddyfile 2>/dev/null || true)"
+}
+
+// homeOf is where an account's home is on a machine running system, as
+// facts name it: /Users on a Mac, /home anywhere else.
+func homeOf(user, system string) string {
+	if system == "Darwin" {
+		return "/Users/" + user
+	}
+	return "/home/" + user
+}
+
+// observedSystem is the system last read from a machine, empty when it was
+// never read.
+func observedSystem(dir, machine string) string {
+	f, found, err := facts.Load(dir, machine)
+	if err != nil || !found {
+		return ""
+	}
+	return f.System
 }

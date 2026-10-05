@@ -643,7 +643,7 @@ func TestGenerateInstallsSkillsOnlyForWorkspacesSelectingThePackage(t *testing.T
 		t.Fatal(err)
 	}
 	playbook := string(files["site.yml"])
-	for _, want := range []string{"/home/{{ devmachine_workspace.user }}/.agents/skills/workflow", "global-skills", "remote_src: true"} {
+	for _, want := range []string{workspaceHome + "/.agents/skills/workflow", "global-skills", "remote_src: true"} {
 		if !strings.Contains(playbook, want) {
 			t.Fatalf("%q is missing:\n%s", want, playbook)
 		}
@@ -702,7 +702,7 @@ func TestGenerateLinksSkillsForAntigravityAndCline(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	home := "/home/{{ devmachine_workspace.user }}/"
+	home := workspaceHome + "/"
 	type want struct {
 		workspace string
 		dirs      []string
@@ -748,7 +748,7 @@ func TestGenerateLinksSkillsForAntigravityAndCline(t *testing.T) {
 			previous = at
 			task := tasks[at]
 			prepared := task["file"].(map[string]any)
-			if prepared["state"] != "directory" || prepared["owner"] != "{{ devmachine_workspace.user }}" || prepared["group"] != "{{ devmachine_workspace.user }}" {
+			if prepared["state"] != "directory" || prepared["owner"] != "{{ devmachine_workspace.user }}" || prepared["group"] != workspaceGroup {
 				t.Fatalf("%s is not a directory the workspace user owns: %#v", dir, prepared)
 			}
 			assertOnlyWorkspace(t, task, w.workspace)

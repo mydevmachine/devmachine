@@ -47,7 +47,7 @@ while IFS="$sep" read -r key user place; do
 	path=$place
 	home=$HOME
 	if [ -n "$user" ]; then
-		home=$(getent passwd "$user" | cut -d: -f6)
+		` + remote.HomeLookup + `
 	fi
 	case "$path" in
 	'~/'*) path="$home/${path#'~/'}" ;;
