@@ -1,0 +1,23 @@
+docs/reference/package-format.md
+  s_87d72b62cfc5a1::t_59fba06d84b09c 73-75
+docs/index.md
+  s_87d72b62cfc5a1::t_59fba06d84b09c 114-116
+docs/how-it-works/packages-on-many-systems.md
+  s_87d72b62cfc5a1::t_8a964539a02821 1-205
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8cfd88cd7148da2c2f174e19418bd4aaece7b26d",
+  "prompts": {},
+  "sessions": {
+    "s_87d72b62cfc5a1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5e69ca1d-9900-4500-8ba7-104b479b47eb",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
