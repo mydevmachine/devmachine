@@ -11,8 +11,10 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/mydevmachine/devmachine/internal/config"
+	"github.com/mydevmachine/devmachine/internal/facts"
 	"github.com/mydevmachine/devmachine/internal/packages"
 	"github.com/mydevmachine/devmachine/internal/provision"
 	"github.com/mydevmachine/devmachine/internal/remote"
@@ -87,9 +89,20 @@ type observed struct {
 	PathPrefix      []string
 }
 
-// recordObserved keeps what the bootstrap reported for a machine. It is a
-// seam: the machine facts file is what holds it for later runs.
-var recordObserved = func(dir, machine string, o observed) error { return nil }
+// recordObserved keeps what the bootstrap reported in the machine's facts, so
+// sync calls Ansible by that path and run puts the prefix on PATH. A later
+// read that cannot find ansible-playbook keeps this one.
+var recordObserved = func(dir, machine string, o observed) error {
+	f, found, err := facts.Load(dir, machine)
+	if err != nil {
+		return err
+	}
+	if !found {
+		f.ObservedAt = time.Now().Truncate(time.Second)
+	}
+	_, err = facts.Save(dir, machine, facts.Reported(f, o.AnsiblePlaybook, o.PathPrefix))
+	return err
+}
 
 // prepareAnsible installs Ansible: from the CLI's own table on Linux, through
 // the package manager package's bootstrap on a Mac.

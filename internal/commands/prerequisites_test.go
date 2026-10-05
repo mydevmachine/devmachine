@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/mydevmachine/devmachine/internal/config"
+	"github.com/mydevmachine/devmachine/internal/facts"
 	"github.com/mydevmachine/devmachine/internal/remote"
 )
 
@@ -331,6 +332,27 @@ func TestSetupOnAMacWithHomebrewAddsMacBrewAndRunsItsBootstrap(t *testing.T) {
 	}
 	if !strings.Contains(out, "studio is already prepared: ansible-playbook is /opt/homebrew/bin/ansible-playbook.") {
 		t.Fatalf("got %s", out)
+	}
+}
+
+// TestSetupOnAMacKeepsWhatTheBootstrapReportedInTheFacts: sync finds
+// ansible-playbook by this path, since a plain SSH command does not.
+func TestSetupOnAMacKeepsWhatTheBootstrapReportedInTheFacts(t *testing.T) {
+	dir := macConfig(t, "    packages: [mac-ports]\n")
+	writeFakeBootstrap(t, dir, "mac-ports", "")
+	onAMac(t, &macClient{check: `{"missing":[]}`,
+		apply: `{"ansible_playbook":"/opt/local/bin/ansible-playbook-3.14","path_prefix":["/opt/local/bin","/opt/local/sbin"]}`})
+
+	if out, err := execute(t, "--config", dir, "setup"); err != nil {
+		t.Fatalf("setup returned %v (%s)", err, out)
+	}
+	got, found, err := facts.Load(dir, "studio")
+	if err != nil || !found {
+		t.Fatalf("no facts: %v", err)
+	}
+	if got.System != "Darwin" || got.PkgMgr != "macports" || got.AnsiblePlaybook != "/opt/local/bin/ansible-playbook-3.14" ||
+		!slices.Equal(got.PathPrefix, []string{"/opt/local/bin", "/opt/local/sbin"}) {
+		t.Fatalf("facts = %#v", got)
 	}
 }
 

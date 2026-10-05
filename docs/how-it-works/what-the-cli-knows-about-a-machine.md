@@ -42,6 +42,11 @@ reader never sees half of it.
   leave out the machine's system — see
   [troubleshooting](../troubleshooting.md#package-x-runs-on-linux-machine-y-is-macos).
   A machine nobody has read yet is not refused: its first `sync` reads it.
+- On a Mac reached over SSH, `sync` calls Ansible by `ansible_playbook`,
+  the absolute path the package manager package's bootstrap reported
+  during `setup`. A MacPorts install can name it `ansible-playbook-3.14`,
+  which no `PATH` would find. On Linux and on your own computer it is
+  `ansible-playbook` from `PATH`, as before.
 - An agent reads `observed` before it writes a `run` command, so it uses
   `pacman` on Arch, `apt` on Debian and `port` on a Mac.
 

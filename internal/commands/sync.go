@@ -171,14 +171,15 @@ func (p preparedSync) apply(ctx context.Context, opts *options, check bool, tags
 		return provision.Result{}, err
 	}
 	defer client.Close()
-	if observed, ok := facts.Record(ctx, p.dir, p.machine.Name, client, time.Now()); ok {
+	observed, ok := facts.Record(ctx, p.dir, p.machine.Name, client, time.Now())
+	if ok {
 		if err := refuseForeignPackages(p.plan, p.machine.Name, observed.Platform()); err != nil {
 			return provision.Result{}, err
 		}
 	}
 
 	result, runErr := provisionerFor(client).Apply(ctx, p.plan, provision.Options{
-		Check: check, Tags: tags, Out: out,
+		Check: check, Tags: tags, Out: out, AnsiblePlaybook: ansiblePlaybookFor(p.machine, observed),
 	})
 	record(opts, target{machine: p.machine}, syncCommandLine(check, tags), runErr == nil)
 	if runErr != nil {
@@ -327,4 +328,14 @@ func reportSync(cmd *cobra.Command, opts *options, cfg config.Config, machine st
 func writeLine(out io.Writer, line string) error {
 	_, err := fmt.Fprintln(out, line)
 	return err
+}
+
+// ansiblePlaybookFor is the absolute ansible-playbook a Mac reached over SSH
+// is run with: its PATH has neither Homebrew nor MacPorts. Anywhere else it is
+// empty, and ansible-playbook comes from PATH as it always has.
+func ansiblePlaybookFor(m config.Machine, observed facts.Facts) string {
+	if m.Self || observed.System != "Darwin" {
+		return ""
+	}
+	return observed.AnsiblePlaybook
 }

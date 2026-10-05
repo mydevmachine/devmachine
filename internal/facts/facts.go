@@ -235,6 +235,16 @@ func Record(ctx context.Context, dir, machine string, c remote.Client, now time.
 	return f, true
 }
 
+// Reported is f with what a Mac bootstrap's apply said: the ansible-playbook
+// to call and the folders to put first on PATH. A bootstrap only runs on a
+// Mac, so f is a Mac even when nothing was read before.
+func Reported(f Facts, playbook string, pathPrefix []string) Facts {
+	f.System, f.AnsiblePlaybook = "Darwin", playbook
+	darwinFacts(&f, f.DistributionVersion)
+	f.PathPrefix = orEmpty(pathPrefix)
+	return f
+}
+
 // keepReported keeps where the Mac bootstrap said Ansible is when this read
 // could not find it: a plain SSH command on a Mac may not, and a MacPorts
 // install can carry a Python suffix in its name.
