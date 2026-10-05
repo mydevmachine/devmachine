@@ -7,6 +7,16 @@ page](https://github.com/mydevmachine/devmachine/releases).
 
 To get the latest version, see [Upgrade](upgrade.md).
 
+## v0.7.30 — 2026-10-05
+
+### Added
+
+- Each machine has a location — where it is, such as `hostinger`, `home`
+  or `local`. Set it with `--location` on `machines add`, `machines
+  create-local` and `machines edit`; `machines add` asks for it, with
+  `external` as the default. `machines list` shows a LOCATION column, and
+  the JSON output reports it for every machine.
+
 ## v0.7.29 — 2026-10-03
 
 ### Added
