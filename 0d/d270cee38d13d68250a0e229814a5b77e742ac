@@ -9,6 +9,7 @@ internal/commands/setup.go
   s_87d72b62cfc5a1::t_7a0d758792e8bd 178-179,182,386-387,395-402,410,419-420,830
   s_87d72b62cfc5a1::t_911834fd987bad 226-232
   s_87d72b62cfc5a1::t_a582f9de37f3a3 338-350,353,359-360,362,364,366,368
+  s_87d72b62cfc5a1::t_01e9fdc8943f13 233,433,894
 docs/how-it-works/your-computer-as-a-machine.md
   s_87d72b62cfc5a1::t_4038e0d1982e88 42,46-65
 docs/how-it-works/what-a-machine-needs.md
@@ -32,6 +33,7 @@ docs/troubleshooting.md
   s_87d72b62cfc5a1::t_d1ad7663e6cd8f 325-408
 internal/commands/machines.go
   s_87d72b62cfc5a1::t_f7ad745c7b5a77 119-122,124-125,133,145,172-177,205-209,415-417,530-536
+  s_87d72b62cfc5a1::t_01e9fdc8943f13 537
 ---
 {
   "schema_version": "authorship/3.0.0",
