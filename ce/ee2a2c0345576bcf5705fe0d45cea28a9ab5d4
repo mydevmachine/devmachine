@@ -1,0 +1,30 @@
+docs/how-it-works/trust-bootstrap.md
+  s_87d72b62cfc5a1::t_f903a633d4d123 104-114
+internal/remote/bootstrap.go
+  s_87d72b62cfc5a1::t_37f2c0c15b02fb 192-193
+  s_87d72b62cfc5a1::t_465187509d8317 217-265
+docs/troubleshooting.md
+  s_87d72b62cfc5a1::t_f903a633d4d123 286-304,306
+  s_87d72b62cfc5a1::t_296eb0878ade09 305
+docs/reference/commands.md
+  s_87d72b62cfc5a1::t_f903a633d4d123 36
+internal/remote/bootstrap_test.go
+  s_87d72b62cfc5a1::t_f774f629319556 225,253,337-400,692
+  s_87d72b62cfc5a1::t_390c1c45358b25 741-760
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ceee2a2c0345576bcf5705fe0d45cea28a9ab5d4",
+  "prompts": {},
+  "sessions": {
+    "s_87d72b62cfc5a1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5e69ca1d-9900-4500-8ba7-104b479b47eb",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
