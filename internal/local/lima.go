@@ -45,11 +45,12 @@ const AdminUser = "root"
 //go:embed machine.yaml
 var machineTemplate []byte
 
-// Template is the Lima configuration a local machine is created from.
+// Template is the Lima configuration a local machine of that distro is
+// created from.
 //
 // It is the one recipe carried inside the binary, because it describes the
 // CLI's own machine rather than anything on a server.
-func Template() []byte { return machineTemplate }
+func Template(d Distro) []byte { return templates[d] }
 
 // Seams, so the tests can drive every branch without a VM.
 var (
@@ -77,7 +78,7 @@ func Available() error {
 //
 // Progress goes to out as it arrives: the first run downloads an image and
 // boots it, which looks stuck when nothing is printed.
-func Create(ctx context.Context, instance string, size Size, out io.Writer) (config.Machine, error) {
+func Create(ctx context.Context, instance string, distro Distro, size Size, out io.Writer) (config.Machine, error) {
 	if err := Available(); err != nil {
 		return config.Machine{}, err
 	}
@@ -94,7 +95,7 @@ func Create(ctx context.Context, instance string, size Size, out io.Writer) (con
 			instance, instance)
 	}
 
-	path, remove, err := writeTemplate(size)
+	path, remove, err := writeTemplate(distro, size)
 	if err != nil {
 		return config.Machine{}, err
 	}
@@ -176,8 +177,8 @@ func exists(ctx context.Context, instance string) bool {
 // returns the function that takes it away again.
 //
 // The extension matters: it is how limactl knows what the file is.
-func writeTemplate(size Size) (string, func(), error) {
-	body, err := Render(size)
+func writeTemplate(distro Distro, size Size) (string, func(), error) {
+	body, err := Render(distro, size)
 	if err != nil {
 		return "", nil, err
 	}

@@ -13,7 +13,7 @@ type Size struct {
 	DiskGiB   int
 }
 
-// DefaultSize is the size machine.yaml carries.
+// DefaultSize is the size every machine template carries.
 var DefaultSize = Size{CPUs: 2, MemoryGiB: 4, DiskGiB: 20}
 
 // MinDiskGiB leaves room for Ubuntu, Ansible and a workspace's packages; below
@@ -34,9 +34,12 @@ var (
 	diskLine   = regexp.MustCompile(`(?m)^disk: .*$`)
 )
 
-// Render is the Lima template with size in place of the default one.
-func Render(size Size) ([]byte, error) {
-	out := machineTemplate
+// Render is the distro's Lima template with size in place of the default one.
+func Render(distro Distro, size Size) ([]byte, error) {
+	out, ok := templates[distro]
+	if !ok {
+		return nil, fmt.Errorf("no machine template for %q", distro)
+	}
 	for _, r := range []struct {
 		line  *regexp.Regexp
 		value string

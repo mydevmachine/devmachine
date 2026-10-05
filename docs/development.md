@@ -42,6 +42,14 @@ scripts/fake-vps.sh ssh     a shell on it
 scripts/fake-vps.sh down    destroy it
 ```
 
+`DEVMACHINE_FAKE_VPS_DISTRO=arch` makes `up` create an Arch VM instead
+(`create-local --distro arch`). Give it its own name with
+`DEVMACHINE_FAKE_VPS`, so it does not take the place of the default one:
+
+```
+DEVMACHINE_FAKE_VPS=fakearch DEVMACHINE_FAKE_VPS_DISTRO=arch scripts/fake-vps.sh up
+```
+
 Without the VM those tests **skip**, so `make test` stays green anywhere —
 including CI, which has no VM.
 

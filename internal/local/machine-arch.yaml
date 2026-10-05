@@ -1,0 +1,44 @@
+# An Arch Linux machine on your computer, created by
+# `devmachine machines create-local --distro arch`.
+#
+# It reproduces a freshly bought server: root reachable over SSH with a
+# password and no key installed, the same as the Ubuntu one.
+#
+# The root password is public on purpose. This VM sits behind the host's NAT,
+# holds no data, and exists to be destroyed and recreated.
+
+os: Linux
+
+# x86_64 only, under qemu. The aarch64 image Lima's archlinux template offers
+# is a 2022 third-party build that does not boot under vz and breaks after an
+# upgrade. On Apple Silicon this is emulated: slow, but it works.
+vmType: qemu
+arch: x86_64
+
+images:
+  - location: "https://geo.mirror.pkgbuild.com/images/latest/Arch-Linux-x86_64-cloudimg.qcow2"
+    arch: "x86_64"
+
+cpus: 2
+memory: "4GiB"
+disk: "20GiB"
+
+# No shared folders. A real server has none, and a mount would let a test pass
+# for the wrong reason.
+mounts: []
+
+provision:
+  - mode: system
+    script: |
+      #!/bin/bash
+      set -eux
+      echo "root:devmachine" | chpasswd
+      # Arch ships 99-archlinux.conf, and cloud-init may write
+      # PasswordAuthentication no. In sshd_config the FIRST value of a key
+      # wins, so this file must sort before them.
+      printf 'PermitRootLogin yes\nPasswordAuthentication yes\n' \
+        > /etc/ssh/sshd_config.d/01-devmachine-local.conf
+      # A fresh server has no key installed for root. Lima keeps its own access
+      # through the unprivileged user, which is untouched.
+      rm -f /root/.ssh/authorized_keys
+      systemctl restart sshd

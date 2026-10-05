@@ -109,7 +109,7 @@ func TestAvailableIsQuietWhenLimaIsInstalled(t *testing.T) {
 func TestCreateReturnsAMachineTheCLICanAlreadyUse(t *testing.T) {
 	stub(t, nil)
 
-	m, err := Create(context.Background(), "alpha", DefaultSize, io.Discard)
+	m, err := Create(context.Background(), "alpha", Ubuntu, DefaultSize, io.Discard)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -124,7 +124,7 @@ func TestCreateReturnsAMachineTheCLICanAlreadyUse(t *testing.T) {
 func TestCreateLeavesNoKeyOnTheMachine(t *testing.T) {
 	r := stub(t, nil)
 
-	m, err := Create(context.Background(), "alpha", DefaultSize, io.Discard)
+	m, err := Create(context.Background(), "alpha", Ubuntu, DefaultSize, io.Discard)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -139,8 +139,8 @@ func TestCreateLeavesNoKeyOnTheMachine(t *testing.T) {
 			t.Fatalf("it touched the machine's keys: %s", r.joined())
 		}
 	}
-	if strings.Contains(string(Template()), "authorizedKeys") ||
-		strings.Contains(string(Template()), "ssh-ed25519") {
+	if strings.Contains(string(Template(Ubuntu)), "authorizedKeys") ||
+		strings.Contains(string(Template(Ubuntu)), "ssh-ed25519") {
 		t.Fatal("the template installs a key")
 	}
 }
@@ -148,7 +148,7 @@ func TestCreateLeavesNoKeyOnTheMachine(t *testing.T) {
 func TestCreateRefusesToTakeOverAnExistingMachine(t *testing.T) {
 	r := stub(t, &recorder{replies: map[string]string{"{{.Status}}": "Running"}, fails: map[string]error{}})
 
-	_, err := Create(context.Background(), "alpha", DefaultSize, io.Discard)
+	_, err := Create(context.Background(), "alpha", Ubuntu, DefaultSize, io.Discard)
 	if err == nil {
 		t.Fatal("it created over a machine that was already there")
 	}
@@ -163,7 +163,7 @@ func TestCreateRefusesToTakeOverAnExistingMachine(t *testing.T) {
 func TestCreateGivesLimaTheTemplateAsAFileItCanRead(t *testing.T) {
 	r := stub(t, nil)
 
-	if _, err := Create(context.Background(), "alpha", DefaultSize, io.Discard); err != nil {
+	if _, err := Create(context.Background(), "alpha", Ubuntu, DefaultSize, io.Discard); err != nil {
 		t.Fatal(err)
 	}
 	if len(r.paths) != 1 {
@@ -174,7 +174,7 @@ func TestCreateGivesLimaTheTemplateAsAFileItCanRead(t *testing.T) {
 	if filepath.Ext(r.paths[0]) != ".yaml" {
 		t.Fatalf("got %q", r.paths[0])
 	}
-	if r.bodies[0] != string(Template()) {
+	if r.bodies[0] != string(Template(Ubuntu)) {
 		t.Fatal("what reached the disk is not the embedded template")
 	}
 	if _, err := os.Stat(r.paths[0]); !errors.Is(err, os.ErrNotExist) {
@@ -186,7 +186,7 @@ func TestCreateRejectsANameLimaWillNotTake(t *testing.T) {
 	stub(t, nil)
 
 	for _, name := range []string{"", "--tty=false", "Alpha One", "../escape"} {
-		if _, err := Create(context.Background(), name, DefaultSize, io.Discard); err == nil {
+		if _, err := Create(context.Background(), name, Ubuntu, DefaultSize, io.Discard); err == nil {
 			t.Fatalf("it accepted %q", name)
 		}
 	}
@@ -242,7 +242,10 @@ func TestEveryCommandSaysHowToInstallLima(t *testing.T) {
 	t.Cleanup(func() { lookPath = realLookPath })
 
 	for _, call := range []func() error{
-		func() error { _, err := Create(context.Background(), "alpha", DefaultSize, io.Discard); return err },
+		func() error {
+			_, err := Create(context.Background(), "alpha", Ubuntu, DefaultSize, io.Discard)
+			return err
+		},
 		func() error { return Start(context.Background(), "alpha") },
 		func() error { return Stop(context.Background(), "alpha") },
 		func() error { return Delete(context.Background(), "alpha") },
@@ -254,7 +257,7 @@ func TestEveryCommandSaysHowToInstallLima(t *testing.T) {
 }
 
 func TestTemplateEnablesPasswordLoginWhereSshdReadsItFirst(t *testing.T) {
-	body := string(Template())
+	body := string(Template(Ubuntu))
 
 	// sshd uses the FIRST value it finds for each directive, and the cloud
 	// image ships 60-cloudimg-settings.conf. A 99- prefix silently does
@@ -277,7 +280,7 @@ func TestTemplateEnablesPasswordLoginWhereSshdReadsItFirst(t *testing.T) {
 func TestTemplateMountsNothingFromThisComputer(t *testing.T) {
 	// A real server has no shared folder, and a mount lets a test pass for the
 	// wrong reason.
-	if !strings.Contains(string(Template()), "mounts: []") {
+	if !strings.Contains(string(Template(Ubuntu)), "mounts: []") {
 		t.Fatal("the template shares a folder with the host")
 	}
 }
@@ -308,7 +311,7 @@ func TestCreateReallyMakesAMachineReachableByPasswordOnly(t *testing.T) {
 		}
 	})
 
-	m, err := Create(ctx, name, DefaultSize, os.Stderr)
+	m, err := Create(ctx, name, Ubuntu, DefaultSize, os.Stderr)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -37,6 +37,10 @@ KNOWN_HOSTS="${DEVMACHINE_TEST_HOME:-$HOME/.config/devmachine-test}/known_hosts"
 # opsadmin, which is no test workspace's account, so a push into a workspace
 # really crosses accounts.
 ADMIN="${DEVMACHINE_FAKE_VPS_ADMIN:-root}"
+# The system the VM runs: ubuntu, or arch (x86_64 under qemu, slow on Apple
+# Silicon). It only matters when `up` creates the VM; give an Arch one its own
+# name with DEVMACHINE_FAKE_VPS so it does not take the place of the default.
+DISTRO="${DEVMACHINE_FAKE_VPS_DISTRO:-ubuntu}"
 
 # The CLI under test, not one installed somewhere else.
 DEVMACHINE=(go run ./cmd/devmachine)
@@ -57,7 +61,7 @@ vm_port() {
 cmd_up() {
   require_lima
   if ! limactl list "$VM" >/dev/null 2>&1; then
-    "${DEVMACHINE[@]}" machines create-local "$VM"
+    "${DEVMACHINE[@]}" machines create-local "$VM" --distro "$DISTRO"
   elif [ "$(limactl list --format '{{.Status}}' "$VM")" != "Running" ]; then
     "${DEVMACHINE[@]}" machines start "$VM"
   fi

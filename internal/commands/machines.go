@@ -640,9 +640,10 @@ var createLocal = local.Create
 
 func newMachinesCreateLocalCmd(opts *options) *cobra.Command {
 	var (
-		add  bool
-		s    setupOptions
-		size = local.DefaultSize
+		add    bool
+		s      setupOptions
+		size   = local.DefaultSize
+		distro string
 	)
 	c := &cobra.Command{
 		Use:   "create-local <name>",
@@ -653,7 +654,9 @@ func newMachinesCreateLocalCmd(opts *options) *cobra.Command {
 			"Without --add, nothing is written to the configuration: `setup` or " +
 			"`machines add` does that. With --add, it is added at once, the way " +
 			"`machines add --address` adds a server.\n\n" +
-			"--cpus, --memory and --disk size the VM; each must fit this computer.",
+			"--cpus, --memory and --disk size the VM; each must fit this computer.\n\n" +
+			"--distro picks the system: ubuntu (the default) or arch. Arch is x86_64 under " +
+			"qemu, emulated on Apple Silicon: slow, but it boots.",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			for _, flag := range []string{"key", "no-essentials", "no-aliases", "location"} {
@@ -661,8 +664,12 @@ func newMachinesCreateLocalCmd(opts *options) *cobra.Command {
 					return fmt.Errorf("--%s only applies with --add", flag)
 				}
 			}
+			d, err := local.ParseDistro(distro)
+			if err != nil {
+				return err
+			}
 			if !add {
-				m, err := createLocal(cmd.Context(), args[0], size, cmd.ErrOrStderr())
+				m, err := createLocal(cmd.Context(), args[0], d, size, cmd.ErrOrStderr())
 				if err != nil {
 					return err
 				}
@@ -673,7 +680,7 @@ func newMachinesCreateLocalCmd(opts *options) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			m, err := createAndAddLocal(cmd.Context(), dir, opts.configDir, cmd.ErrOrStderr(), args[0], size, s)
+			m, err := createAndAddLocal(cmd.Context(), dir, opts.configDir, cmd.ErrOrStderr(), args[0], d, size, s)
 			if err != nil {
 				return err
 			}
@@ -688,6 +695,7 @@ func newMachinesCreateLocalCmd(opts *options) *cobra.Command {
 	c.Flags().BoolVar(&s.noAliases, "no-aliases", false, "with --add: do not write SSH host entries")
 	c.Flags().StringVar(&s.location, "location", config.LocationLocal,
 		"with --add: where the machine is, such as bedroom or office")
+	c.Flags().StringVar(&distro, "distro", string(local.Ubuntu), "the system the VM runs: ubuntu or arch")
 	c.Flags().IntVar(&size.CPUs, "cpus", local.DefaultSize.CPUs, "CPUs for the VM, at most this computer's cores")
 	c.Flags().IntVar(&size.MemoryGiB, "memory", local.DefaultSize.MemoryGiB,
 		"memory for the VM in GiB, less than this computer has")
@@ -701,7 +709,7 @@ func newMachinesCreateLocalCmd(opts *options) *cobra.Command {
 // Progress goes to out, which is stderr, so `--format json` leaves a document
 // on stdout and nothing else.
 func createAndAddLocal(ctx context.Context, dir, configFlag string, out io.Writer, name string,
-	size local.Size, s setupOptions) (config.Machine, error) {
+	distro local.Distro, size local.Size, s setupOptions) (config.Machine, error) {
 	location, err := config.NormalizeLocation(s.location)
 	if err != nil {
 		return config.Machine{}, err
@@ -716,7 +724,7 @@ func createAndAddLocal(ctx context.Context, dir, configFlag string, out io.Write
 		return config.Machine{}, err
 	}
 
-	m, err := createLocal(ctx, name, size, out)
+	m, err := createLocal(ctx, name, distro, size, out)
 	if err != nil {
 		return config.Machine{}, err
 	}

@@ -266,7 +266,7 @@ devmachine machines trust [name] [--check] [--replace] [--expect <fp>] [--yes]  
 devmachine machines scan --address <a> [--port p]   the SSH fingerprint of a server not added yet; writes nothing
 devmachine machines edit <name> [--set k=v] [--unset k] [--location l] [--check] [--yes]   change a machine's package settings or location
 devmachine machines rm <name> [--yes]     forget a machine; the server keeps running
-devmachine machines create-local <name> [--cpus n] [--memory GiB] [--disk GiB] [--add [--key k] [--no-essentials] [--no-aliases] [--location l]]   a machine on your computer
+devmachine machines create-local <name> [--distro ubuntu|arch] [--cpus n] [--memory GiB] [--disk GiB] [--add [--key k] [--no-essentials] [--no-aliases] [--location l]]   a machine on your computer
 devmachine machines start <name>          start a local machine
 devmachine machines stop <name>           stop a local machine
 devmachine machines delete-local <name> [--yes]   destroy it and everything on it
@@ -419,6 +419,14 @@ numbers. Each is checked against this computer before Lima starts:
 its memory (the computer needs some for itself), `--disk` at least 10 GiB.
 The disk is a sparse file, so a large one only uses the space the VM
 writes. The output says the size the VM got.
+
+`--distro` picks the system: `ubuntu` (the default, Ubuntu 24.04) or
+`arch` (Arch Linux). The Arch VM is x86_64 under qemu on every computer,
+because the only aarch64 Arch image Lima offers is an old third-party
+build that does not boot under Apple's hypervisor. On Apple Silicon that
+means emulation: it boots and works, but the first boot and `setup` take
+many minutes. It arrives the same way as the Ubuntu one: root by
+password, no key.
 
 `create-local <name> --add` does both steps at once: it creates the VM,
 then adds it the way `machines add --address` adds a server — installs a

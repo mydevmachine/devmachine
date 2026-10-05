@@ -31,6 +31,10 @@ Memory and disk are in GiB. The CPUs cannot be more than your computer has,
 and the memory must be less than it has. devmachine sets the size only when
 it creates the VM: to change it, delete the VM and create it again.
 
+Want Arch Linux instead of Ubuntu? Add `--distro arch`. It runs as x86_64
+under qemu, so on an Apple Silicon Mac it is emulated and slow — fine to try
+things, not to work in all day.
+
 ## Before you start: machine, skills, workspace
 
 A local VM is not a bought server, so it is made and added differently, but
