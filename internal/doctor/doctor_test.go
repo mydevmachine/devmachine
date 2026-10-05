@@ -763,8 +763,9 @@ func selfDir(t *testing.T) string {
 
 func selfClient(system string) fakeClient {
 	return fakeClient{out: map[string]string{
-		"uname -s":     system + "\n",
-		ansibleCommand: "/opt/homebrew/bin/ansible-playbook\n",
+		"uname -s":               system + "\n",
+		remote.MacVersionCommand: "15.7.9\n",
+		ansibleCommand:           "/opt/homebrew/bin/ansible-playbook\n",
 	}}
 }
 
@@ -778,7 +779,7 @@ func TestDoctorOnASelfMachineRunsNoSSHChecks(t *testing.T) {
 			}
 		}
 	}
-	if got := find(t, checks, CheckOperatingSystem); got.Status != StatusPass || got.Detail != "darwin" {
+	if got := find(t, checks, CheckOperatingSystem); got.Status != StatusPass || got.Detail != "macos 15.7.9" {
 		t.Fatalf("got %#v", got)
 	}
 	if got := find(t, checks, CheckAnsible); got.Status != StatusPass {

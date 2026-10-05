@@ -190,10 +190,20 @@ which one you meant, because it does not have to. A machine that cannot be
 reached gets its own `fail` and does not stop the others.
 
 Six checks in order: configuration, SSH fingerprint, login, operating
-system (the same check `setup` makes: Debian, Ubuntu or Arch Linux),
-Ansible installed, SSH aliases. A broken fingerprint stops the
-rest. Then one check per needed credential (`credential: <key>`) and per
-installed DNS provider (`dns: <provider>`).
+system (the same check `setup` makes: Debian, Ubuntu, Arch Linux or
+macOS, shown as `macos 15.7.9`), Ansible installed, SSH aliases. A broken
+fingerprint stops the rest. Then one check per needed credential
+(`credential: <key>`) and per installed DNS provider (`dns: <provider>`).
+
+On a Mac, the Ansible check looks where the bootstrap said
+`ansible-playbook` is, then in the Homebrew, MacPorts and pipx folders,
+since a plain SSH command has none of them on `PATH`. Then the package
+manager package's `bootstrap check` lists what the Mac lacks: one
+`prerequisite: <name>` warning per item (`devmachine setup` installs it
+once you agree), or one `prerequisites` check that passes when nothing is
+missing, or is skipped when no package manager is chosen yet. The script
+reaches the Mac on stdin, so doctor leaves nothing on it. See [what a
+machine needs](../how-it-works/what-a-machine-needs.md).
 
 A missing or logged-out credential **warns**, with the fix (`devmachine
 login <credential>`, or `secrets set` then `credentials push`); so does a

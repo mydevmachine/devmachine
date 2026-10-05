@@ -152,7 +152,7 @@ func RunWithScanner(ctx context.Context, dir, machine string, dial Dialer, scan 
 		Status: StatusPass,
 		Detail: fmt.Sprintf("connected through %s", address),
 	})
-	checks = append(checks, remoteChecks(ctx, client)...)
+	checks = append(checks, remoteChecks(ctx, client, dir, cfg, m)...)
 	facts.Record(ctx, dir, m.Name, client, time.Now())
 	checks = append(checks, sshAliasesCheck(cfg))
 	checks = append(checks, credentialChecks(ctx, client, wanted)...)
@@ -299,6 +299,9 @@ func selfChecks(ctx context.Context, dir string, m config.Machine, dial Dialer, 
 	}
 
 	checks = append(checks, selfAnsibleCheck(ctx, client))
+	if cfg, err := config.Load(dir); err == nil {
+		checks = append(checks, prerequisiteChecks(ctx, client, dir, cfg, m)...)
+	}
 	facts.Record(ctx, dir, m.Name, client, time.Now())
 
 	base := baseOf(m)
@@ -330,11 +333,16 @@ func selfOSCheck(ctx context.Context, client remote.Client) Check {
 		return Check{Name: CheckOperatingSystem, Status: StatusFail, Detail: err.Error()}
 	}
 	system := strings.TrimSpace(out)
-	if system != "Darwin" {
+	if system != remote.KernelDarwin {
 		return Check{Name: CheckOperatingSystem, Status: StatusFail,
 			Detail: fmt.Sprintf("a self machine is converged on macOS only; this is %s", system)}
 	}
-	return Check{Name: CheckOperatingSystem, Status: StatusPass, Detail: "darwin"}
+	version, err := client.Run(ctx, remote.MacVersionCommand)
+	if err != nil {
+		return Check{Name: CheckOperatingSystem, Status: StatusFail, Detail: err.Error()}
+	}
+	mac := remote.System{Kernel: system, Version: strings.TrimSpace(version)}
+	return Check{Name: CheckOperatingSystem, Status: StatusPass, Detail: mac.String()}
 }
 
 func selfAnsibleCheck(ctx context.Context, client remote.Client) Check {
@@ -436,13 +444,18 @@ func skipRest(order []string, done, reason string) []Check {
 	return out
 }
 
-func remoteChecks(ctx context.Context, client remote.Client) []Check {
+func remoteChecks(ctx context.Context, client remote.Client, dir string, cfg config.Config, m config.Machine) []Check {
 	var out []Check
 
-	if system, err := remote.DetectSystem(ctx, client); err != nil {
+	system, err := remote.DetectSystem(ctx, client)
+	if err != nil {
 		out = append(out, Check{Name: CheckOperatingSystem, Status: StatusFail, Detail: err.Error()})
 	} else {
 		out = append(out, Check{Name: CheckOperatingSystem, Status: StatusPass, Detail: system.String()})
+	}
+	if system.MacOS() {
+		out = append(out, macAnsibleCheck(ctx, client, dir, m.Name))
+		return append(out, prerequisiteChecks(ctx, client, dir, cfg, m)...)
 	}
 
 	path, err := client.Run(ctx, ansibleCommand)
