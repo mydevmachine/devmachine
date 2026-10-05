@@ -252,15 +252,42 @@ apt-get -o DPkg::Lock::Timeout=300 update
 apt-get -o DPkg::Lock::Timeout=300 install -y ansible
 `
 
+// pacmanInstallAnsible installs Ansible on an Arch Linux.
+//
+// `ansible`, not `ansible-core`, for the same reason as on apt: only the full
+// package carries community.general. Checked on a real Arch machine.
+//
+// No -y: refreshing the package lists without upgrading is a partial upgrade,
+// which Arch does not support and which can pull an Ansible built for a Python
+// the machine does not have. A full -Syu is the operator's call, not a side
+// effect of setup.
+const pacmanInstallAnsible = `set -eu
+if command -v ansible-playbook >/dev/null 2>&1; then
+	echo "ansible is already installed"
+	exit 0
+fi
+if ! pacman -S --noconfirm --needed ansible; then
+	echo "pacman could not install ansible from the package lists this machine has." >&2
+	echo "They are probably older than the mirrors: bring the machine up to date with pacman -Syu, then run this again." >&2
+	exit 1
+fi
+`
+
 // ansibleInstall maps a distribution to the way Ansible is installed on it.
 //
 // It holds what has been run on a real machine and nothing else. A table with
 // four entries nobody has tried gets somebody halfway through a first run and
 // then leaves them there; an honest refusal that names their distribution at
-// least tells them what to do next.
+// least tells them what to do next. archarm is Arch Linux ARM: the same
+// pacman and the same package as arch.
+//
+// It is also the list of distributions this CLI supports: SupportedLinux reads
+// it, and so does doctor.
 var ansibleInstall = map[string]string{
-	"debian": aptInstallAnsible,
-	"ubuntu": aptInstallAnsible,
+	"debian":  aptInstallAnsible,
+	"ubuntu":  aptInstallAnsible,
+	"arch":    pacmanInstallAnsible,
+	"archarm": pacmanInstallAnsible,
 }
 
 // InstallAnsible puts Ansible on the machine.
@@ -271,21 +298,17 @@ var ansibleInstall = map[string]string{
 // The output goes to out as it arrives: installing Ansible is minutes of work,
 // and minutes of silence look like a machine that has stopped answering.
 func InstallAnsible(ctx context.Context, c Client, out io.Writer) error {
-	release, err := c.Run(ctx, OSReleaseCommand)
+	system, err := DetectSystem(ctx, c)
 	if err != nil {
-		return fmt.Errorf("reading /etc/os-release to find out which distribution this is: %w", err)
+		return err
 	}
-
-	id := OSReleaseID(release)
-	script, ok := ansibleInstall[id]
+	script, ok := ansibleInstall[system.ID]
 	if !ok {
-		return fmt.Errorf("this CLI does not know how to install Ansible on %q: it has been run on "+
-			"debian and ubuntu only. Install the `ansible` package by hand — not `ansible-core`, "+
-			"which leaves out community.general — and run this again", id)
+		return fmt.Errorf("this CLI does not install Ansible on %s", system)
 	}
 
 	if err := c.Stream(ctx, AsRoot(script), out, out); err != nil {
-		return fmt.Errorf("installing Ansible on %s: %w", id, err)
+		return fmt.Errorf("installing Ansible on %s: %w", system, err)
 	}
 	return nil
 }

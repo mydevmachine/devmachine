@@ -37,6 +37,7 @@ var (
 	harden         = remote.Harden
 	installAnsible = remote.InstallAnsible
 	checkRoot      = remote.CheckRoot
+	detectSystem   = remote.DetectSystem
 	tailscaleSSH   = remote.IsTailscaleSSH
 	agentKeys      = keys.FromAgent
 	scanHostKey    = remote.ScanHostKey
@@ -385,6 +386,9 @@ func prepareExisting(ctx context.Context, dir string, out io.Writer, name string
 	}
 	defer func() { _ = client.Close() }()
 
+	if err := refuseUnknownSystem(ctx, client, out, address); err != nil {
+		return err
+	}
 	if tailscaleSSH(client) {
 		if err := installKeyOverTailscaleSSH(ctx, client, out, m, address); err != nil {
 			return err
@@ -398,6 +402,17 @@ func prepareExisting(ctx context.Context, dir string, out io.Writer, name string
 	if err := installAnsible(ctx, client, out); err != nil {
 		return err
 	}
+	return nil
+}
+
+// refuseUnknownSystem stops on a machine this CLI does not set up, while
+// nothing on it has been changed yet.
+func refuseUnknownSystem(ctx context.Context, client remote.Client, out io.Writer, address string) error {
+	system, err := detectSystem(ctx, client)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(out, "%s runs %s.\n", address, system)
 	return nil
 }
 
@@ -805,6 +820,12 @@ func bootstrap(ctx context.Context, out io.Writer, m config.Machine, key chosenK
 	password passwordSource) error {
 	client, address, err := dialWith(ctx, m, m.User, key.auth())
 	unproved := false
+	if err == nil {
+		if err := refuseUnknownSystem(ctx, client, out, address); err != nil {
+			_ = client.Close()
+			return err
+		}
+	}
 	switch {
 	case err == nil && tailscaleSSH(client):
 		unproved = true
@@ -878,6 +899,10 @@ func installWithPassword(ctx context.Context, out io.Writer, m config.Machine, k
 
 	client, _, err := dialWith(ctx, m, m.User, remote.Auth{Password: password})
 	if err != nil {
+		return nil, err
+	}
+	if err := refuseUnknownSystem(ctx, client, out, address); err != nil {
+		_ = client.Close()
 		return nil, err
 	}
 	err = installKey(ctx, client, key.Public)

@@ -254,8 +254,8 @@ func TestAnUnreachableMachineSkipsTheRemoteChecks(t *testing.T) {
 
 func TestASupportedOperatingSystemPasses(t *testing.T) {
 	client := fakeClient{out: map[string]string{
-		osReleaseCommand: "ID=ubuntu\nID_LIKE=debian\n",
-		ansibleCommand:   "/usr/bin/ansible-playbook\n",
+		unameCommand: "Linux\n", osReleaseCommand: "ID=ubuntu\nID_LIKE=debian\n",
+		ansibleCommand: "/usr/bin/ansible-playbook\n",
 	}}
 	dial := func(context.Context, config.Machine, string) (remote.Client, string, error) {
 		return client, "203.0.113.10", nil
@@ -273,8 +273,8 @@ func TestASupportedOperatingSystemPasses(t *testing.T) {
 
 func TestAnUnsupportedOperatingSystemFailsAndSaysWhichItIs(t *testing.T) {
 	client := fakeClient{out: map[string]string{
-		osReleaseCommand: "ID=alpine\n",
-		ansibleCommand:   "/usr/bin/ansible-playbook\n",
+		unameCommand: "Linux\n", osReleaseCommand: "ID=alpine\n",
+		ansibleCommand: "/usr/bin/ansible-playbook\n",
 	}}
 	dial := func(context.Context, config.Machine, string) (remote.Client, string, error) {
 		return client, "203.0.113.10", nil
@@ -291,9 +291,43 @@ func TestAnUnsupportedOperatingSystemFailsAndSaysWhichItIs(t *testing.T) {
 	}
 }
 
+func TestArchPasses(t *testing.T) {
+	client := fakeClient{out: map[string]string{
+		unameCommand:     "Linux\n",
+		osReleaseCommand: "NAME=\"Arch Linux\"\nID=arch\n",
+		ansibleCommand:   "/usr/bin/ansible-playbook\n",
+	}}
+	dial := func(context.Context, config.Machine, string) (remote.Client, string, error) {
+		return client, "203.0.113.10", nil
+	}
+
+	checks := Run(context.Background(), configDir(t, "machines:\n  - name: main\n    hosts: [203.0.113.10]\n"), "", dial, nil)
+
+	if got := find(t, checks, CheckOperatingSystem); got.Status != StatusPass || got.Detail != "arch" {
+		t.Fatalf("operating system = %q (%s), want pass arch", got.Status, got.Detail)
+	}
+}
+
+func TestASystemThatIsNotLinuxFailsAndSaysWhichItIs(t *testing.T) {
+	client := fakeClient{out: map[string]string{
+		unameCommand:   "Darwin\n",
+		ansibleCommand: "/usr/bin/ansible-playbook\n",
+	}}
+	dial := func(context.Context, config.Machine, string) (remote.Client, string, error) {
+		return client, "203.0.113.10", nil
+	}
+
+	checks := Run(context.Background(), configDir(t, "machines:\n  - name: main\n    hosts: [203.0.113.10]\n"), "", dial, nil)
+
+	got := find(t, checks, CheckOperatingSystem)
+	if got.Status != StatusFail || !strings.Contains(got.Detail, `"Darwin" is not a system this CLI sets up`) {
+		t.Fatalf("operating system = %q (%s)", got.Status, got.Detail)
+	}
+}
+
 func TestAMissingAnsibleFailsOnItsOwn(t *testing.T) {
 	client := fakeClient{
-		out: map[string]string{osReleaseCommand: "ID=ubuntu\n"},
+		out: map[string]string{unameCommand: "Linux\n", osReleaseCommand: "ID=ubuntu\n"},
 		err: map[string]error{ansibleCommand: errors.New("exit status 1")},
 	}
 	dial := func(context.Context, config.Machine, string) (remote.Client, string, error) {
@@ -414,8 +448,8 @@ func TestRunChecksTheMachineItWasGiven(t *testing.T) {
 	dial := func(_ context.Context, m config.Machine, _ string) (remote.Client, string, error) {
 		got = m
 		return fakeClient{out: map[string]string{
-			osReleaseCommand: "ID=ubuntu\n",
-			ansibleCommand:   "/usr/bin/ansible-playbook\n",
+			unameCommand: "Linux\n", osReleaseCommand: "ID=ubuntu\n",
+			ansibleCommand: "/usr/bin/ansible-playbook\n",
 		}}, m.Hosts[0].Address, nil
 	}
 	body := "machines:\n" +
@@ -451,8 +485,8 @@ const machineWith = "machines:\n  - name: main\n    hosts: [203.0.113.10]\n"
 func working(present string) fakeClient {
 	return fakeClient{
 		out: map[string]string{
-			osReleaseCommand: "ID=ubuntu\n",
-			ansibleCommand:   "/usr/bin/ansible-playbook\n",
+			unameCommand: "Linux\n", osReleaseCommand: "ID=ubuntu\n",
+			ansibleCommand: "/usr/bin/ansible-playbook\n",
 		},
 		input: present,
 	}
@@ -766,8 +800,8 @@ func aliasesEnvironment(t *testing.T, body string) string {
 
 func fullMachineClient() fakeClient {
 	return fakeClient{out: map[string]string{
-		osReleaseCommand: "ID=ubuntu\n",
-		ansibleCommand:   "/usr/bin/ansible-playbook\n",
+		unameCommand: "Linux\n", osReleaseCommand: "ID=ubuntu\n",
+		ansibleCommand: "/usr/bin/ansible-playbook\n",
 	}}
 }
 

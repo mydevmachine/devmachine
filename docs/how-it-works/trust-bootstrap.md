@@ -13,6 +13,25 @@ out for itself: where the machine is, which account and port, which key
 to use, then **tries the key first**. Only if that fails does it ask for
 the password.
 
+## It checks what the machine runs first
+
+The first thing `setup` does on a connection is ask the machine what it
+is: `uname -s` for the kernel, then `ID` in `/etc/os-release` on Linux.
+It sets up `debian`, `ubuntu` and `arch` (and `archarm`, Arch on ARM).
+Anything else stops the run **before the first change** — before the key
+is installed, on a server you reached with a password:
+
+```
+this CLI does not set up "fedora" yet: it supports debian, ubuntu and arch
+"FreeBSD" is not a system this CLI sets up: it supports Linux (debian, ubuntu, arch)
+```
+
+Why refuse instead of trying: every step after this one is written for a
+system it has been run on. A guess gets you halfway through a first run —
+a key installed, password login off — and then leaves you on a machine
+that cannot install Ansible. Stopping early leaves the server as you
+bought it. `doctor` makes the same check and accepts the same list.
+
 ## The proof is a new connection
 
 Installing a key does not mean it works — a wrong file permission, a
@@ -162,3 +181,13 @@ want your own terminal and agent.
 then on, every change goes through `devmachine sync`. It installs
 `ansible` rather than `ansible-core`, since the smaller package leaves
 out a piece the `firewall` package needs.
+
+On Debian and Ubuntu that is `apt-get install ansible`. On Arch it is
+`pacman -S --noconfirm --needed ansible`, with the package lists the
+machine already has. It never runs `pacman -Sy`: refreshing the lists
+without upgrading is a partial upgrade, which Arch does not support and
+which can install an Ansible built for a Python the machine does not
+have. A full `pacman -Syu` upgrades everything, and that is your call, not
+a side effect of `setup`. On an Arch server whose lists are too old for
+the mirrors, `setup` stops and says so — see
+[troubleshooting](../troubleshooting.md#pacman-could-not-install-ansible).

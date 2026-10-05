@@ -331,16 +331,18 @@ func TestProveAuthHandsBackTheConnectionItProved(t *testing.T) {
 	}
 }
 
-// clientWithOsRelease answers the one question InstallAnsible asks before it
-// decides anything.
+// clientWithOsRelease answers the questions InstallAnsible asks before it
+// decides anything: which kernel, then which distribution.
 func clientWithOsRelease(body string) *recordingClient {
-	return &recordingClient{output: map[string]string{OSReleaseCommand: body}}
+	return &recordingClient{output: map[string]string{UnameCommand: "Linux\n", OSReleaseCommand: body}}
 }
 
 func TestInstallAnsiblePicksThePackageManagerFromOsRelease(t *testing.T) {
 	for _, c := range []struct{ id, want string }{
 		{"ubuntu", "apt-get"},
 		{"debian", "apt-get"},
+		{"arch", "pacman -S --noconfirm --needed ansible"},
+		{"archarm", "pacman -S --noconfirm --needed ansible"},
 	} {
 		client := clientWithOsRelease("ID=" + c.id + "\n")
 		if err := InstallAnsible(context.Background(), client, io.Discard); err != nil {
@@ -369,7 +371,7 @@ func TestInstallAnsibleSaysSoOnADistributionItDoesNotKnow(t *testing.T) {
 	// The table claims what has been run on a real machine and nothing more.
 	// Guessing a package manager gets somebody halfway through a first run and
 	// then leaves them there.
-	for _, id := range []string{"plan9", "arch", "fedora", "alpine"} {
+	for _, id := range []string{"plan9", "fedora", "alpine"} {
 		c := clientWithOsRelease("ID=" + id + "\n")
 		err := InstallAnsible(context.Background(), c, io.Discard)
 		if err == nil {
@@ -378,7 +380,7 @@ func TestInstallAnsibleSaysSoOnADistributionItDoesNotKnow(t *testing.T) {
 		if !strings.Contains(err.Error(), id) {
 			t.Fatalf("the error does not name it: %v", err)
 		}
-		if len(c.commands) != 1 {
+		if len(c.commands) != 2 {
 			t.Fatalf("%s: it ran something anyway: %#v", id, c.commands)
 		}
 	}
@@ -400,7 +402,8 @@ func TestInstallAnsibleLeavesAMachineThatAlreadyHasItAlone(t *testing.T) {
 }
 
 func TestInstallAnsibleSaysWhenItCannotTellWhatTheMachineIs(t *testing.T) {
-	c := &recordingClient{failOn: "os-release"}
+	c := clientWithOsRelease("ID=debian\n")
+	c.failOn = "os-release"
 	err := InstallAnsible(context.Background(), c, io.Discard)
 	if err == nil {
 		t.Fatal("it carried on without knowing the distribution")
@@ -566,7 +569,7 @@ func TestBootstrapRunsAsRootForAnAdminWhoIsNot(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, command := range c.commands {
-		if command == OSReleaseCommand {
+		if command == OSReleaseCommand || command == UnameCommand {
 			continue
 		}
 		if !strings.Contains(command, `sudo -n -H "$devmachine_sh" -c`) {
@@ -632,5 +635,43 @@ func TestHardenMakesSshdsRuntimeDirectoryBeforeValidating(t *testing.T) {
 	check := strings.Index(joined, "sshd -t")
 	if dir < 0 || dir > check {
 		t.Fatalf("sshd -t runs without its runtime directory: %s", joined)
+	}
+}
+
+// TestInstallAnsibleOnArchNeverUpgradesTheSystem: -Sy without -u is a partial
+// upgrade, and -Syu upgrades everything as a side effect of setup.
+func TestInstallAnsibleOnArchNeverUpgradesTheSystem(t *testing.T) {
+	c := clientWithOsRelease("ID=arch\n")
+	if err := InstallAnsible(context.Background(), c, io.Discard); err != nil {
+		t.Fatal(err)
+	}
+	joined := c.transcript()
+	for _, line := range strings.Split(joined, "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "echo") || !strings.Contains(line, "pacman ") {
+			continue
+		}
+		if !strings.Contains(line, "pacman -S --noconfirm --needed ansible;") {
+			t.Fatalf("it runs pacman another way: %s", line)
+		}
+	}
+	if strings.Contains(joined, "ansible-core") {
+		t.Fatalf("it installs ansible-core: %s", joined)
+	}
+	look := strings.Index(joined, "command -v ansible-playbook")
+	install := strings.Index(joined, "pacman -S ")
+	if look < 0 || look > install {
+		t.Fatalf("it installs without looking first: %s", joined)
+	}
+}
+
+func TestInstallAnsibleRefusesASystemThatIsNotLinux(t *testing.T) {
+	c := &recordingClient{output: map[string]string{UnameCommand: "Darwin\n"}}
+	err := InstallAnsible(context.Background(), c, io.Discard)
+	if err == nil || !strings.Contains(err.Error(), `"Darwin" is not a system this CLI sets up`) {
+		t.Fatalf("got %v", err)
+	}
+	if len(c.commands) != 1 {
+		t.Fatalf("it ran something anyway: %#v", c.commands)
 	}
 }

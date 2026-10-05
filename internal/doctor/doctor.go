@@ -64,18 +64,13 @@ func CredentialCheck(d credentials.Declared) string { return credentialPrefix + 
 // The commands the remote checks run. They are constants so a test can answer
 // them without guessing at the wording.
 const (
-	// One reader for /etc/os-release, because a second one drifts from the
-	// first. remote owns it: that is where it is acted on.
+	// One reader for the system, because a second one drifts from the
+	// first. remote owns it: that is where it is acted on, and where the
+	// list of supported systems lives.
+	unameCommand     = remote.UnameCommand
 	osReleaseCommand = remote.OSReleaseCommand
 	ansibleCommand   = "command -v ansible-playbook"
 )
-
-// supportedIDs are the distributions this CLI claims to support. Anything else
-// is reported plainly instead of half-working and failing partway through.
-var supportedIDs = map[string]bool{
-	"ubuntu": true,
-	"debian": true,
-}
 
 // Check is one question and its answer.
 type Check struct {
@@ -440,21 +435,10 @@ func skipRest(order []string, done, reason string) []Check {
 func remoteChecks(ctx context.Context, client remote.Client) []Check {
 	var out []Check
 
-	release, err := client.Run(ctx, osReleaseCommand)
-	switch {
-	case err != nil:
+	if system, err := remote.DetectSystem(ctx, client); err != nil {
 		out = append(out, Check{Name: CheckOperatingSystem, Status: StatusFail, Detail: err.Error()})
-	default:
-		id := remote.OSReleaseID(release)
-		if supportedIDs[id] {
-			out = append(out, Check{Name: CheckOperatingSystem, Status: StatusPass, Detail: id})
-		} else {
-			out = append(out, Check{
-				Name:   CheckOperatingSystem,
-				Status: StatusFail,
-				Detail: fmt.Sprintf("%q is not supported yet: this CLI supports debian and ubuntu", id),
-			})
-		}
+	} else {
+		out = append(out, Check{Name: CheckOperatingSystem, Status: StatusPass, Detail: system.String()})
 	}
 
 	path, err := client.Run(ctx, ansibleCommand)

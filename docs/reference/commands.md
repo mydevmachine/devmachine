@@ -41,8 +41,11 @@ release that has `essentials` gets it — an older one starts empty and says so.
 the error says where to look. See [setting up a server for the first
 time](../how-it-works/trust-bootstrap.md) for why the order matters.
 
-Works on **Debian and Ubuntu** only; elsewhere it names your distro and
-stops. The password is used once and written nowhere.
+Works on **Debian, Ubuntu and Arch Linux**. Before it changes anything it
+asks the machine what it runs (`uname -s`, then `ID` in `/etc/os-release`);
+anything else is named and it stops, with the machine untouched. See [what
+`setup` refuses](../how-it-works/trust-bootstrap.md#it-checks-what-the-machine-runs-first).
+The password is used once and written nowhere.
 
 Once the machine answers, it asks two more questions: whether to write SSH
 host entries to `~/.ssh/config` (default yes — `ssh <workspace>-devmachine`
@@ -166,7 +169,8 @@ which one you meant, because it does not have to. A machine that cannot be
 reached gets its own `fail` and does not stop the others.
 
 Six checks in order: configuration, SSH fingerprint, login, operating
-system, Ansible installed, SSH aliases. A broken fingerprint stops the
+system (the same check `setup` makes: Debian, Ubuntu or Arch Linux),
+Ansible installed, SSH aliases. A broken fingerprint stops the
 rest. Then one check per needed credential (`credential: <key>`) and per
 installed DNS provider (`dns: <provider>`).
 

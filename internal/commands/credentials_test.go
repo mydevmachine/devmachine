@@ -34,6 +34,9 @@ type recordingRemote struct {
 
 func (r *recordingRemote) Run(_ context.Context, command string) (string, error) {
 	r.ran = append(r.ran, command)
+	if command == remote.UnameCommand && r.err == nil {
+		return "Linux\n", nil
+	}
 	return r.out, r.err
 }
 

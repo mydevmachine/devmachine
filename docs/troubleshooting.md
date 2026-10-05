@@ -165,9 +165,64 @@ meant.
 **What it means:** `sync` runs Ansible, the tool devmachine uses to apply
 packages, on the server — so the server needs it installed.
 
-**What to do:** Install it once: `apt install ansible`, or whatever your
-distribution calls it. Everything after that is `sync`'s job. `doctor` still
+**What to do:** Run `devmachine setup --machine <name>`, which installs
+it, or install it once by hand: `apt install ansible` on Debian and
+Ubuntu, `pacman -S ansible` on Arch. Everything after that is `sync`'s job. `doctor` still
 tells you the truth about everything else without it.
+
+## "this CLI does not set up "…" yet"
+
+```
+this CLI does not set up "fedora" yet: it supports debian, ubuntu and arch
+```
+
+**What it means:** The machine runs Linux, and `ID` in its
+`/etc/os-release` names a distribution this CLI has not been run on.
+`setup` and `machines add` stop before changing anything: no key was
+installed, password login is as it was, nothing was written to
+`config.yml`. `doctor` reports the same thing as a failed `operating
+system` check. A family name such as "like debian" does not count: a
+derivative may not have the packages Debian has.
+
+**What to do:** Use a machine with Debian, Ubuntu or Arch Linux — most
+providers offer all three. Installing Ansible by hand does not get past
+the check: the packages that `sync` applies are written for those three.
+
+## "… is not a system this CLI sets up"
+
+```
+"FreeBSD" is not a system this CLI sets up: it supports Linux (debian, ubuntu, arch)
+```
+
+**What it means:** `uname -s` on the machine did not say `Linux`. The CLI
+reads `/etc/os-release` only on Linux, so it stopped there, before
+changing anything. You will see this for a Mac reached over SSH too:
+setting up macOS machines is not in this version yet.
+
+**What to do:** Point the command at a Linux server (Debian, Ubuntu or
+Arch Linux). Your own Mac is set up differently: `devmachine machines add
+--self <name>`, see [your computer as a
+machine](how-it-works/your-computer-as-a-machine.md).
+
+## "pacman could not install ansible"
+
+```
+pacman could not install ansible from the package lists this machine has.
+They are probably older than the mirrors: bring the machine up to date with pacman -Syu, then run this again.
+```
+
+**What it means:** On Arch, `setup` installs Ansible with `pacman -S`
+and the package lists the machine already has. The mirrors keep only the
+newest version of each package, so on a server whose lists are weeks
+old the version pacman asks for is gone, and the download fails. `setup`
+does not refresh the lists on its own: `pacman -Sy` without `-u` is a
+partial upgrade, which can leave Ansible built for a Python the machine
+does not have. The key is installed and proved; if hardening ran, password
+login is already off.
+
+**What to do:** On the machine, as root, bring it up to date with
+`pacman -Syu`, then run the same `setup` or `machines add` command again.
+The key now logs in, so no password is asked for.
 
 ## "the admin login cannot become root"
 
