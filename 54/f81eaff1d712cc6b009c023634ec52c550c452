@@ -1,0 +1,23 @@
+internal/provision/testdata/generate/site.yml
+  s_87d72b62cfc5a1::t_e8de334a6333e3 202
+internal/provision/ansible.go
+  s_87d72b62cfc5a1::t_e8de334a6333e3 790-792
+internal/provision/ansible_test.go
+  s_87d72b62cfc5a1::t_6f9b1ee80da394 890-909
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "54f81eaff1d712cc6b009c023634ec52c550c452",
+  "prompts": {},
+  "sessions": {
+    "s_87d72b62cfc5a1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5e69ca1d-9900-4500-8ba7-104b479b47eb",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
