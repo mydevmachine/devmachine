@@ -1,0 +1,43 @@
+internal/provision/ansible.go
+  s_87d72b62cfc5a1::t_40554a1817d82e 405-413,421-422,426,443,449,458-459,494,500,510,514
+  s_87d72b62cfc5a1::t_ea964e6d9f5eb9 442,448
+internal/credentials/dotenv.go
+  s_87d72b62cfc5a1::t_0fa103851766bb 111
+internal/commands/caddy_reload_test.go
+  s_87d72b62cfc5a1::t_a13c2d8a0effbd 1-34
+internal/commands/workspaces.go
+  s_87d72b62cfc5a1::t_711d824a56037f 18,504,590,952,956-982
+internal/credentials/present.go
+  s_87d72b62cfc5a1::t_0fa103851766bb 50
+internal/remote/home_test.go
+  s_87d72b62cfc5a1::t_55a97489841a2a 1-65
+internal/provision/testdata/generate/site.yml
+  s_87d72b62cfc5a1::t_424bd18897aeb1 90,92
+  s_87d72b62cfc5a1::t_f8a5fad11cadce 89,91,93
+internal/credentials/deliver.go
+  s_87d72b62cfc5a1::t_0fa103851766bb 91
+internal/provision/sharing.go
+  s_87d72b62cfc5a1::t_0fa103851766bb 5,111
+internal/remote/home.go
+  s_87d72b62cfc5a1::t_424bd18897aeb1 11,13
+  s_87d72b62cfc5a1::t_e15083160fec15 1-10,12,14
+internal/provision/ansible_test.go
+  s_87d72b62cfc5a1::t_ea964e6d9f5eb9 646,705
+  s_87d72b62cfc5a1::t_15793d34877d5c 751
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5b8eee94c8da19c15b8fae8395365bf8a2d9bf75",
+  "prompts": {},
+  "sessions": {
+    "s_87d72b62cfc5a1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5e69ca1d-9900-4500-8ba7-104b479b47eb",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
