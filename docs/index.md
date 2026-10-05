@@ -1,6 +1,7 @@
 # devmachine documentation
 
-Set up and run your own development server.
+Code from anywhere. Any machine you own, an isolated workspace for every
+project, no lock-in.
 
 Three commands turn a server nobody has logged into into one that is yours:
 
