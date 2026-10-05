@@ -570,17 +570,9 @@ func newWorkspacesDestroyCmd(opts *options) *cobra.Command {
 				}
 			}
 
-			quotedUser := quoteForShell(user)
 			script := "set -e\n" +
-				"if id -u " + quotedUser + " >/dev/null 2>&1; then\n" +
-				// claude-remote-control enables linger for the account, keeping a
-				// user manager (and its processes) alive; userdel refuses a user
-				// with running processes, so linger goes off and everything of
-				// theirs is killed first.
-				"  loginctl disable-linger " + quotedUser + " 2>/dev/null || true\n" +
-				"  loginctl terminate-user " + quotedUser + " 2>/dev/null || true\n" +
-				"  pkill -KILL -u " + quotedUser + " 2>/dev/null || true\n" +
-				"  userdel --force --remove " + quotedUser + "\n" +
+				"if id -u " + quoteForShell(user) + " >/dev/null 2>&1; then\n" +
+				deleteAccountScript(user, observedSystem(dir, machine.Name)) +
 				"  echo removed\n" +
 				"else\n" +
 				"  echo absent\n" +
@@ -960,6 +952,24 @@ func servingClients(ctx context.Context, dir string, cfg config.Config, w config
 func reloadCaddyScript() string {
 	return "(systemctl reload caddy 2>/dev/null || caddy reload --config " + quoteForShell(expose.Caddyfile) +
 		" --adapter caddyfile 2>/dev/null || true)"
+}
+
+// deleteAccountScript deletes an account, its home and its processes on a
+// machine running system, as facts name it.
+func deleteAccountScript(user, system string) string {
+	quotedUser := quoteForShell(user)
+	if system == "Darwin" {
+		return "  pkill -KILL -u " + quotedUser + " 2>/dev/null || true\n" +
+			"  sysadminctl -deleteUser " + quotedUser + "\n"
+	}
+	// claude-remote-control enables linger for the account, keeping a
+	// user manager (and its processes) alive; userdel refuses a user
+	// with running processes, so linger goes off and everything of
+	// theirs is killed first.
+	return "  loginctl disable-linger " + quotedUser + " 2>/dev/null || true\n" +
+		"  loginctl terminate-user " + quotedUser + " 2>/dev/null || true\n" +
+		"  pkill -KILL -u " + quotedUser + " 2>/dev/null || true\n" +
+		"  userdel --force --remove " + quotedUser + "\n"
 }
 
 // homeOf is where an account's home is on a machine running system, as

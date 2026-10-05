@@ -1262,6 +1262,9 @@ Remove it from whichever side should not own that host.
 
 ## `workspaces destroy` failed at userdel
 
+On a Mac the step is `sysadminctl -deleteUser`, as macOS has no `userdel`;
+the same applies.
+
 **What it means:** Something is still running as that account — a process
 started outside its login session, or a container. `destroy` already
 disabled the account and stopped everything it could find, but something
