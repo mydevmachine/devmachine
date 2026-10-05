@@ -151,7 +151,8 @@ func stubBootstrap(t *testing.T, s bootstrapStubs) *bootstrapSteps {
 		if s.kernel != "" {
 			system = remote.System{Kernel: s.kernel, ID: s.id}
 		}
-		if system.Kernel == "Linux" && !remote.SupportedLinux(system.ID) || system.Kernel != "Linux" {
+		if system.Kernel == "Linux" && !remote.SupportedLinux(system.ID) ||
+			system.Kernel != "Linux" && !system.MacOS() {
 			return system, &remote.UnsupportedSystemError{System: system}
 		}
 		return system, nil
@@ -1207,11 +1208,11 @@ func TestSetupRefusesAnUnknownSystemBeforeTheKeyGoesIn(t *testing.T) {
 }
 
 func TestSetupRefusesASystemThatIsNotLinuxWhenTheKeyAlreadyWorks(t *testing.T) {
-	steps := stubBootstrap(t, bootstrapStubs{keyWorks: true, kernel: "Darwin"})
+	steps := stubBootstrap(t, bootstrapStubs{keyWorks: true, kernel: "FreeBSD"})
 
 	_, err := runSetupIn(t, t.TempDir(),
 		answers("main", "203.0.113.10", "root", "22", "", "1"), setupOptions{})
-	if err == nil || !strings.Contains(err.Error(), `"Darwin" is not a system this CLI sets up`) {
+	if err == nil || !strings.Contains(err.Error(), `"FreeBSD" is not a system this CLI sets up`) {
 		t.Fatalf("got %v", err)
 	}
 	if steps.checkedRoot || steps.hardened || steps.ansible {

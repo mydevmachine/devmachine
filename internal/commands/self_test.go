@@ -1,9 +1,7 @@
 package commands
 
 import (
-	"context"
 	"errors"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -93,43 +91,19 @@ func TestMachinesTrustRefusesOnASelfMachine(t *testing.T) {
 	}
 }
 
-func TestSetupOnASelfMachineWithoutHomebrewPrintsTheBrewCommandAndRunsNothing(t *testing.T) {
-	withMissingBinary(t, "brew")
-	ran := false
-	t.Cleanup(swap(&streamLocal, func(context.Context, io.Writer, string, ...string) error {
-		ran = true
-		return nil
-	}))
-
-	_, err := execute(t, "--config", selfConfig(t), "setup")
-	if err == nil {
-		t.Fatal("setup proceeded without Homebrew")
-	}
-	if !strings.Contains(err.Error(), "brew.sh") && !strings.Contains(err.Error(), "install.sh") {
-		t.Fatalf("the error does not print the Homebrew install command: %v", err)
-	}
-	if ran {
-		t.Fatal("setup ran a command it should only have printed")
-	}
-}
-
 func TestMachinesAddSelfWritesTheMachineAndPreparesIt(t *testing.T) {
 	dir := writeConfigDir(t, "# the machine I bought first\nmachines:\n  - name: server\n    hosts: [203.0.113.10]\n")
-	ran := false
-	t.Cleanup(swap(&streamLocal, func(context.Context, io.Writer, string, ...string) error {
-		ran = true
-		return nil
-	}))
-	// Homebrew and ansible-playbook are both already there: nothing to
-	// stream, only to notice.
-	withMissingBinary(t, "nothing-missing")
+	fake := writeFakeBootstrap(t, dir, "mac-brew", "")
 
 	out, err := execute(t, "--config", dir, "machines", "add", "--self", "mac")
 	if err != nil {
 		t.Fatalf("machines add --self returned %v (%s)", err, out)
 	}
-	if ran {
-		t.Fatal("it installed Ansible when it was already there")
+	if fake.installed() {
+		t.Fatal("it installed something when nothing was missing")
+	}
+	if !strings.Contains(out, "mac is already prepared: ansible-playbook is /opt/homebrew/bin/ansible-playbook.") {
+		t.Fatalf("it does not say the machine is prepared: %s", out)
 	}
 
 	cfg, err := config.Load(dir)

@@ -16,6 +16,7 @@ one document — read this instead of parsing help text.
 
 ```
 devmachine setup [--force] [--no-harden] [--no-essentials] [--no-aliases] [--yes]
+                 [--package-manager brew|ports] [--install-prerequisites]
 ```
 
 Connects to your server for the first time and gets it ready to use.
@@ -41,11 +42,22 @@ release that has `essentials` gets it — an older one starts empty and says so.
 the error says where to look. See [setting up a server for the first
 time](../how-it-works/trust-bootstrap.md) for why the order matters.
 
-Works on **Debian, Ubuntu and Arch Linux**. Before it changes anything it
-asks the machine what it runs (`uname -s`, then `ID` in `/etc/os-release`);
+Works on **Debian, Ubuntu, Arch Linux and macOS**. Before it changes anything it
+asks the machine what it runs (`uname -s`, then `ID` in `/etc/os-release`,
+or `sw_vers` on a Mac);
 anything else is named and it stops, with the machine untouched. See [what
 `setup` refuses](../how-it-works/trust-bootstrap.md#it-checks-what-the-machine-runs-first).
 The password is used once and written nowhere.
+
+**On a Mac** Ansible comes from a package manager package, `mac-brew`
+(Homebrew) or `mac-ports` (MacPorts), not from the CLI. A machine that
+lists one keeps it. Otherwise `setup` adds the one for the manager the Mac
+already has, and asks when it has neither or both (`--package-manager`).
+It copies the package to `/opt/devmachine/bootstrap/<package>/`, runs its
+`bootstrap check` as the admin login, lists what is missing with the time
+each takes, and installs only after you agree (or with
+`--install-prerequisites`). `--yes` never installs them. See [what a
+machine needs](../how-it-works/what-a-machine-needs.md).
 
 Once the machine answers, it asks two more questions: whether to write SSH
 host entries to `~/.ssh/config` (default yes — `ssh <workspace>-devmachine`
@@ -66,7 +78,9 @@ there.
 | `--no-harden` | leave password login on; the key is still installed and proved |
 | `--no-essentials` | start the machine with no packages, instead of `essentials` |
 | `--no-aliases` | do not ask about SSH host entries, and do not write them |
-| `--yes` | answer yes to the SSH host entries question, without asking |
+| `--yes` | answer yes to the SSH host entries question, without asking; never installs prerequisites |
+| `--package-manager brew\|ports` | on a Mac with neither or both, the package manager to install Ansible with |
+| `--install-prerequisites` | on a Mac, install what is missing (Command Line Tools, Homebrew or MacPorts, Ansible) without asking |
 
 Run again with a configuration in place, and it just makes sure Ansible
 is installed — it never rewrites `config.yml`, a key, or SSH settings.
@@ -91,6 +105,8 @@ release pinned, `defaults.workspace`, the machine with `essentials`, and
 | write SSH host entries? | yes, unless `--no-aliases` |
 | reach it over Tailscale? | `--tailscale` |
 | install the agent skills? | run `devmachine skills add` afterwards |
+| which package manager? (a Mac with neither or both) | `--package-manager brew` or `--package-manager ports` |
+| install what the Mac lacks? | `--install-prerequisites` (`--yes` never does) |
 
 It creates that file only if it is still missing when the bootstrap
 ends. If another `add` (or `create-local --add`) wrote one in the
@@ -107,8 +123,13 @@ from `devmachine workspaces new`, and packages from `devmachine packages
 add`, both without questions when given `--yes`.
 
 **On a self machine** (`self: true`, your own computer — see
-[`machines`](#machines)), setup only checks Homebrew and installs Ansible;
-no fingerprint, key or password involved.
+[`machines`](#machines)), setup runs the `mac-brew` package's bootstrap on
+your computer (`mac-ports` when the machine lists it), from the package
+cache, with no `sudo` and nothing under `/opt`. When Homebrew and
+`ansible-playbook` are already there it installs nothing and prints `<name>
+is already prepared: ansible-playbook is <path>.` Otherwise it lists what is
+missing and asks first, as on a remote Mac. No fingerprint, key or password
+involved.
 
 ## setup git
 
@@ -264,8 +285,8 @@ list --format json`) wins over it.
 ```
 devmachine machines list                  each machine, its addresses, port, location and workspaces
 devmachine machines show [name]           one machine, and what it runs as setup, sync or doctor last read it
-devmachine machines add [--location l] [--no-harden] [--no-essentials] [--no-aliases] [--yes]   set up another server and record it
-devmachine machines add --self <name> [--location l]   add your computer as a machine, with no address
+devmachine machines add [--location l] [--no-harden] [--no-essentials] [--no-aliases] [--yes] [--package-manager brew|ports] [--install-prerequisites]   set up another server and record it
+devmachine machines add --self <name> [--location l] [--package-manager brew|ports] [--install-prerequisites]   add your computer as a machine, with no address
 devmachine machines add --name <n> --address <a> --fingerprint <SHA256:…> [--user u] [--port p] [--key new|file|agent:<SHA256:…>] [--location l] [--password-stdin] [--tailscale]   the same, asking nothing
 devmachine machines trust [name] [--check] [--replace] [--expect <fp>] [--yes]   check or update its SSH fingerprint
 devmachine machines scan --address <a> [--port p]   the SSH fingerprint of a server not added yet; writes nothing
@@ -375,6 +396,8 @@ one the way `setup` does — see [setup without a terminal](#setup):
 | `--tailscale` | off | also add the `tailscale` package |
 | `--domain` | — | the domain; only when there is no `config.yml` yet, and refused otherwise |
 | `--password-stdin` | off | read the admin password from stdin, for a server that takes nothing else yet |
+| `--package-manager` | — | on a Mac with neither or both managers, `brew` or `ports`; without it such a Mac stops |
+| `--install-prerequisites` | off | on a Mac, consent to install what is missing; without it a Mac that lacks something stops |
 
 `--key agent:SHA256:…` picks one key from the SSH agent by its
 fingerprint (`ssh-add -l` lists them), the way choosing an agent key does

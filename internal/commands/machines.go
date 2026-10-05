@@ -116,8 +116,13 @@ func newMachinesAddCmd(opts *options) *cobra.Command {
 			"its own, turns password login off, and installs Ansible.\n\n" +
 			"`setup` writes the first machine. This writes every one after it, and, " +
 			"with --address and no config.yml yet, the first one too, without a terminal.\n\n" +
+			"On a Mac it installs Ansible through a package manager package instead: mac-brew " +
+			"(Homebrew) or mac-ports (MacPorts). It asks which one when the Mac has neither or both " +
+			"(--package-manager), and asks before it installs anything (--install-prerequisites); " +
+			"--yes never installs them.\n\n" +
 			"--self <name> adds your computer as a machine instead: no address, no key, no " +
-			"password. It only makes sure Homebrew and Ansible are on PATH.",
+			"password. It runs the mac-brew package's bootstrap (mac-ports when the machine lists it) " +
+			"on your computer, which installs nothing when Homebrew and ansible-playbook are already there.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			dir, _, err := config.Dir(opts.configDir)
@@ -125,7 +130,7 @@ func newMachinesAddCmd(opts *options) *cobra.Command {
 				return err
 			}
 			if selfName != "" {
-				return runMachinesAddSelf(cmd.Context(), dir, cmd.OutOrStdout(), selfName, s.location)
+				return runMachinesAddSelf(cmd.Context(), dir, cmd.InOrStdin(), cmd.OutOrStdout(), selfName, s)
 			}
 			return runMachinesAdd(cmd.Context(), dir, cmd.InOrStdin(), cmd.OutOrStdout(), s)
 		},
@@ -137,6 +142,7 @@ func newMachinesAddCmd(opts *options) *cobra.Command {
 	c.Flags().BoolVar(&s.noAliases, "no-aliases", false,
 		"do not ask about SSH host entries, and do not write them")
 	c.Flags().BoolVar(&s.yes, "yes", false, "answer yes to writing SSH host entries, without asking")
+	addPrerequisiteFlags(c, &s)
 	c.Flags().StringVar(&selfName, "self", "",
 		"add your computer as a machine, named <name>, instead of asking for an address")
 	c.Flags().StringVar(&s.address, "address", "",
@@ -163,8 +169,12 @@ func newMachinesAddCmd(opts *options) *cobra.Command {
 
 // runMachinesAddSelf writes a self machine into config.yml and prepares it:
 // no address is asked for, because there is none to give.
-func runMachinesAddSelf(ctx context.Context, dir string, out io.Writer, name, location string) error {
-	location, err := config.NormalizeLocation(location)
+func runMachinesAddSelf(ctx context.Context, dir string, in io.Reader, out io.Writer, name string,
+	opts setupOptions) error {
+	if err := checkPackageManager(opts.packageManager); err != nil {
+		return err
+	}
+	location, err := config.NormalizeLocation(opts.location)
 	if err != nil {
 		return err
 	}
@@ -192,7 +202,11 @@ func runMachinesAddSelf(ctx context.Context, dir string, out io.Writer, name, lo
 	repo.AutoCommit(ctx, dir, "chore(config): add machine "+name)
 	fmt.Fprintf(out, "\nadded %s (your computer) to %s\n\n", name, filepath.Join(dir, config.FileName))
 
-	if err := prepareExistingSelf(ctx, out, m); err != nil {
+	prep, err := newAnsiblePrep(dir, current.Packages, bufio.NewReader(in), in, opts, nil)
+	if err != nil {
+		return err
+	}
+	if err := prepareExistingSelf(ctx, out, m, prep); err != nil {
 		return err
 	}
 
@@ -398,6 +412,9 @@ func newMachinesRmCmd(opts *options) *cobra.Command {
 // It reads and writes through the streams it is given, for the same reason
 // setup does: every branch of the bootstrap is reachable without a terminal.
 func runMachinesAdd(ctx context.Context, dir string, in io.Reader, out io.Writer, opts setupOptions) error {
+	if err := checkPackageManager(opts.packageManager); err != nil {
+		return err
+	}
 	location, err := config.NormalizeLocation(opts.location)
 	if err != nil {
 		return err
@@ -510,7 +527,14 @@ func runMachinesAdd(ctx context.Context, dir string, in io.Reader, out io.Writer
 	// The machine is written only after the bootstrap proved the key. Written
 	// first, a failed run left an entry behind, and running again to fix it
 	// was refused as a name already configured.
-	if err := bootstrap(ctx, out, dir, m, key, opts.noHarden, password); err != nil {
+	prep, err := newAnsiblePrep(dir, release, r, in, opts, func(name string) error {
+		m.Packages = append(m.Packages, name)
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	if err := bootstrap(ctx, out, dir, m, key, opts.noHarden, password, prep); err != nil {
 		return err
 	}
 	if err := keepHostKey(m, trusted); err != nil {

@@ -214,7 +214,7 @@ func TestMachinesAddDoesNotAskForALocationGivenAsAFlag(t *testing.T) {
 
 func TestMachinesAddSelfWritesTheLocation(t *testing.T) {
 	dir := writeConfigDir(t, oneMachine)
-	withMissingBinary(t, "nothing-missing")
+	writeFakeBootstrap(t, dir, "mac-brew", "")
 
 	if out, err := execute(t, "--config", dir, "machines", "add", "--self", "mac", "--location", "Office"); err != nil {
 		t.Fatalf("machines add --self returned %v (%s)", err, out)

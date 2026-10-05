@@ -322,8 +322,90 @@ temporary and gone at the next reboot.
 `doctor` both refuse to touch anything when Ansible is not on your `PATH`.
 
 **What to do:** Run `devmachine setup --machine <name>`. On your own computer
-this only checks that Homebrew is there and runs `brew install ansible` — no
-key, no password, no lock-down involved.
+it runs the `mac-brew` package's bootstrap (or `mac-ports`'s, when the
+machine lists it), which lists what is missing and installs it after you
+agree — no key, no password, no lock-down involved. See [what a machine
+needs](how-it-works/what-a-machine-needs.md).
+
+## "the Mac has neither Homebrew nor MacPorts"
+
+```
+the Mac has neither Homebrew nor MacPorts: run again with --package-manager brew or --package-manager ports
+the Mac has both Homebrew and MacPorts: run again with --package-manager brew or --package-manager ports
+```
+
+**What it means:** A Mac gets Ansible through a package manager, and the
+machine lists no `mac-brew` or `mac-ports` package. `setup` looked at the
+Mac (`/opt/homebrew/bin/brew`, `/usr/local/bin/brew`, `/opt/local/bin/port`)
+and found none, or both, so it cannot pick one for you, and there was no
+terminal to ask at. Nothing on the Mac was changed.
+
+**What to do:** Choose one and run the same command again with
+`--package-manager brew` (Homebrew) or `--package-manager ports`
+(MacPorts). Or add the package yourself: `devmachine packages add
+mac-brew --machine <name>`.
+
+## "machine … lists mac-brew and mac-ports: keep one"
+
+```
+machine "studio" lists mac-brew and mac-ports: keep one
+```
+
+**What it means:** Both package manager packages are on the machine, and
+each would install Ansible its own way. `setup` stopped before changing
+anything.
+
+**What to do:** Remove one from the machine's `packages:` in
+`config.yml`, then run `setup` again.
+
+## "nothing was installed; setup stops here"
+
+**What it means:** `setup` listed what the Mac lacks (the Command Line
+Tools, Homebrew or MacPorts, Ansible) and you answered no. Nothing was
+installed, and without Ansible the Mac cannot be synced.
+
+**What to do:** Run `setup` again and answer yes, or install the listed
+items yourself and run `setup` again: it finds them and installs nothing.
+
+## "nothing was installed: run again with --install-prerequisites"
+
+```
+nothing was installed: run again with --install-prerequisites to install Xcode Command Line Tools and Homebrew
+```
+
+**What it means:** The Mac lacks the items named, and `setup` had no
+terminal to ask whether to install them. `--yes` does not count as that
+answer: it means other things, and the macOS app passes it in the
+background. See [why consent has its own
+flag](how-it-works/what-a-machine-needs.md#why-consent-has-its-own-flag).
+
+**What to do:** If you agree to install them, run the same command again
+with `--install-prerequisites`. Installing the Command Line Tools takes 5
+to 10 minutes.
+
+## "the bootstrap stopped at …"
+
+```
+the bootstrap stopped at homebrew: the Homebrew installer failed; its output is above. It needs passwordless sudo for the admin login.
+```
+
+**What it means:** The package manager package's bootstrap failed at the
+step it names (`command-line-tools`, `homebrew`, `macports`, `ansible`),
+and the rest of the message is its own advice. Steps before it are done;
+running `setup` again skips them.
+
+**What to do:** Do what the message says, then run `setup` again. The
+most common cause is an admin login whose `sudo` asks for a password:
+the bootstrap only uses `sudo -n`.
+
+## "no mac-brew package with a bootstrap is available here"
+
+**What it means:** On your own computer, `setup` runs the `mac-brew`
+package's bootstrap from the package cache, and the pinned packages
+release has no such package (or no release is pinned).
+
+**What to do:** Run `devmachine packages pin` to pin the latest release,
+then `devmachine setup --machine <name>` again.
 
 ## "machine X is your computer (self: true), so it has no hosts"
 
