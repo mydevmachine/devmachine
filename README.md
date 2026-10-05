@@ -1,7 +1,8 @@
 <h1 align="center">devmachine</h1>
 
 <p align="center">
-  <strong>Your own development server, one workspace per project, coding agents ready in each.</strong>
+  <strong>Code from anywhere.</strong><br>
+  Any machine you own. An isolated workspace for every project. No lock-in. Free.
 </p>
 
 <p align="center">
@@ -16,40 +17,51 @@
 <p align="center">
   <a href="https://github.com/mydevmachine/devmachine/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/mydevmachine/devmachine?label=release"></a>
   <a href="LICENSE"><img alt="MIT licence" src="https://img.shields.io/badge/licence-MIT-blue"></a>
-  <img alt="macOS and Linux" src="https://img.shields.io/badge/runs%20on-macOS%20%7C%20Linux-lightgrey">
-  <img alt="Debian and Ubuntu servers" src="https://img.shields.io/badge/servers-Debian%20%7C%20Ubuntu-lightgrey">
+  <img alt="Runs on macOS, Linux and Windows through WSL 2" src="https://img.shields.io/badge/runs%20on-macOS%20%7C%20Linux%20%7C%20WSL%202-lightgrey">
+  <img alt="Debian and Ubuntu machines" src="https://img.shields.io/badge/machines-Debian%20%7C%20Ubuntu-lightgrey">
 </p>
 
 <p align="center">
   <img src=".github/readme/161-machines-map-selected.webp" alt="The network map in the Devmachine app: the internet at the top, published sites such as app.acme.example.com linked down to five machines — laptop and a Lima VM on this Mac, main and staging at a VPS provider, homebox at home over the tailnet — with the details of the main machine below." width="100%">
 </p>
 
-devmachine turns a VPS, an old laptop or a virtual machine on your Mac into a
-place to code. Each project gets its own account on the machine, called a
-**workspace**, with its own tools, logins and coding agent. Close the laptop
-and your agents keep working on the server.
+devmachine turns a Debian or Ubuntu machine into your own coding machine,
+with one workspace per project. A VPS you rent, an old laptop, or a virtual
+machine on your Mac: devmachine sets it up and locks it down. Each project
+gets an isolated workspace with its own tech stack, logins and AI
+subscription. Work from your terminal, a tablet over SSH, Claude Code on your
+phone, or the Mac app.
 
-It is a single Go binary on your computer. Underneath it is plain Linux, SSH
-and git: stop using devmachine and your server still works.
+- **Open source.** The CLI and every package are open source. Read them, fork
+  them, change them.
+- **No lock-in.** Underneath it is plain Linux, SSH and git. Stop using
+  devmachine and your machines still work.
+- **Extensible via packages.** Add a tool with one package, or write your own.
+- **Your machines, your data.** A VPS you rent, a computer you already have,
+  or a virtual machine of your own. Up to you.
 
 ## Quick start
 
-You need a Debian or Ubuntu VPS you can reach as root over SSH, and a Mac or
-Linux computer. No server yet? `devmachine machines create-local dev` makes
-one on your own computer.
+On macOS or Linux, or Windows through WSL 2:
 
 ```sh
 curl -fsSL https://mydevmachine.sh/install.sh | sh   # or: brew install mydevmachine/tap/devmachine
-devmachine setup                                     # connect, lock the server down, install the essentials
-devmachine skills add                                # teach your coding agent the CLI
-devmachine workspaces new acme && devmachine sync    # add a workspace and build it on the server
+devmachine setup                                     # connect your machine and lock it down
+devmachine skills add                                # work with your machines from any LLM session
+devmachine workspaces new acme && devmachine sync    # add a workspace and build it
 devmachine ssh acme                                  # step in
 ```
 
-`setup` checks it talks to the right server, installs a key, turns off
-password logins, and adds base tools, git, a firewall and Caddy. Then you can
-ask for all of this from any Claude Code or Codex session instead of typing
-it. Walk through it slowly in
+You need a Debian or Ubuntu machine you can reach as root over SSH. No
+server yet? `devmachine machines create-local dev` makes a virtual machine
+on your own computer.
+
+`setup` checks the machine's fingerprint, so you know you reached your own
+machine. It installs a key only you have, turns off password logins, and
+adds base tools, git, a firewall and Caddy. After `skills add`, any Claude
+Code or Codex session can add packages, workspaces and sites for you.
+
+Walk through it slowly in
 [Your first devmachine, explained](https://mydevmachine.sh/guides/your-first-devmachine/),
 or hand [the agent setup page](https://mydevmachine.sh/agent-setup/) to your
 coding agent and let it do the work.
@@ -57,25 +69,37 @@ coding agent and let it do the work.
 ## What you get
 
 - **One workspace per project.** Projects never see each other's files or
-  tokens. One client per workspace, each with its own stack and AI
-  subscription.
-- **Agents ready to work.** Claude Code, Codex, Pi, opencode, Antigravity CLI,
-  Kimi Code and Cline, each installed by one package. Sessions run in tmux, so they
-  survive a closed terminal.
-- **Your site online in one command.** `devmachine expose add acme 3000 --host app.example.com`
-  puts a workspace's port on your domain with HTTPS. `dns` points the name
-  for you through Cloudflare or Hostinger, or a provider you write.
-- **Private until you publish.** Reach an app through `tunnel` or Tailscale.
-  Only what you `expose` is public.
-- **Locked down from the start.** No passwords, no workspace runs as root, and
-  the CLI checks the server's identity on every connection.
-- **Many machines, one config.** A VPS, a homelab box, your own computer
-  (`self: true`), a Lima VM. Every command takes a workspace name; you never
-  type an address.
-- **Logins and secrets.** Sign in once and share the login across
-  workspaces, or keep it separate. Tokens go to `devmachine secrets`, never into a file you commit.
-- **Move in minutes.** Your whole setup is a folder you can keep in git.
-  Point it at a new machine and `sync`.
+  tokens. One project breaking does not touch the others.
+- **Work from any computer.** Your code lives on your machines. Open any
+  workspace by name: `devmachine ssh acme`.
+- **Agents ready to work.** Claude Code, Codex and your skills in every
+  workspace. Pi, opencode, Antigravity CLI, Kimi Code and Cline are one
+  package each.
+- **Flexible at the core.** Install from existing packages or create your
+  own. Keep it private or share it.
+- **Put your site online.** Your app at app.example.com, with HTTPS, in one
+  command: `devmachine expose add acme 3000 --host app.example.com`.
+  devmachine points the name for you through Cloudflare or Hostinger.
+- **Private until you publish.** Reach apps through `devmachine tunnel` or
+  Tailscale. Only what you publish is public.
+- **Locked down from the start.** No passwords, and no workspace runs as
+  root.
+- **Move to another machine.** Your whole setup is saved and versioned in
+  git. Point it at a new machine and `sync`.
+- **Build by day, run agents 24/7.** Every login opens inside tmux. Close the
+  laptop and your agents keep working on the machine.
+
+## What machine do I need
+
+| | RAM | CPU | Disk | For |
+| --- | --- | --- | --- | --- |
+| A few apps | 8 GB | 2 vCPU | 100 GB | One or two apps and a coding agent. |
+| **Recommended** | **16 GB** | **4 vCPU** | **200 GB** | Several apps and coding agents at once. |
+| Full development | 32 GB | 8 vCPU | 400 GB | Docker and many intensive apps running together. |
+
+An old laptop with Debian or Ubuntu works too. Add the `tailscale` package
+and you reach it from anywhere, even from outside your home. See
+[Reaching your server](https://mydevmachine.sh/concepts/reaching-your-server/).
 
 ## The model
 
