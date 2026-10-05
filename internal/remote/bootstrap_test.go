@@ -223,7 +223,7 @@ func (c *recordingClient) everything() string {
 
 func TestHardenWritesADropInThatSortsFirst(t *testing.T) {
 	c := hardenClient()
-	if err := Harden(context.Background(), c); err != nil {
+	if err := Harden(context.Background(), c, debian); err != nil {
 		t.Fatal(err)
 	}
 	joined := c.everything()
@@ -251,7 +251,7 @@ func TestHardenSaysWhyTheNameSortsFirst(t *testing.T) {
 
 func TestHardenValidatesBeforeReloading(t *testing.T) {
 	c := hardenClient()
-	if err := Harden(context.Background(), c); err != nil {
+	if err := Harden(context.Background(), c, debian); err != nil {
 		t.Fatal(err)
 	}
 	joined := c.transcript()
@@ -265,7 +265,7 @@ func TestHardenValidatesBeforeReloading(t *testing.T) {
 
 func TestHardenLeavesPasswordsOnWhenValidationFails(t *testing.T) {
 	c := &recordingClient{failOn: "sshd -t"}
-	err := Harden(context.Background(), c)
+	err := Harden(context.Background(), c, debian)
 	if err == nil {
 		t.Fatal("it carried on past a bad config")
 	}
@@ -278,7 +278,7 @@ func TestHardenLeavesPasswordsOnWhenValidationFails(t *testing.T) {
 // left on disk, breaks the next reload by anything at all, including a reboot.
 func TestHardenTakesBackAConfigSshdRefused(t *testing.T) {
 	c := &recordingClient{failOn: "sshd -t"}
-	_ = Harden(context.Background(), c)
+	_ = Harden(context.Background(), c, debian)
 
 	last := c.commands[len(c.commands)-1]
 	if !strings.Contains(last, "rm ") || !strings.Contains(last, hardeningDropInPath) {
@@ -356,7 +356,7 @@ func hardenClient() *recordingClient {
 // "password login is off" be said of a machine that still takes passwords.
 func TestHardenProvesPasswordLoginIsOff(t *testing.T) {
 	c := hardenClient()
-	if err := Harden(context.Background(), c); err != nil {
+	if err := Harden(context.Background(), c, debian); err != nil {
 		t.Fatal(err)
 	}
 	joined := c.transcript()
@@ -375,7 +375,7 @@ func TestHardenProvesPasswordLoginIsOff(t *testing.T) {
 
 func TestHardenTakesTheDropInBackWhenSshdStillAllowsPasswords(t *testing.T) {
 	c := &recordingClient{output: map[string]string{AsRoot(effectiveConfigScript): sshdTWithPasswords("yes")}}
-	err := Harden(context.Background(), c)
+	err := Harden(context.Background(), c, debian)
 	want := "the drop-in was written but sshd still allows passwords: " + hardeningDropInPath +
 		" is not read by this sshd"
 	if err == nil || err.Error() != want {
@@ -397,19 +397,19 @@ func TestHardenTakesTheDropInBackWhenSshdStillAllowsPasswords(t *testing.T) {
 func TestHardenReadsSshdTInEitherCase(t *testing.T) {
 	for _, answer := range []string{"PasswordAuthentication no\n", "passwordauthentication no\n"} {
 		c := &recordingClient{output: map[string]string{AsRoot(effectiveConfigScript): "Port 22\n" + answer}}
-		if err := Harden(context.Background(), c); err != nil {
+		if err := Harden(context.Background(), c, debian); err != nil {
 			t.Fatalf("%q: %v", answer, err)
 		}
 	}
 	c := &recordingClient{output: map[string]string{AsRoot(effectiveConfigScript): "Port 22\nPasswordAuthentication yes\n"}}
-	if err := Harden(context.Background(), c); err == nil {
+	if err := Harden(context.Background(), c, debian); err == nil {
 		t.Fatal("CamelCase yes was read as no")
 	}
 }
 
 func TestHardenSaysSoWhenSshdCannotPrintItsConfiguration(t *testing.T) {
 	c := &recordingClient{failOn: "sshd -T"}
-	err := Harden(context.Background(), c)
+	err := Harden(context.Background(), c, debian)
 	if err == nil || !strings.Contains(err.Error(), "sshd -T") {
 		t.Fatalf("got %v", err)
 	}
@@ -640,7 +640,7 @@ func TestCheckRootSaysHowToFixIt(t *testing.T) {
 // root does. Found on a real machine whose admin was not root.
 func TestBootstrapRunsAsRootForAnAdminWhoIsNot(t *testing.T) {
 	c := clientWithOsRelease("ID=ubuntu\n")
-	if err := Harden(context.Background(), c); err != nil {
+	if err := Harden(context.Background(), c, debian); err != nil {
 		t.Fatal(err)
 	}
 	if err := InstallAnsible(context.Background(), c, io.Discard); err != nil {
@@ -705,7 +705,7 @@ func TestCheckRootSuggestsAFileSudoReads(t *testing.T) {
 // Found on a real machine reached only through Tailscale SSH.
 func TestHardenMakesSshdsRuntimeDirectoryBeforeValidating(t *testing.T) {
 	c := hardenClient()
-	if err := Harden(context.Background(), c); err != nil {
+	if err := Harden(context.Background(), c, debian); err != nil {
 		t.Fatal(err)
 	}
 	joined := c.transcript()

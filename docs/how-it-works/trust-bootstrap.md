@@ -113,6 +113,14 @@ SSH still allows passwords, the file is removed, SSH is reloaded without
 it, and `setup` stops — it never says "password login is off" about a
 server that still takes passwords.
 
+### On a Mac
+
+A Mac gets the same file in the same folder, with two differences. The
+check is `/usr/sbin/sshd -t` alone: macOS has no `/run`, and its `/` is
+read-only. And nothing is reloaded: macOS starts SSH fresh for each
+connection (through launchd), so the next connection reads the new file.
+The `sshd -T` proof is the same.
+
 ## An admin login that is not root
 
 Many servers arrive with root closed and an ordinary account that has

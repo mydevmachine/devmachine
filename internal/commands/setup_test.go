@@ -137,7 +137,7 @@ func stubBootstrap(t *testing.T, s bootstrapStubs) *bootstrapSteps {
 		steps.events = append(steps.events, "install ansible")
 		return nil
 	}))
-	t.Cleanup(swap(&harden, func(context.Context, remote.Client) error {
+	t.Cleanup(swap(&harden, func(context.Context, remote.Client, remote.System) error {
 		steps.hardened = true
 		steps.events = append(steps.events, "harden")
 		return nil
@@ -221,7 +221,7 @@ func TestSetupWithExistingConfigurationOnlyPreparesTheSelectedMachine(t *testing
 		t.Fatal("setup installed a key for an existing configuration")
 		return nil
 	}))
-	t.Cleanup(swap(&harden, func(context.Context, remote.Client) error {
+	t.Cleanup(swap(&harden, func(context.Context, remote.Client, remote.System) error {
 		t.Fatal("setup hardened an existing machine")
 		return nil
 	}))

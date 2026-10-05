@@ -180,6 +180,12 @@ install -d -m 0755 /run/sshd
 sshd -t
 `
 
+// macValidateScript is validateScript for a Mac, where /run does not exist and
+// / is read-only: sshd -t there needs no runtime directory.
+const macValidateScript = `set -eu
+/usr/sbin/sshd -t
+`
+
 // reloadScript picks the unit name the distribution uses: Debian and Ubuntu
 // call it ssh, everybody else calls it sshd.
 const reloadScript = `set -eu
@@ -189,18 +195,41 @@ fi
 systemctl reload sshd
 `
 
+// sshdSteps are the two commands that differ per system. reload is empty on a
+// Mac: launchd starts sshd for each connection, so the next one reads the
+// drop-in with nothing to reload.
+type sshdSteps struct {
+	validate, reload string
+}
+
+func sshdStepsFor(s System) sshdSteps {
+	if s.MacOS() {
+		return sshdSteps{validate: macValidateScript}
+	}
+	return sshdSteps{validate: validateScript, reload: reloadScript}
+}
+
+func (s sshdSteps) reloadSshd(ctx context.Context, c Client) error {
+	if s.reload == "" {
+		return nil
+	}
+	_, err := c.Run(ctx, AsRoot(s.reload))
+	return err
+}
+
 // Harden turns password login off, validates before reloading, and then asks
 // sshd whether passwords really are off.
 //
 // A configuration sshd refuses plus a reload is a machine nobody can reach
 // again, so validation is not a courtesy: it is the only thing between a typo
 // and a rebuild. It runs after the key has been proved, never before.
-func Harden(ctx context.Context, c Client) error {
+func Harden(ctx context.Context, c Client, system System) error {
+	steps := sshdStepsFor(system)
 	if _, err := c.RunInput(ctx, AsRoot(writeDropInScript), strings.NewReader(hardeningDropIn)); err != nil {
 		return fmt.Errorf("writing %s: %w", hardeningDropInPath, err)
 	}
 
-	if out, err := c.Run(ctx, AsRoot(validateScript)); err != nil {
+	if out, err := c.Run(ctx, AsRoot(steps.validate)); err != nil {
 		// A file the daemon refused must not stay: the next reload by
 		// anything at all, a reboot included, would fail on it.
 		if _, rmErr := c.Run(ctx, AsRoot("rm -f "+hardeningDropInPath)); rmErr != nil {
@@ -211,10 +240,10 @@ func Harden(ctx context.Context, c Client) error {
 			err, strings.TrimSpace(out))
 	}
 
-	if _, err := c.Run(ctx, AsRoot(reloadScript)); err != nil {
+	if err := steps.reloadSshd(ctx, c); err != nil {
 		return fmt.Errorf("reloading sshd: %w", err)
 	}
-	return provePasswordLoginOff(ctx, c)
+	return provePasswordLoginOff(ctx, c, steps)
 }
 
 // effectiveConfigScript prints the configuration sshd runs with, every
@@ -231,7 +260,7 @@ sshd -T
 // of sshd_config.d, or one that sets PasswordAuthentication before the
 // Include. Without this, "password login is off" would be said of a machine
 // that still takes passwords.
-func provePasswordLoginOff(ctx context.Context, c Client) error {
+func provePasswordLoginOff(ctx context.Context, c Client, steps sshdSteps) error {
 	effective, err := c.Run(ctx, AsRoot(effectiveConfigScript))
 	if err != nil {
 		return fmt.Errorf("asking sshd -T whether password login is off: %w", err)
@@ -245,7 +274,7 @@ func provePasswordLoginOff(ctx context.Context, c Client) error {
 		return fmt.Errorf("sshd still allows passwords and %s could not be taken away again (%w): "+
 			"remove it by hand", hardeningDropInPath, err)
 	}
-	if _, err := c.Run(ctx, AsRoot(reloadScript)); err != nil {
+	if err := steps.reloadSshd(ctx, c); err != nil {
 		return fmt.Errorf("sshd still allows passwords, and reloading it without %s failed: %w",
 			hardeningDropInPath, err)
 	}

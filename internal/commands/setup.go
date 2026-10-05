@@ -388,7 +388,7 @@ func prepareExisting(ctx context.Context, dir string, out io.Writer, name string
 	}
 	defer func() { _ = client.Close() }()
 
-	if err := refuseUnknownSystem(ctx, client, out, address); err != nil {
+	if _, err := refuseUnknownSystem(ctx, client, out, address); err != nil {
 		return err
 	}
 	if tailscaleSSH(client) {
@@ -410,13 +410,13 @@ func prepareExisting(ctx context.Context, dir string, out io.Writer, name string
 
 // refuseUnknownSystem stops on a machine this CLI does not set up, while
 // nothing on it has been changed yet.
-func refuseUnknownSystem(ctx context.Context, client remote.Client, out io.Writer, address string) error {
+func refuseUnknownSystem(ctx context.Context, client remote.Client, out io.Writer, address string) (remote.System, error) {
 	system, err := detectSystem(ctx, client)
 	if err != nil {
-		return err
+		return remote.System{}, err
 	}
 	fmt.Fprintf(out, "%s runs %s.\n", address, system)
-	return nil
+	return system, nil
 }
 
 // installKeyOverTailscaleSSH makes sure the machine's key is in
@@ -823,10 +823,12 @@ func bootstrap(ctx context.Context, out io.Writer, dir string, m config.Machine,
 	password passwordSource) error {
 	client, address, err := dialWith(ctx, m, m.User, key.auth())
 	unproved := false
+	var system remote.System
 	if err == nil {
-		if err := refuseUnknownSystem(ctx, client, out, address); err != nil {
+		var detectErr error
+		if system, detectErr = refuseUnknownSystem(ctx, client, out, address); detectErr != nil {
 			_ = client.Close()
-			return err
+			return detectErr
 		}
 	}
 	switch {
@@ -850,7 +852,7 @@ func bootstrap(ctx context.Context, out io.Writer, dir string, m config.Machine,
 		// password is worth asking for.
 		return err
 	default:
-		client, err = installWithPassword(ctx, out, m, key, password)
+		client, system, err = installWithPassword(ctx, out, m, key, password)
 		if err != nil {
 			return err
 		}
@@ -874,7 +876,7 @@ func bootstrap(ctx context.Context, out io.Writer, dir string, m config.Machine,
 			"Prove it from outside the tailnet before the ssh_hardening package turns passwords off.\n")
 	default:
 		fmt.Fprintf(out, "turning password login off...\n")
-		if err := harden(ctx, client); err != nil {
+		if err := harden(ctx, client, system); err != nil {
 			return err
 		}
 		fmt.Fprintf(out, "password login is off; the key is the only way in.\n")
@@ -892,32 +894,33 @@ func bootstrap(ctx context.Context, out io.Writer, dir string, m config.Machine,
 // installWithPassword is the branch for a machine as it was bought: a root
 // password and nothing else. It returns the connection that proved the key.
 func installWithPassword(ctx context.Context, out io.Writer, m config.Machine, key chosenKey,
-	source passwordSource) (remote.Client, error) {
+	source passwordSource) (remote.Client, remote.System, error) {
 	address := m.Hosts[0].Address
 	fmt.Fprintf(out, "%s does not log in yet, so the password is needed once to install it.\n", key.describe())
 
 	password, err := source(fmt.Sprintf("password for %s@%s", m.User, address))
 	if err != nil {
-		return nil, err
+		return nil, remote.System{}, err
 	}
 	if password == "" {
-		return nil, errors.New("no password was given, and there is no other way in yet")
+		return nil, remote.System{}, errors.New("no password was given, and there is no other way in yet")
 	}
 
 	client, _, err := dialWith(ctx, m, m.User, remote.Auth{Password: password})
 	if err != nil {
-		return nil, err
+		return nil, remote.System{}, err
 	}
-	if err := refuseUnknownSystem(ctx, client, out, address); err != nil {
+	system, err := refuseUnknownSystem(ctx, client, out, address)
+	if err != nil {
 		_ = client.Close()
-		return nil, err
+		return nil, remote.System{}, err
 	}
 	err = installKey(ctx, client, key.Public)
 	// The password's whole life ends here: one connection, one use, nothing
 	// written down.
 	_ = client.Close()
 	if err != nil {
-		return nil, err
+		return nil, remote.System{}, err
 	}
 	fmt.Fprintf(out, "the key is installed; proving it on a connection of its own...\n")
 
@@ -929,10 +932,10 @@ func installWithPassword(ctx context.Context, out io.Writer, m config.Machine, k
 		fmt.Fprintf(out,
 			"\nThe key was installed and does not log in, so nothing was hardened and "+
 				"password login is still on: you can still get in with the password.\n")
-		return nil, fmt.Errorf("the key was installed but not proved, so password login was left on: %w", err)
+		return nil, remote.System{}, fmt.Errorf("the key was installed but not proved, so password login was left on: %w", err)
 	}
 	fmt.Fprintf(out, "the key works.\n")
-	return proved, nil
+	return proved, system, nil
 }
 
 // passwordSource answers the one question the bootstrap may ask: the admin's
