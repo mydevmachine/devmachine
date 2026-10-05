@@ -77,6 +77,9 @@ type setupOptions struct {
 	key         string
 	fingerprint string
 	tailscale   bool
+	// location is where the machine is. Empty means the default: external
+	// for a server, local for your own computer.
+	location string
 	// passwordStdin reads the admin password from stdin, for a server that
 	// takes nothing else yet. It is used once, to install the key.
 	passwordStdin bool
@@ -1019,6 +1022,7 @@ func machineEntry(m config.Machine) machineFile {
 	}
 	return machineFile{
 		Name: m.Name, Hosts: addresses, User: m.User, Port: m.Port, Key: m.Key, AgentKey: m.AgentKey,
+		Location: m.Location,
 	}
 }
 
@@ -1043,6 +1047,7 @@ type machineFile struct {
 	Port     int      `yaml:"port"`
 	Key      string   `yaml:"key,omitempty"`
 	AgentKey string   `yaml:"agent_key,omitempty"`
+	Location string   `yaml:"location,omitempty"`
 	Packages []string `yaml:"packages,omitempty"`
 }
 

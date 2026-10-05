@@ -276,6 +276,18 @@ around the `ansible-playbook` run. If you still see this on a current
 release, run `whoami` and `echo $HOME` in the terminal you launched
 devmachine from, and check they say what you expect.
 
+## "… is not a usable location"
+
+**What it means:** A `--location` flag, the answer to the location question,
+or a `location:` in `config.yml` has a character outside the allowed set, or
+is longer than 40. Capitals and spaces at the ends are fine: they are
+lowercased and trimmed.
+
+**What to do:** Use letters, numbers, spaces, dots, underscores and hyphens,
+starting with a letter or number — `home office`, `rack-2`, `hostinger`. To
+go back to the default, clear it with `devmachine machines edit <name>
+--location ""`.
+
 ## A `tailscale:` address is being ignored
 
 **What it means:** devmachine drops a `<prefix>:<name>` entry when the network

@@ -80,6 +80,7 @@ release pinned, `defaults.workspace`, the machine with `essentials`, and
 | address | `--address` |
 | admin login | `--user` |
 | SSH port | `--port` |
+| location (`machines add` only) | `--location` (left out, `external`) |
 | domain | `--domain` (only when it writes a new `config.yml`) |
 | trust this fingerprint? | `--fingerprint` (read it first with `machines scan`) |
 | how to log in | `--key new`, `--key <file>` or `--key agent:<SHA256:…>` |
@@ -257,15 +258,15 @@ list --format json`) wins over it.
 ## machines
 
 ```
-devmachine machines list                  each machine, its addresses, port and workspaces
-devmachine machines add [--no-harden] [--no-essentials] [--no-aliases] [--yes]   set up another server and record it
-devmachine machines add --self <name>     add your computer as a machine, with no address
-devmachine machines add --name <n> --address <a> --fingerprint <SHA256:…> [--user u] [--port p] [--key new|file|agent:<SHA256:…>] [--password-stdin] [--tailscale]   the same, asking nothing
+devmachine machines list                  each machine, its addresses, port, location and workspaces
+devmachine machines add [--location l] [--no-harden] [--no-essentials] [--no-aliases] [--yes]   set up another server and record it
+devmachine machines add --self <name> [--location l]   add your computer as a machine, with no address
+devmachine machines add --name <n> --address <a> --fingerprint <SHA256:…> [--user u] [--port p] [--key new|file|agent:<SHA256:…>] [--location l] [--password-stdin] [--tailscale]   the same, asking nothing
 devmachine machines trust [name] [--check] [--replace] [--expect <fp>] [--yes]   check or update its SSH fingerprint
 devmachine machines scan --address <a> [--port p]   the SSH fingerprint of a server not added yet; writes nothing
-devmachine machines edit <name> [--set k=v] [--unset k] [--check] [--yes]   change a machine's package settings
+devmachine machines edit <name> [--set k=v] [--unset k] [--location l] [--check] [--yes]   change a machine's package settings or location
 devmachine machines rm <name> [--yes]     forget a machine; the server keeps running
-devmachine machines create-local <name> [--cpus n] [--memory GiB] [--disk GiB] [--add [--key k] [--no-essentials] [--no-aliases]]   a machine on your computer
+devmachine machines create-local <name> [--cpus n] [--memory GiB] [--disk GiB] [--add [--key k] [--no-essentials] [--no-aliases] [--location l]]   a machine on your computer
 devmachine machines start <name>          start a local machine
 devmachine machines stop <name>           stop a local machine
 devmachine machines delete-local <name> [--yes]   destroy it and everything on it
@@ -278,8 +279,10 @@ first machine, and `--format json` prints `[]`.
 
 `list --format json` prints each machine with `name`, `hosts`,
 `admin_user`, `port`, `key`, `agent_key`, `workspaces`, `packages` (the
-machine's own package list from `config.yml`, `[]` when it has none), and
-`self: true` on your own computer. `config show --format json` carries the
+machine's own package list from `config.yml`, `[]` when it has none),
+`location` (never empty: `external` or `local` when `config.yml` names
+none), and `self: true` on your own computer. Without `--format json`,
+`list` prints a table with a `LOCATION` column. `config show --format json` carries the
 same machine entries. **Your computer is never picked by default** — a
 command with no `--machine` still acts on the server, even with a self
 machine also configured.
@@ -290,7 +293,17 @@ writes a package option, read as YAML (`--set
 hostinger.zones=[example.com]` writes a list); an empty value or `--unset
 <package>.<name>` removes it. Both repeat. A setting for a package the
 machine does not install is refused. Comments in `config.yml` survive, and
-`sync` applies the change.
+`sync` applies the change. `--location <text>` sets or changes where the
+machine is; `--location ""` clears it, back to `external` (or `local` for
+your own computer).
+
+**Location.** Every machine has one: where it is, such as `hostinger`,
+`home`, `office` or `bedroom`. It is trimmed and lowercased, and must be at
+most 40 letters, numbers, spaces, dots, underscores and hyphens, starting
+with a letter or number. `add` asks for it, with `external` as the
+default; with `--address` it takes `--location` or stays `external`.
+`add --self` and `create-local` default to `local`. See [where a machine
+is](../how-it-works/machine-location.md).
 
 `add` sets up another server, same as [setup](#setup) — including the SSH
 aliases and Tailscale questions. `add --self <name>` instead names the
@@ -414,14 +427,15 @@ installs Ansible, and writes the machine (and, with no `config.yml` yet,
 a new configuration). No second command, and no question. Its host key
 is trusted as it answers, without `--fingerprint`: the command made the
 VM a moment ago and it answers only on this computer's loopback. `--key`,
-`--no-essentials` and `--no-aliases` mean what they mean for `machines
-add`, and are refused without `--add`. The name is checked against the
+`--no-essentials`, `--no-aliases` and `--location` mean what they mean for
+`machines add`, and are refused without `--add`; `--location` defaults to
+`local` here. The name is checked against the
 configuration before any VM is made. If adding fails, the VM keeps
 running and nothing is written; the error ends with the exact `machines
 add` command that adds it by hand, ready to copy. The host key is read
 once, and that same key is the one trusted.
 `--format json` prints the machine as `machines list` does, with its
-`key` once added and its `size` (`cpus`, `memory_gib`, `disk_gib`); the progress goes to stderr. `start`, `stop` and `delete-local` only act on a local machine.
+`key` once added, its `location` and its `size` (`cpus`, `memory_gib`, `disk_gib`); the progress goes to stderr. `start`, `stop` and `delete-local` only act on a local machine.
 
 Two limits: needs [Lima](https://lima-vm.io) (`brew install lima`), macOS
 and Linux only; not reachable from the internet, so `dns`, HTTPS and

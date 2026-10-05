@@ -72,7 +72,7 @@ func TestMachinesAddCommitsWithItsOwnMessage(t *testing.T) {
 	dir := gitRepoDir(t, writeConfigDir(t, "machines:\n  - name: main\n    hosts: [203.0.113.10]\n"))
 	stubBootstrap(t, bootstrapStubs{keyWorks: true})
 
-	out, err := executeWithInput(t, "sandbox\n198.51.100.7\nroot\n22\n1\n", "--config", dir, "machines", "add")
+	out, err := executeWithInput(t, "sandbox\n198.51.100.7\nroot\n22\n\n1\n", "--config", dir, "machines", "add")
 	if err != nil {
 		t.Fatalf("machines add returned %v (%s)", err, out)
 	}

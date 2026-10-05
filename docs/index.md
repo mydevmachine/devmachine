@@ -104,6 +104,8 @@ these when something behaves in a way that surprises you.
   how `setup` makes sure it is talking to your server, and locks it down.
 - [Your computer as a machine](how-it-works/your-computer-as-a-machine.md) —
   using your own computer instead of a server.
+- [Where a machine is](how-it-works/machine-location.md) — why a machine
+  with no location is `external`, and why `create-local` writes `local`.
 - [Versioning your configuration](how-it-works/versioning-your-configuration.md)
   — keeping your setup in git safely.
 - [Why a published site lives in the configuration](how-it-works/published-sites.md)

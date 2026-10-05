@@ -104,6 +104,7 @@ type machineJSON struct {
 	Workspaces []string  `json:"workspaces"`
 	Packages   []string  `json:"packages"`
 	Self       bool      `json:"self,omitempty"`
+	Location   string    `json:"location"`
 	Size       *sizeJSON `json:"size,omitempty"`
 }
 
@@ -163,7 +164,7 @@ func asJSON(cfg config.Config) configJSON {
 		out.Machines = append(out.Machines, machineJSON{
 			Name: m.Name, Hosts: addresses, AdminUser: m.User,
 			Port: m.Port, Key: m.Key, AgentKey: m.AgentKey, Workspaces: names,
-			Packages: onOrNone(m.Packages), Self: m.Self,
+			Packages: onOrNone(m.Packages), Self: m.Self, Location: m.EffectiveLocation(),
 		})
 	}
 

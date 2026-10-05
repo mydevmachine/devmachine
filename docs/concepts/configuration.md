@@ -61,6 +61,7 @@ machines:
     port: 22
     key: /keys/main        # optional; without it the SSH agent serves
     # agent_key: ssh-ed25519 AAAA...  # optional; the one agent key to use instead of `key`
+    location: hostinger    # optional; where it is. Left out: external
     packages: [base, docker, caddy, firewall, fail2ban, ssh_hardening, git]
     settings:
       base.timezone: Europe/Lisbon
@@ -91,7 +92,9 @@ ssh_aliases: true          # keep the SSH aliases up to date
 ssh_aliases_path: ~/.ssh/devmachine-aliases   # where they live; ~/.ssh/config when left out
 ```
 
-`user` defaults to `root`, `port` to `22`. Nothing here is a secret — a
+`user` defaults to `root`, `port` to `22`. `location` defaults to
+`external`, or `local` for your own computer (`self: true`); see [where a
+machine is](../how-it-works/machine-location.md). Nothing here is a secret — a
 token goes in `devmachine secrets`, never in this file.
 
 `ssh_aliases` records the answer to the question `setup` and `machines add`
@@ -164,6 +167,8 @@ configuration that can't work, and say what to fix:
 - a setting with no `<package>.` prefix, or for a package the target
   doesn't have
 - a credential answer that is neither `machine` nor `own`
+- a `location` with characters other than letters, numbers, spaces, dots,
+  underscores and hyphens, or longer than 40
 
 ## The command log
 

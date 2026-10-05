@@ -67,7 +67,7 @@ func TestMachinesAddWritesNothingWhenTheProofFails(t *testing.T) {
 	before := readConfigFile(t, dir)
 	stubBootstrap(t, bootstrapStubs{keyWorks: false, proofFails: true})
 
-	_, err := executeWithInput(t, "sandbox\n198.51.100.7\nroot\n22\n1\ndevmachine\n",
+	_, err := executeWithInput(t, "sandbox\n198.51.100.7\nroot\n22\n\n1\ndevmachine\n",
 		"--config", dir, "machines", "add")
 	if err == nil {
 		t.Fatal("an unproved key was accepted")

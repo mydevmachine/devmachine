@@ -119,6 +119,9 @@ type Machine struct {
 	// Left empty with Key also empty, the agent offers everything it holds,
 	// which is the CLI's behaviour before this field existed.
 	AgentKey string `yaml:"agent_key,omitempty"`
+	// Location is where the machine is: a provider, a room, a building.
+	// Left empty, EffectiveLocation decides it.
+	Location string `yaml:"location,omitempty"`
 	// Packages are the recipes this machine gets, by name.
 	Packages []string `yaml:"packages,omitempty"`
 	// Settings override the variables a package declares. A key is written
@@ -486,6 +489,9 @@ func (c Config) Validate() error {
 			}
 		}
 
+		if _, err := NormalizeLocation(m.Location); err != nil {
+			return fmt.Errorf("machine %q has `location: %s`: %w", m.Name, m.Location, err)
+		}
 		if name, dup := firstDuplicate(m.Packages); dup {
 			return fmt.Errorf("machine %q lists the package %q twice", m.Name, name)
 		}
@@ -969,6 +975,7 @@ func machineNode(m Machine) *yaml.Node {
 	setField(node, "name", stringNode(m.Name))
 	if m.Self {
 		setField(node, "self", boolNode(m.Self))
+		setField(node, "location", stringNode(m.Location))
 		return node
 	}
 
@@ -981,6 +988,7 @@ func machineNode(m Machine) *yaml.Node {
 	setField(node, "port", intNode(m.Port))
 	setField(node, "key", stringNode(m.Key))
 	setField(node, "agent_key", stringNode(m.AgentKey))
+	setField(node, "location", stringNode(m.Location))
 	if len(m.Packages) > 0 {
 		setField(node, "packages", sequenceNode(m.Packages))
 	}
@@ -1074,6 +1082,25 @@ func SetMachineSettings(dir, name string, settings map[string]any) error {
 				for _, entry := range machines.Content {
 					if entry.Kind == yaml.MappingNode && scalar(field(entry, "name")) == name {
 						setField(entry, "settings", node)
+						return nil
+					}
+				}
+			}
+			return fmt.Errorf("`machines` has no entry named %q", name)
+		})
+	})
+}
+
+// SetMachineLocation replaces one machine's `location:` and leaves every
+// other field, and every comment, as it was. An empty location removes the key.
+func SetMachineLocation(dir, name, location string) error {
+	return locked(dir, func() error {
+		return editDocument(dir, func(root *yaml.Node) error {
+			machines := field(root, "machines")
+			if machines != nil && machines.Kind == yaml.SequenceNode {
+				for _, entry := range machines.Content {
+					if entry.Kind == yaml.MappingNode && scalar(field(entry, "name")) == name {
+						setField(entry, "location", stringNode(location))
 						return nil
 					}
 				}

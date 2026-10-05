@@ -9,7 +9,9 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
+	"text/tabwriter"
 
 	"github.com/mydevmachine/devmachine/internal/config"
 	"github.com/mydevmachine/devmachine/internal/hostkeys"
@@ -57,25 +59,46 @@ func newMachinesListCmd(opts *options) *cobra.Command {
 				return nil
 			}
 
-			for _, m := range cfg.Machines {
-				addresses := make([]string, 0, len(m.Hosts))
-				for _, h := range m.Hosts {
-					addresses = append(addresses, h.Address)
-				}
-				names := make([]string, 0)
-				for _, w := range cfg.WorkspacesOn(m.Name) {
-					names = append(names, w.Name)
-				}
-				workspaces := "none"
-				if len(names) > 0 {
-					workspaces = strings.Join(names, ", ")
-				}
-				cmd.Printf("%-12s %-28s port %-6d workspaces: %s\n",
-					m.Name, strings.Join(addresses, ","), m.Port, workspaces)
-			}
-			return nil
+			return printMachinesTable(cmd.OutOrStdout(), cfg)
 		},
 	}
+}
+
+// printMachinesTable writes one row per machine under a header, so a new
+// column never shifts the meaning of the ones before it.
+func printMachinesTable(out io.Writer, cfg config.Config) error {
+	w := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "NAME\tADDRESSES\tPORT\tLOCATION\tWORKSPACES")
+	for _, m := range cfg.Machines {
+		addresses := make([]string, 0, len(m.Hosts))
+		for _, h := range m.Hosts {
+			addresses = append(addresses, h.Address)
+		}
+		names := make([]string, 0)
+		for _, ws := range cfg.WorkspacesOn(m.Name) {
+			names = append(names, ws.Name)
+		}
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", m.Name, orDash(strings.Join(addresses, ",")),
+			orDash(portText(m.Port)), m.EffectiveLocation(), orNone(strings.Join(names, ", ")))
+	}
+	if err := w.Flush(); err != nil {
+		return fmt.Errorf("writing the machines table: %w", err)
+	}
+	return nil
+}
+
+func portText(port int) string {
+	if port == 0 {
+		return ""
+	}
+	return strconv.Itoa(port)
+}
+
+func orNone(value string) string {
+	if value == "" {
+		return "none"
+	}
+	return value
 }
 
 func newMachinesAddCmd(opts *options) *cobra.Command {
@@ -101,7 +124,7 @@ func newMachinesAddCmd(opts *options) *cobra.Command {
 				return err
 			}
 			if selfName != "" {
-				return runMachinesAddSelf(cmd.Context(), dir, cmd.OutOrStdout(), selfName)
+				return runMachinesAddSelf(cmd.Context(), dir, cmd.OutOrStdout(), selfName, s.location)
 			}
 			return runMachinesAdd(cmd.Context(), dir, cmd.InOrStdin(), cmd.OutOrStdout(), s)
 		},
@@ -131,12 +154,19 @@ func newMachinesAddCmd(opts *options) *cobra.Command {
 		"the domain, written only when there is no config.yml yet and add writes a new one")
 	c.Flags().BoolVar(&s.passwordStdin, "password-stdin", false,
 		"with --address, read the admin password from stdin, used once to install the key")
+	c.Flags().StringVar(&s.location, "location", "",
+		"where the machine is, such as hostinger, home or office; left out, it is asked, "+
+			"or external with --address (local with --self)")
 	return c
 }
 
 // runMachinesAddSelf writes a self machine into config.yml and prepares it:
 // no address is asked for, because there is none to give.
-func runMachinesAddSelf(ctx context.Context, dir string, out io.Writer, name string) error {
+func runMachinesAddSelf(ctx context.Context, dir string, out io.Writer, name, location string) error {
+	location, err := config.NormalizeLocation(location)
+	if err != nil {
+		return err
+	}
 	current, err := config.Load(dir)
 	if err != nil {
 		return err
@@ -154,7 +184,7 @@ func runMachinesAddSelf(ctx context.Context, dir string, out io.Writer, name str
 		return fmt.Errorf("a machine named %q is already configured: pick another name", name)
 	}
 
-	m := config.Machine{Name: name, Self: true}
+	m := config.Machine{Name: name, Self: true, Location: location}
 	if err := config.AddMachine(dir, m); err != nil {
 		return err
 	}
@@ -174,6 +204,10 @@ type machineEditOptions struct {
 	unset []string
 	check bool
 	yes   bool
+	// location is applied only when locationSet, so `--location ""` can
+	// clear it.
+	location    string
+	locationSet bool
 }
 
 func newMachinesEditCmd(opts *options) *cobra.Command {
@@ -181,21 +215,26 @@ func newMachinesEditCmd(opts *options) *cobra.Command {
 
 	c := &cobra.Command{
 		Use:   "edit <name>",
-		Short: "Change a machine's package settings",
+		Short: "Change a machine's package settings or its location",
 		Long: "It edits the configuration and touches no machine. `devmachine " +
 			"sync` is what applies the change.\n\n" +
 			"`--set <package>.<name>=<value>` writes into the machine's " +
 			"`settings:`, which is how a machine package's variables are set. " +
 			"The value is read as YAML, so `[a, b]` is a list. An empty value, " +
 			"or `--unset <package>.<name>`, takes the setting out again.\n\n" +
-			"A setting for a package the machine does not install is refused.",
+			"A setting for a package the machine does not install is refused.\n\n" +
+			"`--location <text>` says where the machine is, such as hostinger, home " +
+			"or office. `--location \"\"` clears it: external again, or local for " +
+			"your own computer.",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			e.locationSet = cmd.Flags().Changed("location")
 			return runMachineEdit(cmd, opts, args[0], e)
 		},
 	}
 	c.Flags().StringArrayVar(&e.set, "set", nil, "a setting, as <package>.<name>=<value>")
 	c.Flags().StringArrayVar(&e.unset, "unset", nil, "a setting to take out, as <package>.<name>")
+	c.Flags().StringVar(&e.location, "location", "", "where the machine is; an empty value clears it")
 	c.Flags().BoolVar(&e.check, "check", false, "say what would change, and change nothing")
 	c.Flags().BoolVar(&e.yes, "yes", false, "do not ask")
 	return c
@@ -219,8 +258,16 @@ func runMachineEdit(cmd *cobra.Command, opts *options, name string, e machineEdi
 	if err != nil {
 		return err
 	}
+	settingsChanged := len(changes) > 0
+	location, locationChange, err := editLocation(m, e)
+	if err != nil {
+		return err
+	}
+	if locationChange != "" {
+		changes = append(changes, locationChange)
+	}
 	if len(changes) == 0 {
-		return fmt.Errorf("nothing to change on %q: pass --set or --unset", name)
+		return fmt.Errorf("nothing to change on %q: pass --set, --unset or --location", name)
 	}
 
 	// Validating the whole configuration is what refuses a setting for a
@@ -230,6 +277,7 @@ func runMachineEdit(cmd *cobra.Command, opts *options, name string, e machineEdi
 	for i := range edited.Machines {
 		if edited.Machines[i].Name == name {
 			edited.Machines[i].Settings = settings
+			edited.Machines[i].Location = location
 		}
 	}
 	if err := edited.Validate(); err != nil {
@@ -254,15 +302,46 @@ func runMachineEdit(cmd *cobra.Command, opts *options, name string, e machineEdi
 		}
 	}
 
-	if err := config.SetMachineSettings(dir, name, settings); err != nil {
-		return err
+	if settingsChanged {
+		if err := config.SetMachineSettings(dir, name, settings); err != nil {
+			return err
+		}
+	}
+	if locationChange != "" {
+		if err := config.SetMachineLocation(dir, name, location); err != nil {
+			return err
+		}
 	}
 	repo.AutoCommit(cmd.Context(), dir, "chore(config): update machine "+name)
 	for _, line := range changes {
 		cmd.Printf("%s: %s\n", name, line)
 	}
-	cmd.Println("The machine is untouched until the next `devmachine sync`.")
+	if settingsChanged {
+		cmd.Println("The machine is untouched until the next `devmachine sync`.")
+	}
 	return nil
+}
+
+// editLocation is the location the machine gets from `--location`, and the
+// change in words, empty when there is none.
+func editLocation(m config.Machine, e machineEditOptions) (string, string, error) {
+	if !e.locationSet {
+		return m.Location, "", nil
+	}
+	location, err := config.NormalizeLocation(e.location)
+	if err != nil {
+		return "", "", err
+	}
+	current, _ := config.NormalizeLocation(m.Location)
+	if location == current {
+		return m.Location, "", nil
+	}
+	if location == "" {
+		cleared := m
+		cleared.Location = ""
+		return "", "clear the location (" + cleared.EffectiveLocation() + " again)", nil
+	}
+	return location, "set the location to " + location, nil
 }
 
 func newMachinesRmCmd(opts *options) *cobra.Command {
@@ -318,6 +397,10 @@ func newMachinesRmCmd(opts *options) *cobra.Command {
 // It reads and writes through the streams it is given, for the same reason
 // setup does: every branch of the bootstrap is reachable without a terminal.
 func runMachinesAdd(ctx context.Context, dir string, in io.Reader, out io.Writer, opts setupOptions) error {
+	location, err := config.NormalizeLocation(opts.location)
+	if err != nil {
+		return err
+	}
 	current, err := config.Load(dir)
 	fresh := errors.Is(err, os.ErrNotExist)
 	if fresh && !opts.unattended() {
@@ -369,6 +452,12 @@ func runMachinesAdd(ctx context.Context, dir string, in io.Reader, out io.Writer
 	if _, err := current.Machine(m.Name); err == nil {
 		return fmt.Errorf("a machine named %q is already configured: pick another name", m.Name)
 	}
+	if location == "" && !opts.unattended() {
+		if location, err = askForLocation(r, out); err != nil {
+			return err
+		}
+	}
+	m.Location = location
 	if fresh {
 		if err := (config.Config{Machines: []config.Machine{m}, Domain: opts.domain}).Validate(); err != nil {
 			return err
@@ -522,6 +611,20 @@ func writeNewConfig(dir string, m config.Machine, release, domain string, exclus
 	return writeAgentsFile(dir)
 }
 
+// askForLocation asks where the machine is. External, the default, is
+// written as nothing, since nothing already means external.
+func askForLocation(r *bufio.Reader, out io.Writer) (string, error) {
+	answer, err := ask(r, out, "location (where it is: a provider, home, office…)", config.LocationExternal)
+	if err != nil {
+		return "", err
+	}
+	location, err := config.NormalizeLocation(answer)
+	if err != nil || location == config.LocationExternal {
+		return "", err
+	}
+	return location, nil
+}
+
 // machineFromFlags is askForMachine's answer for an unattended run.
 func machineFromFlags(opts setupOptions) config.Machine {
 	return config.Machine{
@@ -553,7 +656,7 @@ func newMachinesCreateLocalCmd(opts *options) *cobra.Command {
 			"--cpus, --memory and --disk size the VM; each must fit this computer.",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			for _, flag := range []string{"key", "no-essentials", "no-aliases"} {
+			for _, flag := range []string{"key", "no-essentials", "no-aliases", "location"} {
 				if !add && cmd.Flags().Changed(flag) {
 					return fmt.Errorf("--%s only applies with --add", flag)
 				}
@@ -563,6 +666,7 @@ func newMachinesCreateLocalCmd(opts *options) *cobra.Command {
 				if err != nil {
 					return err
 				}
+				m.Location = config.LocationLocal
 				return reportLocalMachine(cmd, opts, m, size, false)
 			}
 			dir, _, err := config.Dir(opts.configDir)
@@ -582,6 +686,8 @@ func newMachinesCreateLocalCmd(opts *options) *cobra.Command {
 		"with --add: `new`, a private key file, or agent:<SHA256 fingerprint>, as `machines add --key`")
 	c.Flags().BoolVar(&s.noEssentials, "no-essentials", false, "with --add: start the machine with no packages")
 	c.Flags().BoolVar(&s.noAliases, "no-aliases", false, "with --add: do not write SSH host entries")
+	c.Flags().StringVar(&s.location, "location", config.LocationLocal,
+		"with --add: where the machine is, such as bedroom or office")
 	c.Flags().IntVar(&size.CPUs, "cpus", local.DefaultSize.CPUs, "CPUs for the VM, at most this computer's cores")
 	c.Flags().IntVar(&size.MemoryGiB, "memory", local.DefaultSize.MemoryGiB,
 		"memory for the VM in GiB, less than this computer has")
@@ -596,6 +702,11 @@ func newMachinesCreateLocalCmd(opts *options) *cobra.Command {
 // on stdout and nothing else.
 func createAndAddLocal(ctx context.Context, dir, configFlag string, out io.Writer, name string,
 	size local.Size, s setupOptions) (config.Machine, error) {
+	location, err := config.NormalizeLocation(s.location)
+	if err != nil {
+		return config.Machine{}, err
+	}
+	s.location = location
 	current, err := config.Load(dir)
 	if err == nil {
 		if _, err := current.Machine(name); err == nil {
@@ -648,7 +759,19 @@ func addLocalCommand(configFlag string, s setupOptions) string {
 	if s.noAliases {
 		command += " --no-aliases"
 	}
+	if s.location != "" {
+		command += " --location " + locationArgument(s.location)
+	}
 	return command
+}
+
+// locationArgument is a location as one shell word. A normalized location
+// holds no quote, so wrapping one with a space is enough.
+func locationArgument(location string) string {
+	if strings.Contains(location, " ") {
+		return "'" + location + "'"
+	}
+	return location
 }
 
 func newMachinesStartCmd() *cobra.Command {
@@ -732,12 +855,13 @@ func reportLocalMachine(cmd *cobra.Command, opts *options, m config.Machine, siz
 		return writeJSON(cmd.OutOrStdout(), machineJSON{
 			Name: m.Name, Hosts: addresses, AdminUser: m.User,
 			Port: m.Port, Key: m.Key, AgentKey: m.AgentKey, Workspaces: []string{}, Packages: onOrNone(m.Packages),
-			Size: &sizeJSON{CPUs: size.CPUs, MemoryGiB: size.MemoryGiB, DiskGiB: size.DiskGiB},
+			Location: m.EffectiveLocation(),
+			Size:     &sizeJSON{CPUs: size.CPUs, MemoryGiB: size.MemoryGiB, DiskGiB: size.DiskGiB},
 		})
 	}
 
-	cmd.Printf("%-12s %-28s port %-6d admin: %s\n",
-		m.Name, strings.Join(addresses, ","), m.Port, m.User)
+	cmd.Printf("%-12s %-28s port %-6d admin: %s  location: %s\n",
+		m.Name, strings.Join(addresses, ","), m.Port, m.User, m.EffectiveLocation())
 	cmd.Printf("Size: %d CPUs, %d GiB memory, %d GiB disk.\n", size.CPUs, size.MemoryGiB, size.DiskGiB)
 	if added {
 		cmd.Printf("It is in the configuration, and logs in with %s.\n", chosenKey{Path: m.Key, Public: m.AgentKey}.describe())

@@ -72,7 +72,7 @@ func TestMachinesAddBootstrapsAndWritesTheNewMachine(t *testing.T) {
 	steps := stubBootstrap(t, bootstrapStubs{keyWorks: false})
 
 	// The same questions as setup, minus the domain, then the same bootstrap.
-	out, err := executeWithInput(t, "sandbox\n198.51.100.7\nroot\n2222\n1\ndevmachine\n",
+	out, err := executeWithInput(t, "sandbox\n198.51.100.7\nroot\n2222\n\n1\ndevmachine\n",
 		"--config", dir, "machines", "add")
 	if err != nil {
 		t.Fatalf("machines add returned %v (%s)", err, out)
@@ -100,7 +100,7 @@ func TestMachinesAddRecordsTheChosenAgentKey(t *testing.T) {
 		{Fingerprint: "SHA256:bbbb", Comment: "bob key", PublicKey: "ssh-ed25519 AAAAagent bob key"},
 	}})
 
-	out, err := executeWithInput(t, "sandbox\n198.51.100.7\nroot\n2222\n3\ndevmachine\n",
+	out, err := executeWithInput(t, "sandbox\n198.51.100.7\nroot\n2222\n\n3\ndevmachine\n",
 		"--config", dir, "machines", "add")
 	if err != nil {
 		t.Fatalf("machines add returned %v (%s)", err, out)
@@ -134,7 +134,7 @@ func TestMachinesAddHostTrustRefusalChangesNothing(t *testing.T) {
 		return false, nil
 	}))
 
-	_, err = executeWithInput(t, "sandbox\n198.51.100.7\nroot\n2222\n",
+	_, err = executeWithInput(t, "sandbox\n198.51.100.7\nroot\n2222\n\n",
 		"--config", dir, "machines", "add")
 	if !errors.Is(err, errDeclined) {
 		t.Fatalf("machines add error = %v, want declined", err)
@@ -265,7 +265,7 @@ func TestMachinesAddGivesTheNewMachineTheEssentials(t *testing.T) {
 	stubReleaseHas(t, true)
 	stubBootstrap(t, bootstrapStubs{keyWorks: true})
 
-	if out, err := executeWithInput(t, "sandbox\n198.51.100.7\nroot\n22\n1\n",
+	if out, err := executeWithInput(t, "sandbox\n198.51.100.7\nroot\n22\n\n1\n",
 		"--config", dir, "machines", "add"); err != nil {
 		t.Fatalf("machines add returned %v (%s)", err, out)
 	}
