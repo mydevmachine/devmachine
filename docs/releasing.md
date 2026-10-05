@@ -27,6 +27,11 @@ Two things that trip people up here:
   `GIT_CONFIG_GLOBAL` environment variable to point at a throwaway file
   instead, so a local commit-signing setup can't leak into a test run.
 
+Add the new version at the top of `docs/changelog.md`: what a user can see
+changed since the last tag (`git log --format=%s vPREVIOUS..HEAD`), without
+tests, CI or internal work. Commit it before the tag, so the release carries
+its own entry.
+
 Once both gates are green, tag and push:
 
 ```
