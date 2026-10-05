@@ -190,3 +190,42 @@ func TestCacheWithNoDirectoryStillAnswers(t *testing.T) {
 		t.Fatalf("got %q, %v", got, err)
 	}
 }
+
+func TestCacheStoredReadsAnAnswerOfAnyAge(t *testing.T) {
+	now := time.Date(2026, 9, 1, 12, 0, 0, 0, time.UTC)
+	cache := Cache{Dir: t.TempDir(), TTL: time.Hour, Now: func() time.Time { return now }}
+	if _, _, ok := cache.Stored("packages"); ok {
+		t.Fatal("an empty cache has nothing stored")
+	}
+	if _, err := cache.Refresh(context.Background(), "packages", (&counter{answer: "v17"}).fetch); err != nil {
+		t.Fatal(err)
+	}
+	now = now.Add(30 * 24 * time.Hour)
+	got, at, ok := cache.Stored("packages")
+	if !ok || got != "v17" || !at.Equal(time.Date(2026, 9, 1, 12, 0, 0, 0, time.UTC)) {
+		t.Fatalf("got %q at %v, %v", got, at, ok)
+	}
+}
+
+func TestCacheLookupOrStaleFallsBackToAnOldAnswer(t *testing.T) {
+	now := time.Date(2026, 9, 1, 12, 0, 0, 0, time.UTC)
+	cache := Cache{Dir: t.TempDir(), TTL: time.Hour, Now: func() time.Time { return now }}
+	source := &counter{answer: "v17"}
+	if _, err := cache.Lookup(context.Background(), "packages", source.fetch); err != nil {
+		t.Fatal(err)
+	}
+	now = now.Add(2 * time.Hour)
+	source.err = errors.New("offline")
+	got, err := cache.LookupOrStale(context.Background(), "packages", source.fetch)
+	if err != nil || got != "v17" || source.calls != 2 {
+		t.Fatalf("got %q, %v after %d calls", got, err, source.calls)
+	}
+}
+
+func TestCacheLookupOrStaleFailsWithNothingStored(t *testing.T) {
+	cache := Cache{Dir: t.TempDir(), TTL: time.Hour}
+	source := &counter{err: errors.New("offline")}
+	if _, err := cache.LookupOrStale(context.Background(), "packages", source.fetch); err == nil {
+		t.Fatal("no answer at all must be an error")
+	}
+}

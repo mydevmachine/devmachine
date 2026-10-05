@@ -1135,6 +1135,7 @@ devmachine packages validate <dir>
 devmachine packages schema [--json]
 devmachine packages help <name> [--json]
 devmachine packages pin [release]
+devmachine packages outdated
 ```
 
 Manages what is installed on your machines and workspaces. See [the
@@ -1210,6 +1211,23 @@ reads. `pin` writes `packages: <release>` — with none given, the latest;
 a release is a tag such as `v8`, never a branch. `help` asks an installed
 package what it accepts, by running its own `help`.
 
+`outdated` says whether a packages release newer than your pin is out. It
+changes nothing; `devmachine update` moves the pin. `--format json`
+prints:
+
+```json
+{"pinned": "v32", "latest": "v33", "newer": true, "notes_url": "https://github.com/mydevmachine/packages/releases/tag/v33"}
+```
+
+`pinned` is empty and `newer` is `false` when nothing is pinned, or there
+is no `config.yml` yet. `newer` is `false` when your pin is the newest or
+newer. `notes_url` is the release page for `latest`. The newest release is
+asked of GitHub at most once a day and kept in your cache folder; `update`
+and `packages pin` ask again and store the answer. Offline, the last answer
+is used, however old. Offline with no answer ever stored is an error and a
+non-zero exit (with `--format json`, nothing on stdout and the error on
+stderr). Exits 0 whether or not a newer release is out.
+
 ## sync
 
 ```
@@ -1254,6 +1272,7 @@ always, and `ssh <ws>-devmachine` when aliases are on.
 
 ```
 devmachine update [--machine m] [--skip-cli] [--skip-packages] [--yes]
+devmachine update --no-machines [--skip-cli] [--skip-packages] [--format json]
 devmachine update --cli-only [--format json]
 ```
 
@@ -1286,6 +1305,7 @@ steps, in order, each with a short header:
 | `--skip-cli` | leave the CLI as it is |
 | `--skip-packages` | leave the packages pin as it is |
 | `--yes` | answer yes to the sync question — this changes machines; use it only in automation you trust |
+| `--no-machines` | run steps 1 to 3 and stop: no doctor, no sync check, never a question. It takes `--skip-cli` and `--skip-packages`, and refuses `--yes`, `--cli-only` and `--machine` |
 | `--cli-only` | run step 1 alone and stop: no packages pin, skills, doctor or sync, and no configuration is read. It cannot be combined with the other flags or `--machine` |
 
 With `--cli-only`, a build from source (`devmachine version` says `dev`)
@@ -1301,6 +1321,20 @@ stdout gets one object at the end:
 `status` is `updated`, `already latest` or `failed`, and a failure adds
 `error` with the reason and exits non-zero.
 
+With `--no-machines --format json`, the log goes to stderr and stdout gets
+one object at the end:
+
+```json
+{"cli": {"from": "0.7.30", "to": "0.7.31", "updated": true}, "packages": {"from": "v32", "to": "v33", "pinned": true}, "skills": {"updated": true}}
+```
+
+Every field is always there. A step that changed nothing has `to` equal to
+`from` and `false`; so does a skipped one. `packages.from` is empty when
+nothing is pinned, and then nothing is pinned. When a step fails, the
+object is still printed, with what was done, and the command exits non-zero
+with the reason on stderr. When the CLI was replaced, the object comes from
+the new binary.
+
 The output ends with one line per step: `updated`, `already latest`, `ok`,
 `nothing to do`, `skipped` or `failed`, with the reason. The doctor line
 instead says what doctor found, such as `2 warning(s)` or `machine far
@@ -1312,10 +1346,25 @@ CLI update, the packages pin, the skills, the sync check, or a sync you
 applied. What doctor finds never fails `update`; run `devmachine doctor`
 when a script needs that exit code. Saying no to the sync is not a failure.
 
-Without `--cli-only`, `update` prints for a person, so it refuses
+Without `--cli-only` or `--no-machines`, `update` prints for a person, so it refuses
 `--format json`; use `doctor` and `sync --check` with `--format json`
 instead. Why it works this way:
 [Updating](../how-it-works/updating.md).
+
+### The hint that a newer packages release is out
+
+After `sync`, `doctor`, `machines list` and `workspaces list`, a line on
+stderr says when a packages release newer than your pin is out:
+
+```
+packages v33 is out (you pin v32): run devmachine update
+```
+
+It appears at most once a day, and again on the first run of a new CLI
+version. It never appears with `--format json`, when stdout or stderr is not
+a terminal, or when nothing is pinned. It reads the same daily answer as
+`packages outdated`, and asks GitHub at most once a day itself.
+`DEVMACHINE_NO_UPDATE_HINT=1` turns it off.
 
 ## version, help
 

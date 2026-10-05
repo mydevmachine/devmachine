@@ -79,6 +79,8 @@ one. `--skip-cli` and `--skip-packages` leave those alone. `--yes` answers
 the question for you — only for automation you trust to change servers.
 `--cli-only` updates the CLI and stops there: nothing else is read or
 changed. The Devmachine app's "Update CLI" button runs it.
+`--no-machines` updates the CLI, the packages pin and the skills, and stops
+before doctor and the sync check: your computer only, no question.
 
 Without a terminal (a cron job, a pipe) `update` never asks and never
 applies: it prints the `sync` command to run later. How and why each step
@@ -86,6 +88,18 @@ works: [Updating](how-it-works/updating.md). Every flag:
 [`update`](reference/commands.md#update).
 
 ## Knowing when to update
+
+When you upgrade the CLI with `brew upgrade` or the app, the packages pin
+stays where it was. After `sync`, `doctor`, `machines list` and
+`workspaces list`, a line says when a newer packages release is out, at
+most once a day:
+
+```
+packages v33 is out (you pin v32): run devmachine update
+```
+
+`devmachine packages outdated` answers the same question on demand.
+`DEVMACHINE_NO_UPDATE_HINT=1` turns the line off.
 
 `devmachine doctor` warns when the CLI or the packages pin is behind:
 

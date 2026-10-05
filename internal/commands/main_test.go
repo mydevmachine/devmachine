@@ -10,6 +10,7 @@ import (
 	"github.com/mydevmachine/devmachine/internal/remote"
 	"github.com/mydevmachine/devmachine/internal/secrets"
 	agentskills "github.com/mydevmachine/devmachine/internal/skills"
+	"github.com/spf13/cobra"
 )
 
 // No test reaches the network by accident: a test that needs a release says
@@ -24,6 +25,7 @@ func TestMain(m *testing.M) {
 	releaseCacheDir = func() (string, error) {
 		return "", errors.New("tests keep no cache of their own")
 	}
+	hintToTerminal = func(*cobra.Command) bool { return false }
 	executablePath = func() (string, error) {
 		return "", errors.New("tests never replace the binary running them")
 	}

@@ -40,6 +40,25 @@ func (c Cache) Lookup(ctx context.Context, key string, fetch Fetcher) (string, e
 	return c.Refresh(ctx, key, fetch)
 }
 
+// LookupOrStale is Lookup that falls back to a stored answer of any age when
+// asking fails: an old answer is still better than none.
+func (c Cache) LookupOrStale(ctx context.Context, key string, fetch Fetcher) (string, error) {
+	version, err := c.Lookup(ctx, key, fetch)
+	if err == nil {
+		return version, nil
+	}
+	if stored, _, ok := c.Stored(key); ok {
+		return stored, nil
+	}
+	return "", err
+}
+
+// Stored is the answer on disk and when it was read, whatever its age.
+func (c Cache) Stored(key string) (string, time.Time, bool) {
+	e, ok := c.read(key)
+	return e.Version, e.CheckedAt, ok
+}
+
 // Refresh always asks, and stores the answer for the next Lookup.
 func (c Cache) Refresh(ctx context.Context, key string, fetch Fetcher) (string, error) {
 	version, err := fetch(ctx)

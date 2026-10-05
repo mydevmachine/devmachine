@@ -1238,3 +1238,19 @@ There is no single JSON document it could promise.
 
 **What to do:** For a script, use `devmachine doctor --format json` and
 `devmachine sync --check --format json`.
+
+## `packages outdated`: "cannot tell the latest packages release, and none was read before"
+
+GitHub could not be asked which packages release is the newest, and no
+earlier answer is stored in your cache folder. It is about the network
+(offline, a proxy, or GitHub's limit of 60 unauthenticated requests an
+hour), not about your configuration. Try again when online. Once an answer
+is stored, the command works offline with that answer.
+
+## A line says "packages vN is out (you pin vM)"
+
+A packages release newer than the one `config.yml` pins is out. Nothing is
+wrong: `devmachine update` moves the pin, and `devmachine update
+--no-machines` does it without touching a machine. The line shows at most
+once a day; `DEVMACHINE_NO_UPDATE_HINT=1` turns it off. See
+[Updating](how-it-works/updating.md#why-the-cli-tells-you-a-newer-packages-release-is-out).

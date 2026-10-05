@@ -12,6 +12,12 @@ import (
 // release. A variable so a test can answer without the network.
 var latestReleaseAPIURL = "https://api.github.com/repos/mydevmachine/packages/releases/latest"
 
+// releaseNotesBase is where a packages release is described for a person.
+const releaseNotesBase = "https://github.com/mydevmachine/packages/releases/tag/"
+
+// NotesURL is the page that says what changed in a packages release.
+func NotesURL(tag string) string { return releaseNotesBase + tag }
+
 // Latest resolves the release tag of the newest published packages release.
 //
 // This is the one place that answers "what is latest": `setup` pins it for a

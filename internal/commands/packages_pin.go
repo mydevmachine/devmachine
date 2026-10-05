@@ -28,7 +28,7 @@ func newPackagesPinCmd(opts *options) *cobra.Command {
 			release := ""
 			if len(args) == 1 {
 				release = args[0]
-			} else if release, err = latestPackagesRelease(cmd.Context()); err != nil {
+			} else if release, err = releaseCache().Refresh(cmd.Context(), cacheKeyPackages, fetchLatestPackages); err != nil {
 				return err
 			}
 

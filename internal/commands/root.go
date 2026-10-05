@@ -49,6 +49,9 @@ func NewRootCmd() *cobra.Command {
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			return validateFormat(opts.format)
 		},
+		PersistentPostRun: func(cmd *cobra.Command, args []string) {
+			showUpdateHint(cmd, opts)
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
 		},

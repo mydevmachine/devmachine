@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/mydevmachine/devmachine/internal/doctor"
 	"github.com/mydevmachine/devmachine/internal/release"
@@ -23,17 +24,29 @@ var releaseCacheDir = func() (string, error) {
 	return filepath.Join(dir, "devmachine"), nil
 }
 
+// releaseClock is the seam a test replaces to move time forward.
+var releaseClock = time.Now
+
 const (
 	cacheKeyCLI      = "cli"
 	cacheKeyPackages = "packages"
+
+	// packagesCheckTTL is how long `packages outdated` and the update hint
+	// believe a looked-up packages release. A packages release comes out
+	// every few days, so a day-old answer costs nobody anything.
+	packagesCheckTTL = 24 * time.Hour
 )
 
 func releaseCache() release.Cache {
+	return releaseCacheFor(release.CacheTTL)
+}
+
+func releaseCacheFor(ttl time.Duration) release.Cache {
 	dir, err := releaseCacheDir()
 	if err != nil {
 		dir = ""
 	}
-	return release.Cache{Dir: dir, TTL: release.CacheTTL}
+	return release.Cache{Dir: dir, TTL: ttl, Now: releaseClock}
 }
 
 // The fetchers read the seams when they are called, not when they are

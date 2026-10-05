@@ -47,7 +47,6 @@ const (
 	stepNothing    = "nothing to do"
 	stepSkipped    = "skipped"
 	stepFailed     = "failed"
-	updateSteps    = 5
 	maxChangeLines = 15
 )
 
@@ -62,6 +61,7 @@ type updateFlags struct {
 	skipPackages bool
 	yes          bool
 	cliOnly      bool
+	noMachines   bool
 	continueFrom string
 }
 
@@ -72,6 +72,25 @@ const (
 	methodDownload = "download"
 	methodSource   = "source"
 )
+
+// noMachinesResult is what `update --no-machines --format json` prints. Every
+// field is always there: a `to` equal to its `from` is a step that changed
+// nothing.
+type noMachinesResult struct {
+	CLI struct {
+		From    string `json:"from"`
+		To      string `json:"to"`
+		Updated bool   `json:"updated"`
+	} `json:"cli"`
+	Packages struct {
+		From   string `json:"from"`
+		To     string `json:"to"`
+		Pinned bool   `json:"pinned"`
+	} `json:"packages"`
+	Skills struct {
+		Updated bool `json:"updated"`
+	} `json:"skills"`
+}
 
 // cliOnlyResult is what `update --cli-only --format json` prints last.
 type cliOnlyResult struct {
@@ -106,15 +125,26 @@ func newUpdateCmd(opts *options) *cobra.Command {
 				}
 				return u.runCLIOnly(cmd.Context())
 			}
+			if flags.noMachines {
+				if err := noMachinesConflict(cmd, opts); err != nil {
+					return err
+				}
+				if opts.format == formatJSON {
+					u.out = cmd.ErrOrStderr()
+				}
+				return u.runNoMachines(cmd.Context())
+			}
 			if opts.format == formatJSON {
 				return errors.New("update is for a person to read; --format json is supported only with " +
-					"--cli-only: use `doctor` and `sync --check` with --format json instead")
+					"--cli-only or --no-machines: use `doctor` and `sync --check` with --format json instead")
 			}
 			return u.run(cmd.Context())
 		},
 	}
 	c.Flags().BoolVar(&flags.cliOnly, "cli-only", false,
 		"update only the CLI itself, then stop: no packages, skills, doctor or sync")
+	c.Flags().BoolVar(&flags.noMachines, "no-machines", false,
+		"update the CLI, packages pin and skills, then stop: no doctor, no sync, no question")
 	c.Flags().BoolVar(&flags.skipCLI, "skip-cli", false, "do not update the CLI itself")
 	c.Flags().BoolVar(&flags.skipPackages, "skip-packages", false, "do not move the packages pin")
 	c.Flags().BoolVar(&flags.yes, "yes", false, "apply the sync without asking; this changes machines")
@@ -135,12 +165,13 @@ type updater struct {
 	machines  []config.Machine
 	reachable map[string]bool
 	results   []stepResult
+	steps     int
 }
 
 // cliOnlyConflict refuses a flag that belongs to a step --cli-only never runs,
 // rather than ignoring it.
 func cliOnlyConflict(cmd *cobra.Command, opts *options) error {
-	for _, name := range []string{"skip-cli", "skip-packages", "yes"} {
+	for _, name := range []string{"skip-cli", "skip-packages", "yes", "no-machines"} {
 		if cmd.Flags().Changed(name) {
 			return fmt.Errorf("--cli-only updates only the CLI; it cannot be combined with --%s", name)
 		}
@@ -149,6 +180,61 @@ func cliOnlyConflict(cmd *cobra.Command, opts *options) error {
 		return errors.New("--cli-only updates only the CLI on this computer; it cannot be combined with --machine")
 	}
 	return nil
+}
+
+// noMachinesConflict refuses what would reach a machine or ask a question,
+// rather than ignoring it.
+func noMachinesConflict(cmd *cobra.Command, opts *options) error {
+	if cmd.Flags().Changed("yes") {
+		return errors.New("--no-machines never syncs, so there is nothing for --yes to answer")
+	}
+	if opts.machine != "" {
+		return errors.New("--no-machines never reaches a machine; it cannot be combined with --machine")
+	}
+	return nil
+}
+
+// runNoMachines is steps 1 to 3: everything update changes on this
+// computer, and nothing it would change on a machine.
+func (u *updater) runNoMachines(ctx context.Context) error {
+	if err := u.prepare(); err != nil {
+		return err
+	}
+	u.steps = 3
+	pinnedBefore := u.cfg.Packages
+
+	u.header(1, "CLI")
+	cli, handedOver := u.cliStep(ctx)
+	if handedOver {
+		return nil
+	}
+	u.finish(cli)
+
+	u.header(2, "Packages")
+	packagesStep := u.packagesStep(ctx)
+	u.finish(packagesStep)
+
+	u.header(3, "Skills")
+	skills := u.skillsStep(ctx)
+	u.finish(skills)
+
+	err := u.summary()
+	if u.opts.format != formatJSON {
+		return err
+	}
+	var result noMachinesResult
+	result.CLI.From, result.CLI.To = version, version
+	result.CLI.Updated = cli.status == stepUpdated
+	if result.CLI.Updated {
+		result.CLI.From = u.flags.continueFrom
+	}
+	result.Packages.From, result.Packages.To = pinnedBefore, u.cfg.Packages
+	result.Packages.Pinned = packagesStep.status == stepUpdated
+	result.Skills.Updated = skills.status == stepUpdated
+	if jsonErr := writeJSON(u.cmd.OutOrStdout(), result); jsonErr != nil {
+		return jsonErr
+	}
+	return err
 }
 
 // runCLIOnly is the CLI step alone. It reads no configuration and never
@@ -203,15 +289,21 @@ func (u *updater) installMethod(ctx context.Context) string {
 	return methodDownload
 }
 
-func (u *updater) run(ctx context.Context) error {
+// prepare finds the configuration directory and reads the configuration.
+func (u *updater) prepare() error {
 	dir, _, err := config.Dir(u.opts.configDir)
 	if err != nil {
 		return err
 	}
 	u.dir = dir
-	if err := u.loadConfig(); err != nil {
+	return u.loadConfig()
+}
+
+func (u *updater) run(ctx context.Context) error {
+	if err := u.prepare(); err != nil {
 		return err
 	}
+	u.steps = 5
 
 	u.header(1, "CLI")
 	cli, handedOver := u.cliStep(ctx)
@@ -272,7 +364,7 @@ func (u *updater) header(n int, title string) {
 	if n > 1 {
 		u.say("")
 	}
-	u.say(fmt.Sprintf("==> %d/%d %s", n, updateSteps, title))
+	u.say(fmt.Sprintf("==> %d/%d %s", n, u.steps, title))
 }
 
 func (u *updater) say(line string) {
