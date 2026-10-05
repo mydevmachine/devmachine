@@ -36,16 +36,50 @@ func TestDetectSystemRefusesALinuxItDoesNotSetUp(t *testing.T) {
 	}
 }
 
-func TestDetectSystemRefusesASystemThatIsNotLinux(t *testing.T) {
-	c := systemClient("Darwin\n", "")
+func TestDetectSystemRefusesASystemThatIsNeitherLinuxNorMacOS(t *testing.T) {
+	c := systemClient("FreeBSD\n", "")
 	_, err := DetectSystem(context.Background(), c)
-	want := `"Darwin" is not a system this CLI sets up: it supports Linux (debian, ubuntu, arch)`
+	want := `"FreeBSD" is not a system this CLI sets up: it supports Linux (debian, ubuntu, arch) and macOS`
 	if err == nil || err.Error() != want {
 		t.Fatalf("got %v, want %q", err, want)
 	}
 	// Reading os-release on a system that has none says nothing useful.
 	if strings.Contains(c.transcript(), OSReleaseCommand) {
-		t.Fatalf("it read os-release on Darwin: %s", c.transcript())
+		t.Fatalf("it read os-release on FreeBSD: %s", c.transcript())
+	}
+}
+
+func TestDetectSystemReadsTheMacOSVersion(t *testing.T) {
+	c := &recordingClient{output: map[string]string{UnameCommand: "Darwin\n", MacVersionCommand: "15.7.9\n"}}
+	got, err := DetectSystem(context.Background(), c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !got.MacOS() || got.Version != "15.7.9" || got.ID != "" {
+		t.Fatalf("got %#v", got)
+	}
+	if got.String() != "macos 15.7.9" {
+		t.Fatalf("a person reads %q", got.String())
+	}
+	if strings.Contains(c.transcript(), OSReleaseCommand) {
+		t.Fatalf("it read os-release on a Mac: %s", c.transcript())
+	}
+}
+
+func TestDetectSystemSaysWhenItCannotReadTheMacOSVersion(t *testing.T) {
+	c := &recordingClient{output: map[string]string{UnameCommand: "Darwin\n"}, failOn: "sw_vers"}
+	_, err := DetectSystem(context.Background(), c)
+	if err == nil || !strings.Contains(err.Error(), "sw_vers") {
+		t.Fatalf("got %v", err)
+	}
+}
+
+func TestALinuxSystemIsNotMacOS(t *testing.T) {
+	if (System{Kernel: "Linux", ID: "debian"}).MacOS() {
+		t.Fatal("debian reads as macOS")
+	}
+	if got := (System{Kernel: "Linux", ID: "debian"}).String(); got != "debian" {
+		t.Fatalf("debian reads as %q", got)
 	}
 }
 

@@ -16,14 +16,15 @@ the password.
 ## It checks what the machine runs first
 
 The first thing `setup` does on a connection is ask the machine what it
-is: `uname -s` for the kernel, then `ID` in `/etc/os-release` on Linux.
-It sets up `debian`, `ubuntu` and `arch` (and `archarm`, Arch on ARM).
+is: `uname -s` for the kernel, then `ID` in `/etc/os-release` on Linux,
+or `sw_vers -productVersion` on a Mac. It sets up `debian`, `ubuntu` and
+`arch` (and `archarm`, Arch on ARM), and macOS.
 Anything else stops the run **before the first change** — before the key
 is installed, on a server you reached with a password:
 
 ```
 this CLI does not set up "fedora" yet: it supports debian, ubuntu and arch
-"FreeBSD" is not a system this CLI sets up: it supports Linux (debian, ubuntu, arch)
+"FreeBSD" is not a system this CLI sets up: it supports Linux (debian, ubuntu, arch) and macOS
 ```
 
 Why refuse instead of trying: every step after this one is written for a

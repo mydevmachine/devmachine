@@ -310,7 +310,7 @@ func TestArchPasses(t *testing.T) {
 
 func TestASystemThatIsNotLinuxFailsAndSaysWhichItIs(t *testing.T) {
 	client := fakeClient{out: map[string]string{
-		unameCommand:   "Darwin\n",
+		unameCommand:   "FreeBSD\n",
 		ansibleCommand: "/usr/bin/ansible-playbook\n",
 	}}
 	dial := func(context.Context, config.Machine, string) (remote.Client, string, error) {
@@ -320,7 +320,7 @@ func TestASystemThatIsNotLinuxFailsAndSaysWhichItIs(t *testing.T) {
 	checks := Run(context.Background(), configDir(t, "machines:\n  - name: main\n    hosts: [203.0.113.10]\n"), "", dial, nil)
 
 	got := find(t, checks, CheckOperatingSystem)
-	if got.Status != StatusFail || !strings.Contains(got.Detail, `"Darwin" is not a system this CLI sets up`) {
+	if got.Status != StatusFail || !strings.Contains(got.Detail, `"FreeBSD" is not a system this CLI sets up`) {
 		t.Fatalf("operating system = %q (%s)", got.Status, got.Detail)
 	}
 }

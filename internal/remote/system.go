@@ -10,19 +10,35 @@ import (
 // os-release to read, and other systems do not.
 const UnameCommand = "uname -s"
 
+// MacVersionCommand prints the macOS version, such as 15.7.9.
+const MacVersionCommand = "sw_vers -productVersion"
+
+// KernelDarwin is what `uname -s` says on a Mac.
+const KernelDarwin = "Darwin"
+
 // System is what a machine runs, as far as setting it up is concerned.
 type System struct {
 	// Kernel is what `uname -s` says: "Linux", "Darwin".
 	Kernel string
 	// ID is os-release's ID on Linux, such as "debian" or "arch".
 	ID string
+	// Version is the macOS version on a Mac, such as "15.7.9".
+	Version string
 }
 
-// String is the name a person reads: the distribution on Linux, the kernel
-// anywhere else.
+// MacOS reports whether the machine is a Mac.
+func (s System) MacOS() bool { return s.Kernel == KernelDarwin }
+
+// String is the name a person reads: the distribution on Linux, "macos" and
+// its version on a Mac, the kernel anywhere else.
 func (s System) String() string {
-	if s.ID != "" {
+	switch {
+	case s.ID != "":
 		return s.ID
+	case s.MacOS() && s.Version != "":
+		return "macos " + s.Version
+	case s.MacOS():
+		return "macos"
 	}
 	return s.Kernel
 }
@@ -51,7 +67,7 @@ func (e *UnsupportedSystemError) Error() string {
 		return fmt.Sprintf("this CLI does not set up %q yet: it supports %s and %s",
 			e.System.ID, strings.Join(names[:len(names)-1], ", "), names[len(names)-1])
 	}
-	return fmt.Sprintf("%q is not a system this CLI sets up: it supports Linux (%s)",
+	return fmt.Sprintf("%q is not a system this CLI sets up: it supports Linux (%s) and macOS",
 		e.System.Kernel, strings.Join(names, ", "))
 }
 
@@ -74,6 +90,13 @@ func DetectSystem(ctx context.Context, c Client) (System, error) {
 		if !SupportedLinux(s.ID) {
 			return s, &UnsupportedSystemError{System: s}
 		}
+		return s, nil
+	case KernelDarwin:
+		version, err := c.Run(ctx, MacVersionCommand)
+		if err != nil {
+			return System{}, fmt.Errorf("running sw_vers to find out which macOS this is: %w", err)
+		}
+		s.Version = strings.TrimSpace(version)
 		return s, nil
 	default:
 		return s, &UnsupportedSystemError{System: s}

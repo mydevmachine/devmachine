@@ -352,6 +352,9 @@ func InstallAnsible(ctx context.Context, c Client, out io.Writer) error {
 	if err != nil {
 		return err
 	}
+	if system.MacOS() {
+		return fmt.Errorf("%s gets Ansible from its package manager package's bootstrap, not from this CLI", system)
+	}
 	script, ok := ansibleInstall[system.ID]
 	if !ok {
 		return fmt.Errorf("this CLI does not install Ansible on %s", system)

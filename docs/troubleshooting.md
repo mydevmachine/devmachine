@@ -191,17 +191,15 @@ the check: the packages that `sync` applies are written for those three.
 ## "… is not a system this CLI sets up"
 
 ```
-"FreeBSD" is not a system this CLI sets up: it supports Linux (debian, ubuntu, arch)
+"FreeBSD" is not a system this CLI sets up: it supports Linux (debian, ubuntu, arch) and macOS
 ```
 
-**What it means:** `uname -s` on the machine did not say `Linux`. The CLI
-reads `/etc/os-release` only on Linux, so it stopped there, before
-changing anything. You will see this for a Mac reached over SSH too:
-setting up macOS machines is not in this version yet.
+**What it means:** `uname -s` on the machine said neither `Linux` nor
+`Darwin` (macOS). The CLI stopped there, before changing anything.
 
 **What to do:** Point the command at a Linux server (Debian, Ubuntu or
-Arch Linux). Your own Mac is set up differently: `devmachine machines add
---self <name>`, see [your computer as a
+Arch Linux) or a Mac. Your own Mac is set up differently: `devmachine
+machines add --self <name>`, see [your computer as a
 machine](how-it-works/your-computer-as-a-machine.md).
 
 ## "pacman could not install ansible"

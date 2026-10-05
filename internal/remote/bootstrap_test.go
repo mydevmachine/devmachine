@@ -744,13 +744,26 @@ func TestInstallAnsibleOnArchNeverUpgradesTheSystem(t *testing.T) {
 }
 
 func TestInstallAnsibleRefusesASystemThatIsNotLinux(t *testing.T) {
-	c := &recordingClient{output: map[string]string{UnameCommand: "Darwin\n"}}
+	c := &recordingClient{output: map[string]string{UnameCommand: "FreeBSD\n"}}
 	err := InstallAnsible(context.Background(), c, io.Discard)
-	if err == nil || !strings.Contains(err.Error(), `"Darwin" is not a system this CLI sets up`) {
+	if err == nil || !strings.Contains(err.Error(), `"FreeBSD" is not a system this CLI sets up`) {
 		t.Fatalf("got %v", err)
 	}
 	if len(c.commands) != 1 {
 		t.Fatalf("it ran something anyway: %#v", c.commands)
+	}
+}
+
+// TestInstallAnsibleLeavesAMacToItsBootstrap: a Mac gets Ansible from its
+// package manager's package, never from a table in the CLI.
+func TestInstallAnsibleLeavesAMacToItsBootstrap(t *testing.T) {
+	c := &recordingClient{output: map[string]string{UnameCommand: "Darwin\n", MacVersionCommand: "15.7.9\n"}}
+	err := InstallAnsible(context.Background(), c, io.Discard)
+	if err == nil || !strings.Contains(err.Error(), "bootstrap") {
+		t.Fatalf("got %v", err)
+	}
+	if len(c.commands) != 2 {
+		t.Fatalf("it ran something past detection: %#v", c.commands)
 	}
 }
 
