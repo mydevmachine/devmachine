@@ -787,7 +787,9 @@ func routeTasks(plan packages.MachinePlan, base string, siteChanges []string) st
 	for _, registered := range siteChanges {
 		when += fmt.Sprintf(" or (%s is defined and %s is changed)", registered, registered)
 	}
-	out.WriteString("      when: " + when + "\n")
+	// caddy is a Linux package and the reload goes through systemd, which a
+	// Mac does not have.
+	out.WriteString("      when: ansible_facts['system'] == 'Linux' and (" + when + ")\n")
 	out.WriteString("      tags: [routes]\n\n")
 	return out.String()
 }

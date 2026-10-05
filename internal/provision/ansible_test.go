@@ -887,6 +887,26 @@ func TestGenerateWritesOneRoutesFilePerWorkspace(t *testing.T) {
 	}
 }
 
+func TestGenerateReloadsCaddyForTheRoutesOnlyOnLinux(t *testing.T) {
+	plan := planWith(t, "main", []string{"caddy"}, map[string][]string{"alice": nil})
+	plan.SitesDir = "/etc/caddy/sites.d"
+	plan.Routes = []packages.Route{{Workspace: "alice", Host: "app.example.com", Port: 8080}}
+	files, err := Generate(plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	site := string(files["site.yml"])
+	start := strings.Index(site, "- name: reload caddy for the routes")
+	if start < 0 {
+		t.Fatalf("no reload task:\n%s", site)
+	}
+	task := site[start:]
+	task = task[:strings.Index(task, "tags: [routes]")]
+	if !strings.Contains(task, "when: ansible_facts['system'] == 'Linux' and (") {
+		t.Fatalf("the systemd reload must run only on Linux:\n%s", task)
+	}
+}
+
 func TestGenerateWithoutCaddyWritesNoRouteTasks(t *testing.T) {
 	plan := planWith(t, "main", []string{"base"}, nil)
 	files, err := Generate(plan)
