@@ -1,0 +1,39 @@
+docs/reference/commands.md
+  s_87d72b62cfc5a1::t_88b973cbd695b7 800-802
+internal/stats/macos.go
+  s_87d72b62cfc5a1::t_e8fbd91acca0e0 1-132
+internal/stats/testdata/macos/vm_stat.txt
+  s_87d72b62cfc5a1::t_441e4eb1a5b5bc 1-23
+internal/stats/testdata/macos/df.txt
+  s_87d72b62cfc5a1::t_441e4eb1a5b5bc 1-2
+internal/stats/testdata/macos/swapusage.txt
+  s_87d72b62cfc5a1::t_441e4eb1a5b5bc 1
+internal/stats/testdata/macos/memsize.txt
+  s_87d72b62cfc5a1::t_441e4eb1a5b5bc 1
+internal/stats/stats_macos_test.go
+  s_87d72b62cfc5a1::t_48ab90a521927e 47
+  s_87d72b62cfc5a1::t_a69d1eaaf525ef 1-5,8-12,14-46,48-70
+  s_87d72b62cfc5a1::t_9b848234461f0c 6-7,13
+internal/stats/testdata/macos/ncpu.txt
+  s_87d72b62cfc5a1::t_441e4eb1a5b5bc 1
+internal/stats/testdata/macos/loadavg.txt
+  s_87d72b62cfc5a1::t_441e4eb1a5b5bc 1
+internal/stats/stats.go
+  s_87d72b62cfc5a1::t_4c8fe9fb25c725 46-53
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5b1c85b40294aab10fa3751c2c79e579239940ca",
+  "prompts": {},
+  "sessions": {
+    "s_87d72b62cfc5a1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5e69ca1d-9900-4500-8ba7-104b479b47eb",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
