@@ -27,7 +27,7 @@ The CLI needs only `ssh` beside it. Ansible never runs on your computer.
 | System | Tested on | How Ansible gets there |
 | --- | --- | --- |
 | Debian | 12 | `setup` runs `apt-get install ansible`. |
-| Ubuntu | 22.04, 24.04 | `setup` runs `apt-get install ansible`. |
+| Ubuntu | 24.04 | `setup` runs `apt-get install ansible`. 22.04 is accepted but not tested: its apt Ansible is older than ansible-core 2.14, the oldest the packages are checked against. |
 | Arch Linux | rolling | `setup` runs `pacman -S --needed ansible`, never a partial upgrade. |
 | Arch Linux ARM | — | The same path as Arch Linux. Accepted, but not tested as much. |
 | macOS | 15 on Intel, 27 on Apple Silicon | The `mac-brew` or `mac-ports` package installs the Command Line Tools, Homebrew or MacPorts, then Ansible, after you agree. |
