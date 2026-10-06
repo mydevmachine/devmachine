@@ -14,6 +14,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/mydevmachine/devmachine/internal/config"
+	"github.com/mydevmachine/devmachine/internal/facts"
 	"github.com/mydevmachine/devmachine/internal/hostkeys"
 	"github.com/mydevmachine/devmachine/internal/local"
 	"github.com/mydevmachine/devmachine/internal/repo"
@@ -27,6 +28,7 @@ func newMachinesCmd(opts *options) *cobra.Command {
 	}
 	cmd.AddCommand(
 		newMachinesListCmd(opts),
+		newMachinesShowCmd(opts),
 		newMachinesAddCmd(opts),
 		newMachinesTrustCmd(opts),
 		newMachinesScanCmd(opts),
@@ -115,8 +117,13 @@ func newMachinesAddCmd(opts *options) *cobra.Command {
 			"its own, turns password login off, and installs Ansible.\n\n" +
 			"`setup` writes the first machine. This writes every one after it, and, " +
 			"with --address and no config.yml yet, the first one too, without a terminal.\n\n" +
+			"On a Mac it installs Ansible through a package manager package instead: mac-brew " +
+			"(Homebrew) or mac-ports (MacPorts). It asks which one when the Mac has neither or both " +
+			"(--package-manager), and asks before it installs anything (--install-prerequisites); " +
+			"--yes never installs them.\n\n" +
 			"--self <name> adds your computer as a machine instead: no address, no key, no " +
-			"password. It only makes sure Homebrew and Ansible are on PATH.",
+			"password. It runs the mac-brew package's bootstrap (mac-ports when the machine lists it) " +
+			"on your computer, which installs nothing when Homebrew and ansible-playbook are already there.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			dir, _, err := config.Dir(opts.configDir)
@@ -124,7 +131,7 @@ func newMachinesAddCmd(opts *options) *cobra.Command {
 				return err
 			}
 			if selfName != "" {
-				return runMachinesAddSelf(cmd.Context(), dir, cmd.OutOrStdout(), selfName, s.location)
+				return runMachinesAddSelf(cmd.Context(), dir, cmd.InOrStdin(), cmd.OutOrStdout(), selfName, s)
 			}
 			return runMachinesAdd(cmd.Context(), dir, cmd.InOrStdin(), cmd.OutOrStdout(), s)
 		},
@@ -136,6 +143,7 @@ func newMachinesAddCmd(opts *options) *cobra.Command {
 	c.Flags().BoolVar(&s.noAliases, "no-aliases", false,
 		"do not ask about SSH host entries, and do not write them")
 	c.Flags().BoolVar(&s.yes, "yes", false, "answer yes to writing SSH host entries, without asking")
+	addPrerequisiteFlags(c, &s)
 	c.Flags().StringVar(&selfName, "self", "",
 		"add your computer as a machine, named <name>, instead of asking for an address")
 	c.Flags().StringVar(&s.address, "address", "",
@@ -148,7 +156,7 @@ func newMachinesAddCmd(opts *options) *cobra.Command {
 		"`new` for a key of the CLI's own for this machine (made or reused), a private key file, "+
 			"or agent:<SHA256 fingerprint> for a key the SSH agent holds")
 	c.Flags().StringVar(&s.fingerprint, "fingerprint", "",
-		"the host key fingerprint to trust on first contact (SHA256:…), checked through another channel")
+		"the host key fingerprint to trust on first contact (SHA256:…) of any of its ED25519, ECDSA or RSA keys, checked through another channel")
 	c.Flags().BoolVar(&s.tailscale, "tailscale", false, "also add the tailscale package")
 	c.Flags().StringVar(&s.domain, "domain", "",
 		"the domain, written only when there is no config.yml yet and add writes a new one")
@@ -162,8 +170,12 @@ func newMachinesAddCmd(opts *options) *cobra.Command {
 
 // runMachinesAddSelf writes a self machine into config.yml and prepares it:
 // no address is asked for, because there is none to give.
-func runMachinesAddSelf(ctx context.Context, dir string, out io.Writer, name, location string) error {
-	location, err := config.NormalizeLocation(location)
+func runMachinesAddSelf(ctx context.Context, dir string, in io.Reader, out io.Writer, name string,
+	opts setupOptions) error {
+	if err := checkPackageManager(opts.packageManager); err != nil {
+		return err
+	}
+	location, err := config.NormalizeLocation(opts.location)
 	if err != nil {
 		return err
 	}
@@ -191,7 +203,11 @@ func runMachinesAddSelf(ctx context.Context, dir string, out io.Writer, name, lo
 	repo.AutoCommit(ctx, dir, "chore(config): add machine "+name)
 	fmt.Fprintf(out, "\nadded %s (your computer) to %s\n\n", name, filepath.Join(dir, config.FileName))
 
-	if err := prepareExistingSelf(ctx, out, m); err != nil {
+	prep, err := newAnsiblePrep(dir, current.Packages, bufio.NewReader(in), in, opts, nil)
+	if err != nil {
+		return err
+	}
+	if err := prepareExistingSelf(ctx, out, m, prep); err != nil {
 		return err
 	}
 
@@ -374,6 +390,9 @@ func newMachinesRmCmd(opts *options) *cobra.Command {
 			if err := config.RemoveMachine(dir, args[0]); err != nil {
 				return err
 			}
+			if err := facts.Remove(dir, args[0]); err != nil {
+				return err
+			}
 			repo.AutoCommit(cmd.Context(), dir, "chore(config): remove machine "+args[0])
 			cmd.Printf("%s is out of the configuration.\n", args[0])
 			cmd.Printf("The server itself is untouched and still running: nothing on it was " +
@@ -397,6 +416,9 @@ func newMachinesRmCmd(opts *options) *cobra.Command {
 // It reads and writes through the streams it is given, for the same reason
 // setup does: every branch of the bootstrap is reachable without a terminal.
 func runMachinesAdd(ctx context.Context, dir string, in io.Reader, out io.Writer, opts setupOptions) error {
+	if err := checkPackageManager(opts.packageManager); err != nil {
+		return err
+	}
 	location, err := config.NormalizeLocation(opts.location)
 	if err != nil {
 		return err
@@ -509,7 +531,18 @@ func runMachinesAdd(ctx context.Context, dir string, in io.Reader, out io.Writer
 	// The machine is written only after the bootstrap proved the key. Written
 	// first, a failed run left an entry behind, and running again to fix it
 	// was refused as a name already configured.
-	if err := bootstrap(ctx, out, m, key, opts.noHarden, password); err != nil {
+	prep, err := newAnsiblePrep(dir, release, r, in, opts, func(name string) error {
+		m.Packages = append(m.Packages, name)
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	prep.replaceStarting = func(names []string) error {
+		m.Packages = names
+		return nil
+	}
+	if err := bootstrap(ctx, out, dir, m, key, opts.noHarden, password, prep); err != nil {
 		return err
 	}
 	if err := keepHostKey(m, trusted); err != nil {
@@ -640,9 +673,10 @@ var createLocal = local.Create
 
 func newMachinesCreateLocalCmd(opts *options) *cobra.Command {
 	var (
-		add  bool
-		s    setupOptions
-		size = local.DefaultSize
+		add    bool
+		s      setupOptions
+		size   = local.DefaultSize
+		distro string
 	)
 	c := &cobra.Command{
 		Use:   "create-local <name>",
@@ -653,7 +687,9 @@ func newMachinesCreateLocalCmd(opts *options) *cobra.Command {
 			"Without --add, nothing is written to the configuration: `setup` or " +
 			"`machines add` does that. With --add, it is added at once, the way " +
 			"`machines add --address` adds a server.\n\n" +
-			"--cpus, --memory and --disk size the VM; each must fit this computer.",
+			"--cpus, --memory and --disk size the VM; each must fit this computer.\n\n" +
+			"--distro picks the system: ubuntu (the default) or arch. Arch is x86_64 under " +
+			"qemu, emulated on Apple Silicon: slow, but it boots.",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			for _, flag := range []string{"key", "no-essentials", "no-aliases", "location"} {
@@ -661,8 +697,12 @@ func newMachinesCreateLocalCmd(opts *options) *cobra.Command {
 					return fmt.Errorf("--%s only applies with --add", flag)
 				}
 			}
+			d, err := local.ParseDistro(distro)
+			if err != nil {
+				return err
+			}
 			if !add {
-				m, err := createLocal(cmd.Context(), args[0], size, cmd.ErrOrStderr())
+				m, err := createLocal(cmd.Context(), args[0], d, size, cmd.ErrOrStderr())
 				if err != nil {
 					return err
 				}
@@ -673,7 +713,7 @@ func newMachinesCreateLocalCmd(opts *options) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			m, err := createAndAddLocal(cmd.Context(), dir, opts.configDir, cmd.ErrOrStderr(), args[0], size, s)
+			m, err := createAndAddLocal(cmd.Context(), dir, opts.configDir, cmd.ErrOrStderr(), args[0], d, size, s)
 			if err != nil {
 				return err
 			}
@@ -688,6 +728,7 @@ func newMachinesCreateLocalCmd(opts *options) *cobra.Command {
 	c.Flags().BoolVar(&s.noAliases, "no-aliases", false, "with --add: do not write SSH host entries")
 	c.Flags().StringVar(&s.location, "location", config.LocationLocal,
 		"with --add: where the machine is, such as bedroom or office")
+	c.Flags().StringVar(&distro, "distro", string(local.Ubuntu), "the system the VM runs: ubuntu or arch")
 	c.Flags().IntVar(&size.CPUs, "cpus", local.DefaultSize.CPUs, "CPUs for the VM, at most this computer's cores")
 	c.Flags().IntVar(&size.MemoryGiB, "memory", local.DefaultSize.MemoryGiB,
 		"memory for the VM in GiB, less than this computer has")
@@ -701,7 +742,7 @@ func newMachinesCreateLocalCmd(opts *options) *cobra.Command {
 // Progress goes to out, which is stderr, so `--format json` leaves a document
 // on stdout and nothing else.
 func createAndAddLocal(ctx context.Context, dir, configFlag string, out io.Writer, name string,
-	size local.Size, s setupOptions) (config.Machine, error) {
+	distro local.Distro, size local.Size, s setupOptions) (config.Machine, error) {
 	location, err := config.NormalizeLocation(s.location)
 	if err != nil {
 		return config.Machine{}, err
@@ -716,7 +757,7 @@ func createAndAddLocal(ctx context.Context, dir, configFlag string, out io.Write
 		return config.Machine{}, err
 	}
 
-	m, err := createLocal(ctx, name, size, out)
+	m, err := createLocal(ctx, name, distro, size, out)
 	if err != nil {
 		return config.Machine{}, err
 	}

@@ -11,17 +11,17 @@ import (
 const gib = uint64(1) << 30
 
 func TestRenderWithTheDefaultSizeIsTheEmbeddedTemplate(t *testing.T) {
-	got, err := Render(DefaultSize)
+	got, err := Render(Ubuntu, DefaultSize)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.Equal(got, Template()) {
+	if !bytes.Equal(got, Template(Ubuntu)) {
 		t.Fatal("the default size changed the template: the flags' defaults and machine.yaml disagree")
 	}
 }
 
 func TestRenderWritesTheChosenSize(t *testing.T) {
-	got, err := Render(Size{CPUs: 6, MemoryGiB: 12, DiskGiB: 80})
+	got, err := Render(Ubuntu, Size{CPUs: 6, MemoryGiB: 12, DiskGiB: 80})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -75,7 +75,7 @@ func TestCreateBootsTheChosenSize(t *testing.T) {
 	r := stub(t, nil)
 	stubHost(t, 8, 16*gib)
 
-	if _, err := Create(context.Background(), "alpha", Size{CPUs: 4, MemoryGiB: 8, DiskGiB: 40}, io.Discard); err != nil {
+	if _, err := Create(context.Background(), "alpha", Ubuntu, Size{CPUs: 4, MemoryGiB: 8, DiskGiB: 40}, io.Discard); err != nil {
 		t.Fatal(err)
 	}
 	if len(r.bodies) != 1 || !strings.Contains(r.bodies[0], "\ncpus: 4\n") ||
@@ -88,7 +88,7 @@ func TestCreateRefusesATooBigSizeBeforeAskingLima(t *testing.T) {
 	r := stub(t, nil)
 	stubHost(t, 2, 8*gib)
 
-	_, err := Create(context.Background(), "alpha", Size{CPUs: 4, MemoryGiB: 4, DiskGiB: 20}, io.Discard)
+	_, err := Create(context.Background(), "alpha", Ubuntu, Size{CPUs: 4, MemoryGiB: 4, DiskGiB: 20}, io.Discard)
 	if err == nil || !strings.Contains(err.Error(), "--cpus") {
 		t.Fatalf("got %v", err)
 	}

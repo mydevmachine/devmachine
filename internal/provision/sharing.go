@@ -2,6 +2,7 @@ package provision
 
 import (
 	"fmt"
+	"github.com/mydevmachine/devmachine/internal/remote"
 	"strings"
 
 	"github.com/mydevmachine/devmachine/internal/credentials"
@@ -107,7 +108,7 @@ const sharedCopyScript = `set -eu
 umask 077
 rel=$1
 user=$(id -un)
-home=$(getent passwd "$user" | cut -d: -f6)
+` + remote.HomeLookup + `
 outside() {
   echo "~/$rel reaches outside the home of $user through a symbolic link, so the shared login was not copied there" >&2
   exit 1

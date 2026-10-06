@@ -13,6 +13,26 @@ out for itself: where the machine is, which account and port, which key
 to use, then **tries the key first**. Only if that fails does it ask for
 the password.
 
+## It checks what the machine runs first
+
+The first thing `setup` does on a connection is ask the machine what it
+is: `uname -s` for the kernel, then `ID` in `/etc/os-release` on Linux,
+or `sw_vers -productVersion` on a Mac. It sets up `debian`, `ubuntu` and
+`arch` (and `archarm`, Arch on ARM), and macOS.
+Anything else stops the run **before the first change** — before the key
+is installed, on a server you reached with a password:
+
+```
+this CLI does not set up "fedora" yet: it supports debian, ubuntu and arch
+"FreeBSD" is not a system this CLI sets up: it supports Linux (debian, ubuntu, arch) and macOS
+```
+
+Why refuse instead of trying: every step after this one is written for a
+system it has been run on. A guess gets you halfway through a first run —
+a key installed, password login off — and then leaves you on a machine
+that cannot install Ansible. Stopping early leaves the server as you
+bought it. `doctor` makes the same check and accepts the same list.
+
 ## The proof is a new connection
 
 Installing a key does not mean it works — a wrong file permission, a
@@ -59,6 +79,16 @@ asked for.
 `setup` is different on purpose: it writes `config.yml` first, and
 running it again resumes from that file instead of starting over.
 
+## A fingerprint of any key type
+
+A server holds several host keys, ED25519, ECDSA and RSA, and a
+handshake shows one. `--fingerprint` may name any of them: when it is not
+the one shown, the CLI opens one handshake per other type, in which the
+server proves it holds that key, and trusts the key whose fingerprint
+matches. From then on the CLI asks for that type only. A fingerprint no
+key of the server has is refused, so this accepts no key the operator did
+not name.
+
 ## A local machine trusts its first host key
 
 Everywhere else, an unattended run needs `--fingerprint`: trusting
@@ -81,6 +111,25 @@ only wins if it sorts before others. A cloud image often ships its own
 settings as `60-cloudimg-settings.conf`; a file named `99-` would read
 after it and **silently do nothing** — no warning, password login still
 on despite a successful run.
+
+### Then it asks SSH, not the file
+
+A valid file is not proof that SSH reads it. A server whose main
+`sshd_config` has no `Include` line for `sshd_config.d`, or sets
+`PasswordAuthentication yes` above that line, accepts the file and ignores
+it. So after the reload `setup` runs `sshd -T`, which prints the settings
+SSH is really running with, and requires `passwordauthentication no`. If
+SSH still allows passwords, the file is removed, SSH is reloaded without
+it, and `setup` stops — it never says "password login is off" about a
+server that still takes passwords.
+
+### On a Mac
+
+A Mac gets the same file in the same folder, with two differences. The
+check is `/usr/sbin/sshd -t` alone: macOS has no `/run`, and its `/` is
+read-only. And nothing is reloaded: macOS starts SSH fresh for each
+connection (through launchd), so the next connection reads the new file.
+The `sshd -T` proof is the same.
 
 ## An admin login that is not root
 
@@ -162,3 +211,13 @@ want your own terminal and agent.
 then on, every change goes through `devmachine sync`. It installs
 `ansible` rather than `ansible-core`, since the smaller package leaves
 out a piece the `firewall` package needs.
+
+On Debian and Ubuntu that is `apt-get install ansible`. On Arch it is
+`pacman -S --noconfirm --needed ansible`, with the package lists the
+machine already has. It never runs `pacman -Sy`: refreshing the lists
+without upgrading is a partial upgrade, which Arch does not support and
+which can install an Ansible built for a Python the machine does not
+have. A full `pacman -Syu` upgrades everything, and that is your call, not
+a side effect of `setup`. On an Arch server whose lists are too old for
+the mirrors, `setup` stops and says so — see
+[troubleshooting](../troubleshooting.md#pacman-could-not-install-ansible).

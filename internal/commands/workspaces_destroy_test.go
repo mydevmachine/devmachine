@@ -97,6 +97,51 @@ func TestWorkspacesDestroyConfirmRunsOneScriptAndRemovesTheRoutesFile(t *testing
 	}
 }
 
+func TestWorkspacesDestroyOnAMacDeletesTheAccountWithSysadminctl(t *testing.T) {
+	client := &destroyClient{userExists: true}
+	dialDestroy(t, client)
+	dir := configWithKey(t, "workspaces:\n  - name: alice\n    machine: main\n")
+	saveFacts(t, dir, "main", observedMac)
+
+	out, err := execute(t, "--config", dir, "workspaces", "destroy", "alice", "--confirm", "alice")
+	if err != nil {
+		t.Fatalf("got %v (%s)", err, out)
+	}
+	if !strings.Contains(client.lastScript, "sysadminctl -deleteUser 'alice'") {
+		t.Fatalf("script does not delete the account with sysadminctl: %s", client.lastScript)
+	}
+	for _, unwanted := range []string{"loginctl", "userdel"} {
+		if strings.Contains(client.lastScript, unwanted) {
+			t.Fatalf("a Mac has no %s: %s", unwanted, client.lastScript)
+		}
+	}
+	if !strings.Contains(out, "/Users/alice") {
+		t.Fatalf("it did not name the Mac home: %q", out)
+	}
+}
+
+func TestWorkspacesDestroyOnAMacTakesTheAccountOutOfTheRemoteLoginGroupFirst(t *testing.T) {
+	client := &destroyClient{userExists: true}
+	dialDestroy(t, client)
+	dir := configWithKey(t, "workspaces:\n  - name: alice\n    machine: main\n")
+	saveFacts(t, dir, "main", observedMac)
+
+	if out, err := execute(t, "--config", dir, "workspaces", "destroy", "alice", "--confirm", "alice"); err != nil {
+		t.Fatalf("got %v (%s)", err, out)
+	}
+	remove := "dseditgroup -o edit -d 'alice' -t user com.apple.access_ssh"
+	removeAt := strings.Index(client.lastScript, remove)
+	if removeAt < 0 {
+		t.Fatalf("script does not take alice out of com.apple.access_ssh: %s", client.lastScript)
+	}
+	if removeAt > strings.Index(client.lastScript, "sysadminctl -deleteUser") {
+		t.Fatalf("the group edit must come before the account is deleted: %s", client.lastScript)
+	}
+	if !strings.Contains(client.lastScript, "dscl . -read /Groups/com.apple.access_ssh") {
+		t.Fatalf("the group edit must be skipped when the group does not exist: %s", client.lastScript)
+	}
+}
+
 func TestWorkspacesDestroyListsEachRouteBeforeAsking(t *testing.T) {
 	client := &destroyClient{userExists: true}
 	dialDestroy(t, client)

@@ -62,7 +62,7 @@ func newMachinesTrustCmd(opts *options) *cobra.Command {
 	cmd.Flags().BoolVar(&flags.check, "check", false, "compare the presented key without writing")
 	cmd.Flags().BoolVar(&flags.replace, "replace", false, "allow a deliberately changed host key to be replaced")
 	cmd.Flags().BoolVar(&flags.yes, "yes", false, "update the local trust store without asking")
-	cmd.Flags().StringVar(&flags.expect, "expect", "", "write only if the presented key has this SHA256 fingerprint")
+	cmd.Flags().StringVar(&flags.expect, "expect", "", "write only the host key with this SHA256 fingerprint, of any of its key types")
 	return cmd
 }
 
@@ -89,6 +89,10 @@ func runMachinesTrust(ctx context.Context, dir, name string, in io.Reader, out i
 		return err
 	}
 	presented, address, err := scanHostKey(ctx, machine)
+	if err != nil {
+		return err
+	}
+	presented, err = hostKeyForExpected(ctx, machine, presented, address, flags.expect)
 	if err != nil {
 		return err
 	}

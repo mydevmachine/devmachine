@@ -15,6 +15,7 @@ import (
 
 	"github.com/mydevmachine/devmachine/internal/aliases"
 	"github.com/mydevmachine/devmachine/internal/config"
+	"github.com/mydevmachine/devmachine/internal/facts"
 	"github.com/mydevmachine/devmachine/internal/hostkeys"
 	"github.com/mydevmachine/devmachine/internal/keys"
 	"github.com/mydevmachine/devmachine/internal/remote"
@@ -22,10 +23,21 @@ import (
 )
 
 // nopClient stands in for a machine. Every step of the bootstrap is stubbed,
-// so no test reads what a command returned.
+// so no test reads what a command returned, except which system it runs: a
+// Debian.
 type nopClient struct{}
 
-func (nopClient) Run(context.Context, string) (string, error)                 { return "", nil }
+func (nopClient) Run(_ context.Context, command string) (string, error) {
+	switch command {
+	case remote.UnameCommand:
+		return "Linux\n", nil
+	case remote.OSReleaseCommand:
+		return "ID=debian\n", nil
+	case facts.ObserveCommand:
+		return "kernel=Linux\nmachine=x86_64\nansible_playbook=/usr/bin/ansible-playbook\nos-release.ID=debian\n", nil
+	}
+	return "", nil
+}
 func (nopClient) RunInput(context.Context, string, io.Reader) (string, error) { return "", nil }
 func (nopClient) Stream(context.Context, string, io.Writer, io.Writer) error  { return nil }
 func (nopClient) Upload(context.Context, string, io.Reader) error             { return nil }
@@ -45,6 +57,9 @@ type bootstrapStubs struct {
 	tailscale  bool
 	noRoot     bool
 	agent      []keys.Offered
+	// kernel and id are what the machine says it runs. Empty is Debian.
+	kernel string
+	id     string
 }
 
 // bootstrapSteps records the decisions the flow took, so a test reads those
@@ -60,6 +75,7 @@ type bootstrapSteps struct {
 	hardened         bool
 	ansible          bool
 	checkedRoot      bool
+	detected         bool
 	hostKey          ssh.PublicKey
 }
 
@@ -121,13 +137,26 @@ func stubBootstrap(t *testing.T, s bootstrapStubs) *bootstrapSteps {
 		steps.events = append(steps.events, "install ansible")
 		return nil
 	}))
-	t.Cleanup(swap(&harden, func(context.Context, remote.Client) error {
+	t.Cleanup(swap(&harden, func(context.Context, remote.Client, remote.System) error {
 		steps.hardened = true
 		steps.events = append(steps.events, "harden")
 		return nil
 	}))
 	t.Cleanup(swap(&agentKeys, func() ([]keys.Offered, error) { return s.agent, nil }))
 	t.Cleanup(swap(&tailscaleSSH, func(remote.Client) bool { return s.tailscale }))
+	t.Cleanup(swap(&detectSystem, func(context.Context, remote.Client) (remote.System, error) {
+		steps.detected = true
+		steps.events = append(steps.events, "detect system")
+		system := remote.System{Kernel: "Linux", ID: "debian"}
+		if s.kernel != "" {
+			system = remote.System{Kernel: s.kernel, ID: s.id}
+		}
+		if system.Kernel == "Linux" && !remote.SupportedLinux(system.ID) ||
+			system.Kernel != "Linux" && !system.MacOS() {
+			return system, &remote.UnsupportedSystemError{System: system}
+		}
+		return system, nil
+	}))
 	t.Cleanup(swap(&checkRoot, func(_ context.Context, _ remote.Client, user string) error {
 		steps.checkedRoot = true
 		steps.events = append(steps.events, "check root")
@@ -193,7 +222,7 @@ func TestSetupWithExistingConfigurationOnlyPreparesTheSelectedMachine(t *testing
 		t.Fatal("setup installed a key for an existing configuration")
 		return nil
 	}))
-	t.Cleanup(swap(&harden, func(context.Context, remote.Client) error {
+	t.Cleanup(swap(&harden, func(context.Context, remote.Client, remote.System) error {
 		t.Fatal("setup hardened an existing machine")
 		return nil
 	}))
@@ -214,6 +243,26 @@ func TestSetupWithExistingConfigurationOnlyPreparesTheSelectedMachine(t *testing
 	}
 	if !strings.Contains(out, "without rewriting") || !strings.Contains(out, "Ansible") {
 		t.Fatalf("setup did not explain the resume path: %q", out)
+	}
+	if got, found, _ := facts.Load(dir, "sandbox"); !found || got.Distribution != "Debian" {
+		t.Fatalf("setup kept no facts about the machine it prepared: %#v", got)
+	}
+	if _, found, _ := facts.Load(dir, "main"); found {
+		t.Fatal("setup kept facts about a machine it did not reach")
+	}
+}
+
+func TestSetupKeepsWhatItReadAboutANewMachine(t *testing.T) {
+	stubBootstrap(t, bootstrapStubs{keyWorks: true})
+	dir := t.TempDir()
+
+	if _, err := runSetupIn(t, dir,
+		answers("main", "203.0.113.10", "root", "22", "", "1"), setupOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	got, found, err := facts.Load(dir, "main")
+	if err != nil || !found || got.PkgMgr != "apt" || got.AnsiblePlaybook != "/usr/bin/ansible-playbook" {
+		t.Fatalf("found=%v err=%v %#v", found, err, got)
 	}
 }
 
@@ -423,6 +472,7 @@ func TestSetupTrustsTheHostBeforeAnyAuthentication(t *testing.T) {
 		"write trust",
 		"attempt key authentication",
 		"optional password authentication",
+		"detect system",
 		"prove key",
 		"check root",
 		"harden",
@@ -1138,5 +1188,83 @@ func TestSetupAgainInstallsTheKeyOverTailscaleSSH(t *testing.T) {
 	}
 	if installed != "ssh-ed25519 AAAAexample devmachine-main" {
 		t.Fatalf("installed %q", installed)
+	}
+}
+
+// TestSetupRefusesAnUnknownSystemBeforeTheKeyGoesIn: on a machine as it was
+// bought, installing the key is the first change, so the refusal comes before.
+func TestSetupRefusesAnUnknownSystemBeforeTheKeyGoesIn(t *testing.T) {
+	steps := stubBootstrap(t, bootstrapStubs{keyWorks: false, kernel: "Linux", id: "fedora"})
+
+	_, err := runSetupIn(t, t.TempDir(),
+		answers("main", "203.0.113.10", "root", "22", "", "1", "secret"), setupOptions{})
+	var unsupported *remote.UnsupportedSystemError
+	if !errors.As(err, &unsupported) || !strings.Contains(err.Error(), `"fedora"`) {
+		t.Fatalf("got %v", err)
+	}
+	if steps.installedKey || steps.hardened || steps.ansible {
+		t.Fatalf("it changed the machine anyway: %q", steps.events)
+	}
+}
+
+func TestSetupRefusesASystemThatIsNotLinuxWhenTheKeyAlreadyWorks(t *testing.T) {
+	steps := stubBootstrap(t, bootstrapStubs{keyWorks: true, kernel: "FreeBSD"})
+
+	_, err := runSetupIn(t, t.TempDir(),
+		answers("main", "203.0.113.10", "root", "22", "", "1"), setupOptions{})
+	if err == nil || !strings.Contains(err.Error(), `"FreeBSD" is not a system this CLI sets up`) {
+		t.Fatalf("got %v", err)
+	}
+	if steps.checkedRoot || steps.hardened || steps.ansible {
+		t.Fatalf("it went on past the refusal: %q", steps.events)
+	}
+}
+
+func TestSetupRefusesAnUnknownSystemBeforeTheKeyGoesInOverTailscaleSSH(t *testing.T) {
+	steps := stubBootstrap(t, bootstrapStubs{keyWorks: true, tailscale: true, kernel: "Linux", id: "alpine"})
+
+	_, err := runSetupIn(t, t.TempDir(),
+		answers("main", "100.64.0.10", "alice", "22", "", "1"), setupOptions{})
+	if err == nil || !strings.Contains(err.Error(), `"alpine"`) {
+		t.Fatalf("got %v", err)
+	}
+	if steps.installedKey {
+		t.Fatalf("it installed the key on a machine it refuses: %q", steps.events)
+	}
+}
+
+func TestSetupDetectsTheSystemFirst(t *testing.T) {
+	steps := stubBootstrap(t, bootstrapStubs{keyWorks: false, kernel: "Linux", id: "arch"})
+
+	out, err := runSetupIn(t, t.TempDir(),
+		answers("main", "203.0.113.10", "root", "22", "", "1", "secret"), setupOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	detected := slices.Index(steps.events, "detect system")
+	first := slices.IndexFunc(steps.events, func(e string) bool {
+		return e == "prove key" || e == "check root" || e == "harden" || e == "install ansible"
+	})
+	if detected < 0 || detected > first || !steps.installedKey {
+		t.Fatalf("events: %q", steps.events)
+	}
+	if !strings.Contains(out, "runs arch") {
+		t.Fatalf("it does not say what it found: %q", out)
+	}
+}
+
+func TestSetupAgainRefusesAnUnknownSystemBeforeInstallingAnsible(t *testing.T) {
+	dir := configWith(t, "machines:\n  - name: main\n    hosts: [203.0.113.10]\n")
+	steps := stubBootstrap(t, bootstrapStubs{kernel: "Linux", id: "fedora"})
+	t.Cleanup(swap(&dial, func(context.Context, config.Machine, string) (remote.Client, string, error) {
+		return nopClient{}, "203.0.113.10", nil
+	}))
+
+	_, err := runSetupIn(t, dir, strings.NewReader(""), setupOptions{})
+	if err == nil || !strings.Contains(err.Error(), `"fedora"`) {
+		t.Fatalf("got %v", err)
+	}
+	if steps.ansible || steps.checkedRoot {
+		t.Fatalf("it went on past the refusal: %q", steps.events)
 	}
 }

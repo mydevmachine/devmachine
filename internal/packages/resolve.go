@@ -235,7 +235,7 @@ func resolveTarget(store *Store, target Target, cliVersion string) (Resolved, er
 	return out, nil
 }
 
-// AccountPackage creates a workspace's Linux account. Every workspace gets it,
+// AccountPackage creates a workspace's account. Every workspace gets it,
 // listed or not, and before anything else: a package that forgets to say it
 // needs the account would otherwise run before the account exists. Every
 // release carries it; only a set of packages without one goes without.

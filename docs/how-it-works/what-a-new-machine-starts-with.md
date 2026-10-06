@@ -15,6 +15,25 @@ every server wants:
 
 `--no-essentials` starts the machine with none of it.
 
+## On a Mac
+
+`essentials` runs only on Linux: a firewall, SSH hardening and Caddy have
+no macOS version, and `sync` refuses the package on a Mac. So when the
+machine turns out to be a Mac, `setup` and `machines add` start it with
+`base` and `devmachine-app` instead, and with the package manager package
+(`mac-brew` or `mac-ports`) that installs Ansible there. They print one
+line that says so:
+
+```
+studio is a Mac and essentials runs only on Linux, so it starts with base and devmachine-app instead.
+```
+
+The system is not known until the CLI connects, which is after the
+machine's packages are chosen, so the swap happens at that moment. It only
+replaces the default: with `--no-essentials` the Mac starts with the
+package manager package alone. Only what the pinned package release has
+goes in, as with `essentials` itself.
+
 ## Why a default, and not a question
 
 Nearly everyone wants these. A question at setup is one more thing a new

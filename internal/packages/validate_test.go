@@ -173,6 +173,21 @@ func TestValidateRejectsTheAptModule(t *testing.T) {
 	}
 }
 
+func TestValidateScansAPackageReachedThroughASymlink(t *testing.T) {
+	dir := writePackage(t, "git", "format: 1\nname: git\nscope: machine\nsummary: x\n")
+	write(t, filepath.Join(dir, "tasks", "main.yml"), "---\n- name: Install git\n  apt:\n    name: git\n")
+	link := filepath.Join(t.TempDir(), "git")
+	if err := os.Symlink(dir, link); err != nil {
+		t.Fatal(err)
+	}
+
+	problems, err := Validate(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+	problemAbout(t, problems, "apt")
+}
+
 func TestValidateRejectsAnExtendsWithoutADot(t *testing.T) {
 	dir := writePackage(t, "sharing", `format: 1
 name: sharing

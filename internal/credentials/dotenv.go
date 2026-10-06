@@ -108,7 +108,7 @@ func joinDotenvLines(lines []string) []byte {
 // machine's admin, and any directory or file under the home is the workspace
 // account's to replace with a link: followed blindly, that link would point a
 // root read, write, chmod or chown at any file on the machine.
-const homeLocateScript = `home=$(getent passwd "$user" | cut -d: -f6)
+const homeLocateScript = `` + remote.HomeLookup + `
 if [ -z "$home" ]; then
 	echo "there is no account named $user on this machine" >&2
 	exit 1

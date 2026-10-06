@@ -146,6 +146,26 @@ func TestApplyRunsTheGeneratedPlaybookFromTheRemoteDirectory(t *testing.T) {
 	}
 }
 
+// TestApplyCallsAnsibleByTheReportedPathAsRoot: a plain SSH command on a Mac
+// has neither Homebrew nor MacPorts on PATH, and MacPorts may name it with a
+// Python suffix.
+func TestApplyCallsAnsibleByTheReportedPathAsRoot(t *testing.T) {
+	c := &fakeClient{output: okRecap}
+	a := &Ansible{Client: c}
+
+	if _, err := a.Apply(context.Background(), planWith(t, "main", []string{"base"}, nil),
+		Options{Out: io.Discard, AnsiblePlaybook: "/opt/local/bin/ansible-playbook-3.14"}); err != nil {
+		t.Fatal(err)
+	}
+	want := "run=$(mktemp -d) && trap 'rm -rf \"$run\"' EXIT && " +
+		"cp /opt/devmachine/site.yml \"$run/site.yml\" && cd \"$run\" && " +
+		"ANSIBLE_CONFIG=/opt/devmachine/ansible.cfg " +
+		"'/opt/local/bin/ansible-playbook-3.14' -i /opt/devmachine/inventory.ini site.yml"
+	if c.commands[len(c.commands)-1] != remote.AsRoot(want) {
+		t.Fatalf("got %q", c.commands[len(c.commands)-1])
+	}
+}
+
 func TestApplySendsTheGeneratedFilesAndTheRecipes(t *testing.T) {
 	c := &fakeClient{output: okRecap}
 	a := &Ansible{Client: c}

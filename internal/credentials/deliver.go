@@ -88,7 +88,7 @@ umask 077
 user=%s
 path=%s
 if [ -n "$user" ]; then
-	home=$(getent passwd "$user" | cut -d: -f6)
+	` + remote.HomeLookup + `
 	if [ -z "$home" ]; then
 		echo "there is no account named $user on this machine" >&2
 		exit 1

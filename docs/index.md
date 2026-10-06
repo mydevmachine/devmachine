@@ -112,6 +112,15 @@ these when something behaves in a way that surprises you.
   how `setup` makes sure it is talking to your server, and locks it down.
 - [Your computer as a machine](how-it-works/your-computer-as-a-machine.md) —
   using your own computer instead of a server.
+- [What the CLI knows about a machine](how-it-works/what-the-cli-knows-about-a-machine.md)
+  — what `setup`, `sync` and `doctor` keep about each machine, and why it
+  is not in `config.yml`.
+- [What a machine needs](how-it-works/what-a-machine-needs.md) — what must
+  be on a machine before the first sync, what the CLI installs, and why
+  installing it on a Mac needs its own yes.
+- [One package on many systems](how-it-works/packages-on-many-systems.md) —
+  how a package runs on Debian, Ubuntu, Arch Linux and macOS, and the traps
+  the built-in packages already hit.
 - [Where a machine is](how-it-works/machine-location.md) — why a machine
   with no location is `external`, and why `create-local` writes `local`.
 - [Versioning your configuration](how-it-works/versioning-your-configuration.md)

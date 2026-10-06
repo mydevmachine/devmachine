@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -182,7 +181,24 @@ func interactive(ctx context.Context, opts *options, binary string, args []strin
 		argv = strictSSHArgs(m)
 		argv = append(argv, user+"@"+address)
 	}
-	return runInteractive(binary, argv...)
+	return explainRemoteLogin(opts, tgt, runInteractive(binary, argv...))
+}
+
+// explainRemoteLogin points at Remote Login when ssh gives up (255) on a
+// machine last seen as a Mac: with "Only these users", macOS refuses an
+// account outside that list whatever the key, and ssh says only "Connection
+// closed". On any other machine 255 has too many causes to name one.
+func explainRemoteLogin(opts *options, tgt target, err error) error {
+	var exit interface{ ExitCode() int }
+	if tgt.workspace == "" || !errors.As(err, &exit) || exit.ExitCode() != 255 {
+		return err
+	}
+	dir, _, dirErr := config.Dir(opts.configDir)
+	if dirErr != nil || observedSystem(dir, tgt.machine.Name) != remote.KernelDarwin {
+		return err
+	}
+	return fmt.Errorf("%w: the Mac's Remote Login may not allow %s; `devmachine doctor --machine %s` checks it",
+		err, tgt.user, tgt.machine.Name)
 }
 
 func newRunCmd(opts *options) *cobra.Command {
@@ -223,13 +239,13 @@ func newRunCmd(opts *options) *cobra.Command {
 			}
 			defer client.Close()
 
-			out, err := client.Run(cmd.Context(), args[0])
-			record(opts, tgt, args[0], err == nil)
 			// The output of a command that failed is usually the explanation,
-			// so it is printed before the error is reported.
-			if out != "" {
-				cmd.Print(out)
-			}
+			// so both streams reach the person as they come, before the error
+			// is reported; stdout stays the command's own for a program
+			// reading it.
+			err = client.Stream(cmd.Context(), withMachinePath(opts, tgt.machine, args[0]),
+				cmd.OutOrStdout(), cmd.ErrOrStderr())
+			record(opts, tgt, args[0], err == nil)
 			return explainHostKey(cmd.Context(), tgt.machine, err)
 		},
 	}
@@ -244,7 +260,7 @@ func newRunCmd(opts *options) *cobra.Command {
 // yet.
 //
 // With no workspace it runs as the machine's admin. With one, it runs as
-// that workspace's own Linux account on the machine the workspace lives on —
+// that workspace's own account on the machine the workspace lives on —
 // what a package needs to read that account's own files or use its own
 // logins, such as a per-workspace GitHub login.
 func runPackage(cmd *cobra.Command, opts *options, name, workspace string, args []string) error {
@@ -282,12 +298,8 @@ func runPackage(cmd *cobra.Command, opts *options, name, workspace string, args 
 		return err
 	}
 
-	var out bytes.Buffer
-	callErr := ext.Call(cmd.Context(), pkgArgs, &out)
+	callErr := ext.Call(cmd.Context(), pkgArgs, cmd.OutOrStdout(), cmd.ErrOrStderr())
 	record(opts, tgt, fmt.Sprintf("run --package %s -- %s", name, strings.Join(pkgArgs, " ")), callErr == nil)
-	if out.Len() > 0 {
-		cmd.Print(out.String())
-	}
 	return explainHostKey(cmd.Context(), tgt.machine, callErr)
 }
 

@@ -45,6 +45,7 @@ var schemaFields = []SchemaField{
 	{"entrypoint", false, "An executable in the package the CLI can call on the machine."},
 	{"commands", false, `What the entrypoint accepts: a list, or ["*"] for anything.`},
 	{"network", false, "A private network this machine package answers for: prefix, resolve, and optionally join and self_name."},
+	{"bootstrap", false, "A POSIX sh script in a machine package that prepares the machine for Ansible, such as a Mac package manager. Path inside the package, executable."},
 }
 
 // Schema returns the format this CLI reads.

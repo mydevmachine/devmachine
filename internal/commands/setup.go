@@ -8,14 +8,15 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/mydevmachine/devmachine/internal/aliases"
 	"github.com/mydevmachine/devmachine/internal/config"
+	"github.com/mydevmachine/devmachine/internal/facts"
 	"github.com/mydevmachine/devmachine/internal/hostkeys"
 	"github.com/mydevmachine/devmachine/internal/keys"
 	"github.com/mydevmachine/devmachine/internal/packages"
@@ -37,27 +38,16 @@ var (
 	harden         = remote.Harden
 	installAnsible = remote.InstallAnsible
 	checkRoot      = remote.CheckRoot
+	detectSystem   = remote.DetectSystem
 	tailscaleSSH   = remote.IsTailscaleSSH
 	agentKeys      = keys.FromAgent
 	scanHostKey    = remote.ScanHostKey
-	confirmHostKey = confirm
-	setupSkills    = offerSetupSkills
-	streamLocal    = streamLocalCommand
+	// scanHostKeyMatching finds a host key of another type than the one
+	// negotiation showed, by its fingerprint.
+	scanHostKeyMatching = remote.ScanHostKeyMatching
+	confirmHostKey      = confirm
+	setupSkills         = offerSetupSkills
 )
-
-// brewInstallCommand is the official one-line Homebrew install. `setup`
-// prints it and runs nothing: that command asks for sudo, and asking for
-// sudo on the operator's own computer is not this CLI's to do.
-const brewInstallCommand = `/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"`
-
-// streamLocalCommand runs a command on your computer with its output
-// streamed to out as it arrives, the same way installing Ansible on a remote
-// machine streams over SSH.
-func streamLocalCommand(ctx context.Context, out io.Writer, name string, args ...string) error {
-	cmd := exec.CommandContext(ctx, name, args...)
-	cmd.Stdout, cmd.Stderr = out, out
-	return cmd.Run()
-}
 
 // setupOptions are the flags the flow reads.
 type setupOptions struct {
@@ -89,6 +79,20 @@ type setupOptions struct {
 	// hostKey is a host key already read from the machine and trusted as it
 	// is, for a VM `create-local --add` made a moment ago. It has no flag.
 	hostKey ssh.PublicKey
+	// packageManager is brew or ports, for a Mac that has neither or both.
+	packageManager string
+	// installPrerequisites is consent to install what a Mac lacks. It is
+	// apart from yes on purpose: see agreeToInstall.
+	installPrerequisites bool
+}
+
+// addPrerequisiteFlags adds the two flags that answer setup's questions about
+// a Mac, shared by `setup` and `machines add`.
+func addPrerequisiteFlags(c *cobra.Command, s *setupOptions) {
+	c.Flags().StringVar(&s.packageManager, "package-manager", "",
+		"on a Mac with neither or both, the package manager to install Ansible with: brew (Homebrew) or ports (MacPorts)")
+	c.Flags().BoolVar(&s.installPrerequisites, "install-prerequisites", false,
+		"on a Mac, install what Ansible needs (Command Line Tools, Homebrew or MacPorts, Ansible) without asking; --yes never does")
 }
 
 // unattended is a `machines add` that asks nothing, because its answers came
@@ -127,6 +131,33 @@ func startingPackages(ctx context.Context, dir, release string, noEssentials boo
 	return []string{essentials}
 }
 
+// macStarting is what a Mac starts with in place of essentials, whose
+// firewall, SSH hardening and Caddy run only on Linux.
+var macStarting = []string{"base", "devmachine-app"}
+
+// startingPackagesOnMac is what a machine written with the default essentials
+// starts with once it turns out to be a Mac. ok is false for any other list,
+// --no-essentials included: that list is the person's, not the default.
+func startingPackagesOnMac(ctx context.Context, dir, release, machine string, current []string,
+	out io.Writer) ([]string, bool) {
+	if !slices.Equal(current, []string{essentials}) {
+		return nil, false
+	}
+	var starting []string
+	for _, name := range macStarting {
+		if releaseHasPackage(ctx, dir, release, name) {
+			starting = append(starting, name)
+		}
+	}
+	instead := "no packages"
+	if len(starting) > 0 {
+		instead = joinAnd(starting)
+	}
+	fmt.Fprintf(out, "%s is a Mac and %s runs only on Linux, so it starts with %s instead.\n",
+		machine, essentials, instead)
+	return starting, true
+}
+
 func newSetupCmd(opts *options) *cobra.Command {
 	var s setupOptions
 
@@ -159,6 +190,7 @@ func newSetupCmd(opts *options) *cobra.Command {
 	c.Flags().BoolVar(&s.noAliases, "no-aliases", false,
 		"do not ask about SSH host entries, and do not write them")
 	c.Flags().BoolVar(&s.yes, "yes", false, "answer yes to writing SSH host entries, without asking")
+	addPrerequisiteFlags(c, &s)
 	c.AddCommand(newSetupGitCmd(opts))
 	return c
 }
@@ -168,12 +200,16 @@ func newSetupCmd(opts *options) *cobra.Command {
 // It reads and writes through the streams it is given, so the whole flow is
 // testable without a terminal.
 func runSetup(ctx context.Context, dir string, in io.Reader, out io.Writer, opts setupOptions) error {
+	if err := checkPackageManager(opts.packageManager); err != nil {
+		return err
+	}
 	path := filepath.Join(dir, config.FileName)
 	if _, err := os.Stat(path); err == nil && !opts.force {
-		if err := prepareExisting(ctx, dir, out, opts.machine); err != nil {
+		r := bufio.NewReader(in)
+		if err := prepareExisting(ctx, dir, r, in, out, opts); err != nil {
 			return err
 		}
-		if err := finishSetup(ctx, dir, in, out); err != nil {
+		if err := finishSetup(ctx, dir, r, out); err != nil {
 			return err
 		}
 		fmt.Fprintf(out, "\nNext: `devmachine doctor`, then `devmachine sync`.\n")
@@ -217,7 +253,19 @@ func runSetup(ctx context.Context, dir string, in io.Reader, out io.Writer, opts
 	}
 	fmt.Fprintf(out, "\nwrote %s\n\n", path)
 
-	if err := bootstrap(ctx, out, m, key, opts.noHarden, askingPassword(r, in, out)); err != nil {
+	prep, err := newAnsiblePrep(dir, release, r, in, opts, func(name string) error {
+		m.Packages = append(m.Packages, name)
+		_, err := addMachinePackage(dir, m.Name, name)
+		return err
+	})
+	if err != nil {
+		return err
+	}
+	prep.replaceStarting = func(names []string) error {
+		m.Packages = names
+		return setMachinePackages(dir, m.Name, names)
+	}
+	if err := bootstrap(ctx, out, dir, m, key, opts.noHarden, askingPassword(r, in, out), prep); err != nil {
 		return err
 	}
 	if err := offerSSHAliases(r, out, dir, opts.noAliases, opts.yes); err != nil {
@@ -244,6 +292,8 @@ func nextAfterSetup(machinePackages []string, sshAliases bool) string {
 	if slices.Contains(machinePackages, essentials) {
 		note = "The machine starts with the essentials: base tools, git, a firewall, Caddy and what the macOS app reads.\n" +
 			"To start bare instead, remove `essentials` from config.yml, or run setup with --no-essentials.\n"
+	} else if len(machinePackages) > 0 {
+		note = fmt.Sprintf("The machine starts with %s.\n", joinAnd(machinePackages))
 	}
 	reach := "Once a workspace exists: `devmachine ssh <workspace>` (or `mosh`) reaches it from here.\n"
 	if sshAliases {
@@ -322,27 +372,52 @@ func offerTailscale(r *bufio.Reader, out io.Writer, dir, machine string) error {
 
 // addTailscale puts the tailscale package on a machine, once.
 func addTailscale(out io.Writer, dir, machine string) error {
+	added, err := addMachinePackage(dir, machine, tailscalePackage)
+	if err != nil || !added {
+		return err
+	}
+	fmt.Fprintf(out, "added the %s package to %s.\n", tailscalePackage, machine)
+	fmt.Fprintln(out, "Next: `devmachine sync`, then `devmachine login tailscale` to sign in and "+
+		"add its private address; the public address stays as a fallback.")
+	return nil
+}
+
+// addMachinePackage puts a package on a machine in config.yml, once, and
+// says whether it was added.
+func addMachinePackage(dir, machine, pkg string) (bool, error) {
 	cfg, err := config.Load(dir)
 	if err != nil {
-		return err
+		return false, err
 	}
 	for i := range cfg.Machines {
 		if cfg.Machines[i].Name != machine {
 			continue
 		}
-		if slices.Contains(cfg.Machines[i].Packages, tailscalePackage) {
-			return nil
+		if slices.Contains(cfg.Machines[i].Packages, pkg) {
+			return false, nil
 		}
-		cfg.Machines[i].Packages = append(cfg.Machines[i].Packages, tailscalePackage)
+		cfg.Machines[i].Packages = append(cfg.Machines[i].Packages, pkg)
 		if err := config.Save(dir, cfg); err != nil {
-			return err
+			return false, err
 		}
-		fmt.Fprintf(out, "added the %s package to %s.\n", tailscalePackage, machine)
-		fmt.Fprintln(out, "Next: `devmachine sync`, then `devmachine login tailscale` to sign in and "+
-			"add its private address; the public address stays as a fallback.")
-		return nil
+		return true, nil
 	}
-	return nil
+	return false, nil
+}
+
+// setMachinePackages replaces a machine's packages in config.yml.
+func setMachinePackages(dir, machine string, names []string) error {
+	cfg, err := config.Load(dir)
+	if err != nil {
+		return err
+	}
+	for i := range cfg.Machines {
+		if cfg.Machines[i].Name == machine {
+			cfg.Machines[i].Packages = names
+			return config.Save(dir, cfg)
+		}
+	}
+	return fmt.Errorf("machine %q is not in %s", machine, config.FileName)
 }
 
 // currentSSHAliases reads the operator's recorded answer back, so the closing
@@ -360,7 +435,8 @@ func currentSSHAliases(dir string) (bool, error) {
 // path only connects with those choices and installs the last prerequisite.
 // In particular, it must not rewrite configuration, install a key, or change
 // SSH policy on a machine the CLI already owns.
-func prepareExisting(ctx context.Context, dir string, out io.Writer, name string) error {
+func prepareExisting(ctx context.Context, dir string, r *bufio.Reader, in io.Reader, out io.Writer,
+	opts setupOptions) error {
 	cfg, err := config.Load(dir)
 	if err != nil {
 		return err
@@ -368,7 +444,14 @@ func prepareExisting(ctx context.Context, dir string, out io.Writer, name string
 	if err := cfg.Validate(); err != nil {
 		return err
 	}
-	m, err := cfg.Machine(name)
+	m, err := cfg.Machine(opts.machine)
+	if err != nil {
+		return err
+	}
+	prep, err := newAnsiblePrep(dir, cfg.Packages, r, in, opts, func(name string) error {
+		_, err := addMachinePackage(dir, m.Name, name)
+		return err
+	})
 	if err != nil {
 		return err
 	}
@@ -376,7 +459,7 @@ func prepareExisting(ctx context.Context, dir string, out io.Writer, name string
 	fmt.Fprintf(out, "%s already describes %s; preparing it without rewriting configuration.\n", config.FileName, m.Name)
 
 	if m.Self {
-		return prepareExistingSelf(ctx, out, m)
+		return prepareExistingSelf(ctx, out, m, prep)
 	}
 
 	client, address, err := dial(ctx, m, m.User)
@@ -385,6 +468,10 @@ func prepareExisting(ctx context.Context, dir string, out io.Writer, name string
 	}
 	defer func() { _ = client.Close() }()
 
+	system, err := refuseUnknownSystem(ctx, client, out, address)
+	if err != nil {
+		return err
+	}
 	if tailscaleSSH(client) {
 		if err := installKeyOverTailscaleSSH(ctx, client, out, m, address); err != nil {
 			return err
@@ -395,10 +482,22 @@ func prepareExisting(ctx context.Context, dir string, out io.Writer, name string
 	if err := checkRoot(ctx, client, m.User); err != nil {
 		return err
 	}
-	if err := installAnsible(ctx, client, out); err != nil {
+	if err := prepareAnsible(ctx, client, out, system, m, prep); err != nil {
 		return err
 	}
+	facts.Record(ctx, dir, m.Name, client, time.Now())
 	return nil
+}
+
+// refuseUnknownSystem stops on a machine this CLI does not set up, while
+// nothing on it has been changed yet.
+func refuseUnknownSystem(ctx context.Context, client remote.Client, out io.Writer, address string) (remote.System, error) {
+	system, err := detectSystem(ctx, client)
+	if err != nil {
+		return remote.System{}, err
+	}
+	fmt.Fprintf(out, "%s runs %s.\n", address, system)
+	return system, nil
 }
 
 // installKeyOverTailscaleSSH makes sure the machine's key is in
@@ -430,28 +529,6 @@ func machinePublicKey(m config.Machine) (string, error) {
 		return m.AgentKey, nil
 	}
 	return "", nil
-}
-
-// prepareExistingSelf is `setup`'s whole job for a self machine: no host key
-// to trust, no key to install, no password, no hardening. It only makes sure
-// Homebrew and Ansible are on your computer.
-func prepareExistingSelf(ctx context.Context, out io.Writer, m config.Machine) error {
-	if _, err := lookPath("brew"); err != nil {
-		return fmt.Errorf(
-			"homebrew is not installed on your computer: run this, then `devmachine setup --machine %s` again:\n%s",
-			m.Name, brewInstallCommand)
-	}
-	if _, err := lookPath("ansible-playbook"); err == nil {
-		fmt.Fprintf(out, "%s is already prepared: Homebrew and ansible-playbook are both on PATH.\n", m.Name)
-		return nil
-	}
-
-	fmt.Fprintf(out, "installing Ansible with Homebrew...\n")
-	if err := streamLocal(ctx, out, "brew", "install", "ansible"); err != nil {
-		return fmt.Errorf("installing Ansible with Homebrew: %w", err)
-	}
-	fmt.Fprintf(out, "Ansible is installed.\n")
-	return nil
 }
 
 func finishSetup(ctx context.Context, dir string, in io.Reader, out io.Writer) error {
@@ -513,7 +590,15 @@ func trustFirstContact(ctx context.Context, reader io.Reader, out io.Writer, mac
 // person said to expect. With nobody to ask, trusting whatever answered would
 // be trust on first use with no one looking.
 func trustExpected(ctx context.Context, out io.Writer, machine config.Machine, expected string) error {
-	return trustFirstContactWith(ctx, out, machine, func(fingerprint string) (bool, error) {
+	presented, address, err := scanHostKey(ctx, machine)
+	if err != nil {
+		return err
+	}
+	presented, err = hostKeyForExpected(ctx, machine, presented, address, expected)
+	if err != nil {
+		return err
+	}
+	return trustPresented(out, machine, presented, address, func(fingerprint string) (bool, error) {
 		if expected == fingerprint {
 			return true, nil
 		}
@@ -525,6 +610,26 @@ func trustExpected(ctx context.Context, out io.Writer, machine config.Machine, e
 		return false, fmt.Errorf("%s presented %s, not the %s that --fingerprint expects: nothing was "+
 			"trusted or changed. Check which one is right before trying again", machine.Name, fingerprint, expected)
 	})
+}
+
+// hostKeyForExpected is the host key to trust when expected names one. A
+// server holds several host keys, ED25519, ECDSA and RSA, and negotiation
+// shows only one, so a fingerprint copied from any of them is looked for
+// among the others. presented stays when expected is empty, is presented's
+// own, or matches none of them, so the caller still refuses that.
+func hostKeyForExpected(ctx context.Context, machine config.Machine, presented ssh.PublicKey,
+	address, expected string) (ssh.PublicKey, error) {
+	if expected == "" || expected == hostkeys.Fingerprint(presented) {
+		return presented, nil
+	}
+	other, err := scanHostKeyMatching(ctx, machine, address, expected)
+	if err != nil {
+		return nil, err
+	}
+	if other == nil {
+		return presented, nil
+	}
+	return other, nil
 }
 
 func trustFirstContactWith(ctx context.Context, out io.Writer, machine config.Machine,
@@ -801,10 +906,18 @@ func askForKey(r *bufio.Reader, out io.Writer, dir, machine string) (chosenKey, 
 // The order is the whole point and is not negotiable: prove the key on a
 // connection of its own before turning password login off. The other way round
 // is locking the door with the key still inside.
-func bootstrap(ctx context.Context, out io.Writer, m config.Machine, key chosenKey, noHarden bool,
-	password passwordSource) error {
+func bootstrap(ctx context.Context, out io.Writer, dir string, m config.Machine, key chosenKey, noHarden bool,
+	password passwordSource, prep ansiblePrep) error {
 	client, address, err := dialWith(ctx, m, m.User, key.auth())
 	unproved := false
+	var system remote.System
+	if err == nil {
+		var detectErr error
+		if system, detectErr = refuseUnknownSystem(ctx, client, out, address); detectErr != nil {
+			_ = client.Close()
+			return detectErr
+		}
+	}
 	switch {
 	case err == nil && tailscaleSSH(client):
 		unproved = true
@@ -826,7 +939,7 @@ func bootstrap(ctx context.Context, out io.Writer, m config.Machine, key chosenK
 		// password is worth asking for.
 		return err
 	default:
-		client, err = installWithPassword(ctx, out, m, key, password)
+		client, system, err = installWithPassword(ctx, out, m, key, password)
 		if err != nil {
 			return err
 		}
@@ -850,7 +963,7 @@ func bootstrap(ctx context.Context, out io.Writer, m config.Machine, key chosenK
 			"Prove it from outside the tailnet before the ssh_hardening package turns passwords off.\n")
 	default:
 		fmt.Fprintf(out, "turning password login off...\n")
-		if err := harden(ctx, client); err != nil {
+		if err := harden(ctx, client, system); err != nil {
 			return err
 		}
 		fmt.Fprintf(out, "password login is off; the key is the only way in.\n")
@@ -858,34 +971,43 @@ func bootstrap(ctx context.Context, out io.Writer, m config.Machine, key chosenK
 
 	// The last thing done by hand. From here on everything is a play.
 	fmt.Fprintf(out, "installing Ansible...\n")
-	return installAnsible(ctx, client, out)
+	if err := prepareAnsible(ctx, client, out, system, m, prep); err != nil {
+		return err
+	}
+	facts.Record(ctx, dir, m.Name, client, time.Now())
+	return nil
 }
 
 // installWithPassword is the branch for a machine as it was bought: a root
 // password and nothing else. It returns the connection that proved the key.
 func installWithPassword(ctx context.Context, out io.Writer, m config.Machine, key chosenKey,
-	source passwordSource) (remote.Client, error) {
+	source passwordSource) (remote.Client, remote.System, error) {
 	address := m.Hosts[0].Address
 	fmt.Fprintf(out, "%s does not log in yet, so the password is needed once to install it.\n", key.describe())
 
 	password, err := source(fmt.Sprintf("password for %s@%s", m.User, address))
 	if err != nil {
-		return nil, err
+		return nil, remote.System{}, err
 	}
 	if password == "" {
-		return nil, errors.New("no password was given, and there is no other way in yet")
+		return nil, remote.System{}, errors.New("no password was given, and there is no other way in yet")
 	}
 
 	client, _, err := dialWith(ctx, m, m.User, remote.Auth{Password: password})
 	if err != nil {
-		return nil, err
+		return nil, remote.System{}, err
+	}
+	system, err := refuseUnknownSystem(ctx, client, out, address)
+	if err != nil {
+		_ = client.Close()
+		return nil, remote.System{}, err
 	}
 	err = installKey(ctx, client, key.Public)
 	// The password's whole life ends here: one connection, one use, nothing
 	// written down.
 	_ = client.Close()
 	if err != nil {
-		return nil, err
+		return nil, remote.System{}, err
 	}
 	fmt.Fprintf(out, "the key is installed; proving it on a connection of its own...\n")
 
@@ -897,10 +1019,10 @@ func installWithPassword(ctx context.Context, out io.Writer, m config.Machine, k
 		fmt.Fprintf(out,
 			"\nThe key was installed and does not log in, so nothing was hardened and "+
 				"password login is still on: you can still get in with the password.\n")
-		return nil, fmt.Errorf("the key was installed but not proved, so password login was left on: %w", err)
+		return nil, remote.System{}, fmt.Errorf("the key was installed but not proved, so password login was left on: %w", err)
 	}
 	fmt.Fprintf(out, "the key works.\n")
-	return proved, nil
+	return proved, system, nil
 }
 
 // passwordSource answers the one question the bootstrap may ask: the admin's

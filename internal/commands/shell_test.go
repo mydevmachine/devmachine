@@ -161,7 +161,7 @@ func TestSSHSendsAWorkspaceToItsOwnMachine(t *testing.T) {
 	}
 
 	line := strings.Join(*got, " ")
-	// bob lives on sandbox, so its address, port, key and Linux account are
+	// bob lives on sandbox, so its address, port, key and account are
 	// the ones that have to appear — never main's.
 	for _, want := range []string{"-p 2222", "-i /keys/sandbox", "bob-dev@198.51.100.7"} {
 		if !strings.Contains(line, want) {
@@ -331,6 +331,38 @@ func TestRunPackageDialsThroughTheMultiplexedClientNotTheProgrammaticOne(t *test
 	}
 	if !strings.Contains(out, "hello from the package") {
 		t.Fatalf("got %q", out)
+	}
+}
+
+type stderrRemote struct {
+	fakeRemote
+	errOut string
+}
+
+func (f stderrRemote) Stream(_ context.Context, _ string, stdout, stderr io.Writer) error {
+	if _, err := io.WriteString(stdout, f.out); err != nil {
+		return err
+	}
+	if _, err := io.WriteString(stderr, f.errOut); err != nil {
+		return err
+	}
+	return f.err
+}
+
+func TestRunShowsTheRemoteStderrOnStderrAndKeepsStdoutClean(t *testing.T) {
+	dialing(t, stderrRemote{fakeRemote: fakeRemote{out: "{\"ok\":true}\n", err: errors.New("exit status 2")},
+		errOut: "python3: No module named devmachine\n"})
+	dir := configWith(t, twoMachineConfig)
+
+	stdout, stderr, err := executeSplit(t, "--config", dir, "--machine", "sandbox", "run", "stats")
+	if err == nil {
+		t.Fatal("a failing command succeeded")
+	}
+	if stdout != "{\"ok\":true}\n" {
+		t.Fatalf("stdout = %q", stdout)
+	}
+	if !strings.Contains(stderr, "No module named devmachine") {
+		t.Fatalf("the remote error was lost: stderr = %q", stderr)
 	}
 }
 
@@ -551,5 +583,51 @@ func TestDialAdminRunsEverythingAsRoot(t *testing.T) {
 	}
 	if len(adminCommands) != 1 || adminCommands[0] != remote.AsRoot("userdel bob") {
 		t.Fatalf("got %q", adminCommands)
+	}
+}
+
+type exitCodeError int
+
+func (e exitCodeError) Error() string { return fmt.Sprintf("exit status %d", int(e)) }
+
+func (e exitCodeError) ExitCode() int { return int(e) }
+
+func TestSSHToAMacThatRefusesTheLoginPointsAtRemoteLogin(t *testing.T) {
+	captureInteractive(t)
+	runInteractive = func(string, ...string) error { return exitCodeError(255) }
+	dir := configWith(t, twoMachineConfig)
+	saveFacts(t, dir, "sandbox", observedMac)
+
+	_, err := execute(t, "--config", dir, "ssh", "bob")
+	if err == nil {
+		t.Fatal("ssh succeeded")
+	}
+	for _, want := range []string{"Remote Login", "bob-dev", "devmachine doctor"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("the error does not say %q: %v", want, err)
+		}
+	}
+}
+
+func TestSSHToAMachineNotKnownAsAMacDoesNotGuessAtRemoteLogin(t *testing.T) {
+	captureInteractive(t)
+	runInteractive = func(string, ...string) error { return exitCodeError(255) }
+	dir := configWith(t, twoMachineConfig)
+
+	_, err := execute(t, "--config", dir, "ssh", "bob")
+	if err == nil || strings.Contains(err.Error(), "Remote Login") {
+		t.Fatalf("got %v", err)
+	}
+}
+
+func TestSSHToAMacThatFailsForAnotherReasonSaysNothingAboutRemoteLogin(t *testing.T) {
+	captureInteractive(t)
+	runInteractive = func(string, ...string) error { return exitCodeError(1) }
+	dir := configWith(t, twoMachineConfig)
+	saveFacts(t, dir, "sandbox", observedMac)
+
+	_, err := execute(t, "--config", dir, "ssh", "bob")
+	if err == nil || strings.Contains(err.Error(), "Remote Login") {
+		t.Fatalf("got %v", err)
 	}
 }

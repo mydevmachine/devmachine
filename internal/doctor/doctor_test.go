@@ -254,8 +254,8 @@ func TestAnUnreachableMachineSkipsTheRemoteChecks(t *testing.T) {
 
 func TestASupportedOperatingSystemPasses(t *testing.T) {
 	client := fakeClient{out: map[string]string{
-		osReleaseCommand: "ID=ubuntu\nID_LIKE=debian\n",
-		ansibleCommand:   "/usr/bin/ansible-playbook\n",
+		unameCommand: "Linux\n", osReleaseCommand: "ID=ubuntu\nID_LIKE=debian\n",
+		ansibleCommand: "/usr/bin/ansible-playbook\n",
 	}}
 	dial := func(context.Context, config.Machine, string) (remote.Client, string, error) {
 		return client, "203.0.113.10", nil
@@ -273,8 +273,8 @@ func TestASupportedOperatingSystemPasses(t *testing.T) {
 
 func TestAnUnsupportedOperatingSystemFailsAndSaysWhichItIs(t *testing.T) {
 	client := fakeClient{out: map[string]string{
-		osReleaseCommand: "ID=alpine\n",
-		ansibleCommand:   "/usr/bin/ansible-playbook\n",
+		unameCommand: "Linux\n", osReleaseCommand: "ID=alpine\n",
+		ansibleCommand: "/usr/bin/ansible-playbook\n",
 	}}
 	dial := func(context.Context, config.Machine, string) (remote.Client, string, error) {
 		return client, "203.0.113.10", nil
@@ -291,9 +291,43 @@ func TestAnUnsupportedOperatingSystemFailsAndSaysWhichItIs(t *testing.T) {
 	}
 }
 
+func TestArchPasses(t *testing.T) {
+	client := fakeClient{out: map[string]string{
+		unameCommand:     "Linux\n",
+		osReleaseCommand: "NAME=\"Arch Linux\"\nID=arch\n",
+		ansibleCommand:   "/usr/bin/ansible-playbook\n",
+	}}
+	dial := func(context.Context, config.Machine, string) (remote.Client, string, error) {
+		return client, "203.0.113.10", nil
+	}
+
+	checks := Run(context.Background(), configDir(t, "machines:\n  - name: main\n    hosts: [203.0.113.10]\n"), "", dial, nil)
+
+	if got := find(t, checks, CheckOperatingSystem); got.Status != StatusPass || got.Detail != "arch" {
+		t.Fatalf("operating system = %q (%s), want pass arch", got.Status, got.Detail)
+	}
+}
+
+func TestASystemThatIsNotLinuxFailsAndSaysWhichItIs(t *testing.T) {
+	client := fakeClient{out: map[string]string{
+		unameCommand:   "FreeBSD\n",
+		ansibleCommand: "/usr/bin/ansible-playbook\n",
+	}}
+	dial := func(context.Context, config.Machine, string) (remote.Client, string, error) {
+		return client, "203.0.113.10", nil
+	}
+
+	checks := Run(context.Background(), configDir(t, "machines:\n  - name: main\n    hosts: [203.0.113.10]\n"), "", dial, nil)
+
+	got := find(t, checks, CheckOperatingSystem)
+	if got.Status != StatusFail || !strings.Contains(got.Detail, `"FreeBSD" is not a system this CLI sets up`) {
+		t.Fatalf("operating system = %q (%s)", got.Status, got.Detail)
+	}
+}
+
 func TestAMissingAnsibleFailsOnItsOwn(t *testing.T) {
 	client := fakeClient{
-		out: map[string]string{osReleaseCommand: "ID=ubuntu\n"},
+		out: map[string]string{unameCommand: "Linux\n", osReleaseCommand: "ID=ubuntu\n"},
 		err: map[string]error{ansibleCommand: errors.New("exit status 1")},
 	}
 	dial := func(context.Context, config.Machine, string) (remote.Client, string, error) {
@@ -414,8 +448,8 @@ func TestRunChecksTheMachineItWasGiven(t *testing.T) {
 	dial := func(_ context.Context, m config.Machine, _ string) (remote.Client, string, error) {
 		got = m
 		return fakeClient{out: map[string]string{
-			osReleaseCommand: "ID=ubuntu\n",
-			ansibleCommand:   "/usr/bin/ansible-playbook\n",
+			unameCommand: "Linux\n", osReleaseCommand: "ID=ubuntu\n",
+			ansibleCommand: "/usr/bin/ansible-playbook\n",
 		}}, m.Hosts[0].Address, nil
 	}
 	body := "machines:\n" +
@@ -451,8 +485,8 @@ const machineWith = "machines:\n  - name: main\n    hosts: [203.0.113.10]\n"
 func working(present string) fakeClient {
 	return fakeClient{
 		out: map[string]string{
-			osReleaseCommand: "ID=ubuntu\n",
-			ansibleCommand:   "/usr/bin/ansible-playbook\n",
+			unameCommand: "Linux\n", osReleaseCommand: "ID=ubuntu\n",
+			ansibleCommand: "/usr/bin/ansible-playbook\n",
 		},
 		input: present,
 	}
@@ -515,6 +549,27 @@ func TestACredentialNobodyCouldLookForWarns(t *testing.T) {
 	}
 	if !OK(checks) {
 		t.Fatal("a credential lookup that failed must not fail the machine")
+	}
+}
+
+type recordsInput struct {
+	fakeClient
+	commands *[]string
+}
+
+func (r recordsInput) RunInput(ctx context.Context, command string, stdin io.Reader) (string, error) {
+	*r.commands = append(*r.commands, command)
+	return r.fakeClient.RunInput(ctx, command, stdin)
+}
+
+func TestTheCredentialsAreLookedForAsRoot(t *testing.T) {
+	var commands []string
+	client := recordsInput{working("alice/claude\tyes\n"), &commands}
+	wanted := []credentials.Declared{login("claude", "alice", "alice")}
+	Run(context.Background(), configDir(t, machineWith), "", dialling(client), wanted)
+
+	if len(commands) != 1 || !strings.Contains(commands[0], "sudo -n -H") {
+		t.Fatalf("the credentials were not looked for as root: %q", commands)
 	}
 }
 
@@ -729,8 +784,9 @@ func selfDir(t *testing.T) string {
 
 func selfClient(system string) fakeClient {
 	return fakeClient{out: map[string]string{
-		"uname -s":     system + "\n",
-		ansibleCommand: "/opt/homebrew/bin/ansible-playbook\n",
+		"uname -s":               system + "\n",
+		remote.MacVersionCommand: "15.7.9\n",
+		ansibleCommand:           "/opt/homebrew/bin/ansible-playbook\n",
 	}}
 }
 
@@ -744,7 +800,7 @@ func TestDoctorOnASelfMachineRunsNoSSHChecks(t *testing.T) {
 			}
 		}
 	}
-	if got := find(t, checks, CheckOperatingSystem); got.Status != StatusPass || got.Detail != "darwin" {
+	if got := find(t, checks, CheckOperatingSystem); got.Status != StatusPass || got.Detail != "macos 15.7.9" {
 		t.Fatalf("got %#v", got)
 	}
 	if got := find(t, checks, CheckAnsible); got.Status != StatusPass {
@@ -766,8 +822,8 @@ func aliasesEnvironment(t *testing.T, body string) string {
 
 func fullMachineClient() fakeClient {
 	return fakeClient{out: map[string]string{
-		osReleaseCommand: "ID=ubuntu\n",
-		ansibleCommand:   "/usr/bin/ansible-playbook\n",
+		unameCommand: "Linux\n", osReleaseCommand: "ID=ubuntu\n",
+		ansibleCommand: "/usr/bin/ansible-playbook\n",
 	}}
 }
 

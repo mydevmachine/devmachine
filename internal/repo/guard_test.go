@@ -8,7 +8,7 @@ import (
 func TestGitIgnoreCoversEverySecretPath(t *testing.T) {
 	got := GitIgnore()
 
-	for _, want := range []string{"keys/", "secrets.json", "cache/", "history.log", "*.env"} {
+	for _, want := range []string{"keys/", "secrets.json", "cache/", "history.log", "*.env", "state/"} {
 		if !strings.Contains(got, want) {
 			t.Fatalf(".gitignore does not cover %q:\n%s", want, got)
 		}

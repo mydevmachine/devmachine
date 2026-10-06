@@ -180,6 +180,12 @@ install -d -m 0755 /run/sshd
 sshd -t
 `
 
+// macValidateScript is validateScript for a Mac, where /run does not exist and
+// / is read-only: sshd -t there needs no runtime directory.
+const macValidateScript = `set -eu
+/usr/sbin/sshd -t
+`
+
 // reloadScript picks the unit name the distribution uses: Debian and Ubuntu
 // call it ssh, everybody else calls it sshd.
 const reloadScript = `set -eu
@@ -189,17 +195,41 @@ fi
 systemctl reload sshd
 `
 
-// Harden turns password login off, and validates before reloading.
+// sshdSteps are the two commands that differ per system. reload is empty on a
+// Mac: launchd starts sshd for each connection, so the next one reads the
+// drop-in with nothing to reload.
+type sshdSteps struct {
+	validate, reload string
+}
+
+func sshdStepsFor(s System) sshdSteps {
+	if s.MacOS() {
+		return sshdSteps{validate: macValidateScript}
+	}
+	return sshdSteps{validate: validateScript, reload: reloadScript}
+}
+
+func (s sshdSteps) reloadSshd(ctx context.Context, c Client) error {
+	if s.reload == "" {
+		return nil
+	}
+	_, err := c.Run(ctx, AsRoot(s.reload))
+	return err
+}
+
+// Harden turns password login off, validates before reloading, and then asks
+// sshd whether passwords really are off.
 //
 // A configuration sshd refuses plus a reload is a machine nobody can reach
 // again, so validation is not a courtesy: it is the only thing between a typo
 // and a rebuild. It runs after the key has been proved, never before.
-func Harden(ctx context.Context, c Client) error {
+func Harden(ctx context.Context, c Client, system System) error {
+	steps := sshdStepsFor(system)
 	if _, err := c.RunInput(ctx, AsRoot(writeDropInScript), strings.NewReader(hardeningDropIn)); err != nil {
 		return fmt.Errorf("writing %s: %w", hardeningDropInPath, err)
 	}
 
-	if out, err := c.Run(ctx, AsRoot(validateScript)); err != nil {
+	if out, err := c.Run(ctx, AsRoot(steps.validate)); err != nil {
 		// A file the daemon refused must not stay: the next reload by
 		// anything at all, a reboot included, would fail on it.
 		if _, rmErr := c.Run(ctx, AsRoot("rm -f "+hardeningDropInPath)); rmErr != nil {
@@ -210,10 +240,59 @@ func Harden(ctx context.Context, c Client) error {
 			err, strings.TrimSpace(out))
 	}
 
-	if _, err := c.Run(ctx, AsRoot(reloadScript)); err != nil {
+	if err := steps.reloadSshd(ctx, c); err != nil {
 		return fmt.Errorf("reloading sshd: %w", err)
 	}
-	return nil
+	return provePasswordLoginOff(ctx, c, steps)
+}
+
+// effectiveConfigScript prints the configuration sshd runs with, every
+// drop-in applied.
+const effectiveConfigScript = `set -eu
+PATH="$PATH:/usr/sbin:/sbin"
+export PATH
+sshd -T
+`
+
+// provePasswordLoginOff asks sshd, not the file, whether passwords are off.
+//
+// A drop-in can be valid and still never read: an sshd_config with no Include
+// of sshd_config.d, or one that sets PasswordAuthentication before the
+// Include. Without this, "password login is off" would be said of a machine
+// that still takes passwords.
+func provePasswordLoginOff(ctx context.Context, c Client, steps sshdSteps) error {
+	effective, err := c.Run(ctx, AsRoot(effectiveConfigScript))
+	if err != nil {
+		return fmt.Errorf("asking sshd -T whether password login is off: %w", err)
+	}
+	if passwordLoginOff(effective) {
+		return nil
+	}
+
+	// A file that does not do what it says misleads whoever reads it next.
+	if _, err := c.Run(ctx, AsRoot("rm -f "+hardeningDropInPath)); err != nil {
+		return fmt.Errorf("sshd still allows passwords and %s could not be taken away again (%w): "+
+			"remove it by hand", hardeningDropInPath, err)
+	}
+	if err := steps.reloadSshd(ctx, c); err != nil {
+		return fmt.Errorf("sshd still allows passwords, and reloading it without %s failed: %w",
+			hardeningDropInPath, err)
+	}
+	return fmt.Errorf("the drop-in was written but sshd still allows passwords: %s is not read by this sshd",
+		hardeningDropInPath)
+}
+
+// passwordLoginOff reads `sshd -T` output, which prints every directive once,
+// with the value sshd settled on. OpenSSH 10 prints the names in CamelCase
+// where older versions print them in lower case, so case is ignored.
+func passwordLoginOff(effective string) bool {
+	for _, line := range strings.Split(effective, "\n") {
+		key, value, ok := strings.Cut(strings.TrimSpace(line), " ")
+		if ok && strings.EqualFold(key, "passwordauthentication") {
+			return strings.EqualFold(strings.TrimSpace(value), "no")
+		}
+	}
+	return false
 }
 
 // OSReleaseCommand reads the file that says which distribution a machine is.
@@ -252,15 +331,42 @@ apt-get -o DPkg::Lock::Timeout=300 update
 apt-get -o DPkg::Lock::Timeout=300 install -y ansible
 `
 
+// pacmanInstallAnsible installs Ansible on an Arch Linux.
+//
+// `ansible`, not `ansible-core`, for the same reason as on apt: only the full
+// package carries community.general. Checked on a real Arch machine.
+//
+// No -y: refreshing the package lists without upgrading is a partial upgrade,
+// which Arch does not support and which can pull an Ansible built for a Python
+// the machine does not have. A full -Syu is the operator's call, not a side
+// effect of setup.
+const pacmanInstallAnsible = `set -eu
+if command -v ansible-playbook >/dev/null 2>&1; then
+	echo "ansible is already installed"
+	exit 0
+fi
+if ! pacman -S --noconfirm --needed ansible; then
+	echo "pacman could not install ansible from the package lists this machine has." >&2
+	echo "They are probably older than the mirrors: bring the machine up to date with pacman -Syu, then run this again." >&2
+	exit 1
+fi
+`
+
 // ansibleInstall maps a distribution to the way Ansible is installed on it.
 //
 // It holds what has been run on a real machine and nothing else. A table with
 // four entries nobody has tried gets somebody halfway through a first run and
 // then leaves them there; an honest refusal that names their distribution at
-// least tells them what to do next.
+// least tells them what to do next. archarm is Arch Linux ARM: the same
+// pacman and the same package as arch.
+//
+// It is also the list of distributions this CLI supports: SupportedLinux reads
+// it, and so does doctor.
 var ansibleInstall = map[string]string{
-	"debian": aptInstallAnsible,
-	"ubuntu": aptInstallAnsible,
+	"debian":  aptInstallAnsible,
+	"ubuntu":  aptInstallAnsible,
+	"arch":    pacmanInstallAnsible,
+	"archarm": pacmanInstallAnsible,
 }
 
 // InstallAnsible puts Ansible on the machine.
@@ -271,21 +377,20 @@ var ansibleInstall = map[string]string{
 // The output goes to out as it arrives: installing Ansible is minutes of work,
 // and minutes of silence look like a machine that has stopped answering.
 func InstallAnsible(ctx context.Context, c Client, out io.Writer) error {
-	release, err := c.Run(ctx, OSReleaseCommand)
+	system, err := DetectSystem(ctx, c)
 	if err != nil {
-		return fmt.Errorf("reading /etc/os-release to find out which distribution this is: %w", err)
+		return err
 	}
-
-	id := OSReleaseID(release)
-	script, ok := ansibleInstall[id]
+	if system.MacOS() {
+		return fmt.Errorf("%s gets Ansible from its package manager package's bootstrap, not from this CLI", system)
+	}
+	script, ok := ansibleInstall[system.ID]
 	if !ok {
-		return fmt.Errorf("this CLI does not know how to install Ansible on %q: it has been run on "+
-			"debian and ubuntu only. Install the `ansible` package by hand — not `ansible-core`, "+
-			"which leaves out community.general — and run this again", id)
+		return fmt.Errorf("this CLI does not install Ansible on %s", system)
 	}
 
 	if err := c.Stream(ctx, AsRoot(script), out, out); err != nil {
-		return fmt.Errorf("installing Ansible on %s: %w", id, err)
+		return fmt.Errorf("installing Ansible on %s: %w", system, err)
 	}
 	return nil
 }

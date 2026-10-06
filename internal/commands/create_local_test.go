@@ -23,16 +23,25 @@ func stubCreateLocal(t *testing.T) *[]string {
 
 func stubCreateLocalSized(t *testing.T) (*[]string, *[]local.Size) {
 	t.Helper()
+	created, sizes, _ := stubCreateLocalAll(t)
+	return created, sizes
+}
+
+func stubCreateLocalAll(t *testing.T) (*[]string, *[]local.Size, *[]local.Distro) {
+	t.Helper()
 	created := &[]string{}
 	sizes := &[]local.Size{}
-	t.Cleanup(swap(&createLocal, func(_ context.Context, name string, size local.Size, _ io.Writer) (config.Machine, error) {
+	distros := &[]local.Distro{}
+	t.Cleanup(swap(&createLocal, func(_ context.Context, name string, distro local.Distro, size local.Size,
+		_ io.Writer) (config.Machine, error) {
 		*created = append(*created, name)
 		*sizes = append(*sizes, size)
+		*distros = append(*distros, distro)
 		return config.Machine{
 			Name: name, Hosts: []config.Host{{Address: local.Address}}, User: local.AdminUser, Port: 60022,
 		}, nil
 	}))
-	return created, sizes
+	return created, sizes, distros
 }
 
 func TestCreateLocalKeepsTheDefaultSizeWithoutFlags(t *testing.T) {
@@ -190,5 +199,55 @@ func TestCreateLocalWithAddFailingPrintsACommandThatWorks(t *testing.T) {
 		" --password-stdin --no-aliases"
 	if !strings.Contains(err.Error(), want) {
 		t.Fatalf("got %v\nwant it to contain %s", err, want)
+	}
+}
+
+func TestCreateLocalMakesUbuntuUnlessToldOtherwise(t *testing.T) {
+	_, _, distros := stubCreateLocalAll(t)
+
+	if out, err := executeWithInput(t, "", "--config", filepath.Join(t.TempDir(), "devmachine"),
+		"machines", "create-local", "sandbox"); err != nil {
+		t.Fatalf("create-local returned %v (%s)", err, out)
+	}
+	if !slices.Equal(*distros, []local.Distro{local.Ubuntu}) {
+		t.Fatalf("distros = %q", *distros)
+	}
+}
+
+func TestCreateLocalPassesTheChosenDistro(t *testing.T) {
+	_, _, distros := stubCreateLocalAll(t)
+
+	if out, err := executeWithInput(t, "", "--config", filepath.Join(t.TempDir(), "devmachine"),
+		"machines", "create-local", "sandbox", "--distro", "arch"); err != nil {
+		t.Fatalf("create-local returned %v (%s)", err, out)
+	}
+	if !slices.Equal(*distros, []local.Distro{local.Arch}) {
+		t.Fatalf("distros = %q", *distros)
+	}
+}
+
+func TestCreateLocalRefusesADistroItCannotMakeBeforeCreatingAnything(t *testing.T) {
+	created := stubCreateLocal(t)
+
+	_, err := executeWithInput(t, "", "--config", filepath.Join(t.TempDir(), "devmachine"),
+		"machines", "create-local", "sandbox", "--distro", "fedora")
+	if err == nil || !strings.Contains(err.Error(), "fedora") {
+		t.Fatalf("got %v", err)
+	}
+	if len(*created) != 0 {
+		t.Fatal("it created a VM anyway")
+	}
+}
+
+func TestCreateLocalWithAddPassesTheChosenDistro(t *testing.T) {
+	_, _, distros := stubCreateLocalAll(t)
+	stubBootstrap(t, bootstrapStubs{keyWorks: false})
+
+	if out, err := executeWithInput(t, "", "--config", filepath.Join(t.TempDir(), "devmachine"),
+		"machines", "create-local", "sandbox", "--distro", "arch", "--add", "--no-aliases"); err != nil {
+		t.Fatalf("create-local --add returned %v (%s)", err, out)
+	}
+	if !slices.Equal(*distros, []local.Distro{local.Arch}) {
+		t.Fatalf("distros = %q", *distros)
 	}
 }

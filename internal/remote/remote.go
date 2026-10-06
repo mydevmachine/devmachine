@@ -163,7 +163,7 @@ func agentKeyFingerprint(public string) string {
 // client that answered, along with the address it answered on.
 //
 // user is who to log in as. Empty means the machine's administrative login;
-// a workspace passes its own Linux account instead.
+// a workspace passes its own account instead.
 func Dial(ctx context.Context, m config.Machine, user string) (Client, string, error) {
 	if m.Self {
 		return &localClient{}, SelfAddress, nil
@@ -354,6 +354,39 @@ func scanHostKeyAlgorithms(m config.Machine) ([]string, error) {
 		return nil, err
 	}
 	return hostkeys.Algorithms(pinned), nil
+}
+
+// hostKeyFamilies are the host key types a server can hold, each as the
+// algorithms that ask for it.
+var hostKeyFamilies = [][]string{
+	{ssh.KeyAlgoED25519},
+	{ssh.KeyAlgoECDSA256},
+	{ssh.KeyAlgoECDSA384},
+	{ssh.KeyAlgoECDSA521},
+	{ssh.KeyAlgoRSASHA512, ssh.KeyAlgoRSASHA256},
+}
+
+// ScanHostKeyMatching asks address for each type of host key in turn and
+// returns the one whose fingerprint is fingerprint, or nil when the server
+// holds none. A server holds several host keys and negotiation shows only
+// one, while the fingerprint a person has may be of another type. Each key
+// comes from its own handshake, in which the server proves it holds it.
+func ScanHostKeyMatching(ctx context.Context, m config.Machine, address, fingerprint string) (ssh.PublicKey, error) {
+	user := m.User
+	if user == "" {
+		user = config.DefaultAdminUser
+	}
+	target := net.JoinHostPort(address, strconv.Itoa(m.Port))
+	for _, algorithms := range hostKeyFamilies {
+		presented, answered, err := scanPresentedHostKey(ctx, target, user, algorithms)
+		if !answered {
+			return nil, fmt.Errorf("machine %q: %s did not answer while scanning its SSH host keys: %w", m.Name, address, err)
+		}
+		if presented != nil && hostkeys.Fingerprint(presented) == fingerprint {
+			return presented, nil
+		}
+	}
+	return nil, nil
 }
 
 func scanPresentedHostKey(ctx context.Context, target, user string, algorithms []string) (ssh.PublicKey, bool, error) {

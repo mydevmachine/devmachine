@@ -165,9 +165,62 @@ meant.
 **What it means:** `sync` runs Ansible, the tool devmachine uses to apply
 packages, on the server — so the server needs it installed.
 
-**What to do:** Install it once: `apt install ansible`, or whatever your
-distribution calls it. Everything after that is `sync`'s job. `doctor` still
+**What to do:** Run `devmachine setup --machine <name>`, which installs
+it, or install it once by hand: `apt install ansible` on Debian and
+Ubuntu, `pacman -S ansible` on Arch. Everything after that is `sync`'s job. `doctor` still
 tells you the truth about everything else without it.
+
+## "this CLI does not set up "…" yet"
+
+```
+this CLI does not set up "fedora" yet: it supports debian, ubuntu and arch
+```
+
+**What it means:** The machine runs Linux, and `ID` in its
+`/etc/os-release` names a distribution this CLI has not been run on.
+`setup` and `machines add` stop before changing anything: no key was
+installed, password login is as it was, nothing was written to
+`config.yml`. `doctor` reports the same thing as a failed `operating
+system` check. A family name such as "like debian" does not count: a
+derivative may not have the packages Debian has.
+
+**What to do:** Use a machine with Debian, Ubuntu or Arch Linux — most
+providers offer all three. Installing Ansible by hand does not get past
+the check: the packages that `sync` applies are written for those three.
+
+## "… is not a system this CLI sets up"
+
+```
+"FreeBSD" is not a system this CLI sets up: it supports Linux (debian, ubuntu, arch) and macOS
+```
+
+**What it means:** `uname -s` on the machine said neither `Linux` nor
+`Darwin` (macOS). The CLI stopped there, before changing anything.
+
+**What to do:** Point the command at a Linux server (Debian, Ubuntu or
+Arch Linux) or a Mac. Your own Mac is set up differently: `devmachine
+machines add --self <name>`, see [your computer as a
+machine](how-it-works/your-computer-as-a-machine.md).
+
+## "pacman could not install ansible"
+
+```
+pacman could not install ansible from the package lists this machine has.
+They are probably older than the mirrors: bring the machine up to date with pacman -Syu, then run this again.
+```
+
+**What it means:** On Arch, `setup` installs Ansible with `pacman -S`
+and the package lists the machine already has. The mirrors keep only the
+newest version of each package, so on a server whose lists are weeks
+old the version pacman asks for is gone, and the download fails. `setup`
+does not refresh the lists on its own: `pacman -Sy` without `-u` is a
+partial upgrade, which can leave Ansible built for a Python the machine
+does not have. The key is installed and proved; if hardening ran, password
+login is already off.
+
+**What to do:** On the machine, as root, bring it up to date with
+`pacman -Syu`, then run the same `setup` or `machines add` command again.
+The key now logs in, so no password is asked for.
 
 ## "the admin login cannot become root"
 
@@ -228,6 +281,33 @@ connection you already trust, list every key with
 check the line of the same type. Only a mismatch of the same type means
 something changed.
 
+`--fingerprint` (`machines add`) and `--expect` (`machines trust`) take
+the fingerprint of any of the server's keys, so the one in your
+`known_hosts` works too: when it is not the type the CLI was shown, the
+CLI asks the server for that type, and trusts that key if it matches. A
+fingerprint none of the server's keys has is still refused.
+
+## "the drop-in was written but sshd still allows passwords"
+
+```
+the drop-in was written but sshd still allows passwords: /etc/ssh/sshd_config.d/00-devmachine-hardening.conf is not read by this sshd
+```
+
+**What it means:** `setup` wrote the file that turns password login off,
+SSH accepted it and was reloaded, and then `sshd -T` — the settings SSH
+really runs with — still said `passwordauthentication yes`. SSH never
+reads that file. Usually the main `/etc/ssh/sshd_config` has no `Include
+/etc/ssh/sshd_config.d/*.conf` line, or sets `PasswordAuthentication yes`
+above it (SSH keeps the first value it finds). The CLI removed the file
+again and reloaded SSH, so the server is as it was: the key is installed
+and proved, and **password login is still on**.
+
+**What to do:** On the server, look at the top of `/etc/ssh/sshd_config`.
+Add `Include /etc/ssh/sshd_config.d/*.conf` as the first line if it is
+missing, or remove the `PasswordAuthentication yes` above it. Then run
+`setup` again. To go on without hardening for now, run it with
+`--no-harden`; password login stays on until `sshd_config` is fixed.
+
 ## "Missing privilege separation directory: /run/sshd"
 
 **What it means:** `sshd -t`, which checks the SSH configuration before
@@ -248,8 +328,90 @@ temporary and gone at the next reboot.
 `doctor` both refuse to touch anything when Ansible is not on your `PATH`.
 
 **What to do:** Run `devmachine setup --machine <name>`. On your own computer
-this only checks that Homebrew is there and runs `brew install ansible` — no
-key, no password, no lock-down involved.
+it runs the `mac-brew` package's bootstrap (or `mac-ports`'s, when the
+machine lists it), which lists what is missing and installs it after you
+agree — no key, no password, no lock-down involved. See [what a machine
+needs](how-it-works/what-a-machine-needs.md).
+
+## "the Mac has neither Homebrew nor MacPorts"
+
+```
+the Mac has neither Homebrew nor MacPorts: run again with --package-manager brew or --package-manager ports
+the Mac has both Homebrew and MacPorts: run again with --package-manager brew or --package-manager ports
+```
+
+**What it means:** A Mac gets Ansible through a package manager, and the
+machine lists no `mac-brew` or `mac-ports` package. `setup` looked at the
+Mac (`/opt/homebrew/bin/brew`, `/usr/local/bin/brew`, `/opt/local/bin/port`)
+and found none, or both, so it cannot pick one for you, and there was no
+terminal to ask at. Nothing on the Mac was changed.
+
+**What to do:** Choose one and run the same command again with
+`--package-manager brew` (Homebrew) or `--package-manager ports`
+(MacPorts). Or add the package yourself: `devmachine packages add
+mac-brew --machine <name>`.
+
+## "machine … lists mac-brew and mac-ports: keep one"
+
+```
+machine "studio" lists mac-brew and mac-ports: keep one
+```
+
+**What it means:** Both package manager packages are on the machine, and
+each would install Ansible its own way. `setup` stopped before changing
+anything.
+
+**What to do:** Remove one from the machine's `packages:` in
+`config.yml`, then run `setup` again.
+
+## "nothing was installed; setup stops here"
+
+**What it means:** `setup` listed what the Mac lacks (the Command Line
+Tools, Homebrew or MacPorts, Ansible) and you answered no. Nothing was
+installed, and without Ansible the Mac cannot be synced.
+
+**What to do:** Run `setup` again and answer yes, or install the listed
+items yourself and run `setup` again: it finds them and installs nothing.
+
+## "nothing was installed: run again with --install-prerequisites"
+
+```
+nothing was installed: run again with --install-prerequisites to install Xcode Command Line Tools and Homebrew
+```
+
+**What it means:** The Mac lacks the items named, and `setup` had no
+terminal to ask whether to install them. `--yes` does not count as that
+answer: it means other things, and the macOS app passes it in the
+background. See [why consent has its own
+flag](how-it-works/what-a-machine-needs.md#why-consent-has-its-own-flag).
+
+**What to do:** If you agree to install them, run the same command again
+with `--install-prerequisites`. Installing the Command Line Tools takes 5
+to 10 minutes.
+
+## "the bootstrap stopped at …"
+
+```
+the bootstrap stopped at homebrew: the Homebrew installer failed; its output is above. It needs passwordless sudo for the admin login.
+```
+
+**What it means:** The package manager package's bootstrap failed at the
+step it names (`command-line-tools`, `homebrew`, `macports`, `ansible`),
+and the rest of the message is its own advice. Steps before it are done;
+running `setup` again skips them.
+
+**What to do:** Do what the message says, then run `setup` again. The
+most common cause is an admin login whose `sudo` asks for a password:
+the bootstrap only uses `sudo -n`.
+
+## "no mac-brew package with a bootstrap is available here"
+
+**What it means:** On your own computer, `setup` runs the `mac-brew`
+package's bootstrap from the package cache, and the pinned packages
+release has no such package (or no release is pinned).
+
+**What to do:** Run `devmachine packages pin` to pin the latest release,
+then `devmachine setup --machine <name>` again.
 
 ## "machine X is your computer (self: true), so it has no hosts"
 
@@ -338,6 +500,28 @@ proxy's error, which lists every address and why.
 If it says `devmachine: command not found` instead, the CLI moved since the
 alias was written: run `devmachine aliases --write` again.
 
+## `devmachine ssh <workspace>` on a Mac ends with "exit status 255" and "Remote Login may not allow"
+
+```
+exit status 255: the Mac's Remote Login may not allow alice; `devmachine doctor --machine studio` checks it
+```
+
+The Mac's own log (`log show --predicate 'process == "sshd"' --last 5m`)
+says `pam_sacl: denying 'alice' due to failed service ACL check`.
+
+**What it means:** Remote Login on that Mac is set to "Only these users",
+and the workspace account is not on the list (the group
+`com.apple.access_ssh`). macOS refuses the login before it checks the
+key, so `ssh` only sees the connection close. The CLI adds this hint only
+for a machine it last saw as a Mac; exit 255 has other causes too, such
+as an address that does not answer.
+
+**What to do:** Run `devmachine doctor --machine <name>`. An `ssh access:
+<workspace>` warning confirms it. Run `devmachine sync`, which adds each
+workspace account to the list, or, on the Mac, choose "All users" in
+System Settings > General > Sharing > Remote Login. See [what a machine
+needs](how-it-works/what-a-machine-needs.md#remote-login-set-to-only-these-users).
+
 ## `doctor` says an alias has "a fixed address, expected one resolved when ssh connects"
 
 **What it means:** The alias was written with the address itself, by an
@@ -367,6 +551,34 @@ example `some checks failed on far`.
 
 **What to do:** Look at that machine's block, or run `devmachine doctor
 --machine far` to see only its checks.
+
+## "package X runs on linux; machine Y is macos"
+
+```
+package "firewall" runs on linux; machine "studio" is macos
+```
+
+**What it means:** The package's `package.yml` lists the systems it runs
+on under `platforms`, and the machine's system is not one of them. `sync`
+(and `update`, which syncs) stopped before changing anything on the
+machine. The machine's system is what `setup`, `sync` or `doctor` last
+read from it — `devmachine machines show <name>` prints it — and `sync`
+checks again on what it reads as it connects. The reverse, `runs on macos;
+machine … is linux`, is the same stop for a Mac-only package on a Linux
+server.
+
+**What to do:** Take the package off that machine or workspace with
+`devmachine packages rm <package>` (add `--workspace <name>` for a
+workspace package), then sync again. If the package is your own and does
+run on that system, add the system to its `platforms`. If the machine was
+rebuilt with another system, run `devmachine doctor --machine <name>` so
+the CLI reads it again.
+
+A Mac added by an older CLI may list `essentials`, which runs only on
+Linux. Swap it for what a new Mac starts with:
+`devmachine packages rm essentials --machine <name>`, then
+`devmachine packages add base --machine <name>` and
+`devmachine packages add devmachine-app --machine <name>`.
 
 ## A setting is accepted, but the package still uses its default
 
@@ -1083,6 +1295,11 @@ devmachine run 'caddy validate --config /etc/caddy/Caddyfile'
 Remove it from whichever side should not own that host.
 
 ## `workspaces destroy` failed at userdel
+
+On a Mac the step is `sysadminctl -deleteUser`, as macOS has no `userdel`;
+the same applies. Before it, `destroy` takes the account out of
+`com.apple.access_ssh`, the group Remote Login uses when it allows only
+some users, so no stale entry stays behind.
 
 **What it means:** Something is still running as that account — a process
 started outside its login session, or a container. `destroy` already

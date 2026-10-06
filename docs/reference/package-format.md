@@ -62,12 +62,16 @@ The operating systems the package runs on, as a list of `linux` and
 platforms: [macos]
 ```
 
-Left out, the package runs anywhere. A server is always Linux; macOS is
-only ever your own computer, added as a [self machine](../how-it-works/your-computer-as-a-machine.md).
+Left out, the package runs anywhere. A machine runs Linux or macOS, and
+macOS can also be your own computer, added as a [self machine](../how-it-works/your-computer-as-a-machine.md).
 So a package written for Homebrew says `[macos]`, and an app stops
 offering it for a Linux server — `packages list --format json` reports it
-as `platforms`. A workspace always lives on a Linux server, so a
-`workspace` package that lists platforms has to list `linux`.
+as `platforms`. The same holds for a `workspace` package: a workspace
+lives on whatever its machine runs, so `[linux]`, `[macos]` and
+`[linux, macos]` are all accepted.
+
+How to write one package for several systems, and the traps on each, is in
+[one package on many systems](../how-it-works/packages-on-many-systems.md).
 
 ### `requires.cli`
 
@@ -251,6 +255,30 @@ network:
 What each script receives and must print is in
 [the network package contract](network-package-contract.md).
 
+### `bootstrap`
+
+A machine package can carry the script that prepares a machine for
+Ansible, where the CLI has no package manager it can drive by itself — a
+Mac, through `mac-brew` or `mac-ports`:
+
+```yaml
+name: mac-brew
+platforms: [macos]
+requires:
+  cli: ">= 0.8.0"
+bootstrap: bin/bootstrap
+```
+
+- It is a path inside the package, and executable.
+- It is POSIX `sh`, not Python: it runs before Ansible, and before the
+  Python that Ansible brings. So it is not held to the Python shebang an
+  entrypoint is.
+- Only a `scope: machine` package can declare it: it prepares the
+  machine, not one account on it.
+- Set `requires.cli` to the first CLI release that runs it. An older CLI
+  ignores a field it does not know, so `requires.cli` is what stops it
+  from syncing that machine half-way.
+
 ## The rules, and what each one says
 
 | Rule | The message |
@@ -265,7 +293,6 @@ What each script receives and must print is in
 | `requires.cli` unreadable | `requires.cli "X": write it as ">= 0.2.0", "> 0.2.0" or "= 0.2.0"` |
 | `platforms` has an unknown value | `platform "X": the platforms are "linux" and "macos"` |
 | `platforms` lists one twice | `platform "X" is listed twice` |
-| a `workspace` package leaves out `linux` | `a workspace always lives on a Linux server, so a workspace package has to list "linux"` |
 | `extends` key has no dot | `an extension point is written <package>.<place>` |
 | `extends` file is not there | `extends "X" points at Y, which is not in the package` |
 | `provides` path is relative | `an extension point is an absolute path on the machine` |
@@ -282,6 +309,9 @@ What each script receives and must print is in
 | `join` without `self_name`, or the reverse | `network.self_name is required beside network.join` |
 | a network script outside the package | `network.resolve "X" must stay inside the package` |
 | a network script missing, not executable or not Python 3 | the same messages as an entrypoint, naming the field |
+| `bootstrap` on a workspace package | ``bootstrap` belongs to a machine package`` |
+| `bootstrap` outside the package | `bootstrap "X" must stay inside the package` |
+| `bootstrap` missing or not executable | `bootstrap "X" is not in the package`, `bootstrap "X" is not executable: chmod +x it` |
 | `kind` or `commands` with no entrypoint | ``kind` and `commands` describe an `entrypoint`, and this package declares none`` |
 
 `devmachine packages validate` reports every problem at once, not just

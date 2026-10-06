@@ -14,7 +14,7 @@ const IgnoreHeading = "# Written by `devmachine setup git`. Everything here is a
 
 // Ignored is what a configuration directory's .gitignore must hold.
 func Ignored() []string {
-	return []string{"keys/", "secrets.json", "cache/", "history.log", "*.env"}
+	return []string{"keys/", "secrets.json", "cache/", "history.log", "*.env", "state/"}
 }
 
 // GitIgnore renders the file.

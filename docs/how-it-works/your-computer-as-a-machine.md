@@ -28,7 +28,7 @@ machine "mac" is your computer (self: true), so it has no hosts: remove it
 ```
 
 The same reason is why a workspace can never live on a self machine: a
-workspace is a Linux account reached over SSH with a key the CLI
+workspace is an account reached over SSH with a key the CLI
 installed, and your own computer has no account system or SSH server for
 that.
 
@@ -39,19 +39,30 @@ and none of them need root, so a self machine's setup never asks for
 extra permissions. It only runs on macOS — nothing about this path has
 been tried anywhere else — and stops with a clear error elsewhere.
 
-## Why `setup` prints the Homebrew command instead of running it
+## How `setup` gets Ansible onto your computer
 
 Ansible cannot install itself. On a real server, `setup` bootstraps a
 key, proves it, locks the server down, then installs Ansible. None of
-that applies to your own computer, so `setup` here only checks two
-things: is Homebrew on `PATH`, and is Ansible.
+that applies to your own computer, so `setup` here does only the last
+part, the same way it does on a Mac reached over SSH: it runs the
+`bootstrap` of a package manager package. That is `mac-brew` (Homebrew),
+or `mac-ports` (MacPorts) when the machine lists it.
 
-If Homebrew is missing, `setup` prints the official one-line install
-command from [brew.sh](https://brew.sh) and stops rather than running
-it, since that command asks for `sudo` — and asking for your password on
-your own computer, without you typing it, is not something this CLI
-does. Once Homebrew is there, `setup` runs `brew install ansible` itself,
-since that part needs no extra permission.
+The bootstrap runs from the package cache on your computer, as you. It is
+not copied to `/opt`, which would need `sudo` (see below). First it only
+checks. When Homebrew and `ansible-playbook` are already there (from
+Homebrew or pipx), nothing is installed and `setup` says so:
+
+```
+mac is already prepared: ansible-playbook is /opt/homebrew/bin/ansible-playbook.
+```
+
+When something is missing, `setup` lists it with how long it takes and
+asks before it installs anything; `--install-prerequisites` is the yes
+for a run with no terminal. `--yes` is never that yes. Installing the
+Command Line Tools or Homebrew needs `sudo`; the bootstrap only uses
+`sudo -n`, so on a Mac where `sudo` asks for a password it stops and says
+which step failed. See [what a machine needs](what-a-machine-needs.md).
 
 `sync` follows the same rule: with no `ansible-playbook` on `PATH`, it
 stops before touching anything and points you to `setup`.

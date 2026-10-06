@@ -222,8 +222,8 @@ func (c *recordingClient) everything() string {
 }
 
 func TestHardenWritesADropInThatSortsFirst(t *testing.T) {
-	c := &recordingClient{}
-	if err := Harden(context.Background(), c); err != nil {
+	c := hardenClient()
+	if err := Harden(context.Background(), c, debian); err != nil {
 		t.Fatal(err)
 	}
 	joined := c.everything()
@@ -250,8 +250,8 @@ func TestHardenSaysWhyTheNameSortsFirst(t *testing.T) {
 }
 
 func TestHardenValidatesBeforeReloading(t *testing.T) {
-	c := &recordingClient{}
-	if err := Harden(context.Background(), c); err != nil {
+	c := hardenClient()
+	if err := Harden(context.Background(), c, debian); err != nil {
 		t.Fatal(err)
 	}
 	joined := c.transcript()
@@ -265,7 +265,7 @@ func TestHardenValidatesBeforeReloading(t *testing.T) {
 
 func TestHardenLeavesPasswordsOnWhenValidationFails(t *testing.T) {
 	c := &recordingClient{failOn: "sshd -t"}
-	err := Harden(context.Background(), c)
+	err := Harden(context.Background(), c, debian)
 	if err == nil {
 		t.Fatal("it carried on past a bad config")
 	}
@@ -278,7 +278,7 @@ func TestHardenLeavesPasswordsOnWhenValidationFails(t *testing.T) {
 // left on disk, breaks the next reload by anything at all, including a reboot.
 func TestHardenTakesBackAConfigSshdRefused(t *testing.T) {
 	c := &recordingClient{failOn: "sshd -t"}
-	_ = Harden(context.Background(), c)
+	_ = Harden(context.Background(), c, debian)
 
 	last := c.commands[len(c.commands)-1]
 	if !strings.Contains(last, "rm ") || !strings.Contains(last, hardeningDropInPath) {
@@ -331,16 +331,96 @@ func TestProveAuthHandsBackTheConnectionItProved(t *testing.T) {
 	}
 }
 
-// clientWithOsRelease answers the one question InstallAnsible asks before it
-// decides anything.
+// clientWithOsRelease answers the questions InstallAnsible asks before it
+// decides anything: which kernel, then which distribution.
 func clientWithOsRelease(body string) *recordingClient {
-	return &recordingClient{output: map[string]string{OSReleaseCommand: body}}
+	return &recordingClient{output: map[string]string{
+		UnameCommand:                  "Linux\n",
+		OSReleaseCommand:              body,
+		AsRoot(effectiveConfigScript): sshdTWithPasswords("no"),
+	}}
+}
+
+// sshdTWithPasswords is what `sshd -T` prints, cut down to a few lines.
+func sshdTWithPasswords(answer string) string {
+	return "port 22\npermitrootlogin prohibit-password\npasswordauthentication " + answer +
+		"\nkbdinteractiveauthentication no\n"
+}
+
+// hardenClient is a machine whose sshd reads the drop-in.
+func hardenClient() *recordingClient {
+	return &recordingClient{output: map[string]string{AsRoot(effectiveConfigScript): sshdTWithPasswords("no")}}
+}
+
+// TestHardenProvesPasswordLoginIsOff: a drop-in sshd never reads would let
+// "password login is off" be said of a machine that still takes passwords.
+func TestHardenProvesPasswordLoginIsOff(t *testing.T) {
+	c := hardenClient()
+	if err := Harden(context.Background(), c, debian); err != nil {
+		t.Fatal(err)
+	}
+	joined := c.transcript()
+	reload := strings.Index(joined, "reload")
+	proof := strings.Index(joined, "sshd -T")
+	if reload < 0 || proof < 0 || proof < reload {
+		t.Fatalf("it does not ask sshd after the reload: %s", joined)
+	}
+	if !strings.Contains(c.commands[len(c.commands)-1], "sshd -T") {
+		t.Fatalf("something ran after the proof: %s", joined)
+	}
+	if !strings.Contains(joined, "/usr/sbin:/sbin") {
+		t.Fatalf("sshd -T runs without sbin on PATH: %s", joined)
+	}
+}
+
+func TestHardenTakesTheDropInBackWhenSshdStillAllowsPasswords(t *testing.T) {
+	c := &recordingClient{output: map[string]string{AsRoot(effectiveConfigScript): sshdTWithPasswords("yes")}}
+	err := Harden(context.Background(), c, debian)
+	want := "the drop-in was written but sshd still allows passwords: " + hardeningDropInPath +
+		" is not read by this sshd"
+	if err == nil || err.Error() != want {
+		t.Fatalf("got %v, want %q", err, want)
+	}
+	joined := c.transcript()
+	proof := strings.Index(joined, "sshd -T")
+	removed := strings.LastIndex(joined, "rm -f "+hardeningDropInPath)
+	if removed < proof {
+		t.Fatalf("the drop-in was left behind: %s", joined)
+	}
+	if !strings.Contains(joined[removed:], "reload") {
+		t.Fatalf("sshd was not reloaded without it: %s", joined)
+	}
+}
+
+// TestHardenReadsSshdTInEitherCase: OpenSSH 10 on Arch prints
+// "PasswordAuthentication no"; older versions print it in lower case.
+func TestHardenReadsSshdTInEitherCase(t *testing.T) {
+	for _, answer := range []string{"PasswordAuthentication no\n", "passwordauthentication no\n"} {
+		c := &recordingClient{output: map[string]string{AsRoot(effectiveConfigScript): "Port 22\n" + answer}}
+		if err := Harden(context.Background(), c, debian); err != nil {
+			t.Fatalf("%q: %v", answer, err)
+		}
+	}
+	c := &recordingClient{output: map[string]string{AsRoot(effectiveConfigScript): "Port 22\nPasswordAuthentication yes\n"}}
+	if err := Harden(context.Background(), c, debian); err == nil {
+		t.Fatal("CamelCase yes was read as no")
+	}
+}
+
+func TestHardenSaysSoWhenSshdCannotPrintItsConfiguration(t *testing.T) {
+	c := &recordingClient{failOn: "sshd -T"}
+	err := Harden(context.Background(), c, debian)
+	if err == nil || !strings.Contains(err.Error(), "sshd -T") {
+		t.Fatalf("got %v", err)
+	}
 }
 
 func TestInstallAnsiblePicksThePackageManagerFromOsRelease(t *testing.T) {
 	for _, c := range []struct{ id, want string }{
 		{"ubuntu", "apt-get"},
 		{"debian", "apt-get"},
+		{"arch", "pacman -S --noconfirm --needed ansible"},
+		{"archarm", "pacman -S --noconfirm --needed ansible"},
 	} {
 		client := clientWithOsRelease("ID=" + c.id + "\n")
 		if err := InstallAnsible(context.Background(), client, io.Discard); err != nil {
@@ -369,7 +449,7 @@ func TestInstallAnsibleSaysSoOnADistributionItDoesNotKnow(t *testing.T) {
 	// The table claims what has been run on a real machine and nothing more.
 	// Guessing a package manager gets somebody halfway through a first run and
 	// then leaves them there.
-	for _, id := range []string{"plan9", "arch", "fedora", "alpine"} {
+	for _, id := range []string{"plan9", "fedora", "alpine"} {
 		c := clientWithOsRelease("ID=" + id + "\n")
 		err := InstallAnsible(context.Background(), c, io.Discard)
 		if err == nil {
@@ -378,7 +458,7 @@ func TestInstallAnsibleSaysSoOnADistributionItDoesNotKnow(t *testing.T) {
 		if !strings.Contains(err.Error(), id) {
 			t.Fatalf("the error does not name it: %v", err)
 		}
-		if len(c.commands) != 1 {
+		if len(c.commands) != 2 {
 			t.Fatalf("%s: it ran something anyway: %#v", id, c.commands)
 		}
 	}
@@ -400,7 +480,8 @@ func TestInstallAnsibleLeavesAMachineThatAlreadyHasItAlone(t *testing.T) {
 }
 
 func TestInstallAnsibleSaysWhenItCannotTellWhatTheMachineIs(t *testing.T) {
-	c := &recordingClient{failOn: "os-release"}
+	c := clientWithOsRelease("ID=debian\n")
+	c.failOn = "os-release"
 	err := InstallAnsible(context.Background(), c, io.Discard)
 	if err == nil {
 		t.Fatal("it carried on without knowing the distribution")
@@ -559,14 +640,14 @@ func TestCheckRootSaysHowToFixIt(t *testing.T) {
 // root does. Found on a real machine whose admin was not root.
 func TestBootstrapRunsAsRootForAnAdminWhoIsNot(t *testing.T) {
 	c := clientWithOsRelease("ID=ubuntu\n")
-	if err := Harden(context.Background(), c); err != nil {
+	if err := Harden(context.Background(), c, debian); err != nil {
 		t.Fatal(err)
 	}
 	if err := InstallAnsible(context.Background(), c, io.Discard); err != nil {
 		t.Fatal(err)
 	}
 	for _, command := range c.commands {
-		if command == OSReleaseCommand {
+		if command == OSReleaseCommand || command == UnameCommand {
 			continue
 		}
 		if !strings.Contains(command, `sudo -n -H "$devmachine_sh" -c`) {
@@ -623,8 +704,8 @@ func TestCheckRootSuggestsAFileSudoReads(t *testing.T) {
 // sshd that never started has no /run/sshd, and sshd -t refuses without it.
 // Found on a real machine reached only through Tailscale SSH.
 func TestHardenMakesSshdsRuntimeDirectoryBeforeValidating(t *testing.T) {
-	c := &recordingClient{}
-	if err := Harden(context.Background(), c); err != nil {
+	c := hardenClient()
+	if err := Harden(context.Background(), c, debian); err != nil {
 		t.Fatal(err)
 	}
 	joined := c.transcript()
@@ -632,5 +713,76 @@ func TestHardenMakesSshdsRuntimeDirectoryBeforeValidating(t *testing.T) {
 	check := strings.Index(joined, "sshd -t")
 	if dir < 0 || dir > check {
 		t.Fatalf("sshd -t runs without its runtime directory: %s", joined)
+	}
+}
+
+// TestInstallAnsibleOnArchNeverUpgradesTheSystem: -Sy without -u is a partial
+// upgrade, and -Syu upgrades everything as a side effect of setup.
+func TestInstallAnsibleOnArchNeverUpgradesTheSystem(t *testing.T) {
+	c := clientWithOsRelease("ID=arch\n")
+	if err := InstallAnsible(context.Background(), c, io.Discard); err != nil {
+		t.Fatal(err)
+	}
+	joined := c.transcript()
+	for _, line := range strings.Split(joined, "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "echo") || !strings.Contains(line, "pacman ") {
+			continue
+		}
+		if !strings.Contains(line, "pacman -S --noconfirm --needed ansible;") {
+			t.Fatalf("it runs pacman another way: %s", line)
+		}
+	}
+	if strings.Contains(joined, "ansible-core") {
+		t.Fatalf("it installs ansible-core: %s", joined)
+	}
+	look := strings.Index(joined, "command -v ansible-playbook")
+	install := strings.Index(joined, "pacman -S ")
+	if look < 0 || look > install {
+		t.Fatalf("it installs without looking first: %s", joined)
+	}
+}
+
+func TestInstallAnsibleRefusesASystemThatIsNotLinux(t *testing.T) {
+	c := &recordingClient{output: map[string]string{UnameCommand: "FreeBSD\n"}}
+	err := InstallAnsible(context.Background(), c, io.Discard)
+	if err == nil || !strings.Contains(err.Error(), `"FreeBSD" is not a system this CLI sets up`) {
+		t.Fatalf("got %v", err)
+	}
+	if len(c.commands) != 1 {
+		t.Fatalf("it ran something anyway: %#v", c.commands)
+	}
+}
+
+// TestInstallAnsibleLeavesAMacToItsBootstrap: a Mac gets Ansible from its
+// package manager's package, never from a table in the CLI.
+func TestInstallAnsibleLeavesAMacToItsBootstrap(t *testing.T) {
+	c := &recordingClient{output: map[string]string{UnameCommand: "Darwin\n", MacVersionCommand: "15.7.9\n"}}
+	err := InstallAnsible(context.Background(), c, io.Discard)
+	if err == nil || !strings.Contains(err.Error(), "bootstrap") {
+		t.Fatalf("got %v", err)
+	}
+	if len(c.commands) != 2 {
+		t.Fatalf("it ran something past detection: %#v", c.commands)
+	}
+}
+
+// TestSshdTOnARealMachineNamesPasswordAuthentication: the proof reads one line
+// of `sshd -T`, so that line has to be there, spelled as parsed.
+func TestSshdTOnARealMachineNamesPasswordAuthentication(t *testing.T) {
+	m := testMachine(t)
+
+	client, _, err := Dial(context.Background(), m, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close()
+
+	out, err := client.Run(context.Background(), AsRoot(effectiveConfigScript))
+	if err != nil {
+		t.Fatalf("sshd -T failed on a real machine: %v", err)
+	}
+	if !strings.Contains(strings.ToLower(out), "\npasswordauthentication ") {
+		t.Fatalf("sshd -T does not print passwordauthentication:\n%s", out)
 	}
 }

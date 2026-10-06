@@ -37,9 +37,8 @@ const (
 	KindFile = "file"
 )
 
-// The platforms a package can say it runs on. A workspace always lives on a
-// Linux server; macOS is only ever the computer the CLI runs on, as a self
-// machine.
+// The platforms a package can say it runs on. A machine, and so a workspace
+// on it, can be either.
 const (
 	PlatformLinux = "linux"
 	PlatformMacOS = "macos"
@@ -152,6 +151,12 @@ type Manifest struct {
 	Kind       string   `yaml:"kind"`
 	Entrypoint string   `yaml:"entrypoint"`
 	Commands   []string `yaml:"commands"`
+
+	// Bootstrap is a POSIX sh script that brings a machine to the point where
+	// Ansible can run on it, for a system that has no package manager the CLI
+	// can drive by itself. It belongs to the package that installs that
+	// manager, so the CLI holds nothing system-specific beyond running it.
+	Bootstrap string `yaml:"bootstrap"`
 
 	// Path is the directory the manifest was read from, and Lines maps a
 	// top-level field name onto the line it was written on.

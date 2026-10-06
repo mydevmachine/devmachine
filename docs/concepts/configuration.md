@@ -37,6 +37,7 @@ DEVMACHINE_CONFIG=~/.config/devmachine-test devmachine doctor
 <config>/keys/          keys the CLI generated, and the public half of a chosen agent key
 <config>/history.log    one line per command that reached a machine
 <config>/cache/config.lock   held by whichever command is writing config.yml
+<config>/state/machines/<name>.json   what setup, sync and doctor last read from a machine
 ```
 
 Two commands that change `config.yml` at the same moment — two

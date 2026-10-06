@@ -119,10 +119,14 @@ func playbookCommand(opts Options, base string, self bool) (string, error) {
 	// Ansible searches a playbook-adjacent directory named roles before the
 	// configured roles_path. Running a copied playbook from a fresh directory
 	// keeps base/roles from silently beating base/roles.local.
+	playbook := "ansible-playbook"
+	if opts.AnsiblePlaybook != "" {
+		playbook = shellQuote(opts.AnsiblePlaybook)
+	}
 	command := fmt.Sprintf("run=$(mktemp -d) && trap 'rm -rf \"$run\"' EXIT && "+
 		"cp %[1]s/site.yml \"$run/site.yml\" && cd \"$run\" && "+
-		"ANSIBLE_CONFIG=%[1]s/ansible.cfg ansible-playbook -i %[1]s/inventory.ini site.yml",
-		base)
+		"ANSIBLE_CONFIG=%[1]s/ansible.cfg %[2]s -i %[1]s/inventory.ini site.yml",
+		base, playbook)
 	if opts.Check {
 		command += " --check"
 	}

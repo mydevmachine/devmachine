@@ -7,7 +7,7 @@ import (
 // target is where a command acts: a machine, and the user to log in as.
 //
 // A machine-level command (stats, doctor) logs in as the machine's admin. A
-// workspace command logs in as that workspace's Linux account. Resolving both
+// workspace command logs in as that workspace's account. Resolving both
 // to the same shape keeps every command's body the same.
 type target struct {
 	machine   config.Machine

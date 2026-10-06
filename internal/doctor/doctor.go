@@ -9,11 +9,13 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/mydevmachine/devmachine/internal/aliases"
 	"github.com/mydevmachine/devmachine/internal/config"
 	"github.com/mydevmachine/devmachine/internal/credentials"
 	"github.com/mydevmachine/devmachine/internal/dns"
+	"github.com/mydevmachine/devmachine/internal/facts"
 	"github.com/mydevmachine/devmachine/internal/hostkeys"
 	"github.com/mydevmachine/devmachine/internal/packages"
 	"github.com/mydevmachine/devmachine/internal/provision"
@@ -64,18 +66,13 @@ func CredentialCheck(d credentials.Declared) string { return credentialPrefix + 
 // The commands the remote checks run. They are constants so a test can answer
 // them without guessing at the wording.
 const (
-	// One reader for /etc/os-release, because a second one drifts from the
-	// first. remote owns it: that is where it is acted on.
+	// One reader for the system, because a second one drifts from the
+	// first. remote owns it: that is where it is acted on, and where the
+	// list of supported systems lives.
+	unameCommand     = remote.UnameCommand
 	osReleaseCommand = remote.OSReleaseCommand
 	ansibleCommand   = "command -v ansible-playbook"
 )
-
-// supportedIDs are the distributions this CLI claims to support. Anything else
-// is reported plainly instead of half-working and failing partway through.
-var supportedIDs = map[string]bool{
-	"ubuntu": true,
-	"debian": true,
-}
 
 // Check is one question and its answer.
 type Check struct {
@@ -155,7 +152,8 @@ func RunWithScanner(ctx context.Context, dir, machine string, dial Dialer, scan 
 		Status: StatusPass,
 		Detail: fmt.Sprintf("connected through %s", address),
 	})
-	checks = append(checks, remoteChecks(ctx, client)...)
+	checks = append(checks, remoteChecks(ctx, client, dir, cfg, m)...)
+	facts.Record(ctx, dir, m.Name, client, time.Now())
 	checks = append(checks, sshAliasesCheck(cfg))
 	checks = append(checks, credentialChecks(ctx, client, wanted)...)
 	return append(checks, dnsChecks(ctx, dir, m.Name, baseOf(m), client)...)
@@ -301,6 +299,10 @@ func selfChecks(ctx context.Context, dir string, m config.Machine, dial Dialer, 
 	}
 
 	checks = append(checks, selfAnsibleCheck(ctx, client))
+	if cfg, err := config.Load(dir); err == nil {
+		checks = append(checks, prerequisiteChecks(ctx, client, dir, cfg, m)...)
+	}
+	facts.Record(ctx, dir, m.Name, client, time.Now())
 
 	base := baseOf(m)
 	if base == "" {
@@ -331,11 +333,16 @@ func selfOSCheck(ctx context.Context, client remote.Client) Check {
 		return Check{Name: CheckOperatingSystem, Status: StatusFail, Detail: err.Error()}
 	}
 	system := strings.TrimSpace(out)
-	if system != "Darwin" {
+	if system != remote.KernelDarwin {
 		return Check{Name: CheckOperatingSystem, Status: StatusFail,
 			Detail: fmt.Sprintf("a self machine is converged on macOS only; this is %s", system)}
 	}
-	return Check{Name: CheckOperatingSystem, Status: StatusPass, Detail: "darwin"}
+	version, err := client.Run(ctx, remote.MacVersionCommand)
+	if err != nil {
+		return Check{Name: CheckOperatingSystem, Status: StatusFail, Detail: err.Error()}
+	}
+	mac := remote.System{Kernel: system, Version: strings.TrimSpace(version)}
+	return Check{Name: CheckOperatingSystem, Status: StatusPass, Detail: mac.String()}
 }
 
 func selfAnsibleCheck(ctx context.Context, client remote.Client) Check {
@@ -437,24 +444,19 @@ func skipRest(order []string, done, reason string) []Check {
 	return out
 }
 
-func remoteChecks(ctx context.Context, client remote.Client) []Check {
+func remoteChecks(ctx context.Context, client remote.Client, dir string, cfg config.Config, m config.Machine) []Check {
 	var out []Check
 
-	release, err := client.Run(ctx, osReleaseCommand)
-	switch {
-	case err != nil:
+	system, err := remote.DetectSystem(ctx, client)
+	if err != nil {
 		out = append(out, Check{Name: CheckOperatingSystem, Status: StatusFail, Detail: err.Error()})
-	default:
-		id := remote.OSReleaseID(release)
-		if supportedIDs[id] {
-			out = append(out, Check{Name: CheckOperatingSystem, Status: StatusPass, Detail: id})
-		} else {
-			out = append(out, Check{
-				Name:   CheckOperatingSystem,
-				Status: StatusFail,
-				Detail: fmt.Sprintf("%q is not supported yet: this CLI supports debian and ubuntu", id),
-			})
-		}
+	} else {
+		out = append(out, Check{Name: CheckOperatingSystem, Status: StatusPass, Detail: system.String()})
+	}
+	if system.MacOS() {
+		out = append(out, macAnsibleCheck(ctx, client, dir, m.Name))
+		out = append(out, prerequisiteChecks(ctx, client, dir, cfg, m)...)
+		return append(out, sshAccessChecks(ctx, client, cfg.WorkspacesOn(m.Name))...)
 	}
 
 	path, err := client.Run(ctx, ansibleCommand)
@@ -483,7 +485,9 @@ func credentialChecks(ctx context.Context, client remote.Client, wanted []creden
 		return nil
 	}
 
-	present, err := credentials.Present(ctx, client, wanted)
+	// As root, like `credentials list`: an admin that is not root cannot see
+	// into a workspace's home, and its login shell may be a Mac's zsh.
+	present, err := credentials.Present(ctx, remote.Elevated(client), wanted)
 	if err != nil {
 		var out []Check
 		for _, d := range wanted {

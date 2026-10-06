@@ -8,6 +8,42 @@ page](https://github.com/mydevmachine/devmachine/releases).
 
 To get the latest version, see [Upgrade](upgrade.md).
 
+## v0.8.0 — 2026-10-06
+
+### Added
+
+- Machines can run Arch Linux or macOS, not only Debian and Ubuntu. `setup`
+  and `machines add` read the system first and refuse one they do not know,
+  before changing anything.
+- On Arch, Ansible comes from `pacman` without a partial upgrade.
+- On a Mac, the `mac-brew` or `mac-ports` package prepares the machine: the
+  Command Line Tools, the package manager and Ansible. `--package-manager
+  brew|ports` picks one when the Mac has neither or both, and
+  `--install-prerequisites` agrees to install what is missing. `--yes` never
+  installs them.
+- A new Mac starts with `base` and `devmachine-app`; `essentials` is
+  Linux-only.
+- `machines show` prints a machine and what the CLI last observed about it:
+  system, package manager, init system, where Ansible lives.
+- `run` puts a Mac's package manager on `PATH`, and shows the remote
+  command's errors on stderr.
+- `doctor` checks a Mac's prerequisites, and warns when a Mac's Remote Login
+  leaves a workspace account out; `devmachine sync` adds the account.
+- `machines create-local --distro arch` makes an Arch Linux VM for testing.
+- `--fingerprint` and `machines trust --expect` accept the fingerprint of any
+  of the host's key types, not only the one the CLI negotiates.
+
+### Changed
+
+- After turning password login off, `setup` checks with `sshd -T` that it
+  really is off, and takes its change back if sshd ignores it.
+- `sync` refuses, before changing the machine, a package whose `platforms`
+  leaves the machine's system out.
+- A workspace package for macOS alone is now accepted.
+- `machines rm` also forgets what the CLI observed about the machine.
+- A package directory that is a symlink is followed when it is sent to the
+  machine.
+
 ## App v0.1.20 — 2026-10-06
 
 ### Changed

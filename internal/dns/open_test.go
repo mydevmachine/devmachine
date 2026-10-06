@@ -391,7 +391,7 @@ func TestAnyCallsAPackageThatNeedsNoCredential(t *testing.T) {
 		t.Fatalf("a package with no credential must still be reachable: %v", err)
 	}
 	var out strings.Builder
-	if err := got.Call(context.Background(), []string{"context", "--session", "s1"}, &out); err != nil {
+	if err := got.Call(context.Background(), []string{"context", "--session", "s1"}, &out, io.Discard); err != nil {
 		t.Fatal(err)
 	}
 	if len(client.commands) != 1 || strings.Contains(client.commands[0], "set -a") ||
@@ -408,7 +408,7 @@ func TestAnyCallsALocalPackageWhereAnsibleUnpackedIt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := got.Call(context.Background(), []string{"context"}, io.Discard); err != nil {
+	if err := got.Call(context.Background(), []string{"context"}, io.Discard, io.Discard); err != nil {
 		t.Fatal(err)
 	}
 	if len(client.commands) != 1 || !strings.HasPrefix(client.commands[0], "/opt/devmachine/roles.local/tool/bin/tool ") {

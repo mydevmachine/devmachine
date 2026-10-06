@@ -5,8 +5,9 @@ that a person asked to set devmachine up for them. If you are that agent,
 follow it in order. Talk to the person in their language, ask one question at
 a time, and never guess an answer only they know.
 
-devmachine sets up a machine for the person to code on: a VPS they rent, or
-a virtual machine on their own computer. Each project gets its own account on
+devmachine sets up a machine for the person to code on: a VPS they rent, a
+Linux server or a Mac they already have, or a virtual machine on their own
+computer. The machine runs Debian, Ubuntu, Arch Linux or macOS. Each project gets its own account on
 that machine, called a workspace, with its own tools, logins and coding
 agent. devmachine runs on the person's own computer and reaches the machine
 over SSH.
@@ -17,6 +18,13 @@ over SSH.
   forever for an answer you cannot type. Use the flags this page gives, which
   ask nothing, and hand a question-asking command such as `devmachine setup`
   to the person.
+- **Only the person decides what gets installed.** On a Mac, setting up may
+  install the Xcode Command Line Tools, Homebrew or MacPorts, and Ansible.
+  Ask the person which package manager they want, Homebrew or MacPorts, and
+  whether devmachine may install what the Mac lacks. Never choose for them.
+  Pass their answers as `--package-manager brew|ports` and
+  `--install-prerequisites`, and only then. `--yes` never means yes to an
+  install.
 - **Only the person confirms a server's identity.** A server shows a code
   called the fingerprint. The person checks it against their provider's
   dashboard. Pass `--fingerprint` only after they say it matches; never take
@@ -69,14 +77,21 @@ Then ask one question at a time.
 
 For a server:
 
-1. The server's address — an IP or a hostname. It must run Debian or Ubuntu.
-2. How they reach it as root over SSH: with a key already on the server, or
-   with the root password their provider gave them.
+1. The server's address — an IP or a hostname. It must run Debian, Ubuntu,
+   Arch Linux or macOS; ask which.
+2. How they reach it over SSH: the login, and whether with a key already on
+   the server or with a password. The login is root, or an admin login with
+   passwordless sudo. A Mac has no root login: it needs an admin login with
+   passwordless sudo, and Remote Login on in System Settings > General >
+   Sharing. Only the person can do those two things on a Mac.
 3. A name for the server, for example `vps`.
 4. Where the server is, for example `hostinger`, `home` or `office`. If they
    do not say, use `external`.
 5. Only if they want an app visible at a URL: a domain, and whether it is at
    Hostinger or Cloudflare. Otherwise skip this.
+6. Only for a Mac: Homebrew or MacPorts, and whether devmachine may install
+   what the Mac lacks (the Command Line Tools take 5 to 10 minutes). See
+   [what a machine needs](how-it-works/what-a-machine-needs.md).
 
 For a machine on this computer:
 
@@ -126,15 +141,21 @@ Show the person the `SHA256:…` it prints and ask them to compare it with
 the one in their provider's dashboard or console. Go on only when they say
 it matches.
 
-**If their own key already logs in as root**, add the server yourself. Find
+**If their own key already logs in**, add the server yourself. Find
 the key's fingerprint with `ssh-add -l` and pass it as `agent:<fingerprint>`,
-or pass the path of its private key file instead:
+or pass the path of its private key file instead. Pass `--user <login>` when
+the login is not root, as on every Mac:
 
 ```
 devmachine machines add --address <address> --name <name> \
   --fingerprint SHA256:… --key agent:SHA256:… --location <location> \
-  [--domain <domain>]
+  [--user <login>] [--domain <domain>]
 ```
+
+On a Mac, add the person's answers: `--package-manager brew` or
+`--package-manager ports`, and `--install-prerequisites` only if they said
+yes to the install. Without it, a Mac that lacks something stops before
+anything is installed, and the error names what is missing.
 
 **If only a password logs in**, the password must not pass through you.
 Hand the person the command, to run themselves after copying the password —
@@ -149,7 +170,8 @@ pbpaste | devmachine machines add --address <address> --name <name> \
 `pbpaste` is macOS; on Linux, `xclip -o -selection clipboard` does the same.
 
 Either way, `machines add` asks nothing: it installs the key (a new one of
-the CLI's own when `--key` is left out), proves it works, turns off password logins, gives the machine the
+the CLI's own when `--key` is left out), proves it works, turns off password logins, installs
+Ansible (on a Mac, through Homebrew or MacPorts), gives the machine the
 `essentials` package, and writes SSH host entries so
 `ssh <workspace>-devmachine` and `mosh` work from any terminal and from an
 editor like VS Code Remote-SSH. Add `--tailscale` only if the person wants to
@@ -163,8 +185,9 @@ the CLI reaches it. To change it later, run
 [where a machine is](how-it-works/machine-location.md).
 
 **A person at a terminal of their own** can run `devmachine setup` instead:
-it asks the same questions one by one, and shows the fingerprint to check.
-That is the right command for a person, not for you.
+it asks the same questions one by one, shows the fingerprint to check, and
+on a Mac asks which package manager to use and whether to install what is
+missing. That is the right command for a person, not for you.
 
 ## 4. Check the machine
 
@@ -172,11 +195,25 @@ Run `devmachine doctor`. Every line should pass or warn; fix a warning about
 SSH aliases with `devmachine aliases --write`, and a missing credential with
 the `devmachine login` command it names.
 
+On a Mac, read `devmachine --format json doctor --machine <name>` before you
+run `setup` again or `sync`. Each `prerequisite: <name>` entry of `checks[]`
+is something the Mac still lacks. Tell the person what is missing, ask
+before you install it (`devmachine setup --install-prerequisites`), and name
+the steps only they can do: Remote Login, passwordless sudo, and "Allow full
+disk access for remote users" when a package needs it.
+
 The machine starts with the `essentials` package: base tools, git, a
 firewall, Caddy, and `devmachine-app`, what the macOS app reads from a
 machine. If they asked for a bare machine, add `--no-essentials` to
 `create-local --add` or `machines add`; if they then use the macOS app, add
 it alone with `devmachine packages add devmachine-app --machine <name>`.
+
+`essentials`, `firewall` and `caddy` run on Linux only, and `sync` refuses
+them on a Mac before it changes anything. You do not need to do anything
+about it: when `machines add` finds a Mac, it starts it with `base`,
+`devmachine-app` and the package manager package (`mac-brew` or
+`mac-ports`) instead of `essentials`, and says so. With `--no-essentials`
+it starts with the package manager package alone.
 
 ## 5. Create the workspace
 

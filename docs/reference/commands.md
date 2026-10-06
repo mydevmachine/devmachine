@@ -16,6 +16,7 @@ one document — read this instead of parsing help text.
 
 ```
 devmachine setup [--force] [--no-harden] [--no-essentials] [--no-aliases] [--yes]
+                 [--package-manager brew|ports] [--install-prerequisites]
 ```
 
 Connects to your server for the first time and gets it ready to use.
@@ -33,16 +34,33 @@ your provider's dashboard. Say no and nothing is sent or changed.
 Then it gets the server ready, in order: try the key; if that fails, ask
 for the password (never shown on screen); install the key; open a **new
 connection using only the key** to prove it works; turn password login
-off; install Ansible. The new machine is written with the `essentials`
+off, and ask SSH (`sshd -T`) that it really is off; install Ansible. The new machine is written with the `essentials`
 package (base, git, firewall, ssh_hardening, caddy and devmachine-app — see
 [what a new machine starts with](../how-it-works/what-a-new-machine-starts-with.md)),
 so the first `sync` installs them; `--no-essentials` leaves it with none. Only a pinned package
-release that has `essentials` gets it — an older one starts empty and says so. If the proof step fails, nothing is locked down and
+release that has `essentials` gets it — an older one starts empty and says so. On a Mac,
+where `essentials` does not run, the machine starts with `base`, `devmachine-app` and the
+package manager package instead, and `setup` says so; with `--no-essentials`, with the package
+manager package alone. If the proof step fails, nothing is locked down and
 the error says where to look. See [setting up a server for the first
 time](../how-it-works/trust-bootstrap.md) for why the order matters.
 
-Works on **Debian and Ubuntu** only; elsewhere it names your distro and
-stops. The password is used once and written nowhere.
+Works on **Debian, Ubuntu, Arch Linux and macOS**. Before it changes anything it
+asks the machine what it runs (`uname -s`, then `ID` in `/etc/os-release`,
+or `sw_vers` on a Mac);
+anything else is named and it stops, with the machine untouched. See [what
+`setup` refuses](../how-it-works/trust-bootstrap.md#it-checks-what-the-machine-runs-first).
+The password is used once and written nowhere.
+
+**On a Mac** Ansible comes from a package manager package, `mac-brew`
+(Homebrew) or `mac-ports` (MacPorts), not from the CLI. A machine that
+lists one keeps it. Otherwise `setup` adds the one for the manager the Mac
+already has, and asks when it has neither or both (`--package-manager`).
+It copies the package to `/opt/devmachine/bootstrap/<package>/`, runs its
+`bootstrap check` as the admin login, lists what is missing with the time
+each takes, and installs only after you agree (or with
+`--install-prerequisites`). `--yes` never installs them. See [what a
+machine needs](../how-it-works/what-a-machine-needs.md).
 
 Once the machine answers, it asks two more questions: whether to write SSH
 host entries to `~/.ssh/config` (default yes — `ssh <workspace>-devmachine`
@@ -61,9 +79,11 @@ there.
 | --- | --- |
 | `--force` | discard the existing configuration and start over |
 | `--no-harden` | leave password login on; the key is still installed and proved |
-| `--no-essentials` | start the machine with no packages, instead of `essentials` |
+| `--no-essentials` | start the machine with no packages, instead of `essentials` (on a Mac, instead of `base` and `devmachine-app`) |
 | `--no-aliases` | do not ask about SSH host entries, and do not write them |
-| `--yes` | answer yes to the SSH host entries question, without asking |
+| `--yes` | answer yes to the SSH host entries question, without asking; never installs prerequisites |
+| `--package-manager brew\|ports` | on a Mac with neither or both, the package manager to install Ansible with |
+| `--install-prerequisites` | on a Mac, install what is missing (Command Line Tools, Homebrew or MacPorts, Ansible) without asking |
 
 Run again with a configuration in place, and it just makes sure Ansible
 is installed — it never rewrites `config.yml`, a key, or SSH settings.
@@ -88,6 +108,8 @@ release pinned, `defaults.workspace`, the machine with `essentials`, and
 | write SSH host entries? | yes, unless `--no-aliases` |
 | reach it over Tailscale? | `--tailscale` |
 | install the agent skills? | run `devmachine skills add` afterwards |
+| which package manager? (a Mac with neither or both) | `--package-manager brew` or `--package-manager ports` |
+| install what the Mac lacks? | `--install-prerequisites` (`--yes` never does) |
 
 It creates that file only if it is still missing when the bootstrap
 ends. If another `add` (or `create-local --add`) wrote one in the
@@ -104,8 +126,13 @@ from `devmachine workspaces new`, and packages from `devmachine packages
 add`, both without questions when given `--yes`.
 
 **On a self machine** (`self: true`, your own computer — see
-[`machines`](#machines)), setup only checks Homebrew and installs Ansible;
-no fingerprint, key or password involved.
+[`machines`](#machines)), setup runs the `mac-brew` package's bootstrap on
+your computer (`mac-ports` when the machine lists it), from the package
+cache, with no `sudo` and nothing under `/opt`. When Homebrew and
+`ansible-playbook` are already there it installs nothing and prints `<name>
+is already prepared: ansible-playbook is <path>.` Otherwise it lists what is
+missing and asks first, as on a remote Mac. No fingerprint, key or password
+involved.
 
 ## setup git
 
@@ -166,9 +193,25 @@ which one you meant, because it does not have to. A machine that cannot be
 reached gets its own `fail` and does not stop the others.
 
 Six checks in order: configuration, SSH fingerprint, login, operating
-system, Ansible installed, SSH aliases. A broken fingerprint stops the
-rest. Then one check per needed credential (`credential: <key>`) and per
-installed DNS provider (`dns: <provider>`).
+system (the same check `setup` makes: Debian, Ubuntu, Arch Linux or
+macOS, shown as `macos 15.7.9`), Ansible installed, SSH aliases. A broken
+fingerprint stops the rest. Then one check per needed credential
+(`credential: <key>`) and per installed DNS provider (`dns: <provider>`).
+
+On a Mac, the Ansible check looks where the bootstrap said
+`ansible-playbook` is, then in the Homebrew, MacPorts and pipx folders,
+since a plain SSH command has none of them on `PATH`. Then the package
+manager package's `bootstrap check` lists what the Mac lacks: one
+`prerequisite: <name>` warning per item (`devmachine setup` installs it
+once you agree), or one `prerequisites` check that passes when nothing is
+missing, or is skipped when no package manager is chosen yet. The script
+reaches the Mac on stdin, so doctor leaves nothing on it. Last, one
+`ssh access: <workspace>` check per workspace on the Mac: it passes when
+Remote Login allows all users or the account is in the list, warns when
+Remote Login allows only some users and the account is not one of them,
+and is skipped while the account does not exist yet. One SSH command
+answers for every workspace. See [what a machine
+needs](../how-it-works/what-a-machine-needs.md).
 
 A missing or logged-out credential **warns**, with the fix (`devmachine
 login <credential>`, or `secrets set` then `credentials push`); so does a
@@ -259,14 +302,15 @@ list --format json`) wins over it.
 
 ```
 devmachine machines list                  each machine, its addresses, port, location and workspaces
-devmachine machines add [--location l] [--no-harden] [--no-essentials] [--no-aliases] [--yes]   set up another server and record it
-devmachine machines add --self <name> [--location l]   add your computer as a machine, with no address
+devmachine machines show [name]           one machine, and what it runs as setup, sync or doctor last read it
+devmachine machines add [--location l] [--no-harden] [--no-essentials] [--no-aliases] [--yes] [--package-manager brew|ports] [--install-prerequisites]   set up another server and record it
+devmachine machines add --self <name> [--location l] [--package-manager brew|ports] [--install-prerequisites]   add your computer as a machine, with no address
 devmachine machines add --name <n> --address <a> --fingerprint <SHA256:…> [--user u] [--port p] [--key new|file|agent:<SHA256:…>] [--location l] [--password-stdin] [--tailscale]   the same, asking nothing
 devmachine machines trust [name] [--check] [--replace] [--expect <fp>] [--yes]   check or update its SSH fingerprint
 devmachine machines scan --address <a> [--port p]   the SSH fingerprint of a server not added yet; writes nothing
 devmachine machines edit <name> [--set k=v] [--unset k] [--location l] [--check] [--yes]   change a machine's package settings or location
 devmachine machines rm <name> [--yes]     forget a machine; the server keeps running
-devmachine machines create-local <name> [--cpus n] [--memory GiB] [--disk GiB] [--add [--key k] [--no-essentials] [--no-aliases] [--location l]]   a machine on your computer
+devmachine machines create-local <name> [--distro ubuntu|arch] [--cpus n] [--memory GiB] [--disk GiB] [--add [--key k] [--no-essentials] [--no-aliases] [--location l]]   a machine on your computer
 devmachine machines start <name>          start a local machine
 devmachine machines stop <name>           stop a local machine
 devmachine machines delete-local <name> [--yes]   destroy it and everything on it
@@ -286,6 +330,43 @@ none), and `self: true` on your own computer. Without `--format json`,
 same machine entries. **Your computer is never picked by default** — a
 command with no `--machine` still acts on the server, even with a self
 machine also configured.
+
+`show` prints one machine — the one named, or the one `--machine` or the
+configuration picks — with what `setup`, `sync` or `doctor` last read
+from it: the system, distribution and version, architecture, package
+manager, init system, where `ansible-playbook` is, and the `PATH` prefix
+`run` uses. It does not connect; `devmachine doctor --machine <name>`
+reads the machine again. `devmachine --format json machines show <name>`
+prints the same entry as `list --format json`, plus `observed`:
+
+```json
+{
+  "name": "studio",
+  "hosts": ["203.0.113.10"],
+  "admin_user": "alice",
+  "port": 22,
+  "workspaces": [],
+  "packages": ["mac-ports"],
+  "location": "external",
+  "observed": {
+    "observed_at": "2026-10-05T15:22:00-03:00",
+    "system": "Darwin",
+    "os_family": "Darwin",
+    "distribution": "MacOSX",
+    "distribution_version": "15.7.9",
+    "pkg_mgr": "macports",
+    "service_mgr": "launchd",
+    "architecture": "x86_64",
+    "ansible_playbook": "/opt/local/bin/ansible-playbook-3.14",
+    "path_prefix": ["/opt/local/bin", "/opt/local/sbin"]
+  }
+}
+```
+
+A machine no command has read yet has no `observed` key. The names
+follow Ansible's facts; `path_prefix` is `[]` on Linux. Why this lives
+beside `config.yml` and not in it: [what the CLI knows about a
+machine](../how-it-works/what-the-cli-knows-about-a-machine.md).
 
 `edit` changes a machine's `settings:` and nothing else, the way
 `workspaces edit` does for a workspace. `--set <package>.<name>=<value>`
@@ -329,10 +410,12 @@ one the way `setup` does — see [setup without a terminal](#setup):
 | `--user` | `root` | the admin login: root, or an account with passwordless sudo |
 | `--port` | `22` | the SSH port |
 | `--key` | `new` | a key of the CLI's own for this machine (made, or reused when it exists), a private key file, or `agent:<SHA256:…>` for a key your SSH agent holds |
-| `--fingerprint` | — | the host key to trust on first contact |
+| `--fingerprint` | — | the host key to trust on first contact, of any of its types (ED25519, ECDSA, RSA) |
 | `--tailscale` | off | also add the `tailscale` package |
 | `--domain` | — | the domain; only when there is no `config.yml` yet, and refused otherwise |
 | `--password-stdin` | off | read the admin password from stdin, for a server that takes nothing else yet |
+| `--package-manager` | — | on a Mac with neither or both managers, `brew` or `ports`; without it such a Mac stops |
+| `--install-prerequisites` | off | on a Mac, consent to install what is missing; without it a Mac that lacks something stops |
 
 `--key agent:SHA256:…` picks one key from the SSH agent by its
 fingerprint (`ssh-add -l` lists them), the way choosing an agent key does
@@ -382,8 +465,12 @@ before saving a new one, does nothing if it matches, refuses a changed
 one unless `--replace`. `--check` compares without writing and reports a
 changed key instead of refusing it; it exits 0 for every status, so a
 script reads `status`, not the exit code. `--expect <SHA256:…>` writes
-only if the presented key has that fingerprint — the key the operator
-verified, not whatever a second scan happens to meet. JSON fields:
+only the host key with that fingerprint — the key the operator verified,
+not whatever a second scan happens to meet. It may be the fingerprint of
+any of the server's keys, ED25519, ECDSA or RSA: when it is not the one
+negotiation showed, `trust` asks the server for each other type and
+writes the one that matches. A fingerprint none of them has is refused,
+and nothing is written. JSON fields:
 `machine`, `address`, `status` (`matching`, `changed`, `missing`),
 `key_type`, optional `current_key_type` and `current_fingerprint` (the
 pinned key), `presented_fingerprint`, `check`, `changed`, and, while the
@@ -404,7 +491,8 @@ for a key type with no standard file).
 
 `rm` takes a machine out of `config.yml` and **does nothing to the server
 itself**. Asks first unless `--yes`; refuses to leave a workspace
-pointing at a gone machine. **Not `delete-local`**: `rm` only forgets a
+pointing at a gone machine. It also deletes what the CLI last read from
+the machine (`state/machines/<name>.json`). **Not `delete-local`**: `rm` only forgets a
 server, `delete-local` erases a machine on your computer.
 
 `create-local` builds a machine on your computer, arriving password-only
@@ -419,6 +507,14 @@ numbers. Each is checked against this computer before Lima starts:
 its memory (the computer needs some for itself), `--disk` at least 10 GiB.
 The disk is a sparse file, so a large one only uses the space the VM
 writes. The output says the size the VM got.
+
+`--distro` picks the system: `ubuntu` (the default, Ubuntu 24.04) or
+`arch` (Arch Linux). The Arch VM is x86_64 under qemu on every computer,
+because the only aarch64 Arch image Lima offers is an old third-party
+build that does not boot under Apple's hypervisor. On Apple Silicon that
+means emulation: it boots and works, but the first boot and `setup` take
+many minutes. It arrives the same way as the Ubuntu one: root by
+password, no key.
 
 `create-local <name> --add` does both steps at once: it creates the VM,
 then adds it the way `machines add --address` adds a server — installs a
@@ -452,7 +548,7 @@ devmachine workspaces rm <name> [--yes]
 devmachine workspaces destroy <name> [--confirm <name>] [--check] [--keep-dns]
 ```
 
-A workspace is one Linux account on one machine. See
+A workspace is one account on one machine. See
 [workspaces](../concepts/machines-and-workspaces.md).
 
 These commands only edit `config.yml` — `devmachine sync` creates or
@@ -483,7 +579,7 @@ workspace:
 }
 ```
 
-`user` is the Linux account. `packages` is `[]` when there are none, and
+`user` is the account on the machine. `packages` is `[]` when there are none, and
 `settings` is left out. `credentials` is the workspace's own
 `credentials:` answer per login — `own` keeps its own login, `machine`
 shares the machine's — exactly what `edit --share` writes, and `{}` when
@@ -505,7 +601,7 @@ for a package the workspace does not install is refused.
 **Changing `--machine` does not move a workspace.** The next `sync`
 creates the account on the new machine; the old one keeps everything.
 
-**`rm` leaves the Linux account, home and files on the machine** — remove
+**`rm` leaves the account, home and files on the machine** — remove
 those by hand if you want them gone.
 
 `new`, `rm`, `destroy` and `edit --machine` all refresh `~/.ssh/config`'s
@@ -725,8 +821,10 @@ devmachine run --package <name> [--workspace w] -- <command> [args...]
 ```
 
 Runs one command on a machine and prints its output; exits with the same
-code. A failed command's output prints before the error, since it usually
-explains the failure.
+code. Its standard output goes to yours and its standard error to yours,
+as they arrive, so a program can parse stdout (`run --package
+devmachine-app -- stats` prints JSON there) while a warning or the
+reason a command failed still reaches the person, before the error.
 
 `--package` calls an installed package's entrypoint directly — everything
 after `--` goes to the package; `commands:` in its manifest can limit
@@ -736,6 +834,13 @@ See [packages](../concepts/packages.md).
 
 `run` keeps its SSH connection open for five minutes and reuses it, so a
 script calling it every few seconds skips the handshake each time.
+
+On a machine whose package manager lives outside the system `PATH` — a
+Mac with MacPorts or Homebrew — `run` puts the machine's `path_prefix`
+(see `machines show`) in front of `PATH`, so `devmachine run 'port
+installed'` finds `port` the way `run 'apt list --installed'` finds
+`apt` on Debian. A Linux machine has no prefix, and the command goes as
+written.
 
 ## upload
 
@@ -1252,7 +1357,13 @@ One tag beyond package names: `credentials`, which only copies shared
 logins — run after `devmachine login` instead of a full sync.
 
 `--check` never writes the lock file. Only your own packages (in
-`<config>/packages/`) are checked before the run. With `--format json`,
+`<config>/packages/`) are checked before the run. Every package's
+`platforms` is checked against the machine's system before the machine is
+changed — from what was last read, then again from what `sync` reads as it
+connects — and a package for another system stops the sync, naming both
+([troubleshooting](../troubleshooting.md#package-x-runs-on-linux-machine-y-is-macos)).
+`sync` also keeps what it read in `<config>/state/machines/<name>.json`
+(see `machines show`). With `--format json`,
 stdout is the result; the plan and machine output go to stderr.
 
 On success, `<config>/packages.lock` records what was applied, at which

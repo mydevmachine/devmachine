@@ -18,6 +18,9 @@ type Options struct {
 	// Out is where the machine's own output is streamed as it arrives. A run
 	// that is collected and printed at the end looks stuck when it is not.
 	Out io.Writer
+	// AnsiblePlaybook is the absolute path to call Ansible by, as a Mac's
+	// bootstrap reported it. Empty means ansible-playbook from PATH.
+	AnsiblePlaybook string
 }
 
 // Result is what the machine reported it did.

@@ -32,6 +32,7 @@ devmachine machines edit
 devmachine machines list
 devmachine machines rm
 devmachine machines scan
+devmachine machines show
 devmachine machines start
 devmachine machines stop
 devmachine machines trust

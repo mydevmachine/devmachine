@@ -15,6 +15,7 @@ import (
 
 	"github.com/mydevmachine/devmachine/internal/config"
 	"github.com/mydevmachine/devmachine/internal/expose"
+	"github.com/mydevmachine/devmachine/internal/facts"
 	"github.com/mydevmachine/devmachine/internal/keys"
 	"github.com/mydevmachine/devmachine/internal/remote"
 	"github.com/mydevmachine/devmachine/internal/repo"
@@ -217,7 +218,7 @@ func newWorkspacesNewCmd(opts *options) *cobra.Command {
 		Use:   "new <name>",
 		Short: "Declare a workspace, for the next sync to create",
 		Long: "It edits the configuration and touches no machine. `devmachine " +
-			"sync` is what creates the Linux account.\n\n" +
+			"sync` is what creates the account on the machine.\n\n" +
 			"The package list comes from `defaults.workspace` in the " +
 			"configuration, unless --like or --packages says otherwise.",
 		Args: cobra.ExactArgs(1),
@@ -230,7 +231,7 @@ func newWorkspacesNewCmd(opts *options) *cobra.Command {
 		},
 	}
 	c.Flags().StringVar(&like, "like", "", "copy another workspace's packages")
-	c.Flags().StringVar(&user, "user", "", "the Linux account, when it cannot be the workspace's name")
+	c.Flags().StringVar(&user, "user", "", "the account on the machine, when it cannot be the workspace's name")
 	c.Flags().StringSliceVar(&packages, "packages", nil, "the packages it gets, instead of the default")
 	c.Flags().BoolVar(&check, "check", false, "say what would change, and change nothing")
 	c.Flags().BoolVar(&yes, "yes", false, "do not ask")
@@ -393,7 +394,7 @@ func newWorkspacesRmCmd(opts *options) *cobra.Command {
 	c := &cobra.Command{
 		Use:   "rm <name>",
 		Short: "Forget a workspace, leaving its account on the machine",
-		Long: "Takes the workspace out of the configuration. The Linux account, " +
+		Long: "Takes the workspace out of the configuration. The account on the machine, " +
 			"its home and its files stay on the machine.\n\n" +
 			"Deleting somebody's home is not something a configuration edit " +
 			"should do, and `sync` could not put it back.",
@@ -449,7 +450,7 @@ func newWorkspacesRmCmd(opts *options) *cobra.Command {
 	return c
 }
 
-// linuxUserName is what a Linux account name looks like: something that goes
+// linuxUserName is what an account name looks like: something that goes
 // into a shell command unquoted-safe as a bare word.
 var linuxUserName = regexp.MustCompile(`^[a-z_][a-z0-9_-]*$`)
 
@@ -460,7 +461,7 @@ func newWorkspacesDestroyCmd(opts *options) *cobra.Command {
 	c := &cobra.Command{
 		Use:   "destroy <name>",
 		Short: "Delete a workspace's account, home and configuration",
-		Long: "This is the only command that deletes a home: its Linux account, " +
+		Long: "This is the only command that deletes a home: its account on the machine, " +
 			"everything under that account's home directory, its Caddy routes " +
 			"and its entry in the configuration. It asks for the workspace's " +
 			"name typed again, because there is no undo.\n\n" +
@@ -496,11 +497,11 @@ func newWorkspacesDestroyCmd(opts *options) *cobra.Command {
 				return fmt.Errorf("refusing to destroy %q: it is the machine's administrative account", w.Name)
 			}
 			if !linuxUserName.MatchString(user) {
-				return fmt.Errorf("%q is not a Linux account name this command will pass to a shell", user)
+				return fmt.Errorf("%q is not an account name this command will pass to a shell", user)
 			}
 
 			cmd.Printf("This deletes, on %s:\n", machine.Name)
-			cmd.Printf("  the account %s and everything under /home/%s\n", user, user)
+			cmd.Printf("  the account %s and everything under %s\n", user, homeOf(user, observedSystem(dir, machine.Name)))
 			for _, r := range w.Routes {
 				if keepDNS {
 					cmd.Printf("  https://%s, which will stop answering (its DNS record stays: --keep-dns)\n", r.Host)
@@ -569,24 +570,16 @@ func newWorkspacesDestroyCmd(opts *options) *cobra.Command {
 				}
 			}
 
-			quotedUser := quoteForShell(user)
 			script := "set -e\n" +
-				"if id -u " + quotedUser + " >/dev/null 2>&1; then\n" +
-				// claude-remote-control enables linger for the account, keeping a
-				// user manager (and its processes) alive; userdel refuses a user
-				// with running processes, so linger goes off and everything of
-				// theirs is killed first.
-				"  loginctl disable-linger " + quotedUser + " 2>/dev/null || true\n" +
-				"  loginctl terminate-user " + quotedUser + " 2>/dev/null || true\n" +
-				"  pkill -KILL -u " + quotedUser + " 2>/dev/null || true\n" +
-				"  userdel --force --remove " + quotedUser + "\n" +
+				"if id -u " + quoteForShell(user) + " >/dev/null 2>&1; then\n" +
+				deleteAccountScript(user, observedSystem(dir, machine.Name)) +
 				"  echo removed\n" +
 				"else\n" +
 				"  echo absent\n" +
 				"fi"
 			if sitesErr == nil {
 				routesFile := path.Join(sitesDir, expose.WorkspaceFileName(w.Name))
-				script += "\nrm -f " + quoteForShell(routesFile) + " && (systemctl reload caddy || true)"
+				script += "\nrm -f " + quoteForShell(routesFile) + " && " + reloadCaddyScript()
 			}
 
 			out, err := client.Run(cmd.Context(), script)
@@ -667,7 +660,7 @@ func newWorkspacesEditCmd(opts *options) *cobra.Command {
 			return runWorkspaceEdit(cmd, opts, args[0], e)
 		},
 	}
-	c.Flags().StringVar(&e.user, "user", "", "the Linux account this workspace owns")
+	c.Flags().StringVar(&e.user, "user", "", "the account on the machine this workspace owns")
 	c.Flags().StringSliceVar(&e.add, "add", nil, "a package to add")
 	c.Flags().StringSliceVar(&e.remove, "rm", nil, "a package to take off")
 	c.Flags().StringArrayVar(&e.set, "set", nil, "a setting, as <package>.<name>=<value>")
@@ -948,7 +941,55 @@ func servingClients(ctx context.Context, dir string, cfg config.Config, w config
 		}
 		routesFile := path.Join(sitesDir, expose.WorkspaceFileName(w.Name))
 		out = append(out, servingClient{machine: m.Name, client: client,
-			script: "rm -f " + quoteForShell(routesFile) + " && (systemctl reload caddy || true)"})
+			script: "rm -f " + quoteForShell(routesFile) + " && " + reloadCaddyScript()})
 	}
 	return out, nil
+}
+
+// reloadCaddyScript reloads Caddy through systemd where there is one, and
+// through Caddy's own admin endpoint where there is not, as on a Mac. A Caddy
+// that answers neither does not stop what came before it.
+func reloadCaddyScript() string {
+	return "(systemctl reload caddy 2>/dev/null || caddy reload --config " + quoteForShell(expose.Caddyfile) +
+		" --adapter caddyfile 2>/dev/null || true)"
+}
+
+// deleteAccountScript deletes an account, its home and its processes on a
+// machine running system, as facts name it.
+func deleteAccountScript(user, system string) string {
+	quotedUser := quoteForShell(user)
+	if system == "Darwin" {
+		return "  pkill -KILL -u " + quotedUser + " 2>/dev/null || true\n" +
+			"  if dscl . -read /Groups/" + remote.MacRemoteLoginGroup + " >/dev/null 2>&1; then\n" +
+			"    dseditgroup -o edit -d " + quotedUser + " -t user " + remote.MacRemoteLoginGroup + " 2>/dev/null || true\n" +
+			"  fi\n" +
+			"  sysadminctl -deleteUser " + quotedUser + "\n"
+	}
+	// claude-remote-control enables linger for the account, keeping a
+	// user manager (and its processes) alive; userdel refuses a user
+	// with running processes, so linger goes off and everything of
+	// theirs is killed first.
+	return "  loginctl disable-linger " + quotedUser + " 2>/dev/null || true\n" +
+		"  loginctl terminate-user " + quotedUser + " 2>/dev/null || true\n" +
+		"  pkill -KILL -u " + quotedUser + " 2>/dev/null || true\n" +
+		"  userdel --force --remove " + quotedUser + "\n"
+}
+
+// homeOf is where an account's home is on a machine running system, as
+// facts name it: /Users on a Mac, /home anywhere else.
+func homeOf(user, system string) string {
+	if system == "Darwin" {
+		return "/Users/" + user
+	}
+	return "/home/" + user
+}
+
+// observedSystem is the system last read from a machine, empty when it was
+// never read.
+func observedSystem(dir, machine string) string {
+	f, found, err := facts.Load(dir, machine)
+	if err != nil || !found {
+		return ""
+	}
+	return f.System
 }

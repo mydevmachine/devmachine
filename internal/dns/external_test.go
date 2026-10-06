@@ -208,7 +208,7 @@ func TestExternalRefusesACommandThePackageDidNotDeclare(t *testing.T) {
 	c := &recordingClient{}
 	p := NewExternal("hostinger", c, "/opt/x/provider", "hostinger", []string{"zones", "list"})
 
-	err := p.Call(context.Background(), []string{"drop-everything"}, io.Discard)
+	err := p.Call(context.Background(), []string{"drop-everything"}, io.Discard, io.Discard)
 	if err == nil {
 		t.Fatal("an undeclared command ran")
 	}
@@ -226,11 +226,26 @@ func TestExternalStarAcceptsAnything(t *testing.T) {
 	c := &recordingClient{out: "whatever"}
 
 	var out bytes.Buffer
-	if err := newExternalWith(c).Call(context.Background(), []string{"anything-at-all"}, &out); err != nil {
+	if err := newExternalWith(c).Call(context.Background(), []string{"anything-at-all"}, &out, io.Discard); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(out.String(), "whatever") {
 		t.Fatalf("the output did not reach the caller: %q", out.String())
+	}
+}
+
+func TestExternalCallShowsWhatTheEntrypointSaysOnStderrApart(t *testing.T) {
+	c := &recordingClient{out: "{}\n", errOut: "token expires soon\n"}
+
+	var out, errOut bytes.Buffer
+	if err := newExternalWith(c).Call(context.Background(), []string{"anything-at-all"}, &out, &errOut); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "{}\n" {
+		t.Fatalf("stdout = %q", out.String())
+	}
+	if errOut.String() != "token expires soon\n" {
+		t.Fatalf("stderr = %q", errOut.String())
 	}
 }
 
