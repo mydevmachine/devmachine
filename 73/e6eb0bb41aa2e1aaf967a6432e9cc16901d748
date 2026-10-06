@@ -1,0 +1,31 @@
+docs/reference/commands.md
+  s_87d72b62cfc5a1::t_f2abd23c628b0f 73-75
+docs/concepts/reaching-your-server.md
+  s_87d72b62cfc5a1::t_f54c5fbcb7f24f 70
+internal/commands/machines.go
+  s_87d72b62cfc5a1::t_63da8a2e1326e1 160
+internal/commands/setup.go
+  s_87d72b62cfc5a1::t_772c8a490119b2 362-364
+  s_87d72b62cfc5a1::t_d1f35ab75ac61d 378-382
+  s_87d72b62cfc5a1::t_63da8a2e1326e1 172
+  s_87d72b62cfc5a1::t_dd064493e1d4a1 393-405
+internal/commands/setup_test.go
+  s_87d72b62cfc5a1::t_d4570192ae6c5b 4
+  s_87d72b62cfc5a1::t_cc66f535b8348f 462-488
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "73e6eb0bb41aa2e1aaf967a6432e9cc16901d748",
+  "prompts": {},
+  "sessions": {
+    "s_87d72b62cfc5a1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5e69ca1d-9900-4500-8ba7-104b479b47eb",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
