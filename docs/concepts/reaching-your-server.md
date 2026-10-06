@@ -67,6 +67,7 @@ address has trouble, and on a network that blocks SSH.
 
 `setup` offers this too, right after it asks about the essentials: say yes,
 and it adds the `tailscale` package for you — the same as step 1 below.
+The package runs only on Linux, so `setup` does not ask on a Mac.
 
 1. Add Tailscale to the server, if `setup` did not already:
 

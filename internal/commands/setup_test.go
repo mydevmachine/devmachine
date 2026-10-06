@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"bufio"
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
@@ -455,6 +456,33 @@ func TestSetupDecliningTailscaleAddsNoPackage(t *testing.T) {
 	}
 	if slices.Contains(m.Packages, "tailscale") {
 		t.Fatal("declining tailscale still added the package")
+	}
+}
+
+func TestTailscaleIsNotOfferedToAMac(t *testing.T) {
+	dir := configWith(t, "machines:\n  - name: studio\n    hosts: [203.0.113.10]\n")
+	saveFacts(t, dir, "studio", observedMac)
+
+	out := &strings.Builder{}
+	if err := offerTailscale(bufio.NewReader(strings.NewReader("y\n")), out, dir, "studio"); err != nil {
+		t.Fatal(err)
+	}
+	if err := addTailscale(out, dir, "studio"); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := config.Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m, _ := cfg.Machine("studio"); slices.Contains(m.Packages, tailscalePackage) {
+		t.Fatalf("a Mac got the Linux-only tailscale package: %q", m.Packages)
+	}
+	if strings.Contains(out.String(), "Tailscale too") {
+		t.Fatalf("a Mac was asked about Tailscale: %q", out.String())
+	}
+	want := "the tailscale package runs only on Linux, and studio is a Mac, so it was not added.\n"
+	if out.String() != want {
+		t.Fatalf("got %q, want %q", out.String(), want)
 	}
 }
 

@@ -169,7 +169,7 @@ func newSetupCmd(opts *options) *cobra.Command {
 			"logins and installs Ansible. With a configuration, it only makes sure Ansible " +
 			"is installed; --force starts over.\n\n" +
 			"It never asks which situation you are in. A key that already works " +
-			"is found by trying it, and the root password is asked for only when " +
+			"is found by trying it, and the admin login's password is asked for only when " +
 			"that fails — many servers arrive with a key already pasted in, and " +
 			"their owner has no password to give.",
 		Args: cobra.NoArgs,
@@ -359,6 +359,9 @@ func offerSSHAliases(r *bufio.Reader, out io.Writer, dir string, noAliases, yes 
 // `devmachine login tailscale`, once the machine has actually signed in and
 // can say what it is called on the tailnet.
 func offerTailscale(r *bufio.Reader, out io.Writer, dir, machine string) error {
+	if machineIsMac(dir, machine) {
+		return nil
+	}
 	ok, err := confirm(r, out,
 		"Reach this machine over Tailscale too (a private address that keeps working when the public one does not)?")
 	if err != nil {
@@ -372,6 +375,11 @@ func offerTailscale(r *bufio.Reader, out io.Writer, dir, machine string) error {
 
 // addTailscale puts the tailscale package on a machine, once.
 func addTailscale(out io.Writer, dir, machine string) error {
+	if machineIsMac(dir, machine) {
+		fmt.Fprintf(out, "the %s package runs only on Linux, and %s is a Mac, so it was not added.\n",
+			tailscalePackage, machine)
+		return nil
+	}
 	added, err := addMachinePackage(dir, machine, tailscalePackage)
 	if err != nil || !added {
 		return err
@@ -380,6 +388,19 @@ func addTailscale(out io.Writer, dir, machine string) error {
 	fmt.Fprintln(out, "Next: `devmachine sync`, then `devmachine login tailscale` to sign in and "+
 		"add its private address; the public address stays as a fallback.")
 	return nil
+}
+
+// machineIsMac reports whether the machine was last seen running macOS.
+func machineIsMac(dir, machine string) bool {
+	cfg, err := config.Load(dir)
+	if err != nil {
+		return false
+	}
+	m, err := cfg.Machine(machine)
+	if err != nil {
+		return false
+	}
+	return knownPlatform(dir, m) == packages.PlatformMacOS
 }
 
 // addMachinePackage puts a package on a machine in config.yml, once, and

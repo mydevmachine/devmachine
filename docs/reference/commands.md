@@ -70,7 +70,9 @@ date on its own from then on; see [SSH
 aliases](../concepts/reaching-your-server.md#ssh-aliases)), and whether to
 reach the machine over Tailscale too (default no — adds the `tailscale`
 package; `devmachine login tailscale` finishes the job, see [private
-networks](../concepts/private-networks.md)).
+networks](../concepts/private-networks.md)). A Mac is not asked about
+Tailscale, since the `tailscale` package runs only on Linux, and
+`machines add --tailscale` says so and adds nothing.
 
 With no `config.yml` yet, it also writes `AGENTS.md` if none exists, telling
 a coding agent how to work in this folder — it never overwrites one already
