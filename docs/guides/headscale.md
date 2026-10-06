@@ -27,7 +27,7 @@ Headscale on a small server, joins your devmachine server to it, and joins
 your own computer too.
 
 **You need:** a second small Linux server for Headscale itself, tested on Ubuntu
-(or reuse your devmachine server — see the note below), and your devmachine
+(or reuse your devmachine server if it runs Debian or Ubuntu — see the note below), and your devmachine
 server already reachable over SSH.
 
 ## Before you start: machine, skills, workspace
@@ -57,9 +57,12 @@ official `.deb` package from the
 
 ```
 wget --output-document=headscale.deb \
-  https://github.com/juanfont/headscale/releases/download/v<version>/headscale_<version>_linux_amd64.deb
+  https://github.com/juanfont/headscale/releases/download/v<version>/headscale_<version>_linux_<arch>.deb
 sudo apt install ./headscale.deb
 ```
+
+`<arch>` is `amd64` on an Intel or AMD server and `arm64` on an ARM one
+(`dpkg --print-architecture` says which).
 
 Edit `/etc/headscale/config.yaml` to set your server's URL, then start it:
 

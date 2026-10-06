@@ -36,7 +36,9 @@ Adding the wrong kind to the wrong target is refused, and says why.
 
 `setup` gives a new server one package, `essentials`, which installs nothing
 itself and pulls in others: `base`, `git`, `firewall`, `ssh_hardening`,
-`caddy` and `devmachine-app`. `--no-essentials` starts the server bare. See
+`caddy` and `devmachine-app`. `--no-essentials` starts the server bare. A
+Mac starts with `base`, `devmachine-app` and its package manager package
+instead, since `essentials` runs only on Linux. See
 [what a new machine starts with](../how-it-works/what-a-new-machine-starts-with.md).
 
 ## Changing a package's settings

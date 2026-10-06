@@ -1284,7 +1284,8 @@ per package:
 [DNS provider](../how-it-works/dns-providers.md) — and is left out for an
 ordinary package. `platforms` are the operating systems it runs on
 (`linux`, `macos`), and `[]` means any — a package that says `["macos"]`
-is for your own computer, never for a server. `needs` are the packages
+runs only on a Mac machine, one reached over SSH or your own computer as a
+self machine. `needs` are the packages
 it brings in before itself, `[]` when none: for `essentials` that is the
 list it is made of. `category` is the manifest's grouping, left out when it
 has none. `credentials` lists what the package declares, always an array:

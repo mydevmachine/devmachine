@@ -89,7 +89,8 @@ password logins, so only you can get in.
 firewall, SSH with passwords kept off, Caddy to publish sites with HTTPS,
 and what the macOS app reads from a server. Docker is not in it; add it with `devmachine packages add docker` when
 you need it. Want a bare server instead? Run `devmachine setup
---no-essentials`.
+--no-essentials`. On a Mac, where `essentials` does not run, it starts
+with `base`, `devmachine-app` and `mac-brew` or `mac-ports` instead.
 
 `workspaces new acme` creates a workspace called acme. `sync` builds it
 all on the server.
@@ -104,7 +105,8 @@ devmachine sync
 ```
 
 `packages pin` moves you to the latest set of packages, the first one with
-`essentials` in it.
+`essentials` in it. On a Mac, add `base` and `devmachine-app` instead:
+`sync` refuses `essentials` there.
 
 A new workspace comes with git, the GitHub CLI, Node LTS (through mise), bun,
 and zsh with Oh My Zsh. Every SSH login lands in a tmux session, so a dropped

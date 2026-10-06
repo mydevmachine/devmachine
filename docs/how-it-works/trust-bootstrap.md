@@ -225,7 +225,7 @@ want your own terminal and agent.
 
 ## After this step
 
-`setup` installs `ansible` and `git` — the last thing done by hand. From
+`setup` installs `ansible` — the last thing done by hand. From
 then on, every change goes through `devmachine sync`. It installs
 `ansible` rather than `ansible-core`, since the smaller package leaves
 out a piece the `firewall` package needs.
@@ -239,3 +239,9 @@ have. A full `pacman -Syu` upgrades everything, and that is your call, not
 a side effect of `setup`. On an Arch server whose lists are too old for
 the mirrors, `setup` stops and says so — see
 [troubleshooting](../troubleshooting.md#pacman-could-not-install-ansible).
+A distribution based on one of them takes its base's path: `pacman` on
+Manjaro, `apt-get` on Linux Mint.
+
+On a Mac the CLI installs nothing itself: the `mac-brew` or `mac-ports`
+package's bootstrap does, after you agree. See [what a machine
+needs](what-a-machine-needs.md).
