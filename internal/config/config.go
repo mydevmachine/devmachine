@@ -8,7 +8,7 @@
 // A machine is a server the CLI can reach. There can be several, and each has
 // its own addresses, admin login and key.
 //
-// A workspace is an environment: normally one Linux user on one machine. It is
+// A workspace is an environment: normally one user account on one machine. It is
 // what a person works in, and what they name in a command. Where it runs is a
 // property of the workspace, so `devmachine ssh alice` needs no address and no
 // machine: the mapping already says which server that is.
@@ -159,7 +159,7 @@ type ServedRoute struct {
 	Route     Route
 }
 
-// Workspace is an environment: one Linux user on one machine.
+// Workspace is an environment: one user account on one machine.
 type Workspace struct {
 	Name string `yaml:"name"`
 	// Machine names where this workspace lives. It may be left out when the

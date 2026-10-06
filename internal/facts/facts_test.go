@@ -9,6 +9,8 @@ import (
 	"slices"
 	"testing"
 	"time"
+
+	"github.com/mydevmachine/devmachine/internal/remote"
 )
 
 type fakeClient struct {
@@ -76,6 +78,35 @@ func TestObserveNamesDebianAndUbuntuTheWayAnsibleDoes(t *testing.T) {
 		if got.OSFamily != "Debian" || got.Distribution != distribution || got.DistributionVersion != "12" ||
 			got.PkgMgr != "apt" || got.ServiceMgr != "systemd" || got.AnsiblePlaybook != "" {
 			t.Fatalf("%s: %#v", id, got)
+		}
+	}
+}
+
+func TestObserveReadsADerivativeAsWhatItIsBasedOn(t *testing.T) {
+	for _, tc := range []struct{ release, family, distribution, pkgMgr string }{
+		{"os-release.ID=manjaro\nos-release.ID_LIKE=arch\n", "Archlinux", "manjaro", "pacman"},
+		{"os-release.ID=linuxmint\nos-release.ID_LIKE=\"ubuntu debian\"\n", "Debian", "linuxmint", "apt"},
+		{"os-release.ID=fedora\n", "", "fedora", ""},
+	} {
+		got, err := Observe(context.Background(), answering("kernel=Linux\nmachine=x86_64\nansible_playbook=\n"+tc.release), when)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got.OSFamily != tc.family || got.Distribution != tc.distribution || got.PkgMgr != tc.pkgMgr {
+			t.Fatalf("%q: %#v", tc.release, got)
+		}
+	}
+}
+
+func TestEveryDistributionTheCLISetsUpHasFacts(t *testing.T) {
+	for id := range linuxDistributions {
+		if !remote.SupportedLinux(id) {
+			t.Fatalf("%q has facts but the CLI does not set it up", id)
+		}
+	}
+	for _, id := range []string{"debian", "ubuntu", "arch", "archarm"} {
+		if _, ok := linuxDistributions[id]; !ok {
+			t.Fatalf("%q is set up but has no facts", id)
 		}
 	}
 }

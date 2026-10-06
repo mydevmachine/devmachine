@@ -450,6 +450,8 @@ func remoteChecks(ctx context.Context, client remote.Client, dir string, cfg con
 	system, err := remote.DetectSystem(ctx, client)
 	if err != nil {
 		out = append(out, Check{Name: CheckOperatingSystem, Status: StatusFail, Detail: err.Error()})
+	} else if system.Derivative() {
+		out = append(out, Check{Name: CheckOperatingSystem, Status: StatusWarn, Detail: system.Describe()})
 	} else {
 		out = append(out, Check{Name: CheckOperatingSystem, Status: StatusPass, Detail: system.String()})
 	}

@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"bufio"
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
@@ -455,6 +456,33 @@ func TestSetupDecliningTailscaleAddsNoPackage(t *testing.T) {
 	}
 	if slices.Contains(m.Packages, "tailscale") {
 		t.Fatal("declining tailscale still added the package")
+	}
+}
+
+func TestTailscaleIsNotOfferedToAMac(t *testing.T) {
+	dir := configWith(t, "machines:\n  - name: studio\n    hosts: [203.0.113.10]\n")
+	saveFacts(t, dir, "studio", observedMac)
+
+	out := &strings.Builder{}
+	if err := offerTailscale(bufio.NewReader(strings.NewReader("y\n")), out, dir, "studio"); err != nil {
+		t.Fatal(err)
+	}
+	if err := addTailscale(out, dir, "studio"); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := config.Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m, _ := cfg.Machine("studio"); slices.Contains(m.Packages, tailscalePackage) {
+		t.Fatalf("a Mac got the Linux-only tailscale package: %q", m.Packages)
+	}
+	if strings.Contains(out.String(), "Tailscale too") {
+		t.Fatalf("a Mac was asked about Tailscale: %q", out.String())
+	}
+	want := "the tailscale package runs only on Linux, and studio is a Mac, so it was not added.\n"
+	if out.String() != want {
+		t.Fatalf("got %q, want %q", out.String(), want)
 	}
 }
 
@@ -1266,5 +1294,23 @@ func TestSetupAgainRefusesAnUnknownSystemBeforeInstallingAnsible(t *testing.T) {
 	}
 	if steps.ansible || steps.checkedRoot {
 		t.Fatalf("it went on past the refusal: %q", steps.events)
+	}
+}
+
+func TestSetupSaysADerivativeIsNotTested(t *testing.T) {
+	t.Cleanup(swap(&detectSystem, func(context.Context, remote.Client) (remote.System, error) {
+		return remote.System{Kernel: "Linux", ID: "manjaro", Like: "arch"}, nil
+	}))
+	out := &strings.Builder{}
+	system, err := refuseUnknownSystem(context.Background(), nopClient{}, out, "127.0.0.1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if system.Base() != "arch" {
+		t.Fatalf("set up as %q", system.Base())
+	}
+	want := "127.0.0.1 runs manjaro, which is based on arch: it is set up the arch way, but devmachine is not tested on it.\n"
+	if out.String() != want {
+		t.Fatalf("got %q, want %q", out.String(), want)
 	}
 }

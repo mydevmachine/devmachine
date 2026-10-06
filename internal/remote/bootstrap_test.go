@@ -421,6 +421,8 @@ func TestInstallAnsiblePicksThePackageManagerFromOsRelease(t *testing.T) {
 		{"debian", "apt-get"},
 		{"arch", "pacman -S --noconfirm --needed ansible"},
 		{"archarm", "pacman -S --noconfirm --needed ansible"},
+		{"manjaro\nID_LIKE=arch", "pacman -S --noconfirm --needed ansible"},
+		{"linuxmint\nID_LIKE=\"ubuntu debian\"", "apt-get"},
 	} {
 		client := clientWithOsRelease("ID=" + c.id + "\n")
 		if err := InstallAnsible(context.Background(), client, io.Discard); err != nil {

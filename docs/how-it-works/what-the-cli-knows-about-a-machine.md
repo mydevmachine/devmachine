@@ -50,7 +50,10 @@ reader never sees half of it.
   which no `PATH` would find. On Linux and on your own computer it is
   `ansible-playbook` from `PATH`, as before.
 - An agent reads `observed` before it writes a `run` command, so it uses
-  `pacman` on Arch, `apt` on Debian and `port` on a Mac.
+  `pacman` on Arch, `apt` on Debian and Ubuntu, and `brew` or `port` on
+  a Mac. A distribution based on one of them, such as Manjaro, gets its
+  base's `os_family` and `pkg_mgr` and keeps its own name in
+  `distribution`.
 
 A command never fails because this file could not be written: it is a
 by-product of a read that already worked.

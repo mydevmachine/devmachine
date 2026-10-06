@@ -308,6 +308,28 @@ func TestArchPasses(t *testing.T) {
 	}
 }
 
+func TestADerivativeWarnsThatItIsNotTested(t *testing.T) {
+	client := fakeClient{out: map[string]string{
+		unameCommand:     "Linux\n",
+		osReleaseCommand: "NAME=\"Manjaro Linux\"\nID=manjaro\nID_LIKE=arch\n",
+		ansibleCommand:   "/usr/bin/ansible-playbook\n",
+	}}
+	dial := func(context.Context, config.Machine, string) (remote.Client, string, error) {
+		return client, "203.0.113.10", nil
+	}
+
+	checks := Run(context.Background(), configDir(t, "machines:\n  - name: main\n    hosts: [203.0.113.10]\n"), "", dial, nil)
+
+	got := find(t, checks, CheckOperatingSystem)
+	want := "manjaro, which is based on arch: it is set up the arch way, but devmachine is not tested on it"
+	if got.Status != StatusWarn || got.Detail != want {
+		t.Fatalf("operating system = %q (%s), want warn %q", got.Status, got.Detail, want)
+	}
+	if got := find(t, checks, CheckAnsible); got.Status != StatusPass {
+		t.Fatalf("ansible = %q, want pass", got.Status)
+	}
+}
+
 func TestASystemThatIsNotLinuxFailsAndSaysWhichItIs(t *testing.T) {
 	client := fakeClient{out: map[string]string{
 		unameCommand:   "FreeBSD\n",

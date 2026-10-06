@@ -33,7 +33,8 @@ The CLI needs only `ssh` beside it. Ansible never runs on your computer.
 | macOS | 15 on Intel, 27 on Apple Silicon | The `mac-brew` or `mac-ports` package installs the Command Line Tools, Homebrew or MacPorts, then Ansible, after you agree. Older macOS versions are not tested; on a Mac that cannot update past them, MacPorts supports older releases than Homebrew does. |
 
 `setup`, `machines add` and `doctor` ask the machine what it runs before
-they change anything, and stop on a system that is not in this list. See
+they change anything, and stop on a system that is not in this list or
+[based on one in it](#based-on-debian-ubuntu-or-arch-accepted-not-tested). See
 [it checks what the machine runs
 first](how-it-works/trust-bootstrap.md#it-checks-what-the-machine-runs-first).
 
@@ -90,16 +91,36 @@ or later where it runs. You never install it yourself:
   The Python that comes with macOS (3.9) is too old, and devmachine never
   uses it to run Ansible.
 
+## Based on Debian, Ubuntu or Arch: accepted, not tested
+
+A distribution based on one of the systems above — Manjaro, EndeavourOS,
+CachyOS, Linux Mint, Pop!_OS and the like — is accepted, and nobody has
+tested it. When `ID` in `/etc/os-release` is not in the table, the CLI
+reads `ID_LIKE`, the list of systems the distribution says it is based
+on, closest first. The first one in the table decides: `arch` sets it
+up with pacman, `ubuntu` or `debian` with apt. `setup` says so:
+
+```
+203.0.113.10 runs manjaro, which is based on arch: it is set up the arch way, but devmachine is not tested on it.
+```
+
+`doctor` shows the same sentence as a warning on its `operating system`
+check. The packages then follow what Ansible itself reads on the
+machine. A derivative that renames or leaves out a package its base has
+can still make a package fail where it works on the base.
+
+Raspberry Pi OS calls itself `debian`, so it is set up as Debian, with
+no warning.
+
 ## Not supported yet
 
 Fedora, Rocky Linux, AlmaLinux, CentOS Stream, Amazon Linux, openSUSE,
-Alpine, FreeBSD and any other system are not supported yet. A
-distribution based on Debian or Arch is not accepted either: `setup`
-reads `ID` in `/etc/os-release`, not the family, because a derivative
-may not have the same packages. It stops before the first change with:
+Alpine, FreeBSD and any other system that is not, and is not based on,
+one in the table are not supported yet. `setup` stops before the first
+change with:
 
 ```
-this CLI does not set up "fedora" yet: it supports debian, ubuntu and arch
+this CLI does not set up "fedora" yet: it supports debian, ubuntu and arch, and systems based on them
 ```
 
 ## Guides

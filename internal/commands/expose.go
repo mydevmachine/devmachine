@@ -1035,8 +1035,8 @@ func newExposeRmCmd(opts *options) *cobra.Command {
 				}
 				return fmt.Errorf("%w; a site the old `expose` wrote is a file on the machine, not a line here: "+
 					"adopt it with `devmachine expose add <workspace> <port> --host %s`, or remove it there with "+
-					"`devmachine run 'rm %s && systemctl reload caddy'`",
-					err, host, where)
+					"`%s`",
+					err, host, removeOldSiteCommand(where))
 			}
 			record(opts, target{machine: tgt.machine, workspace: owner}, "expose rm "+host, true)
 			repo.AutoCommit(cmd.Context(), dir, fmt.Sprintf("chore(config): stop exposing %s", host))

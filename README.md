@@ -53,8 +53,9 @@ devmachine workspaces new acme && devmachine sync    # add a workspace and build
 devmachine ssh acme                                  # step in
 ```
 
-You need a machine running Debian, Ubuntu, Arch Linux or macOS that you
-reach over SSH as root, or as an admin login with passwordless sudo. A Mac
+You need a machine running Debian, Ubuntu, Arch Linux or macOS (a
+distribution based on one, such as Manjaro or Linux Mint, is accepted but not
+tested) that you reach over SSH as root, or as an admin login with passwordless sudo. A Mac
 needs Remote Login on and an admin login (root cannot log in there); `setup`
 asks whether to use Homebrew or MacPorts and installs nothing until you say
 yes. No server yet? `devmachine machines create-local dev` makes a virtual machine

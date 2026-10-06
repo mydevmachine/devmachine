@@ -734,6 +734,14 @@ func TestGenerateReadsEachWorkspaceAccountBeforeItsSkills(t *testing.T) {
 	}
 }
 
+func TestAWorkspaceHomeNotReadYetIsWhereTheSystemPutsHomes(t *testing.T) {
+	got := workspaceHome("accounts")
+	want := "default(('/Users/' if ansible_facts['system'] == 'Darwin' else '/home/') ~ devmachine_workspace.user)"
+	if !strings.Contains(got, want) {
+		t.Fatalf("got %s", got)
+	}
+}
+
 func TestGenerateLinksSkillsForAntigravityAndCline(t *testing.T) {
 	plan := planWith(t, "main", nil, map[string][]string{
 		"alice": {"antigravity", "global-skills"},

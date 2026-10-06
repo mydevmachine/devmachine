@@ -19,19 +19,37 @@ The first thing `setup` does on a connection is ask the machine what it
 is: `uname -s` for the kernel, then `ID` in `/etc/os-release` on Linux,
 or `sw_vers -productVersion` on a Mac. It sets up `debian`, `ubuntu` and
 `arch` (and `archarm`, Arch on ARM), and macOS.
+
+When `ID` is none of those, it reads `ID_LIKE`, the systems the
+distribution says it is based on, closest first. If one of them is in
+the list, the machine is set up as that one, and `setup` says nobody
+tested it:
+
+```
+203.0.113.10 runs manjaro, which is based on arch: it is set up the arch way, but devmachine is not tested on it.
+```
+
+Why accept a derivative: Manjaro, EndeavourOS and CachyOS keep Arch's
+pacman and package names, and Linux Mint and Pop!_OS keep Ubuntu's apt.
+Refusing them stopped people whose machine would have worked. The
+sentence is there because it is a guess the CLI has not checked: a
+derivative can still rename or leave out a package its base has.
+
 Anything else stops the run **before the first change** — before the key
 is installed, on a server you reached with a password:
 
 ```
-this CLI does not set up "fedora" yet: it supports debian, ubuntu and arch
+this CLI does not set up "fedora" yet: it supports debian, ubuntu and arch, and systems based on them
 "FreeBSD" is not a system this CLI sets up: it supports Linux (debian, ubuntu, arch) and macOS
 ```
 
 Why refuse instead of trying: every step after this one is written for a
-system it has been run on. A guess gets you halfway through a first run —
-a key installed, password login off — and then leaves you on a machine
-that cannot install Ansible. Stopping early leaves the server as you
-bought it. `doctor` makes the same check and accepts the same list.
+system it has been run on, or for one based on it. A guess gets you
+halfway through a first run — a key installed, password login off — and
+then leaves you on a machine that cannot install Ansible. Stopping early
+leaves the server as you bought it. `doctor` makes the same check and
+accepts the same list; on a derivative its `operating system` check is a
+warning, not a pass.
 
 ## The proof is a new connection
 
@@ -207,7 +225,7 @@ want your own terminal and agent.
 
 ## After this step
 
-`setup` installs `ansible` and `git` — the last thing done by hand. From
+`setup` installs `ansible` — the last thing done by hand. From
 then on, every change goes through `devmachine sync`. It installs
 `ansible` rather than `ansible-core`, since the smaller package leaves
 out a piece the `firewall` package needs.
@@ -221,3 +239,9 @@ have. A full `pacman -Syu` upgrades everything, and that is your call, not
 a side effect of `setup`. On an Arch server whose lists are too old for
 the mirrors, `setup` stops and says so — see
 [troubleshooting](../troubleshooting.md#pacman-could-not-install-ansible).
+A distribution based on one of them takes its base's path: `pacman` on
+Manjaro, `apt-get` on Linux Mint.
+
+On a Mac the CLI installs nothing itself: the `mac-brew` or `mac-ports`
+package's bootstrap does, after you agree. See [what a machine
+needs](what-a-machine-needs.md).

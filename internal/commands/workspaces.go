@@ -954,6 +954,13 @@ func reloadCaddyScript() string {
 		" --adapter caddyfile 2>/dev/null || true)"
 }
 
+// removeOldSiteCommand is what a person runs to remove a site file by hand,
+// reloading Caddy the way reloadCaddyScript does.
+func removeOldSiteCommand(file string) string {
+	return "devmachine run 'rm " + file + " && (systemctl reload caddy || caddy reload --config " +
+		expose.Caddyfile + " --adapter caddyfile)'"
+}
+
 // deleteAccountScript deletes an account, its home and its processes on a
 // machine running system, as facts name it.
 func deleteAccountScript(user, system string) string {

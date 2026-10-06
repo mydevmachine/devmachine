@@ -81,7 +81,12 @@
         set -eu
         user={{ devmachine_shared.user | quote }}
         rel={{ devmachine_shared.path | quote }}
-        runuser -u "$user" -- /bin/sh -c '
+        if command -v runuser >/dev/null 2>&1; then
+          set -- runuser -u "$user" --
+        else
+          set -- sudo -n -u "$user" --
+        fi
+        "$@" /bin/sh -c '
         set -eu
         umask 077
         rel=$1

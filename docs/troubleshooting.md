@@ -173,20 +173,35 @@ tells you the truth about everything else without it.
 ## "this CLI does not set up "…" yet"
 
 ```
-this CLI does not set up "fedora" yet: it supports debian, ubuntu and arch
+this CLI does not set up "fedora" yet: it supports debian, ubuntu and arch, and systems based on them
 ```
 
-**What it means:** The machine runs Linux, and `ID` in its
-`/etc/os-release` names a distribution this CLI has not been run on.
+**What it means:** The machine runs Linux, and neither `ID` nor
+`ID_LIKE` in its `/etc/os-release` names Debian, Ubuntu or Arch Linux.
 `setup` and `machines add` stop before changing anything: no key was
 installed, password login is as it was, nothing was written to
 `config.yml`. `doctor` reports the same thing as a failed `operating
-system` check. A family name such as "like debian" does not count: a
-derivative may not have the packages Debian has.
+system` check.
 
 **What to do:** Use a machine with Debian, Ubuntu or Arch Linux — most
 providers offer all three. Installing Ansible by hand does not get past
 the check: the packages that `sync` applies are written for those three.
+
+## "… which is based on …: … devmachine is not tested on it"
+
+```
+203.0.113.10 runs manjaro, which is based on arch: it is set up the arch way, but devmachine is not tested on it.
+```
+
+**What it means:** Not an error. `ID` in `/etc/os-release` is not one
+the CLI knows, but `ID_LIKE` says the system is based on one it does.
+`setup` goes on, and installs Ansible and runs the packages as it would
+on that base. `doctor` shows the same sentence as a warning.
+
+**What to do:** Nothing, while it works. If a package fails on the
+derivative and not on the base, the derivative has renamed or left out
+something the base has: see [based on Debian, Ubuntu or
+Arch](supported-systems.md#based-on-debian-ubuntu-or-arch-accepted-not-tested).
 
 ## "… is not a system this CLI sets up"
 

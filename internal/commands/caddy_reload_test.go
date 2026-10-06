@@ -22,6 +22,15 @@ func TestReloadCaddyFallsBackToCaddyItself(t *testing.T) {
 	}
 }
 
+func TestTheHandRemovalOfAnOldSiteReloadsCaddyOnAMacToo(t *testing.T) {
+	got := removeOldSiteCommand("/etc/caddy/sites.d/app.example.com.caddy")
+	want := "devmachine run 'rm /etc/caddy/sites.d/app.example.com.caddy && " +
+		"(systemctl reload caddy || caddy reload --config " + expose.Caddyfile + " --adapter caddyfile)'"
+	if got != want {
+		t.Fatalf("got  %s\nwant %s", got, want)
+	}
+}
+
 func TestDestroyNamesTheHomeTheMachineHas(t *testing.T) {
 	if got := homeOf("alice", "Darwin"); got != "/Users/alice" {
 		t.Fatalf("a Mac got %q", got)

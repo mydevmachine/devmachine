@@ -298,18 +298,25 @@ func passwordLoginOff(effective string) bool {
 // OSReleaseCommand reads the file that says which distribution a machine is.
 const OSReleaseCommand = "cat /etc/os-release"
 
-// OSReleaseID reads ID from an os-release file. ID_LIKE is deliberately not
-// consulted: "like debian" is a family, not a promise that a package of the
-// same name exists.
+// OSReleaseID reads ID from an os-release file.
 func OSReleaseID(body string) string {
+	if id := osReleaseValue(body, "ID"); id != "" {
+		return id
+	}
+	return "unknown"
+}
+
+// osReleaseValue reads one key from an os-release file, without the quotes
+// the format allows around a value.
+func osReleaseValue(body, key string) string {
 	for _, line := range strings.Split(body, "\n") {
-		value, ok := strings.CutPrefix(strings.TrimSpace(line), "ID=")
+		value, ok := strings.CutPrefix(strings.TrimSpace(line), key+"=")
 		if !ok {
 			continue
 		}
-		return strings.Trim(strings.TrimSpace(value), `"`)
+		return strings.Trim(strings.TrimSpace(value), `"'`)
 	}
-	return "unknown"
+	return ""
 }
 
 // aptInstallAnsible installs Ansible on a Debian or an Ubuntu.
@@ -361,7 +368,8 @@ fi
 // pacman and the same package as arch.
 //
 // It is also the list of distributions this CLI supports: SupportedLinux reads
-// it, and so does doctor.
+// it, and so does doctor. A derivative whose ID_LIKE names one of them is set
+// up through that entry, and is told nobody tested it (see LinuxBase).
 var ansibleInstall = map[string]string{
 	"debian":  aptInstallAnsible,
 	"ubuntu":  aptInstallAnsible,
@@ -384,7 +392,7 @@ func InstallAnsible(ctx context.Context, c Client, out io.Writer) error {
 	if system.MacOS() {
 		return fmt.Errorf("%s gets Ansible from its package manager package's bootstrap, not from this CLI", system)
 	}
-	script, ok := ansibleInstall[system.ID]
+	script, ok := ansibleInstall[system.Base()]
 	if !ok {
 		return fmt.Errorf("this CLI does not install Ansible on %s", system)
 	}
