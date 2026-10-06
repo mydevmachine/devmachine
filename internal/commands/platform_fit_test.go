@@ -208,3 +208,18 @@ func TestWorkspacesEditRefusesToAddAPackageForAnotherSystem(t *testing.T) {
 		t.Fatalf("got %v, want %q", err, want)
 	}
 }
+
+func TestPackagesAddOfAPackageAlreadyThereSaysSoEvenForAnotherSystem(t *testing.T) {
+	dir := configWith(t, "machines:\n  - name: main\n    hosts: [203.0.113.10]\n    packages: [docker]\n")
+	writeLocalPackage(t, dir, "docker", packages.ScopeMachine)
+	onlyOn(t, dir, "docker", "[linux]")
+	saveFacts(t, dir, "main", observedMac)
+
+	out, err := execute(t, "--config", dir, "packages", "add", "docker", "--machine", "main", "--yes")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "docker is already on machine main") {
+		t.Fatalf("got %q", out)
+	}
+}

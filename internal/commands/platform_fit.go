@@ -76,7 +76,8 @@ func blockingPackage(store *packages.Store, name, platform string, seen map[stri
 func fitNewWorkspace(out func(format string, a ...any), dir string, cfg config.Config, machine config.Machine,
 	name string, list []string, typed bool) ([]string, error) {
 	platform := knownPlatform(dir, machine)
-	foreign := foreignPackages(dir, cfg.Packages, list, platform)
+	foreign := slices.DeleteFunc(foreignPackages(dir, cfg.Packages, list, platform),
+		func(f foreignPackage) bool { return f.name == packages.AccountPackage })
 	if len(foreign) == 0 {
 		return list, nil
 	}
@@ -87,9 +88,6 @@ func fitNewWorkspace(out func(format string, a ...any), dir string, cfg config.C
 	}
 	kept := slices.Clone(list)
 	for _, f := range foreign {
-		if f.name == packages.AccountPackage {
-			continue
-		}
 		kept = slices.DeleteFunc(kept, func(n string) bool { return n == f.name })
 		out("%s %s and %s is %s, so %s starts without it.\n", f.name, f.clause(), machine.Name, platform, name)
 	}

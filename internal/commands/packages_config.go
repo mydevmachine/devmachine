@@ -146,12 +146,6 @@ func editPackage(cmd *cobra.Command, opts *options, name, workspace string, add,
 		}
 	}
 
-	if add {
-		if err := refuseForeignAdd(dir, cfg, target, name); err != nil {
-			return err
-		}
-	}
-
 	current, write := listFor(&cfg, target)
 	held := slices.Contains(current, name)
 	if add == held {
@@ -160,6 +154,12 @@ func editPackage(cmd *cobra.Command, opts *options, name, workspace string, add,
 			word = "is not on"
 		}
 		return reportEdit(cmd, opts, name, target, false, fmt.Sprintf("%s %s %s", name, word, target.label()))
+	}
+
+	if add {
+		if err := refuseForeignAdd(dir, cfg, target, name); err != nil {
+			return err
+		}
 	}
 
 	wanted := slices.Clone(current)
