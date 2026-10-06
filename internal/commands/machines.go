@@ -14,6 +14,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/mydevmachine/devmachine/internal/config"
+	"github.com/mydevmachine/devmachine/internal/facts"
 	"github.com/mydevmachine/devmachine/internal/hostkeys"
 	"github.com/mydevmachine/devmachine/internal/local"
 	"github.com/mydevmachine/devmachine/internal/repo"
@@ -387,6 +388,9 @@ func newMachinesRmCmd(opts *options) *cobra.Command {
 				}
 			}
 			if err := config.RemoveMachine(dir, args[0]); err != nil {
+				return err
+			}
+			if err := facts.Remove(dir, args[0]); err != nil {
 				return err
 			}
 			repo.AutoCommit(cmd.Context(), dir, "chore(config): remove machine "+args[0])

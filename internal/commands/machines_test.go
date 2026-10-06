@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/mydevmachine/devmachine/internal/config"
+	"github.com/mydevmachine/devmachine/internal/facts"
 	"github.com/mydevmachine/devmachine/internal/hostkeys"
 	"github.com/mydevmachine/devmachine/internal/keys"
 )
@@ -195,6 +196,27 @@ func TestMachinesRmForgetsTheMachineAndSaysTheServerIsUntouched(t *testing.T) {
 	cfg, _ := config.Load(dir)
 	if len(cfg.Machines) != 1 || cfg.Machines[0].Name != "main" {
 		t.Fatalf("machines = %#v", cfg.Machines)
+	}
+}
+
+func TestMachinesRmForgetsWhatTheCLIObservedAboutTheMachine(t *testing.T) {
+	dir := writeConfigDir(t, `machines:
+  - name: main
+    hosts: [203.0.113.10]
+  - name: sandbox
+    hosts: [198.51.100.7]
+`)
+	saveFacts(t, dir, "sandbox", observedMac)
+	saveFacts(t, dir, "main", observedMac)
+
+	if out, err := executeWithInput(t, "", "--config", dir, "machines", "rm", "--yes", "sandbox"); err != nil {
+		t.Fatalf("machines rm returned %v (%s)", err, out)
+	}
+	if _, err := os.Stat(facts.Path(dir, "sandbox")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("the facts of sandbox are still there: %v", err)
+	}
+	if _, err := os.Stat(facts.Path(dir, "main")); err != nil {
+		t.Fatalf("the facts of main went too: %v", err)
 	}
 }
 

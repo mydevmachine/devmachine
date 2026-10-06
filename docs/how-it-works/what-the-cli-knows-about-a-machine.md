@@ -6,7 +6,9 @@ Mac, where `ansible-playbook` is — in one extra command, and keep the
 answer in `<config>/state/machines/<name>.json`.
 `devmachine machines show <name>` prints it without connecting, and
 `devmachine --format json machines show <name>` gives it to a script or an
-agent under `observed`.
+agent under `observed`. `devmachine machines rm <name>` deletes the file
+with the machine, so a new machine that reuses the name does not inherit
+what the old one ran.
 
 ## Why it is not in `config.yml`
 

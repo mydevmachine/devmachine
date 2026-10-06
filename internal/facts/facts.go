@@ -97,6 +97,15 @@ func Load(dir, machine string) (Facts, bool, error) {
 	return f, true, nil
 }
 
+// Remove forgets what was observed about a machine. Nothing to forget is not
+// an error.
+func Remove(dir, machine string) error {
+	if err := os.Remove(Path(dir, machine)); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("removing the facts of %s: %w", machine, err)
+	}
+	return nil
+}
+
 // Save writes a machine's facts, and reports whether it wrote. The macOS app
 // watches the configuration directory and reloads on every change, so an
 // unchanged observation is not written and the file never appears half-written.

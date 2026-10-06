@@ -236,3 +236,19 @@ func TestRecordForgetsAnAnsibleThatWentAwayOnLinux(t *testing.T) {
 		t.Fatalf("%#v", got)
 	}
 }
+
+func TestRemoveDeletesTheFactsAndToleratesNone(t *testing.T) {
+	dir := t.TempDir()
+	if err := Remove(dir, "main"); err != nil {
+		t.Fatalf("nothing to remove gave %v", err)
+	}
+	if _, err := Save(dir, "main", Facts{System: "Linux"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := Remove(dir, "main"); err != nil {
+		t.Fatal(err)
+	}
+	if _, found, err := Load(dir, "main"); err != nil || found {
+		t.Fatalf("found %v, err %v", found, err)
+	}
+}

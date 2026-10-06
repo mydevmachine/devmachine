@@ -487,7 +487,8 @@ for a key type with no standard file).
 
 `rm` takes a machine out of `config.yml` and **does nothing to the server
 itself**. Asks first unless `--yes`; refuses to leave a workspace
-pointing at a gone machine. **Not `delete-local`**: `rm` only forgets a
+pointing at a gone machine. It also deletes what the CLI last read from
+the machine (`state/machines/<name>.json`). **Not `delete-local`**: `rm` only forgets a
 server, `delete-local` erases a machine on your computer.
 
 `create-local` builds a machine on your computer, arriving password-only
