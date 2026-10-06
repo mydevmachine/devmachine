@@ -1153,9 +1153,10 @@ edited here, so `rm` never needs to reach the machine.
 
 A sourceable file inside every workspace, `KEY='value'` per line,
 0600, owned by the workspace's own account. It holds every workspace
-secret delivered with no `--env-file`. A workspace's shell is expected
-to source it on login — the `zsh` package does — so `export`ing
-anything more is never necessary.
+secret delivered with no `--env-file`. The `workspace` package makes
+every shell source it on login (zsh, bash and sh, through
+`~/.devmachine/shellenv`), so `export`ing anything more is never
+necessary.
 
 ## login
 

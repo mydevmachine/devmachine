@@ -61,6 +61,13 @@ list in the group `com.apple.access_ssh`, and `sync` adds each workspace
 account to it, so you can log in to the workspace. See [Remote Login set
 to "Only these users"](how-it-works/what-a-machine-needs.md#remote-login-set-to-only-these-users).
 
+A workspace works with any login shell: zsh, bash or plain sh. From
+packages v37 on, the `workspace` package keeps the tools on `PATH`, `mise`
+and the workspace's secrets in `~/.devmachine/shellenv`, and makes every
+shell read it. The `zsh` package adds the tmux session on login. One limit
+on a Mac: its bash 3.2 reads no startup file for a command piped into
+`ssh -T` or run with `su - <user> -c`, so those see a bare environment.
+
 ## What a machine needs first
 
 - SSH you can reach. On a Mac: System Settings > General > Sharing >

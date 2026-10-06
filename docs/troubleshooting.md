@@ -693,8 +693,9 @@ home is followed as usual.
 file for you — that is the shell's job, not the CLI's.
 
 **What to do:** For the default `~/.devmachine/env`, check the workspace's
-shell actually sources it (the `zsh` package does, once installed and
-synced). For `--env-file`, check the app reads that exact file and reloads
+shell actually sources it: the `workspace` package loads it through
+`~/.devmachine/shellenv`, which zsh, bash and sh all read, from packages v37
+on. Run `devmachine sync` if the machine is on an older packages release. For `--env-file`, check the app reads that exact file and reloads
 its process after the value changes — this only writes the file, it does
 not restart anything running.
 
