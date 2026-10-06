@@ -211,6 +211,124 @@ func TestFetchSaysWhatTheServerAnswered(t *testing.T) {
 	}
 }
 
+func TestFetchKeepsAReleaseAnotherProcessFinishedWhileItDownloaded(t *testing.T) {
+	tarball := tarballWith(t, map[string]string{"packages/git/package.yml": "format: 1\nname: git\n"})
+	sum := fmt.Sprintf("%x", sha256.Sum256(tarball))
+	cache := t.TempDir()
+	dir := CacheDir(cache, "v1")
+	inUse := filepath.Join(dir, "packages", "git", "in-use")
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, ".tar.gz") {
+			if err := writeFinishedRelease(dir, sum, inUse); err != nil {
+				t.Error(err)
+			}
+			_, _ = w.Write(tarball)
+			return
+		}
+		fmt.Fprintf(w, "%s  packages-v1.tar.gz\n", sum)
+	}))
+	defer srv.Close()
+	defer stubReleaseURL(srv.URL)()
+
+	got, gotSum, err := Fetch(context.Background(), cache, "v1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != filepath.Join(dir, "packages") || gotSum != sum {
+		t.Fatalf("Fetch = %q, %q; want the finished release", got, gotSum)
+	}
+	if _, err := os.Stat(inUse); err != nil {
+		t.Fatalf("the release another process finished was replaced under it: %v", err)
+	}
+	assertOnlyRelease(t, cache, "v1")
+}
+
+func TestFetchConcurrentlyNeverHidesTheRelease(t *testing.T) {
+	tarball := tarballWith(t, map[string]string{
+		"packages/git/package.yml":    "format: 1\nname: git\n",
+		"packages/skills/package.yml": "format: 1\nname: skills\n",
+	})
+	srv := serveRelease(t, tarball, fmt.Sprintf("%x", sha256.Sum256(tarball)))
+	defer srv.Close()
+	defer stubReleaseURL(srv.URL)()
+
+	cache := t.TempDir()
+	const fetchers = 8
+	errs := make(chan error, fetchers)
+	for range fetchers {
+		go func() {
+			dir, _, err := Fetch(context.Background(), cache, "v1")
+			if err != nil {
+				errs <- err
+				return
+			}
+			for range 50 {
+				if _, err := os.Stat(filepath.Join(dir, "skills", "package.yml")); err != nil {
+					errs <- fmt.Errorf("the release went missing after Fetch returned: %w", err)
+					return
+				}
+			}
+			errs <- nil
+		}()
+	}
+	for range fetchers {
+		if err := <-errs; err != nil {
+			t.Error(err)
+		}
+	}
+	assertOnlyRelease(t, cache, "v1")
+}
+
+func TestFetchReplacesACacheDirectoryWithNoChecksum(t *testing.T) {
+	tarball := tarballWith(t, map[string]string{"packages/git/package.yml": "format: 1\nname: git\n"})
+	srv := serveRelease(t, tarball, fmt.Sprintf("%x", sha256.Sum256(tarball)))
+	defer srv.Close()
+	defer stubReleaseURL(srv.URL)()
+
+	cache := t.TempDir()
+	write(t, filepath.Join(CacheDir(cache, "v1"), "packages", "stale", "package.yml"), "format: 1\nname: stale\n")
+
+	dir, _, err := Fetch(context.Background(), cache, "v1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "git", "package.yml")); err != nil {
+		t.Fatalf("the release was not extracted: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "stale")); !os.IsNotExist(err) {
+		t.Fatalf("an unverified directory survived: %v", err)
+	}
+	assertOnlyRelease(t, cache, "v1")
+}
+
+func writeFinishedRelease(dir, sum string, files ...string) error {
+	for _, path := range append(files, filepath.Join(dir, checksumFile)) {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			return err
+		}
+		if err := os.WriteFile(path, []byte(sum+"\n"), 0o644); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func assertOnlyRelease(t *testing.T, cache, version string) {
+	t.Helper()
+	entries, err := os.ReadDir(filepath.Dir(CacheDir(cache, version)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for _, entry := range entries {
+		names = append(names, entry.Name())
+	}
+	if !slices.Equal(names, []string{version}) {
+		t.Fatalf("the cache holds %v, want only %s", names, version)
+	}
+}
+
 func TestCacheDirIsUnderTheConfigurationDirectory(t *testing.T) {
 	got := CacheDir("/tmp/conf", "v1")
 	if got != filepath.Join("/tmp/conf", "cache", "packages", "v1") {
