@@ -120,6 +120,28 @@ func TestWorkspacesDestroyOnAMacDeletesTheAccountWithSysadminctl(t *testing.T) {
 	}
 }
 
+func TestWorkspacesDestroyOnAMacTakesTheAccountOutOfTheRemoteLoginGroupFirst(t *testing.T) {
+	client := &destroyClient{userExists: true}
+	dialDestroy(t, client)
+	dir := configWithKey(t, "workspaces:\n  - name: alice\n    machine: main\n")
+	saveFacts(t, dir, "main", observedMac)
+
+	if out, err := execute(t, "--config", dir, "workspaces", "destroy", "alice", "--confirm", "alice"); err != nil {
+		t.Fatalf("got %v (%s)", err, out)
+	}
+	remove := "dseditgroup -o edit -d 'alice' -t user com.apple.access_ssh"
+	removeAt := strings.Index(client.lastScript, remove)
+	if removeAt < 0 {
+		t.Fatalf("script does not take alice out of com.apple.access_ssh: %s", client.lastScript)
+	}
+	if removeAt > strings.Index(client.lastScript, "sysadminctl -deleteUser") {
+		t.Fatalf("the group edit must come before the account is deleted: %s", client.lastScript)
+	}
+	if !strings.Contains(client.lastScript, "dscl . -read /Groups/com.apple.access_ssh") {
+		t.Fatalf("the group edit must be skipped when the group does not exist: %s", client.lastScript)
+	}
+}
+
 func TestWorkspacesDestroyListsEachRouteBeforeAsking(t *testing.T) {
 	client := &destroyClient{userExists: true}
 	dialDestroy(t, client)

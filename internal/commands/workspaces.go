@@ -954,12 +954,19 @@ func reloadCaddyScript() string {
 		" --adapter caddyfile 2>/dev/null || true)"
 }
 
+// remoteLoginGroup is the group macOS limits SSH to when Remote Login allows
+// only some users.
+const remoteLoginGroup = "com.apple.access_ssh"
+
 // deleteAccountScript deletes an account, its home and its processes on a
 // machine running system, as facts name it.
 func deleteAccountScript(user, system string) string {
 	quotedUser := quoteForShell(user)
 	if system == "Darwin" {
 		return "  pkill -KILL -u " + quotedUser + " 2>/dev/null || true\n" +
+			"  if dscl . -read /Groups/" + remoteLoginGroup + " >/dev/null 2>&1; then\n" +
+			"    dseditgroup -o edit -d " + quotedUser + " -t user " + remoteLoginGroup + " 2>/dev/null || true\n" +
+			"  fi\n" +
 			"  sysadminctl -deleteUser " + quotedUser + "\n"
 	}
 	// claude-remote-control enables linger for the account, keeping a
