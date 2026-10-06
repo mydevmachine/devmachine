@@ -106,7 +106,7 @@ func TestSharedCopyLandsInsideTheHomeReadableByTheAccountAlone(t *testing.T) {
 func TestSharedCopyRunsAsTheAccountThroughSudoWhereThereIsNoRunuser(t *testing.T) {
 	r := newShareRun(t)
 	log := filepath.Join(t.TempDir(), "sudo.log")
-	sudo := "#!/bin/sh\necho \"$@\" > " + log + "\nshift 4\nexec \"$@\"\n"
+	sudo := "#!/bin/sh\nprintf '%s ' \"$@\" > " + log + "\nshift 4\nexec \"$@\"\n"
 
 	if _, err := r.runWith(t, map[string]string{"sudo": sudo}, "/usr/bin:/bin"); err != nil {
 		t.Fatal(err)
