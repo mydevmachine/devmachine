@@ -1,0 +1,49 @@
+docs/index.md
+  s_f189ebb9e4f6eb::t_4613a585bdc3b2 39-42,44,62-63
+docs/guides/one-consultant-three-startups.md
+  s_f189ebb9e4f6eb::t_90d34e08be2a2a 66-68
+docs/guides/claude-channels.md
+  s_f189ebb9e4f6eb::t_90d34e08be2a2a 1-280
+docs/guides/nextjs-site-with-tls.md
+  s_f189ebb9e4f6eb::t_90d34e08be2a2a 1-215
+docs/guides/images/claude-channels.svg
+  s_f189ebb9e4f6eb::t_90d34e08be2a2a 1-153
+docs/guides/index.md
+  s_f189ebb9e4f6eb::t_90d34e08be2a2a 59-63,71-79,83-85
+docs/guides/langchain-agent-with-openai.md
+  s_f189ebb9e4f6eb::t_90d34e08be2a2a 1-204
+docs/guides/docker-site-on-8080.md
+  s_f189ebb9e4f6eb::t_90d34e08be2a2a 56
+docs/guides/share-a-local-app-with-friends.md
+  s_f189ebb9e4f6eb::t_90d34e08be2a2a 1-162
+docs/guides/agno-agentos-with-control-plane.md
+  s_f189ebb9e4f6eb::t_90d34e08be2a2a 46
+docs/guides/librechat.md
+  s_f189ebb9e4f6eb::t_90d34e08be2a2a 1-264
+docs/guides/wuzapi-as-your-own-package.md
+  s_f189ebb9e4f6eb::t_90d34e08be2a2a 147,173
+docs/guides/open-webui.md
+  s_f189ebb9e4f6eb::t_90d34e08be2a2a 1-210
+docs/development.md
+  s_f189ebb9e4f6eb::t_90d34e08be2a2a 167-172
+docs/guides/fastapi-with-tls.md
+  s_f189ebb9e4f6eb::t_90d34e08be2a2a 1-202
+docs/troubleshooting.md
+  s_f189ebb9e4f6eb::t_bbb437853c5cdd 627-638,781-792,912-925,936-951,963-966,968,1100-1142
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5a4a9968a7e6344c118eb9c60fa141d5fc6c9123",
+  "prompts": {},
+  "sessions": {
+    "s_f189ebb9e4f6eb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "843dabc7-924b-4359-8709-5440a1a8fe93",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
