@@ -27,8 +27,8 @@
 </p>
 
 devmachine turns a Debian, Ubuntu, Arch Linux or macOS machine into your own coding machine,
-with one workspace per project. A VPS you rent, an old laptop, or a virtual
-machine on your Mac: devmachine sets it up and locks it down. Each project
+with one workspace per project. A VPS you rent, an old laptop or Mac, or a
+virtual machine on your Mac: devmachine sets it up and locks it down. Each project
 gets an isolated workspace with its own tech stack, logins and AI
 subscription. Work from your terminal, a tablet over SSH, Claude Code on your
 phone, or the Mac app.
