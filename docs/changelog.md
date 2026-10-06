@@ -8,6 +8,25 @@ page](https://github.com/mydevmachine/devmachine/releases).
 
 To get the latest version, see [Upgrade](upgrade.md).
 
+## v0.8.1 — 2026-10-06
+
+### Added
+
+- A distribution based on Debian, Ubuntu or Arch Linux is set up the way
+  its base is: Linux Mint and Pop!_OS like Ubuntu, Manjaro, EndeavourOS and
+  CachyOS like Arch. `setup` says it is not tested, and `doctor` shows it as
+  a warning. Fedora, Rocky Linux, openSUSE and Alpine are still refused.
+- The [Supported systems](supported-systems.md) page lists every system a
+  machine can run and what works on each.
+
+### Fixed
+
+- Sharing a login into a workspace works on a Mac, which has no `runuser`.
+- `stats` reads a Mac machine instead of failing.
+- `setup` and `machines add --tailscale` no longer give a Mac the Linux-only
+  `tailscale` package.
+- The hint to remove an old site by hand reloads Caddy on a Mac too.
+
 ## v0.8.0 — 2026-10-06
 
 ### Added
