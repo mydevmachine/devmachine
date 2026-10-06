@@ -410,7 +410,7 @@ one the way `setup` does — see [setup without a terminal](#setup):
 | `--user` | `root` | the admin login: root, or an account with passwordless sudo |
 | `--port` | `22` | the SSH port |
 | `--key` | `new` | a key of the CLI's own for this machine (made, or reused when it exists), a private key file, or `agent:<SHA256:…>` for a key your SSH agent holds |
-| `--fingerprint` | — | the host key to trust on first contact |
+| `--fingerprint` | — | the host key to trust on first contact, of any of its types (ED25519, ECDSA, RSA) |
 | `--tailscale` | off | also add the `tailscale` package |
 | `--domain` | — | the domain; only when there is no `config.yml` yet, and refused otherwise |
 | `--password-stdin` | off | read the admin password from stdin, for a server that takes nothing else yet |
@@ -465,8 +465,12 @@ before saving a new one, does nothing if it matches, refuses a changed
 one unless `--replace`. `--check` compares without writing and reports a
 changed key instead of refusing it; it exits 0 for every status, so a
 script reads `status`, not the exit code. `--expect <SHA256:…>` writes
-only if the presented key has that fingerprint — the key the operator
-verified, not whatever a second scan happens to meet. JSON fields:
+only the host key with that fingerprint — the key the operator verified,
+not whatever a second scan happens to meet. It may be the fingerprint of
+any of the server's keys, ED25519, ECDSA or RSA: when it is not the one
+negotiation showed, `trust` asks the server for each other type and
+writes the one that matches. A fingerprint none of them has is refused,
+and nothing is written. JSON fields:
 `machine`, `address`, `status` (`matching`, `changed`, `missing`),
 `key_type`, optional `current_key_type` and `current_fingerprint` (the
 pinned key), `presented_fingerprint`, `check`, `changed`, and, while the

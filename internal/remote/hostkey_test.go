@@ -7,6 +7,7 @@ import (
 	"crypto/ed25519"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/rsa"
 	"errors"
 	"net"
 	"path/filepath"
@@ -279,4 +280,50 @@ func trustMachine(t *testing.T, machine config.Machine, key ssh.PublicKey) {
 	if err := store.Put(machine.Name, machine.Port, key); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestScanHostKeyMatchingFindsAKeyOfEveryType(t *testing.T) {
+	keys := []ssh.Signer{newHostKey(t), newECDSAHostKey(t), newRSAHostKey(t)}
+	server := startHostKeyServerWithKeys(t, false, keys...)
+	machine := server.machine(t)
+
+	for _, signer := range keys {
+		want := signer.PublicKey()
+		got, err := ScanHostKeyMatching(context.Background(), machine, "127.0.0.1", hostkeys.Fingerprint(want))
+		if err != nil {
+			t.Fatalf("%s: %v", want.Type(), err)
+		}
+		if got == nil || !bytes.Equal(got.Marshal(), want.Marshal()) {
+			t.Fatalf("%s: got %v", want.Type(), got)
+		}
+	}
+	if got := server.authAttempts.Load(); got != 0 {
+		t.Fatalf("the scans attempted authentication %d times", got)
+	}
+}
+
+func TestScanHostKeyMatchingFindsNothingForAFingerprintTheHostDoesNotHold(t *testing.T) {
+	server := startHostKeyServerWithKeys(t, false, newHostKey(t), newECDSAHostKey(t), newRSAHostKey(t))
+	machine := server.machine(t)
+
+	got, err := ScanHostKeyMatching(context.Background(), machine, "127.0.0.1", hostkeys.Fingerprint(newHostKey(t).PublicKey()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != nil {
+		t.Fatalf("a key that is not the host's matched: %s", hostkeys.Fingerprint(got))
+	}
+}
+
+func newRSAHostKey(t *testing.T) ssh.Signer {
+	t.Helper()
+	private, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+	signer, err := ssh.NewSignerFromKey(private)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return signer
 }

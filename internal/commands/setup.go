@@ -42,8 +42,11 @@ var (
 	tailscaleSSH   = remote.IsTailscaleSSH
 	agentKeys      = keys.FromAgent
 	scanHostKey    = remote.ScanHostKey
-	confirmHostKey = confirm
-	setupSkills    = offerSetupSkills
+	// scanHostKeyMatching finds a host key of another type than the one
+	// negotiation showed, by its fingerprint.
+	scanHostKeyMatching = remote.ScanHostKeyMatching
+	confirmHostKey      = confirm
+	setupSkills         = offerSetupSkills
 )
 
 // setupOptions are the flags the flow reads.
@@ -587,7 +590,15 @@ func trustFirstContact(ctx context.Context, reader io.Reader, out io.Writer, mac
 // person said to expect. With nobody to ask, trusting whatever answered would
 // be trust on first use with no one looking.
 func trustExpected(ctx context.Context, out io.Writer, machine config.Machine, expected string) error {
-	return trustFirstContactWith(ctx, out, machine, func(fingerprint string) (bool, error) {
+	presented, address, err := scanHostKey(ctx, machine)
+	if err != nil {
+		return err
+	}
+	presented, err = hostKeyForExpected(ctx, machine, presented, address, expected)
+	if err != nil {
+		return err
+	}
+	return trustPresented(out, machine, presented, address, func(fingerprint string) (bool, error) {
 		if expected == fingerprint {
 			return true, nil
 		}
@@ -599,6 +610,26 @@ func trustExpected(ctx context.Context, out io.Writer, machine config.Machine, e
 		return false, fmt.Errorf("%s presented %s, not the %s that --fingerprint expects: nothing was "+
 			"trusted or changed. Check which one is right before trying again", machine.Name, fingerprint, expected)
 	})
+}
+
+// hostKeyForExpected is the host key to trust when expected names one. A
+// server holds several host keys, ED25519, ECDSA and RSA, and negotiation
+// shows only one, so a fingerprint copied from any of them is looked for
+// among the others. presented stays when expected is empty, is presented's
+// own, or matches none of them, so the caller still refuses that.
+func hostKeyForExpected(ctx context.Context, machine config.Machine, presented ssh.PublicKey,
+	address, expected string) (ssh.PublicKey, error) {
+	if expected == "" || expected == hostkeys.Fingerprint(presented) {
+		return presented, nil
+	}
+	other, err := scanHostKeyMatching(ctx, machine, address, expected)
+	if err != nil {
+		return nil, err
+	}
+	if other == nil {
+		return presented, nil
+	}
+	return other, nil
 }
 
 func trustFirstContactWith(ctx context.Context, out io.Writer, machine config.Machine,

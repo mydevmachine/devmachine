@@ -79,6 +79,16 @@ asked for.
 `setup` is different on purpose: it writes `config.yml` first, and
 running it again resumes from that file instead of starting over.
 
+## A fingerprint of any key type
+
+A server holds several host keys, ED25519, ECDSA and RSA, and a
+handshake shows one. `--fingerprint` may name any of them: when it is not
+the one shown, the CLI opens one handshake per other type, in which the
+server proves it holds that key, and trusts the key whose fingerprint
+matches. From then on the CLI asks for that type only. A fingerprint no
+key of the server has is refused, so this accepts no key the operator did
+not name.
+
 ## A local machine trusts its first host key
 
 Everywhere else, an unattended run needs `--fingerprint`: trusting

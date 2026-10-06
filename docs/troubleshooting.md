@@ -281,6 +281,12 @@ connection you already trust, list every key with
 check the line of the same type. Only a mismatch of the same type means
 something changed.
 
+`--fingerprint` (`machines add`) and `--expect` (`machines trust`) take
+the fingerprint of any of the server's keys, so the one in your
+`known_hosts` works too: when it is not the type the CLI was shown, the
+CLI asks the server for that type, and trusts that key if it matches. A
+fingerprint none of the server's keys has is still refused.
+
 ## "the drop-in was written but sshd still allows passwords"
 
 ```

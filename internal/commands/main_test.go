@@ -7,10 +7,12 @@ import (
 	"os"
 	"testing"
 
+	"github.com/mydevmachine/devmachine/internal/config"
 	"github.com/mydevmachine/devmachine/internal/remote"
 	"github.com/mydevmachine/devmachine/internal/secrets"
 	agentskills "github.com/mydevmachine/devmachine/internal/skills"
 	"github.com/spf13/cobra"
+	"golang.org/x/crypto/ssh"
 )
 
 // No test reaches the network by accident: a test that needs a release says
@@ -36,6 +38,9 @@ func TestMain(m *testing.M) {
 	}
 	os.Setenv(secrets.KeychainEnv, "off")
 	aliasCLI = func() string { return "" }
+	scanHostKeyMatching = func(context.Context, config.Machine, string, string) (ssh.PublicKey, error) {
+		return nil, nil
+	}
 	// The test clients stand in for a root admin and run commands right here;
 	// TestDialAdminRunsEverythingAsRoot puts the real one back.
 	elevate = func(c remote.Client) remote.Client { return c }

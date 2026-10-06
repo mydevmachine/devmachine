@@ -156,7 +156,7 @@ func newMachinesAddCmd(opts *options) *cobra.Command {
 		"`new` for a key of the CLI's own for this machine (made or reused), a private key file, "+
 			"or agent:<SHA256 fingerprint> for a key the SSH agent holds")
 	c.Flags().StringVar(&s.fingerprint, "fingerprint", "",
-		"the host key fingerprint to trust on first contact (SHA256:…), checked through another channel")
+		"the host key fingerprint to trust on first contact (SHA256:…) of any of its ED25519, ECDSA or RSA keys, checked through another channel")
 	c.Flags().BoolVar(&s.tailscale, "tailscale", false, "also add the tailscale package")
 	c.Flags().StringVar(&s.domain, "domain", "",
 		"the domain, written only when there is no config.yml yet and add writes a new one")
