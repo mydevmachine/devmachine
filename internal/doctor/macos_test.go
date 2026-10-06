@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -86,14 +87,34 @@ func TestDoctorOnAMacLooksFirstWhereTheBootstrapSaidAnsibleIs(t *testing.T) {
 	}
 
 	command := macAnsibleCommand("/opt/local/bin/ansible-playbook-3.14")
-	for _, place := range []string{"'/opt/local/bin/ansible-playbook-3.14'", "/opt/homebrew/bin/ansible-playbook",
+	for _, place := range []string{`"$1"`, "/opt/homebrew/bin/ansible-playbook",
 		"/usr/local/bin/ansible-playbook", "/opt/local/bin/ansible-playbook", "$HOME/.local/bin/ansible-playbook"} {
 		if !strings.Contains(command, place) {
 			t.Fatalf("it does not look at %s: %s", place, command)
 		}
 	}
-	if strings.Index(command, "'/opt/local/bin/ansible-playbook-3.14'") > strings.Index(command, "/opt/homebrew") {
+	if !strings.HasSuffix(command, " '/opt/local/bin/ansible-playbook-3.14'") {
+		t.Fatalf("the reported path is not the script's argument: %s", command)
+	}
+	if strings.Index(command, `"$1"`) > strings.Index(command, "/opt/homebrew") {
 		t.Fatalf("the reported path is not looked at first: %s", command)
+	}
+}
+
+func TestDoctorFindsAnsibleWhenTheAdminLoginShellIsZsh(t *testing.T) {
+	zsh, err := exec.LookPath("zsh")
+	if err != nil {
+		t.Skip("no zsh here")
+	}
+	bin := t.TempDir()
+	playbook := filepath.Join(bin, "ansible-playbook")
+	if err := os.WriteFile(playbook, []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := exec.Command(zsh, "-f", "-c", macAnsibleCommand(playbook)).CombinedOutput()
+	if err != nil || strings.TrimSpace(string(out)) != playbook {
+		t.Fatalf("zsh ran it to %v: %s", err, out)
 	}
 }
 

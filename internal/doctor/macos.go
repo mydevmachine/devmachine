@@ -23,16 +23,15 @@ const PrerequisitePrefix = "prerequisite: "
 // macAnsibleCommand finds ansible-playbook on a Mac. A plain SSH command there
 // has neither Homebrew nor MacPorts on PATH, so it looks where the bootstrap
 // said it put it first, then where each of them and pipx install it.
+// It runs under sh: a Mac's login shell is zsh, which aborts the whole
+// command when the MacPorts glob matches nothing.
 func macAnsibleCommand(reported string) string {
-	places := []string{}
-	if reported != "" {
-		places = append(places, quote(reported))
-	}
-	places = append(places, `"$HOME/.local/bin/ansible-playbook"`,
+	places := strings.Join([]string{`"$1"`, `"$HOME/.local/bin/ansible-playbook"`,
 		"/opt/homebrew/bin/ansible-playbook", "/usr/local/bin/ansible-playbook",
-		"/opt/local/bin/ansible-playbook", "/opt/local/bin/ansible-playbook-3.*")
-	return "for p in " + strings.Join(places, " ") +
-		`; do if [ -x "$p" ]; then echo "$p"; exit 0; fi; done; command -v ansible-playbook`
+		"/opt/local/bin/ansible-playbook", "/opt/local/bin/ansible-playbook-3.*"}, " ")
+	script := "for p in " + places +
+		`; do if [ -n "$p" ] && [ -x "$p" ]; then echo "$p"; exit 0; fi; done; command -v ansible-playbook`
+	return "sh -c '" + script + "' devmachine-doctor " + quote(reported)
 }
 
 func quote(s string) string {
