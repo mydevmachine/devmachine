@@ -1,0 +1,41 @@
+docs/reference/commands.md
+  s_87d72b62cfc5a1::t_d0625ce3a6bf7d 413,468-473
+internal/commands/main_test.go
+  s_87d72b62cfc5a1::t_973c728b8e0399 41-43
+  s_87d72b62cfc5a1::t_a0b26d4b5a2021 10,15
+internal/commands/setup.go
+  s_87d72b62cfc5a1::t_973c728b8e0399 45-47,593-601,615-632
+  s_87d72b62cfc5a1::t_a0b26d4b5a2021 48-49
+  s_87d72b62cfc5a1::t_10043ea41a3858 633-634
+internal/commands/machines_trust.go
+  s_87d72b62cfc5a1::t_7d76fd022e668f 65
+  s_87d72b62cfc5a1::t_973c728b8e0399 95-98
+internal/commands/machines.go
+  s_87d72b62cfc5a1::t_7d76fd022e668f 159
+internal/remote/remote.go
+  s_87d72b62cfc5a1::t_b9b0c25845b77e 359-391
+docs/how-it-works/trust-bootstrap.md
+  s_87d72b62cfc5a1::t_d0625ce3a6bf7d 82-91
+docs/troubleshooting.md
+  s_87d72b62cfc5a1::t_d0625ce3a6bf7d 284-289
+internal/commands/host_key_fingerprint_test.go
+  s_87d72b62cfc5a1::t_1037adbc148873 1-136
+internal/remote/hostkey_test.go
+  s_87d72b62cfc5a1::t_cbe3081db18e83 10,284-329
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c14297e4446fe307d026a188c21f92288db97d78",
+  "prompts": {},
+  "sessions": {
+    "s_87d72b62cfc5a1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5e69ca1d-9900-4500-8ba7-104b479b47eb",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}

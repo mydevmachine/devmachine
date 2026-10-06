@@ -1,0 +1,38 @@
+internal/commands/workspaces.go
+  s_87d72b62cfc5a1::t_f6a90dfba64bcf 963-964
+docs/how-it-works/what-a-machine-needs.md
+  s_87d72b62cfc5a1::t_98bd02007f5153 57-72
+internal/commands/shell_test.go
+  s_87d72b62cfc5a1::t_8ff4ea342a7152 556-601
+docs/reference/commands.md
+  s_87d72b62cfc5a1::t_98bd02007f5153 208-214
+docs/troubleshooting.md
+  s_87d72b62cfc5a1::t_98bd02007f5153 497-518
+internal/doctor/doctor.go
+  s_87d72b62cfc5a1::t_1f37ff79ee0f99 458-459
+internal/doctor/macos_test.go
+  s_87d72b62cfc5a1::t_7431437f75bf6f 5
+  s_87d72b62cfc5a1::t_63f454c1b112dd 175-249
+internal/doctor/macos.go
+  s_87d72b62cfc5a1::t_20873ef59d282b 123-191
+internal/remote/system.go
+  s_87d72b62cfc5a1::t_f6a90dfba64bcf 19-22
+internal/commands/shell.go
+  s_87d72b62cfc5a1::t_66c32b90fdcc7f 185-202
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "99135e7686f28d2ce559d25a1cd5eebe5a155cb0",
+  "prompts": {},
+  "sessions": {
+    "s_87d72b62cfc5a1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5e69ca1d-9900-4500-8ba7-104b479b47eb",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}

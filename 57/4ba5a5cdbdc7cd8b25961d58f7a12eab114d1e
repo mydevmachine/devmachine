@@ -1,0 +1,38 @@
+internal/commands/prerequisites.go
+  s_87d72b62cfc5a1::t_6e79f9522c9c34 59-61,117-123
+  s_87d72b62cfc5a1::t_192daacb603fff 124
+docs/agent-setup.md
+  s_87d72b62cfc5a1::t_39458849ee2fcc 212-216
+internal/commands/prerequisites_test.go
+  s_87d72b62cfc5a1::t_4dace7172499e5 18,539-673,675-680,682-700
+  s_87d72b62cfc5a1::t_43b87ff9d59397 674,681
+docs/how-it-works/what-a-new-machine-starts-with.md
+  s_87d72b62cfc5a1::t_39458849ee2fcc 18-36
+internal/commands/machines.go
+  s_87d72b62cfc5a1::t_6e79f9522c9c34 537-540
+internal/commands/setup.go
+  s_87d72b62cfc5a1::t_6e79f9522c9c34 131-157,254,261-264,292-293,405-418
+  s_87d72b62cfc5a1::t_1f6d1be85c69c7 419
+docs/how-it-works/what-a-machine-needs.md
+  s_87d72b62cfc5a1::t_39458849ee2fcc 41-45
+docs/troubleshooting.md
+  s_87d72b62cfc5a1::t_39458849ee2fcc 549-554
+docs/reference/commands.md
+  s_87d72b62cfc5a1::t_39458849ee2fcc 41-44,82
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "574ba5a5cdbdc7cd8b25961d58f7a12eab114d1e",
+  "prompts": {},
+  "sessions": {
+    "s_87d72b62cfc5a1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5e69ca1d-9900-4500-8ba7-104b479b47eb",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}

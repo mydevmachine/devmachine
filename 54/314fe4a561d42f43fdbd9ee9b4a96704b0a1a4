@@ -1,0 +1,19 @@
+docs/reference/settings.md
+  s_87d72b62cfc5a1::t_63286b0fc91efa 35,37,39,44-45,49,54,58,62-63,65,74-75,78,81,87-91,95,99,103
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "54314fe4a561d42f43fdbd9ee9b4a96704b0a1a4",
+  "prompts": {},
+  "sessions": {
+    "s_87d72b62cfc5a1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5e69ca1d-9900-4500-8ba7-104b479b47eb",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}

@@ -1,0 +1,35 @@
+internal/remote/bootstrap_test.go
+  s_87d72b62cfc5a1::t_a2ab5e54f2de27 747,749,757-767
+  s_87d72b62cfc5a1::t_52b58da1cdb7ca 768-769
+internal/remote/system.go
+  s_87d72b62cfc5a1::t_5ce9d9d38314ac 94-100
+  s_87d72b62cfc5a1::t_16fc442a716488 70
+  s_87d72b62cfc5a1::t_f84a850fba400e 25-26,29-33,35-36,38-41
+  s_87d72b62cfc5a1::t_0f2d39c66835a4 13-18
+internal/remote/bootstrap.go
+  s_87d72b62cfc5a1::t_d81ba8428eb6a1 355-357
+internal/doctor/doctor_test.go
+  s_87d72b62cfc5a1::t_bcb7595ce49a74 313,323
+docs/troubleshooting.md
+  s_87d72b62cfc5a1::t_eb29350bd4bf33 194,197-198,201-202
+internal/remote/system_test.go
+  s_87d72b62cfc5a1::t_834535e25e875d 39-40,42,48-82
+docs/how-it-works/trust-bootstrap.md
+  s_87d72b62cfc5a1::t_eb29350bd4bf33 19-21,27
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6c2ee0854897a311360ff5a731b471a5e72b60c9",
+  "prompts": {},
+  "sessions": {
+    "s_87d72b62cfc5a1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5e69ca1d-9900-4500-8ba7-104b479b47eb",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}

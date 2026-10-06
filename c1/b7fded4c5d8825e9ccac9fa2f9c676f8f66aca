@@ -1,0 +1,50 @@
+internal/remote/bootstrap.go
+  s_87d72b62cfc5a1::t_6f58c5f4c98d65 287-290
+  s_87d72b62cfc5a1::t_a414eac03afb3d 301,303,305,307,311
+  s_87d72b62cfc5a1::t_6c18d65bb60ee4 255-275
+  s_87d72b62cfc5a1::t_8673cfd7db8cd9 281-285
+internal/remote/bootstrap_test.go
+  s_87d72b62cfc5a1::t_09a9d22045d24c 647,649-660,665,673,676
+  s_87d72b62cfc5a1::t_5bc57ac78eedb8 334-335,337,344-345,374,383,405-406,572,640-646,648,661-664,666-672,674-675,677
+internal/remote/system.go
+  s_87d72b62cfc5a1::t_6af2b6ef5d4ba6 1-81
+docs/troubleshooting.md
+  s_87d72b62cfc5a1::t_4ad397ccabfae2 223-225
+  s_87d72b62cfc5a1::t_78f304f2f3bd42 168-170,173-222
+  s_87d72b62cfc5a1::t_b88d22c9360444 226
+docs/reference/commands.md
+  s_87d72b62cfc5a1::t_78f304f2f3bd42 44-48,172-173
+internal/commands/credentials_test.go
+  s_87d72b62cfc5a1::t_ba630318dbcc8d 37-39
+internal/remote/system_test.go
+  s_87d72b62cfc5a1::t_e75cb7c5074d44 72-73,78
+  s_87d72b62cfc5a1::t_d5ec481501819f 1-71,74-77,79-92
+internal/commands/setup_test.go
+  s_87d72b62cfc5a1::t_926f39b05b6406 451
+  s_87d72b62cfc5a1::t_93af37bc9cfaa5 57-59,75,144-155,1169-1246
+  s_87d72b62cfc5a1::t_1ee71ada1eed0e 25-26,29-37
+docs/how-it-works/trust-bootstrap.md
+  s_87d72b62cfc5a1::t_78f304f2f3bd42 16-34,184-193
+internal/commands/setup.go
+  s_87d72b62cfc5a1::t_e5f17c69347754 40,389-391,408-418,823-828,904-907
+internal/doctor/doctor.go
+  s_87d72b62cfc5a1::t_7adc69da7b4186 67-70,438,440-441
+internal/doctor/doctor_test.go
+  s_87d72b62cfc5a1::t_6b678ea51e4e02 257-258,276-277,294-327,330,451-452,488-489,803-804
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c1b7fded4c5d8825e9ccac9fa2f9c676f8f66aca",
+  "prompts": {},
+  "sessions": {
+    "s_87d72b62cfc5a1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5e69ca1d-9900-4500-8ba7-104b479b47eb",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
