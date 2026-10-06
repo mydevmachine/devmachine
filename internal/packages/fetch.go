@@ -67,12 +67,18 @@ func Fetch(ctx context.Context, configDir, version string) (string, string, erro
 	}
 
 	// Extract beside the target and rename, so an interrupted fetch never
-	// leaves a half-extracted release that the next run would trust.
-	staging := dir + ".partial"
-	if err := os.RemoveAll(staging); err != nil {
-		return "", "", err
+	// leaves a half-extracted release that the next run would trust. Each
+	// fetch stages in its own directory: another process may be fetching the
+	// same release at the same moment.
+	if err := os.MkdirAll(filepath.Dir(dir), 0o755); err != nil {
+		return "", "", fmt.Errorf("creating the packages cache: %w", err)
 	}
-	if err := os.MkdirAll(staging, 0o755); err != nil {
+	staging, err := os.MkdirTemp(filepath.Dir(dir), version+".partial-")
+	if err != nil {
+		return "", "", fmt.Errorf("creating the packages cache: %w", err)
+	}
+	defer func() { _ = os.RemoveAll(staging) }()
+	if err := os.Chmod(staging, 0o755); err != nil {
 		return "", "", err
 	}
 	if err := extract(body, staging); err != nil {
@@ -81,13 +87,32 @@ func Fetch(ctx context.Context, configDir, version string) (string, string, erro
 	if err := os.WriteFile(filepath.Join(staging, checksumFile), []byte(got+"\n"), 0o644); err != nil {
 		return "", "", err
 	}
-	if err := os.RemoveAll(dir); err != nil {
-		return "", "", err
-	}
-	if err := os.Rename(staging, dir); err != nil {
-		return "", "", err
+	if err := publish(staging, dir); err != nil {
+		return "", "", fmt.Errorf("saving packages %s in the cache: %w", version, err)
 	}
 	return filepath.Join(dir, "packages"), got, nil
+}
+
+// publish moves a verified staging directory into place. A release directory
+// holding a checksum is complete and another process may be reading it, so it
+// is never removed: the first fetch to finish wins and the others use its copy.
+func publish(staging, dir string) error {
+	err := os.Rename(staging, dir)
+	if err == nil || complete(dir) {
+		return nil
+	}
+	if err := os.RemoveAll(dir); err != nil {
+		return err
+	}
+	if err := os.Rename(staging, dir); err != nil && !complete(dir) {
+		return err
+	}
+	return nil
+}
+
+func complete(dir string) bool {
+	_, err := os.Stat(filepath.Join(dir, checksumFile))
+	return err == nil
 }
 
 func fetchChecksum(ctx context.Context, version, asset string) (string, error) {

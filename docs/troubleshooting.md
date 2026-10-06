@@ -661,6 +661,28 @@ your server.
 something altered it in transit. Get the release fixed, or pin a different
 one.
 
+## `update` says "package release v34 has no package named "devmachine-skills""
+
+```
+==> 3/3 Skills
+  failed: package release v34 has no package named "devmachine-skills"
+```
+
+**What it means:** Usually not that the release lacks the package. Before
+0.7.32, two devmachine commands that downloaded the same release at the same
+moment could delete each other's copy. `update` pins the new release and then
+downloads it for the skills step, while the Mac app runs `packages list` on
+its own. The command that finished second removed the release the first one
+was reading, so the package seemed missing for a moment.
+
+**What to do:** Run `devmachine skills update --yes`. The pin has already
+moved, and the release is now complete in the cache. From 0.7.32, each
+download works in its own folder and never removes a complete release, so the
+first one to finish is the copy every command uses.
+
+If the error comes back, the release really lacks the package: check
+`devmachine packages list`.
+
 ## "package X needs a CLI >= 0.3.0, and this one is 0.2.1"
 
 **What it means:** The package says which CLI version can read it, and yours
