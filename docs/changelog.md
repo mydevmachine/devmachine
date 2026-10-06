@@ -8,6 +8,15 @@ page](https://github.com/mydevmachine/devmachine/releases).
 
 To get the latest version, see [Upgrade](upgrade.md).
 
+## App v0.1.20 — 2026-10-06
+
+### Changed
+
+- The Operator session asks which coding agent to start every time it
+  starts, not only the first time. Your last pick is selected, so starting
+  it again is one click. Only the first pick asks the agent what you can do
+  here.
+
 ## v0.7.32 — 2026-10-06
 
 ### Fixed
@@ -16,6 +25,21 @@ To get the latest version, see [Upgrade](upgrade.md).
   delete each other's copy. `update` could fail on its skills step with
   `package release v34 has no package named "devmachine-skills"` while the
   Mac app listed packages at the same moment.
+
+## App v0.1.19 — 2026-10-05
+
+### Added
+
+- The Operator session, the first time you open it, asks which coding agent
+  on your Mac to start in it, or a plain terminal.
+- Settings → General → Enable Operator session hides the Operator without
+  ending its shell.
+- A newer packages release gets its own update card. Updating moves the
+  packages pin and your skills, and never touches a machine.
+
+### Fixed
+
+- A packages update whose CLI reports nothing now shows as failed, not done.
 
 ## App v0.1.18 — 2026-10-05
 
