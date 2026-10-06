@@ -91,11 +91,18 @@ func sharedHomePath(storedAt string) (string, error) {
 // would aim a root write, chmod or chown at any file on the machine. As the
 // account, a link can only reach what the account could already write. The
 // check before it is for the message, not the safety.
+//
+// A Mac has no runuser; root's sudo needs no password there.
 func sharedCopyCommand(from string) string {
 	return "set -eu\n" +
 		"user={{ " + sharedLoopVar + ".user | quote }}\n" +
 		"rel={{ " + sharedLoopVar + ".path | quote }}\n" +
-		"runuser -u \"$user\" -- /bin/sh -c '\n" +
+		"if command -v runuser >/dev/null 2>&1; then\n" +
+		"  set -- runuser -u \"$user\" --\n" +
+		"else\n" +
+		"  set -- sudo -n -u \"$user\" --\n" +
+		"fi\n" +
+		"\"$@\" /bin/sh -c '\n" +
 		sharedCopyScript +
 		"' devmachine-share \"$rel\" < " + shellQuote(from) + "\n"
 }

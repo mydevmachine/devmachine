@@ -35,7 +35,8 @@ with a link to `/etc` or `/etc/shadow`. Root would follow that link, and
 write, `chmod` or `chown` a file outside the home.
 
 So root only opens the master, which is its own file, and hands the bytes
-to a shell that runs as the account (`runuser -u <account>`). That shell
+to a shell that runs as the account (`runuser -u <account>` on Linux,
+`sudo -u <account>` on a Mac, which has no `runuser`). That shell
 makes the directories, writes a temporary file, and renames it into place.
 It has only the account's own rights. A link can then reach only what the
 account could already write, and there is no gap between a check and a

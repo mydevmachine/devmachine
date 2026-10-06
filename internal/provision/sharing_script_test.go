@@ -53,18 +53,20 @@ func newShareRun(t *testing.T) shareRun {
 
 func (r shareRun) run(t *testing.T) (string, error) {
 	t.Helper()
+	return r.runWith(t, map[string]string{"runuser": "#!/bin/sh\nshift 3\nexec \"$@\"\n"}, os.Getenv("PATH"))
+}
+
+func (r shareRun) runWith(t *testing.T, stubs map[string]string, path string) (string, error) {
+	t.Helper()
 	bin := t.TempDir()
-	stubs := map[string]string{
-		"getent":  "#!/bin/sh\nprintf '%s:x:1000:1000::" + r.home + ":/bin/sh\\n' \"$2\"\n",
-		"runuser": "#!/bin/sh\nshift 3\nexec \"$@\"\n",
-	}
+	stubs["getent"] = "#!/bin/sh\nprintf '%s:x:1000:1000::" + r.home + ":/bin/sh\\n' \"$2\"\n"
 	for name, body := range stubs {
 		if err := os.WriteFile(filepath.Join(bin, name), []byte(body), 0o755); err != nil {
 			t.Fatal(err)
 		}
 	}
-	cmd := exec.Command("sh", "-c", r.script)
-	cmd.Env = append(os.Environ(), "PATH="+bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	cmd := exec.Command("/bin/sh", "-c", r.script)
+	cmd.Env = append(os.Environ(), "PATH="+bin+string(os.PathListSeparator)+path)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	if err := cmd.Run(); err != nil {
@@ -98,6 +100,22 @@ func TestSharedCopyLandsInsideTheHomeReadableByTheAccountAlone(t *testing.T) {
 	dir, _ := os.Stat(filepath.Dir(path))
 	if dir.Mode().Perm() != 0o700 {
 		t.Fatalf("directory mode %v", dir.Mode().Perm())
+	}
+}
+
+func TestSharedCopyRunsAsTheAccountThroughSudoWhereThereIsNoRunuser(t *testing.T) {
+	r := newShareRun(t)
+	log := filepath.Join(t.TempDir(), "sudo.log")
+	sudo := "#!/bin/sh\necho \"$@\" > " + log + "\nshift 4\nexec \"$@\"\n"
+
+	if _, err := r.runWith(t, map[string]string{"sudo": sudo}, "/usr/bin:/bin"); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := os.ReadFile(filepath.Join(r.home, ".config", "gh", "hosts.yml")); string(got) != "token: shared\n" {
+		t.Fatalf("got %q", got)
+	}
+	if called, _ := os.ReadFile(log); !strings.HasPrefix(string(called), "-n -u alice -- /bin/sh -c") {
+		t.Fatalf("sudo was called as %q", called)
 	}
 }
 
