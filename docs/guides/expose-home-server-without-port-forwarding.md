@@ -4,7 +4,7 @@ category: Web apps
 level: Intermediate
 needs:
   - "A devmachine VPS with Caddy"
-  - "A computer at home running Debian or Ubuntu"
+  - "A computer at home running Linux (tested on Debian and Ubuntu)"
   - "A domain"
   - "A private network: Tailscale, Headscale, WireGuard"
 related:
@@ -29,7 +29,7 @@ visitor ──HTTPS──▶ VPS (Caddy, public IP) ──private network──�
 ```
 
 **You need:** a devmachine VPS with Caddy (`setup` installs it), a domain,
-a computer at home running Debian or Ubuntu, and a private network both
+a computer at home running Linux (tested on Debian and Ubuntu), and a private network both
 machines join — [Tailscale](../concepts/private-networks.md), your own
 [Headscale](headscale.md), plain WireGuard, or a LAN the VPS can reach.
 With a [DNS provider package](../concepts/dns.md) installed, the DNS record

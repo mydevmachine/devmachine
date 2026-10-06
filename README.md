@@ -11,6 +11,7 @@
   <a href="https://mydevmachine.sh/guides/">Guides</a> ·
   <a href="https://mydevmachine.sh/packages/">Packages</a> ·
   <a href="https://mydevmachine.sh/app/">Mac app</a> ·
+  <a href="https://mydevmachine.sh/supported-systems/">Supported systems</a> ·
   <a href="https://mydevmachine.sh/changelog/">Changelog</a>
 </p>
 
@@ -57,7 +58,8 @@ reach over SSH as root, or as an admin login with passwordless sudo. A Mac
 needs Remote Login on and an admin login (root cannot log in there); `setup`
 asks whether to use Homebrew or MacPorts and installs nothing until you say
 yes. No server yet? `devmachine machines create-local dev` makes a virtual machine
-on your own computer.
+on your own computer. What works on each system is in [Supported
+systems](https://mydevmachine.sh/supported-systems/).
 
 `setup` checks the machine's fingerprint, so you know you reached your own
 machine. It installs a key only you have, turns off password logins, and
@@ -100,9 +102,11 @@ coding agent and let it do the work.
 | **Recommended** | **16 GB** | **4 vCPU** | **200 GB** | Several apps and coding agents at once. |
 | Full development | 32 GB | 8 vCPU | 400 GB | Docker and many intensive apps running together. |
 
-An old laptop with Debian, Ubuntu or Arch Linux works too, and so does a Mac. Add the `tailscale` package
+An old laptop with Debian, Ubuntu or Arch Linux works too. Add the `tailscale` package
 and you reach it from anywhere, even from outside your home. See
 [Reaching your server](https://mydevmachine.sh/concepts/reaching-your-server/).
+A Mac works as a machine as well, without the Linux-only packages such as
+`tailscale`, `caddy` and `docker`.
 
 ## The model
 

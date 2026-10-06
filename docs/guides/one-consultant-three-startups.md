@@ -24,7 +24,7 @@ The fix is one VPS, three sandboxes: the workspaces `acme`, `globex` and
 own files, its own language runtime and its own logins. Nothing crosses
 between them, because nothing is shared between them.
 
-**You need:** a Debian or Ubuntu VPS with 12 GB of RAM or more, and GitHub and Claude accounts for
+**You need:** a Linux VPS (tested on Debian and Ubuntu) with 12 GB of RAM or more, and GitHub and Claude accounts for
 each client (invented here as `acme`, `globex`, `initech`).
 
 ## Before you start: machine and skills

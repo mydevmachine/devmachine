@@ -3,7 +3,7 @@ description: "Run a site in a Docker container and serve it at your own domain, 
 category: Web apps
 level: Beginner
 needs:
-  - "A Debian or Ubuntu VPS"
+  - "A Linux VPS (tested on Debian and Ubuntu)"
   - "A domain"
 related:
   - express-site-with-tls.md
@@ -17,7 +17,7 @@ domain, with HTTPS that renews itself. This is the container case: the app
 only listens on `localhost`, and Caddy is the only thing the internet talks
 to.
 
-**You need:** a Debian or Ubuntu VPS, and a domain such as
+**You need:** a Linux VPS (tested on Debian and Ubuntu), and a domain such as
 `site.example.com` pointed at it (or a DNS provider package installed, so
 `expose add` points it for you — see [DNS](../concepts/dns.md)).
 

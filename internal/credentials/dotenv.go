@@ -15,7 +15,8 @@ import (
 // relative to it.
 //
 // It is a published contract, the same way EnvFile is for a machine
-// credential: a shell package sources this exact path on login, so it works
+// credential: the workspace package sources this exact path on login, through
+// ~/.devmachine/shellenv, so it works
 // against a CLI released years after this one. It does not change.
 const DefaultEnvFile = workspaceDir + "/env"
 

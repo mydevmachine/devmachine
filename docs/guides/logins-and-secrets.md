@@ -3,7 +3,7 @@ description: "See what a workspace is missing, then sign in and hand over tokens
 category: Security
 level: Beginner
 needs:
-  - "A Debian or Ubuntu VPS"
+  - "A VPS (tested on Debian and Ubuntu)"
   - "A Cloudflare account, for the last part"
 related:
   - cloudflare-dns.md
@@ -17,7 +17,7 @@ you signed in, Claude Code needs your account, a DNS provider needs an API
 token. This guide walks through all three cases on one machine, using
 `devmachine credentials list` to see what is missing and what fixes it.
 
-**You need:** a Debian or Ubuntu VPS, and a Cloudflare account with a domain
+**You need:** a VPS (tested on Debian and Ubuntu), and a Cloudflare account with a domain
 on it (only for the last part, storing an API token).
 
 ## Before you start: machine, skills, workspace

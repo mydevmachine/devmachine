@@ -3,7 +3,7 @@ description: "Build a Next.js app in a workspace, run its production server, and
 category: Web apps
 level: Beginner
 needs:
-  - "A Debian or Ubuntu VPS"
+  - "A Linux VPS (tested on Debian and Ubuntu)"
   - "A domain"
 related:
   - express-site-with-tls.md
@@ -19,7 +19,7 @@ it also comes back on its own after the server restarts.
 The same steps work for a Nest.js API; see [Nest.js instead](#nestjs-instead)
 at the end.
 
-**You need:** a Debian or Ubuntu VPS, and a domain such as `app.example.com`
+**You need:** a Linux VPS (tested on Debian and Ubuntu), and a domain such as `app.example.com`
 pointed at it (or a DNS provider package installed, so `expose add` points it
 for you — see [DNS](../concepts/dns.md)).
 

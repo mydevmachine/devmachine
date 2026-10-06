@@ -3,7 +3,7 @@ description: "Run the OpenClaw agent around the clock in a workspace of its own,
 category: Agents
 level: Beginner
 needs:
-  - "A Debian or Ubuntu VPS"
+  - "A VPS (tested on Debian and Ubuntu)"
 related:
   - hermes-agent-in-its-own-sandbox.md
   - one-consultant-three-startups.md
@@ -17,7 +17,7 @@ separate account on your server with its own files and logins, no `sudo`,
 and no way into your other workspaces. Whatever the agent installs, or
 breaks, stays inside it.
 
-**You need:** a Debian or Ubuntu VPS.
+**You need:** a VPS (tested on Debian and Ubuntu).
 
 ## Before you start: machine, skills, workspace
 

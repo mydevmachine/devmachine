@@ -3,7 +3,7 @@ description: "Run Open WebUI in Docker on your server, at your own domain, with 
 category: Web apps
 level: Beginner
 needs:
-  - "A Debian or Ubuntu VPS with 1 GB of free memory and 8 GB of free disk"
+  - "A Linux VPS (tested on Debian and Ubuntu) with 1 GB of free memory and 8 GB of free disk"
   - "A domain"
   - "An API key from an OpenAI-compatible provider"
 related:
@@ -21,7 +21,7 @@ in a workspace, answers at `https://ai.example.com`, and you are its admin.
 In our test the container used about 650 MiB of memory, and the image took
 about 6 GB of disk.
 
-**You need:** a Debian or Ubuntu VPS, a domain such as `ai.example.com`
+**You need:** a Linux VPS (tested on Debian and Ubuntu), a domain such as `ai.example.com`
 pointed at it (or a DNS provider package installed, so `expose add` points
 it for you — see [DNS](../concepts/dns.md)), and an API key from a provider
 with an OpenAI-compatible API.

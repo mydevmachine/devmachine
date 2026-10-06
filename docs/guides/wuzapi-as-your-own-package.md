@@ -3,7 +3,7 @@ description: "Write a WhatsApp API once as your own package, then run it on two 
 category: Web apps
 level: Advanced
 needs:
-  - "One or two Debian or Ubuntu VPS"
+  - "One or two Linux VPS (tested on Debian and Ubuntu)"
   - "A domain"
 related:
   - docker-site-on-8080.md
@@ -18,7 +18,7 @@ session. Instead of installing it by hand on every machine that needs it,
 this guide writes it as a [package](../concepts/packages.md) — one file
 kept in your own configuration, that any machine or workspace can add.
 
-**You need:** two Debian or Ubuntu VPS (or one, if you skip the second
+**You need:** two Linux VPS, tested on Debian and Ubuntu (or one, if you skip the second
 workspace), and a domain such as `example.com`.
 
 ## Before you start: machine, skills, workspace

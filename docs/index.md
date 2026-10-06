@@ -25,6 +25,9 @@ computer, while you wait for a real one.
   open one in the configuration folder instead.
 - [Upgrade](upgrade.md) — keep the CLI, the packages and the skills up to
   date.
+- [Supported systems](supported-systems.md) — the machines devmachine sets
+  up (Debian, Ubuntu, Arch Linux, macOS), the computers the CLI runs on, and
+  what works on each.
 - [Changelog](changelog.md) — what changed in each release.
 
 ## Guides

@@ -3,7 +3,7 @@ description: "Run LibreChat with Docker Compose on your server: one chat app for
 category: Web apps
 level: Intermediate
 needs:
-  - "A Debian or Ubuntu VPS with 2 GB of free memory and 15 GB of free disk"
+  - "A Linux VPS (tested on Debian and Ubuntu) with 2 GB of free memory and 15 GB of free disk"
   - "A domain"
   - "An API key from at least one AI provider"
 related:
@@ -23,7 +23,7 @@ The stack is six containers: the app, MongoDB, Meilisearch, a RAG service,
 its vector database, and an admin panel. In our test they used about
 750 MiB of memory together, and the images took about 10 GB of disk.
 
-**You need:** a Debian or Ubuntu VPS, a domain such as `chat.example.com`
+**You need:** a Linux VPS (tested on Debian and Ubuntu), a domain such as `chat.example.com`
 pointed at it (or a DNS provider package installed, so `expose add` points
 it for you — see [DNS](../concepts/dns.md)), and an API key from at least
 one AI provider. Or none: each user can paste their own key (step 6).
