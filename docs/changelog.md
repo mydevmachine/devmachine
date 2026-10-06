@@ -8,6 +8,15 @@ page](https://github.com/mydevmachine/devmachine/releases).
 
 To get the latest version, see [Upgrade](upgrade.md).
 
+## v0.7.32 — 2026-10-06
+
+### Fixed
+
+- Two commands that download the same packages release at once no longer
+  delete each other's copy. `update` could fail on its skills step with
+  `package release v34 has no package named "devmachine-skills"` while the
+  Mac app listed packages at the same moment.
+
 ## App v0.1.18 — 2026-10-05
 
 ### Added
