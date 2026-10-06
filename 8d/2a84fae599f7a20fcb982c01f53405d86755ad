@@ -1,0 +1,58 @@
+docs/reference/commands.md
+  s_87d72b62cfc5a1::t_71f8ef1d9eb2a2 50-52
+internal/commands/setup.go
+  s_87d72b62cfc5a1::t_3ef741a8eb28f9 499
+internal/facts/facts.go
+  s_87d72b62cfc5a1::t_cf839aba0dd1ca 187
+  s_87d72b62cfc5a1::t_c50455e8a7e0f7 195-196,204,206-207,213-215
+internal/facts/facts_test.go
+  s_87d72b62cfc5a1::t_231a7f1949fe93 85-113
+  s_87d72b62cfc5a1::t_5138fc414d85c9 12-13
+internal/doctor/doctor.go
+  s_87d72b62cfc5a1::t_87c28e86873f97 453-454
+docs/troubleshooting.md
+  s_87d72b62cfc5a1::t_c999cd6be144f5 176,179-180,184,190-204
+  s_87d72b62cfc5a1::t_b0891265b26690 205
+internal/remote/bootstrap_test.go
+  s_87d72b62cfc5a1::t_35883943de665c 424-425
+docs/how-it-works/trust-bootstrap.md
+  s_87d72b62cfc5a1::t_fd544d61c1d389 22-37,42,47-52
+internal/remote/system.go
+  s_87d72b62cfc5a1::t_825140ff86aecf 53-73
+  s_87d72b62cfc5a1::t_290a3361fa2fbe 114
+  s_87d72b62cfc5a1::t_26bb06f8b8574d 137-138,141-142
+  s_87d72b62cfc5a1::t_ebb2be05740488 29-31
+  s_87d72b62cfc5a1::t_b4e62caaddc4f6 86-104,143
+internal/commands/setup_test.go
+  s_87d72b62cfc5a1::t_75c3d7bb5be161 1271-1288
+internal/remote/system_test.go
+  s_87d72b62cfc5a1::t_87914574e67661 127-212
+  s_87d72b62cfc5a1::t_0dd5e493f97a47 29
+internal/remote/bootstrap.go
+  s_87d72b62cfc5a1::t_8a4a4745d21f56 371-372
+  s_87d72b62cfc5a1::t_cbf7e01ea815c1 301,303-311,313,317,319
+  s_87d72b62cfc5a1::t_7f79fab74a1950 395
+docs/how-it-works/what-the-cli-knows-about-a-machine.md
+  s_87d72b62cfc5a1::t_c97020dd25e8d4 53-56
+internal/doctor/doctor_test.go
+  s_87d72b62cfc5a1::t_1229f2b121f46b 311-332
+docs/supported-systems.md
+  s_87d72b62cfc5a1::t_499d2a52ac74e4 94-114,118-120,123
+  s_87d72b62cfc5a1::t_05a46fbc90a755 36-37
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8d2a84fae599f7a20fcb982c01f53405d86755ad",
+  "prompts": {},
+  "sessions": {
+    "s_87d72b62cfc5a1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5e69ca1d-9900-4500-8ba7-104b479b47eb",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
