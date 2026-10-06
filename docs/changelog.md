@@ -63,6 +63,14 @@ To get the latest version, see [Upgrade](upgrade.md).
 - A package directory that is a symlink is followed when it is sent to the
   machine.
 
+## App v0.1.21 — 2026-10-06
+
+### Added
+
+- With harness icons on, a session that runs no coding agent shows a
+  terminal icon before its name, the same size as the agent icons.
+- A session running [Herdr](https://herdr.dev/) shows the Herdr icon.
+
 ## App v0.1.20 — 2026-10-06
 
 ### Changed
