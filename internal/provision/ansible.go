@@ -424,7 +424,8 @@ func accountField(accounts, field, fallback string) string {
 // Linux, /Users/<user> and staff on a Mac, which has no group per user. The
 // group is the numeric gid, which needs no group name to exist.
 func workspaceHome(accounts string) string {
-	return accountField(accounts, "home", "'/home/' ~ devmachine_workspace.user")
+	return accountField(accounts, "home",
+		"('/Users/' if ansible_facts['system'] == 'Darwin' else '/home/') ~ devmachine_workspace.user")
 }
 
 func workspaceGroup(accounts string) string {
