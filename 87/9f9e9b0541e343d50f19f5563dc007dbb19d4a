@@ -1,0 +1,23 @@
+docs/troubleshooting.md
+  s_f189ebb9e4f6eb::t_961d35acd1e7aa 664-685
+internal/packages/fetch_test.go
+  s_f189ebb9e4f6eb::t_e5d82349e17d4c 214-331
+internal/packages/fetch.go
+  s_f189ebb9e4f6eb::t_417d3cc9924105 70-78,80-81,90-103,105,107-108,110-115
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "879f9e9b0541e343d50f19f5563dc007dbb19d4a",
+  "prompts": {},
+  "sessions": {
+    "s_f189ebb9e4f6eb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "843dabc7-924b-4359-8709-5440a1a8fe93",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
