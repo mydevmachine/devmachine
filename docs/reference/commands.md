@@ -821,8 +821,10 @@ devmachine run --package <name> [--workspace w] -- <command> [args...]
 ```
 
 Runs one command on a machine and prints its output; exits with the same
-code. A failed command's output prints before the error, since it usually
-explains the failure.
+code. Its standard output goes to yours and its standard error to yours,
+as they arrive, so a program can parse stdout (`run --package
+devmachine-app -- stats` prints JSON there) while a warning or the
+reason a command failed still reaches the person, before the error.
 
 `--package` calls an installed package's entrypoint directly — everything
 after `--` goes to the package; `commands:` in its manifest can limit

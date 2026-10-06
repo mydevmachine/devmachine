@@ -334,6 +334,38 @@ func TestRunPackageDialsThroughTheMultiplexedClientNotTheProgrammaticOne(t *test
 	}
 }
 
+type stderrRemote struct {
+	fakeRemote
+	errOut string
+}
+
+func (f stderrRemote) Stream(_ context.Context, _ string, stdout, stderr io.Writer) error {
+	if _, err := io.WriteString(stdout, f.out); err != nil {
+		return err
+	}
+	if _, err := io.WriteString(stderr, f.errOut); err != nil {
+		return err
+	}
+	return f.err
+}
+
+func TestRunShowsTheRemoteStderrOnStderrAndKeepsStdoutClean(t *testing.T) {
+	dialing(t, stderrRemote{fakeRemote: fakeRemote{out: "{\"ok\":true}\n", err: errors.New("exit status 2")},
+		errOut: "python3: No module named devmachine\n"})
+	dir := configWith(t, twoMachineConfig)
+
+	stdout, stderr, err := executeSplit(t, "--config", dir, "--machine", "sandbox", "run", "stats")
+	if err == nil {
+		t.Fatal("a failing command succeeded")
+	}
+	if stdout != "{\"ok\":true}\n" {
+		t.Fatalf("stdout = %q", stdout)
+	}
+	if !strings.Contains(stderr, "No module named devmachine") {
+		t.Fatalf("the remote error was lost: stderr = %q", stderr)
+	}
+}
+
 func TestRunRecordsTheCommandAndTheWorkspaceItRanIn(t *testing.T) {
 	dialing(t, fakeRemote{out: "CONTAINER ID\n"})
 	dir := configWith(t, twoMachineConfig)

@@ -13,6 +13,7 @@ import (
 // part of the interface would not compile against the real one.
 type recordingClient struct {
 	out      string
+	errOut   string
 	err      error
 	commands []string
 }
@@ -27,10 +28,13 @@ func (c *recordingClient) RunInput(_ context.Context, command string, _ io.Reade
 	return c.out, c.err
 }
 
-func (c *recordingClient) Stream(_ context.Context, command string, stdout, _ io.Writer) error {
+func (c *recordingClient) Stream(_ context.Context, command string, stdout, stderr io.Writer) error {
 	c.commands = append(c.commands, command)
 	if c.out != "" {
 		_, _ = io.WriteString(stdout, c.out)
+	}
+	if c.errOut != "" && stderr != nil {
+		_, _ = io.WriteString(stderr, c.errOut)
 	}
 	return c.err
 }

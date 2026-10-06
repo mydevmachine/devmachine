@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -240,13 +239,13 @@ func newRunCmd(opts *options) *cobra.Command {
 			}
 			defer client.Close()
 
-			out, err := client.Run(cmd.Context(), withMachinePath(opts, tgt.machine, args[0]))
-			record(opts, tgt, args[0], err == nil)
 			// The output of a command that failed is usually the explanation,
-			// so it is printed before the error is reported.
-			if out != "" {
-				cmd.Print(out)
-			}
+			// so both streams reach the person as they come, before the error
+			// is reported; stdout stays the command's own for a program
+			// reading it.
+			err = client.Stream(cmd.Context(), withMachinePath(opts, tgt.machine, args[0]),
+				cmd.OutOrStdout(), cmd.ErrOrStderr())
+			record(opts, tgt, args[0], err == nil)
 			return explainHostKey(cmd.Context(), tgt.machine, err)
 		},
 	}
@@ -299,12 +298,8 @@ func runPackage(cmd *cobra.Command, opts *options, name, workspace string, args 
 		return err
 	}
 
-	var out bytes.Buffer
-	callErr := ext.Call(cmd.Context(), pkgArgs, &out)
+	callErr := ext.Call(cmd.Context(), pkgArgs, cmd.OutOrStdout(), cmd.ErrOrStderr())
 	record(opts, tgt, fmt.Sprintf("run --package %s -- %s", name, strings.Join(pkgArgs, " ")), callErr == nil)
-	if out.Len() > 0 {
-		cmd.Print(out.String())
-	}
 	return explainHostKey(cmd.Context(), tgt.machine, callErr)
 }
 

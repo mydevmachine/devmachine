@@ -200,8 +200,8 @@ func (e *External) accepts(command string) bool {
 }
 
 // Call is the generic door: whatever the package accepts, with its output
-// going straight to the caller.
-func (e *External) Call(ctx context.Context, args []string, out io.Writer) error {
+// and its errors going straight to the caller, each to its own writer.
+func (e *External) Call(ctx context.Context, args []string, out, errOut io.Writer) error {
 	if len(args) == 0 {
 		return fmt.Errorf("say what to run: %s accepts %s", e.name, strings.Join(e.commands, ", "))
 	}
@@ -210,9 +210,5 @@ func (e *External) Call(ctx context.Context, args []string, out io.Writer) error
 			e.name, args[0], strings.Join(e.commands, ", "))
 	}
 
-	body, err := e.client.Run(ctx, e.shellFor(args, ""))
-	if _, writeErr := io.WriteString(out, body); writeErr != nil {
-		return writeErr
-	}
-	return err
+	return e.client.Stream(ctx, e.shellFor(args, ""), out, errOut)
 }
