@@ -544,7 +544,7 @@ devmachine workspaces rm <name> [--yes]
 devmachine workspaces destroy <name> [--confirm <name>] [--check] [--keep-dns]
 ```
 
-A workspace is one Linux account on one machine. See
+A workspace is one account on one machine. See
 [workspaces](../concepts/machines-and-workspaces.md).
 
 These commands only edit `config.yml` — `devmachine sync` creates or
@@ -575,7 +575,7 @@ workspace:
 }
 ```
 
-`user` is the Linux account. `packages` is `[]` when there are none, and
+`user` is the account on the machine. `packages` is `[]` when there are none, and
 `settings` is left out. `credentials` is the workspace's own
 `credentials:` answer per login — `own` keeps its own login, `machine`
 shares the machine's — exactly what `edit --share` writes, and `{}` when
@@ -597,7 +597,7 @@ for a package the workspace does not install is refused.
 **Changing `--machine` does not move a workspace.** The next `sync`
 creates the account on the new machine; the old one keeps everything.
 
-**`rm` leaves the Linux account, home and files on the machine** — remove
+**`rm` leaves the account, home and files on the machine** — remove
 those by hand if you want them gone.
 
 `new`, `rm`, `destroy` and `edit --machine` all refresh `~/.ssh/config`'s

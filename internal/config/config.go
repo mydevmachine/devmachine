@@ -165,7 +165,7 @@ type Workspace struct {
 	// Machine names where this workspace lives. It may be left out when the
 	// configuration has exactly one machine.
 	Machine string `yaml:"machine,omitempty"`
-	// User overrides the Linux account. It is only needed when the workspace
+	// User overrides the account. It is only needed when the workspace
 	// name cannot be the account name.
 	User string `yaml:"user,omitempty"`
 	// Packages are the recipes this workspace gets, by name.
@@ -519,7 +519,7 @@ func (c Config) Validate() error {
 		}
 		if resolved := w.resolvedMachine(c); resolved != "" && selfByName[resolved] {
 			return fmt.Errorf(
-				"workspace %q runs on %q, which is your computer as a machine: a workspace is a Linux account on a server",
+				"workspace %q runs on %q, which is your computer as a machine: a workspace is an account on a machine reached over SSH",
 				w.Name, resolved)
 		}
 		if name, dup := firstDuplicate(w.Packages); dup {
@@ -1214,7 +1214,7 @@ func UpdateWorkspaceDefaults(dir string, packages []string) error {
 
 // RemoveWorkspace takes a workspace out of config.yml.
 //
-// It removes the entry and nothing else. The Linux account, its home and its
+// It removes the entry and nothing else. The account, its home and its
 // files stay on the machine: a configuration edit is not a licence to delete
 // somebody's work, and `sync` could not put it back.
 func RemoveWorkspace(dir, name string) error {

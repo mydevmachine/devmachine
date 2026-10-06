@@ -28,7 +28,7 @@ machine "mac" is your computer (self: true), so it has no hosts: remove it
 ```
 
 The same reason is why a workspace can never live on a self machine: a
-workspace is a Linux account reached over SSH with a key the CLI
+workspace is an account reached over SSH with a key the CLI
 installed, and your own computer has no account system or SSH server for
 that.
 

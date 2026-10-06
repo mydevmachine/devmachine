@@ -163,7 +163,7 @@ func agentKeyFingerprint(public string) string {
 // client that answered, along with the address it answered on.
 //
 // user is who to log in as. Empty means the machine's administrative login;
-// a workspace passes its own Linux account instead.
+// a workspace passes its own account instead.
 func Dial(ctx context.Context, m config.Machine, user string) (Client, string, error) {
 	if m.Self {
 		return &localClient{}, SelfAddress, nil

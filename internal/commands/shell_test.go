@@ -161,7 +161,7 @@ func TestSSHSendsAWorkspaceToItsOwnMachine(t *testing.T) {
 	}
 
 	line := strings.Join(*got, " ")
-	// bob lives on sandbox, so its address, port, key and Linux account are
+	// bob lives on sandbox, so its address, port, key and account are
 	// the ones that have to appear — never main's.
 	for _, want := range []string{"-p 2222", "-i /keys/sandbox", "bob-dev@198.51.100.7"} {
 		if !strings.Contains(line, want) {

@@ -218,7 +218,7 @@ func newWorkspacesNewCmd(opts *options) *cobra.Command {
 		Use:   "new <name>",
 		Short: "Declare a workspace, for the next sync to create",
 		Long: "It edits the configuration and touches no machine. `devmachine " +
-			"sync` is what creates the Linux account.\n\n" +
+			"sync` is what creates the account on the machine.\n\n" +
 			"The package list comes from `defaults.workspace` in the " +
 			"configuration, unless --like or --packages says otherwise.",
 		Args: cobra.ExactArgs(1),
@@ -231,7 +231,7 @@ func newWorkspacesNewCmd(opts *options) *cobra.Command {
 		},
 	}
 	c.Flags().StringVar(&like, "like", "", "copy another workspace's packages")
-	c.Flags().StringVar(&user, "user", "", "the Linux account, when it cannot be the workspace's name")
+	c.Flags().StringVar(&user, "user", "", "the account on the machine, when it cannot be the workspace's name")
 	c.Flags().StringSliceVar(&packages, "packages", nil, "the packages it gets, instead of the default")
 	c.Flags().BoolVar(&check, "check", false, "say what would change, and change nothing")
 	c.Flags().BoolVar(&yes, "yes", false, "do not ask")
@@ -394,7 +394,7 @@ func newWorkspacesRmCmd(opts *options) *cobra.Command {
 	c := &cobra.Command{
 		Use:   "rm <name>",
 		Short: "Forget a workspace, leaving its account on the machine",
-		Long: "Takes the workspace out of the configuration. The Linux account, " +
+		Long: "Takes the workspace out of the configuration. The account on the machine, " +
 			"its home and its files stay on the machine.\n\n" +
 			"Deleting somebody's home is not something a configuration edit " +
 			"should do, and `sync` could not put it back.",
@@ -450,7 +450,7 @@ func newWorkspacesRmCmd(opts *options) *cobra.Command {
 	return c
 }
 
-// linuxUserName is what a Linux account name looks like: something that goes
+// linuxUserName is what an account name looks like: something that goes
 // into a shell command unquoted-safe as a bare word.
 var linuxUserName = regexp.MustCompile(`^[a-z_][a-z0-9_-]*$`)
 
@@ -461,7 +461,7 @@ func newWorkspacesDestroyCmd(opts *options) *cobra.Command {
 	c := &cobra.Command{
 		Use:   "destroy <name>",
 		Short: "Delete a workspace's account, home and configuration",
-		Long: "This is the only command that deletes a home: its Linux account, " +
+		Long: "This is the only command that deletes a home: its account on the machine, " +
 			"everything under that account's home directory, its Caddy routes " +
 			"and its entry in the configuration. It asks for the workspace's " +
 			"name typed again, because there is no undo.\n\n" +
@@ -497,7 +497,7 @@ func newWorkspacesDestroyCmd(opts *options) *cobra.Command {
 				return fmt.Errorf("refusing to destroy %q: it is the machine's administrative account", w.Name)
 			}
 			if !linuxUserName.MatchString(user) {
-				return fmt.Errorf("%q is not a Linux account name this command will pass to a shell", user)
+				return fmt.Errorf("%q is not an account name this command will pass to a shell", user)
 			}
 
 			cmd.Printf("This deletes, on %s:\n", machine.Name)
@@ -660,7 +660,7 @@ func newWorkspacesEditCmd(opts *options) *cobra.Command {
 			return runWorkspaceEdit(cmd, opts, args[0], e)
 		},
 	}
-	c.Flags().StringVar(&e.user, "user", "", "the Linux account this workspace owns")
+	c.Flags().StringVar(&e.user, "user", "", "the account on the machine this workspace owns")
 	c.Flags().StringSliceVar(&e.add, "add", nil, "a package to add")
 	c.Flags().StringSliceVar(&e.remove, "rm", nil, "a package to take off")
 	c.Flags().StringArrayVar(&e.set, "set", nil, "a setting, as <package>.<name>=<value>")

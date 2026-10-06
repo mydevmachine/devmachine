@@ -60,7 +60,7 @@ Moving `bob` to another machine is one line of configuration; the command
 you type never changes. `machine:` can be left out only when you have one
 machine — with several, it's required.
 
-## The Linux account
+## The account on the machine
 
 A workspace's account uses its own name by default: `acme` owns the user
 `acme`. Give it a different name with `user:`, for when that name is

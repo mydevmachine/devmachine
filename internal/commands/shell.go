@@ -261,7 +261,7 @@ func newRunCmd(opts *options) *cobra.Command {
 // yet.
 //
 // With no workspace it runs as the machine's admin. With one, it runs as
-// that workspace's own Linux account on the machine the workspace lives on —
+// that workspace's own account on the machine the workspace lives on —
 // what a package needs to read that account's own files or use its own
 // logins, such as a per-workspace GitHub login.
 func runPackage(cmd *cobra.Command, opts *options, name, workspace string, args []string) error {

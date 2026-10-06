@@ -202,7 +202,7 @@ func TestWorkspacesNewCopiesOnlyThePackages(t *testing.T) {
 	if !slices.Equal(w.Packages, []string{"workspace", "dev"}) {
 		t.Fatalf("the packages were not copied: %#v", w.Packages)
 	}
-	// A copied Linux account name would collide.
+	// A copied account name would collide.
 	if w.User != "" {
 		t.Fatalf("it copied the account: %q", w.User)
 	}
