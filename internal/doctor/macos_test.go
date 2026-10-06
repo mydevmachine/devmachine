@@ -2,6 +2,7 @@ package doctor
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -167,6 +168,81 @@ func TestDoctorOnLinuxReportsNoPrerequisites(t *testing.T) {
 	checks := Run(context.Background(), configDir(t, "machines:\n  - name: main\n    hosts: [203.0.113.10]\n"), "", dial, nil)
 	for _, c := range checks {
 		if strings.HasPrefix(c.Name, "prerequisite") {
+			t.Fatalf("a Linux machine got %#v", c)
+		}
+	}
+}
+
+const macWorkspaces = "workspaces:\n  - name: bob\n    machine: studio\n  - name: carol\n    machine: studio\n    user: carol2\n"
+
+func TestDoctorOnAMacWarnsWhenRemoteLoginLeavesAWorkspaceOut(t *testing.T) {
+	dir := macDir(t, macWorkspaces)
+	checks := runOnMac(t, dir, macClient(map[string]string{
+		remoteLoginCommand([]string{"bob", "carol2"}): "bob outside\ncarol2 member\n",
+	}))
+
+	bob := find(t, checks, SSHAccessPrefix+"bob")
+	if bob.Status != StatusWarn {
+		t.Fatalf("got %#v", bob)
+	}
+	for _, want := range []string{"Remote Login", "devmachine sync", "All users"} {
+		if !strings.Contains(bob.Detail, want) {
+			t.Fatalf("the detail does not say %q: %q", want, bob.Detail)
+		}
+	}
+	if carol := find(t, checks, SSHAccessPrefix+"carol"); carol.Status != StatusPass {
+		t.Fatalf("got %#v", carol)
+	}
+}
+
+func TestDoctorOnAMacPassesEveryWorkspaceWhenRemoteLoginAllowsAllUsers(t *testing.T) {
+	checks := runOnMac(t, macDir(t, macWorkspaces), macClient(map[string]string{
+		remoteLoginCommand([]string{"bob", "carol2"}): "all\n",
+	}))
+	for _, name := range []string{"bob", "carol"} {
+		if got := find(t, checks, SSHAccessPrefix+name); got.Status != StatusPass {
+			t.Fatalf("%s: got %#v", name, got)
+		}
+	}
+}
+
+func TestDoctorOnAMacSkipsAWorkspaceWhoseAccountIsNotThereYet(t *testing.T) {
+	checks := runOnMac(t, macDir(t, macWorkspaces), macClient(map[string]string{
+		remoteLoginCommand([]string{"bob", "carol2"}): "bob absent\ncarol2 member\n",
+	}))
+	if got := find(t, checks, SSHAccessPrefix+"bob"); got.Status != StatusSkip {
+		t.Fatalf("got %#v", got)
+	}
+}
+
+func TestDoctorOnAMacWarnsWhenItCannotReadRemoteLogin(t *testing.T) {
+	client := macClient(nil)
+	client.err = map[string]error{remoteLoginCommand([]string{"bob", "carol2"}): errors.New("exit status 1")}
+	checks := runOnMac(t, macDir(t, macWorkspaces), client)
+	if got := find(t, checks, SSHAccessPrefix+"bob"); got.Status != StatusWarn {
+		t.Fatalf("got %#v", got)
+	}
+}
+
+func TestRemoteLoginCommandAsksOnceForEveryAccount(t *testing.T) {
+	command := remoteLoginCommand([]string{"bob", "carol2"})
+	for _, want := range []string{"/Groups/com.apple.access_ssh", "'bob'", "'carol2'", "checkmember"} {
+		if !strings.Contains(command, want) {
+			t.Fatalf("it does not hold %q: %s", want, command)
+		}
+	}
+}
+
+func TestDoctorOnLinuxHasNoSSHAccessCheck(t *testing.T) {
+	client := fakeClient{out: map[string]string{
+		unameCommand: "Linux\n", osReleaseCommand: "ID=debian\n", ansibleCommand: "/usr/bin/ansible-playbook\n",
+	}}
+	dial := func(context.Context, config.Machine, string) (remote.Client, string, error) {
+		return client, "203.0.113.10", nil
+	}
+	dir := configDir(t, "machines:\n  - name: main\n    hosts: [203.0.113.10]\nworkspaces:\n  - name: bob\n")
+	for _, c := range Run(context.Background(), dir, "", dial, nil) {
+		if strings.HasPrefix(c.Name, SSHAccessPrefix) {
 			t.Fatalf("a Linux machine got %#v", c)
 		}
 	}

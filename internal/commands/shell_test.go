@@ -553,3 +553,49 @@ func TestDialAdminRunsEverythingAsRoot(t *testing.T) {
 		t.Fatalf("got %q", adminCommands)
 	}
 }
+
+type exitCodeError int
+
+func (e exitCodeError) Error() string { return fmt.Sprintf("exit status %d", int(e)) }
+
+func (e exitCodeError) ExitCode() int { return int(e) }
+
+func TestSSHToAMacThatRefusesTheLoginPointsAtRemoteLogin(t *testing.T) {
+	captureInteractive(t)
+	runInteractive = func(string, ...string) error { return exitCodeError(255) }
+	dir := configWith(t, twoMachineConfig)
+	saveFacts(t, dir, "sandbox", observedMac)
+
+	_, err := execute(t, "--config", dir, "ssh", "bob")
+	if err == nil {
+		t.Fatal("ssh succeeded")
+	}
+	for _, want := range []string{"Remote Login", "bob-dev", "devmachine doctor"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("the error does not say %q: %v", want, err)
+		}
+	}
+}
+
+func TestSSHToAMachineNotKnownAsAMacDoesNotGuessAtRemoteLogin(t *testing.T) {
+	captureInteractive(t)
+	runInteractive = func(string, ...string) error { return exitCodeError(255) }
+	dir := configWith(t, twoMachineConfig)
+
+	_, err := execute(t, "--config", dir, "ssh", "bob")
+	if err == nil || strings.Contains(err.Error(), "Remote Login") {
+		t.Fatalf("got %v", err)
+	}
+}
+
+func TestSSHToAMacThatFailsForAnotherReasonSaysNothingAboutRemoteLogin(t *testing.T) {
+	captureInteractive(t)
+	runInteractive = func(string, ...string) error { return exitCodeError(1) }
+	dir := configWith(t, twoMachineConfig)
+	saveFacts(t, dir, "sandbox", observedMac)
+
+	_, err := execute(t, "--config", dir, "ssh", "bob")
+	if err == nil || strings.Contains(err.Error(), "Remote Login") {
+		t.Fatalf("got %v", err)
+	}
+}

@@ -54,6 +54,22 @@ Ansible by that path, because a plain SSH command on a Mac gets
 `PATH=/usr/bin:/bin:/usr/sbin:/sbin`, where neither Homebrew nor MacPorts
 lives.
 
+## Remote Login set to "Only these users"
+
+Remote Login can allow all users or only some. With "Only these users",
+macOS keeps the list in the group `com.apple.access_ssh` and refuses any
+account outside it before it looks at the key: the server log says
+`pam_sacl: denying '<account>' due to failed service ACL check`, and
+`ssh` gets only "Connection closed" (exit 255).
+
+So a workspace account has to be in that group. `sync` adds each one when
+the group exists; with "All users" there is no group and nothing to add.
+`workspaces destroy` takes the account out again before it deletes it.
+`devmachine doctor` reports one `ssh access: <workspace>` check per
+workspace, so an account left out shows as a warning and not as a
+mystery. The CLI never switches Remote Login to "All users": that is the
+Mac owner's choice.
+
 ## Why consent has its own flag
 
 Installing the Command Line Tools takes up to ten minutes and puts

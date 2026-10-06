@@ -205,8 +205,13 @@ manager package's `bootstrap check` lists what the Mac lacks: one
 `prerequisite: <name>` warning per item (`devmachine setup` installs it
 once you agree), or one `prerequisites` check that passes when nothing is
 missing, or is skipped when no package manager is chosen yet. The script
-reaches the Mac on stdin, so doctor leaves nothing on it. See [what a
-machine needs](../how-it-works/what-a-machine-needs.md).
+reaches the Mac on stdin, so doctor leaves nothing on it. Last, one
+`ssh access: <workspace>` check per workspace on the Mac: it passes when
+Remote Login allows all users or the account is in the list, warns when
+Remote Login allows only some users and the account is not one of them,
+and is skipped while the account does not exist yet. One SSH command
+answers for every workspace. See [what a machine
+needs](../how-it-works/what-a-machine-needs.md).
 
 A missing or logged-out credential **warns**, with the fix (`devmachine
 login <credential>`, or `secrets set` then `credentials push`); so does a

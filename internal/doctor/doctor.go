@@ -455,7 +455,8 @@ func remoteChecks(ctx context.Context, client remote.Client, dir string, cfg con
 	}
 	if system.MacOS() {
 		out = append(out, macAnsibleCheck(ctx, client, dir, m.Name))
-		return append(out, prerequisiteChecks(ctx, client, dir, cfg, m)...)
+		out = append(out, prerequisiteChecks(ctx, client, dir, cfg, m)...)
+		return append(out, sshAccessChecks(ctx, client, cfg.WorkspacesOn(m.Name))...)
 	}
 
 	path, err := client.Run(ctx, ansibleCommand)

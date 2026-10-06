@@ -16,6 +16,10 @@ const MacVersionCommand = "sw_vers -productVersion"
 // KernelDarwin is what `uname -s` says on a Mac.
 const KernelDarwin = "Darwin"
 
+// MacRemoteLoginGroup is the group macOS limits SSH to when Remote Login
+// allows only some users. It does not exist while Remote Login allows all.
+const MacRemoteLoginGroup = "com.apple.access_ssh"
+
 // System is what a machine runs, as far as setting it up is concerned.
 type System struct {
 	// Kernel is what `uname -s` says: "Linux", "Darwin".

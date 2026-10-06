@@ -120,3 +120,72 @@ func macBootstrapPackage(ctx context.Context, client remote.Client, dir string, 
 	}
 	return found, ""
 }
+
+// SSHAccessPrefix names the check, one per workspace on a Mac, that its
+// account may log in over SSH, such as "ssh access: alice".
+const SSHAccessPrefix = "ssh access: "
+
+// remoteLoginCommand asks, in one round trip, whether Remote Login lets each
+// account in. It prints "all" when Remote Login allows all users, and
+// otherwise one "<account> member|outside|absent" line per account.
+func remoteLoginCommand(accounts []string) string {
+	quoted := make([]string, len(accounts))
+	for i, a := range accounts {
+		quoted[i] = quote(a)
+	}
+	group := remote.MacRemoteLoginGroup
+	return "if ! dscl . -read /Groups/" + group + " >/dev/null 2>&1; then echo all; exit 0; fi; " +
+		"for u in " + strings.Join(quoted, " ") + "; do " +
+		`if ! id -u "$u" >/dev/null 2>&1; then echo "$u absent"; ` +
+		`elif dseditgroup -o checkmember -m "$u" ` + group + ` >/dev/null 2>&1; then echo "$u member"; ` +
+		`else echo "$u outside"; fi; done`
+}
+
+// sshAccessChecks reports, for each workspace on a Mac, whether Remote Login
+// lets its account in. With "Only these users" set, macOS refuses an account
+// outside that list before the key is even looked at.
+func sshAccessChecks(ctx context.Context, client remote.Client, workspaces []config.Workspace) []Check {
+	if len(workspaces) == 0 {
+		return nil
+	}
+	accounts := make([]string, len(workspaces))
+	for i, w := range workspaces {
+		accounts[i] = w.LinuxUser()
+	}
+	out, err := client.Run(ctx, remoteLoginCommand(accounts))
+	if err != nil {
+		checks := make([]Check, len(workspaces))
+		for i, w := range workspaces {
+			checks[i] = Check{Name: SSHAccessPrefix + w.Name, Status: StatusWarn,
+				Detail: "could not read who Remote Login lets in: " + err.Error()}
+		}
+		return checks
+	}
+
+	allowAll := strings.TrimSpace(out) == "all"
+	state := map[string]string{}
+	for _, line := range strings.Split(out, "\n") {
+		if account, answer, found := strings.Cut(strings.TrimSpace(line), " "); found {
+			state[account] = answer
+		}
+	}
+
+	checks := make([]Check, len(workspaces))
+	for i, w := range workspaces {
+		check := Check{Name: SSHAccessPrefix + w.Name}
+		switch {
+		case allowAll:
+			check.Status, check.Detail = StatusPass, "Remote Login allows all users"
+		case state[accounts[i]] == "member":
+			check.Status, check.Detail = StatusPass, accounts[i]+" is in the users Remote Login allows"
+		case state[accounts[i]] == "absent":
+			check.Status, check.Detail = StatusSkip, "the account "+accounts[i]+" does not exist yet; `devmachine sync` creates it"
+		default:
+			check.Status = StatusWarn
+			check.Detail = "Remote Login allows only some users, and " + accounts[i] + " is not one of them: " +
+				"`devmachine sync` adds the account, or allow All users in System Settings > General > Sharing > Remote Login"
+		}
+		checks[i] = check
+	}
+	return checks
+}

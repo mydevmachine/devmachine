@@ -494,6 +494,28 @@ proxy's error, which lists every address and why.
 If it says `devmachine: command not found` instead, the CLI moved since the
 alias was written: run `devmachine aliases --write` again.
 
+## `devmachine ssh <workspace>` on a Mac ends with "exit status 255" and "Remote Login may not allow"
+
+```
+exit status 255: the Mac's Remote Login may not allow alice; `devmachine doctor --machine studio` checks it
+```
+
+The Mac's own log (`log show --predicate 'process == "sshd"' --last 5m`)
+says `pam_sacl: denying 'alice' due to failed service ACL check`.
+
+**What it means:** Remote Login on that Mac is set to "Only these users",
+and the workspace account is not on the list (the group
+`com.apple.access_ssh`). macOS refuses the login before it checks the
+key, so `ssh` only sees the connection close. The CLI adds this hint only
+for a machine it last saw as a Mac; exit 255 has other causes too, such
+as an address that does not answer.
+
+**What to do:** Run `devmachine doctor --machine <name>`. An `ssh access:
+<workspace>` warning confirms it. Run `devmachine sync`, which adds each
+workspace account to the list, or, on the Mac, choose "All users" in
+System Settings > General > Sharing > Remote Login. See [what a machine
+needs](how-it-works/what-a-machine-needs.md#remote-login-set-to-only-these-users).
+
 ## `doctor` says an alias has "a fixed address, expected one resolved when ssh connects"
 
 **What it means:** The alias was written with the address itself, by an

@@ -182,7 +182,24 @@ func interactive(ctx context.Context, opts *options, binary string, args []strin
 		argv = strictSSHArgs(m)
 		argv = append(argv, user+"@"+address)
 	}
-	return runInteractive(binary, argv...)
+	return explainRemoteLogin(opts, tgt, runInteractive(binary, argv...))
+}
+
+// explainRemoteLogin points at Remote Login when ssh gives up (255) on a
+// machine last seen as a Mac: with "Only these users", macOS refuses an
+// account outside that list whatever the key, and ssh says only "Connection
+// closed". On any other machine 255 has too many causes to name one.
+func explainRemoteLogin(opts *options, tgt target, err error) error {
+	var exit interface{ ExitCode() int }
+	if tgt.workspace == "" || !errors.As(err, &exit) || exit.ExitCode() != 255 {
+		return err
+	}
+	dir, _, dirErr := config.Dir(opts.configDir)
+	if dirErr != nil || observedSystem(dir, tgt.machine.Name) != remote.KernelDarwin {
+		return err
+	}
+	return fmt.Errorf("%w: the Mac's Remote Login may not allow %s; `devmachine doctor --machine %s` checks it",
+		err, tgt.user, tgt.machine.Name)
 }
 
 func newRunCmd(opts *options) *cobra.Command {
