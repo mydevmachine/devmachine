@@ -26,7 +26,7 @@ server that coordinates it — no third party in the loop. This guide puts
 Headscale on a small server, joins your devmachine server to it, and joins
 your own computer too.
 
-**You need:** a second small Debian or Ubuntu server for Headscale itself
+**You need:** a second small Linux server for Headscale itself, tested on Ubuntu
 (or reuse your devmachine server — see the note below), and your devmachine
 server already reachable over SSH.
 

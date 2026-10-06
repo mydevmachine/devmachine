@@ -3,7 +3,7 @@ description: "Start Claude Code on your server and drive the same session from t
 category: Agents
 level: Beginner
 needs:
-  - "A Debian or Ubuntu VPS"
+  - "A VPS (tested on Debian and Ubuntu)"
   - "The Claude app on your phone"
 related:
   - start-claude-from-your-phone.md
@@ -17,7 +17,7 @@ or Android app, while it is running. You still start the session yourself
 over SSH — for a session waiting for you with no SSH step at all, see
 [start Claude from your phone](start-claude-from-your-phone.md).
 
-**You need:** a Debian or Ubuntu VPS.
+**You need:** a VPS (tested on Debian and Ubuntu).
 
 ## Before you start: machine, skills, workspace
 

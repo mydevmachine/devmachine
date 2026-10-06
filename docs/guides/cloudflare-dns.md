@@ -3,7 +3,7 @@ description: "Give devmachine a scoped Cloudflare token, and expose add points y
 category: Networking
 level: Beginner
 needs:
-  - "A Debian or Ubuntu VPS"
+  - "A Linux VPS (tested on Debian and Ubuntu)"
   - "A domain on Cloudflare"
 related:
   - express-site-with-tls.md
@@ -17,7 +17,7 @@ records for you: `expose add` points a name at your server without you
 touching the Cloudflare dashboard again. This guide adds the Cloudflare
 package, hands it a scoped token, and publishes a site at a real subdomain.
 
-**You need:** a Debian or Ubuntu VPS, a domain whose DNS is on Cloudflare
+**You need:** a Linux VPS (tested on Debian and Ubuntu), a domain whose DNS is on Cloudflare
 (here, `example.com`), and a Cloudflare account.
 
 ## Before you start: machine, skills, workspace

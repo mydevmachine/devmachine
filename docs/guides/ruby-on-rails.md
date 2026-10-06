@@ -3,7 +3,7 @@ description: "Fork an open source Rails project into a workspace, run its tests 
 category: Workspaces
 level: Intermediate
 needs:
-  - "A Debian or Ubuntu VPS"
+  - "A VPS (tested on Debian and Ubuntu)"
   - "A GitHub account"
 related:
   - one-consultant-three-startups.md
@@ -18,7 +18,7 @@ Rails docs site. This guide forks it, installs Ruby with mise, runs its
 test suite, and starts its dev server — viewed privately with `devmachine
 tunnel`, with Claude Code on hand to help.
 
-**You need:** a Debian or Ubuntu VPS, and a GitHub account.
+**You need:** a VPS (tested on Debian and Ubuntu), and a GitHub account.
 
 ## Before you start: machine, skills, workspace
 

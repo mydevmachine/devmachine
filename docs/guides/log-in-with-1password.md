@@ -3,7 +3,7 @@ description: "Keep devmachine's SSH key in 1Password and approve each use with T
 category: Security
 level: Intermediate
 needs:
-  - "A Debian or Ubuntu VPS"
+  - "A VPS (tested on Debian and Ubuntu)"
   - "1Password 8"
   - "An SSH key in 1Password"
 related:
@@ -20,7 +20,7 @@ it, and asks you to approve with Touch ID or your password.
 If you do not already keep SSH keys in 1Password, you do not need this: the
 key `setup` makes for devmachine is simpler, and just as safe.
 
-**You need:** a Debian or Ubuntu VPS, 1Password 8 on your computer, and an
+**You need:** a VPS (tested on Debian and Ubuntu), 1Password 8 on your computer, and an
 SSH key saved in 1Password.
 
 ## Before you start: machine, skills, workspace

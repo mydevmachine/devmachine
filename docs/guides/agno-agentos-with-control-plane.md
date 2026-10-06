@@ -3,7 +3,7 @@ description: "Serve Agno AgentOS and its control plane dashboard, each at its ow
 category: Agents
 level: Advanced
 needs:
-  - "A Debian or Ubuntu VPS"
+  - "A Linux VPS (tested on Debian and Ubuntu)"
   - "A domain"
 related:
   - hermes-agent-in-its-own-sandbox.md
@@ -19,7 +19,7 @@ to the [AgentOS control plane](https://github.com/djalmaaraujo/agentos-control-p
 a small open dashboard that talks to it. Both end up live at their own
 subdomain, with HTTPS.
 
-**You need:** a Debian or Ubuntu VPS, and a domain such as
+**You need:** a Linux VPS (tested on Debian and Ubuntu), and a domain such as
 `agents.example.com` pointed at it (or a DNS provider package installed, so
 `expose add` points it for you — see [DNS](../concepts/dns.md)).
 

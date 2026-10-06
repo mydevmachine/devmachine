@@ -3,7 +3,7 @@ description: "Run an Express app in a workspace and serve it at your own domain,
 category: Web apps
 level: Beginner
 needs:
-  - "A Debian or Ubuntu VPS"
+  - "A Linux VPS (tested on Debian and Ubuntu)"
   - "A domain"
 related:
   - docker-site-on-8080.md
@@ -16,7 +16,7 @@ Run an Express app in a workspace and put it on the internet at a real
 domain, with HTTPS that renews itself. This is the plain Node case: one
 process, one port, no container.
 
-**You need:** a Debian or Ubuntu VPS, and a domain such as `app.example.com`
+**You need:** a Linux VPS (tested on Debian and Ubuntu), and a domain such as `app.example.com`
 pointed at it (or a DNS provider package installed, so `expose add` points it
 for you — see [DNS](../concepts/dns.md)).
 

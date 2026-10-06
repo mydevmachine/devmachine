@@ -3,7 +3,7 @@ description: "Build a small LangChain agent with two tools in a workspace, with 
 category: Agents
 level: Beginner
 needs:
-  - "A Debian or Ubuntu VPS, or a local VM"
+  - "A Linux VPS (tested on Debian and Ubuntu), or a local VM"
   - "An OpenAI API key"
 related:
   - logins-and-secrets.md
@@ -21,7 +21,7 @@ The OpenAI key never goes in a command, a script or the chat with your
 agent: `devmachine secrets` stores it on your computer and writes it into
 the project's `.env` file in the workspace.
 
-**You need:** a Debian or Ubuntu VPS, or a [local VM](a-local-vm-with-lima.md)
+**You need:** a Linux VPS (tested on Debian and Ubuntu), or a [local VM](a-local-vm-with-lima.md)
 (this guide needs no domain), and an OpenAI API key from
 [platform.openai.com](https://platform.openai.com/api-keys).
 

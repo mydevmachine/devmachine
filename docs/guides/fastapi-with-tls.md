@@ -3,7 +3,7 @@ description: "Run a FastAPI app in a workspace with uv and serve it at your own 
 category: Web apps
 level: Beginner
 needs:
-  - "A Debian or Ubuntu VPS"
+  - "A Linux VPS (tested on Debian and Ubuntu)"
   - "A domain"
 related:
   - express-site-with-tls.md
@@ -17,7 +17,7 @@ the internet at `api.example.com`, with HTTPS that renews itself. Its
 interactive API docs come along at `https://api.example.com/docs`, and at
 the end the app comes back on its own after the server restarts.
 
-**You need:** a Debian or Ubuntu VPS, and a domain such as `api.example.com`
+**You need:** a Linux VPS (tested on Debian and Ubuntu), and a domain such as `api.example.com`
 pointed at it (or a DNS provider package installed, so `expose add` points it
 for you — see [DNS](../concepts/dns.md)).
 
