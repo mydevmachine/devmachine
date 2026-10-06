@@ -485,7 +485,9 @@ func credentialChecks(ctx context.Context, client remote.Client, wanted []creden
 		return nil
 	}
 
-	present, err := credentials.Present(ctx, client, wanted)
+	// As root, like `credentials list`: an admin that is not root cannot see
+	// into a workspace's home, and its login shell may be a Mac's zsh.
+	present, err := credentials.Present(ctx, remote.Elevated(client), wanted)
 	if err != nil {
 		var out []Check
 		for _, d := range wanted {

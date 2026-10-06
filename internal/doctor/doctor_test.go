@@ -552,6 +552,27 @@ func TestACredentialNobodyCouldLookForWarns(t *testing.T) {
 	}
 }
 
+type recordsInput struct {
+	fakeClient
+	commands *[]string
+}
+
+func (r recordsInput) RunInput(ctx context.Context, command string, stdin io.Reader) (string, error) {
+	*r.commands = append(*r.commands, command)
+	return r.fakeClient.RunInput(ctx, command, stdin)
+}
+
+func TestTheCredentialsAreLookedForAsRoot(t *testing.T) {
+	var commands []string
+	client := recordsInput{working("alice/claude\tyes\n"), &commands}
+	wanted := []credentials.Declared{login("claude", "alice", "alice")}
+	Run(context.Background(), configDir(t, machineWith), "", dialling(client), wanted)
+
+	if len(commands) != 1 || !strings.Contains(commands[0], "sudo -n -H") {
+		t.Fatalf("the credentials were not looked for as root: %q", commands)
+	}
+}
+
 func TestAMissingSecretSaysToStoreItAndPushIt(t *testing.T) {
 	wanted := []credentials.Declared{{
 		Credential: packages.Credential{Name: "token", Kind: packages.KindSecret, Env: "TOKEN"},
