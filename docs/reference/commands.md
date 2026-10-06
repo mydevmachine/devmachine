@@ -797,7 +797,9 @@ devmachine stats [--machine m]
 ```
 
 Prints memory, swap, disk and load. The table rounds; JSON gives raw byte
-counts.
+counts. On Linux it reads `free`, `df` and `/proc/loadavg`. A Mac has none
+of those, so there it reads `sysctl`, `vm_stat` and `df -k` of the data
+volume; "available" memory is the free, inactive and speculative pages.
 
 ## ssh, mosh
 

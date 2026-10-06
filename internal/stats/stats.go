@@ -43,6 +43,14 @@ type Snapshot struct {
 func Collect(ctx context.Context, client remote.Client) (Snapshot, error) {
 	var s Snapshot
 
+	kernel, err := client.Run(ctx, remote.UnameCommand)
+	if err != nil {
+		return s, fmt.Errorf("reading which system this is: %w", err)
+	}
+	if strings.TrimSpace(kernel) == remote.KernelDarwin {
+		return collectMac(ctx, client)
+	}
+
 	free, err := client.Run(ctx, freeCommand)
 	if err != nil {
 		return s, fmt.Errorf("reading memory: %w", err)
