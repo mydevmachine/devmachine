@@ -164,6 +164,12 @@ describes. Specifically:
   or three other guides). No time estimate: nobody can say how long a guide
   takes for someone else. The website builds its cards and chips from it,
   and `scripts/check-docs.sh` checks it. Copy the block from any guide.
+- Two ways to do the same step (Tailscale or Headscale, say) go in tabs:
+  `<!-- tabs -->`, then one `####` heading per tab, then `<!-- /tabs -->`,
+  with a blank line around each marker. The website draws them as tabs;
+  on GitHub they read as plain subheadings. No deeper heading inside a tab.
+- An image goes next to its page (`guides/images/`) with a relative link.
+  The website copies it.
 
 The reason for the second rule: the hard-won parts of this project are not the
 code, they are the reasons. Why one key is offered and never the whole agent,

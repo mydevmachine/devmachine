@@ -56,6 +56,11 @@ session. Only a reboot stops it.
   terminal, with your Cline account or your own key.
 - [Claude 24/7 in Telegram](claude-24-7-in-telegram.md) — message Claude Code
   from Telegram, while it runs on your server around the clock.
+- [Send work to a Claude session from a POST/Telegram/WhatsApp using Channels](claude-channels.md)
+  — a webhook, a chat message or a cron job sends work to a running Claude
+  session, and it answers back.
+- [A simple agent with LangChain and OpenAI](langchain-agent-with-openai.md) —
+  a small Python agent with two tools, its key delivered by devmachine.
 
 ## Web apps
 
@@ -63,9 +68,21 @@ session. Only a reboot stops it.
   your own domain with HTTPS.
 - [Docker site on 8080](docker-site-on-8080.md) — a container, live at your
   own domain with HTTPS.
+- [Next.js app at your own domain](nextjs-site-with-tls.md) — a production
+  build under pm2, at your own domain with HTTPS; a Nest.js API works the
+  same way.
+- [FastAPI app at your own domain](fastapi-with-tls.md) — uvicorn as a
+  service that survives a reboot, with Swagger UI at your domain.
+- [LibreChat, your own AI chat ecosystem](librechat.md) — one self-hosted chat
+  for many AI providers, agents, MCP and your files.
+- [Open WebUI on your own server](open-webui.md) — a self-hosted AI chat in
+  one container, with you as its only admin.
 - [Expose a home server without port forwarding](expose-home-server-without-port-forwarding.md)
   — an old laptop or homelab box at your own domain with HTTPS, through
   your VPS, even behind CGNAT.
+- [Share an app on your computer with friends](share-a-local-app-with-friends.md)
+  — an app in a local VM, opened from a friend's phone through your VPS
+  or Tailscale Funnel.
 - [wuzapi as your own package](wuzapi-as-your-own-package.md) — a WhatsApp API
   written once as a package, running on two machines.
 

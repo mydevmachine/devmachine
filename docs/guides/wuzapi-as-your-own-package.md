@@ -144,7 +144,7 @@ moving on.
 ```
 devmachine packages add docker
 devmachine packages add wuzapi --workspace whatsapp
-devmachine workspaces edit whatsapp --set workspace.groups=[docker]
+devmachine workspaces edit whatsapp --set 'workspace.groups=[docker]'
 devmachine secrets set whatsapp/wuzapi_admin_token
 devmachine credentials push
 devmachine sync
@@ -170,7 +170,7 @@ devmachine machines add
 devmachine workspaces new whatsapp-eu --machine backup
 devmachine packages add docker --machine backup
 devmachine packages add wuzapi --workspace whatsapp-eu --machine backup
-devmachine workspaces edit whatsapp-eu --machine backup --set workspace.groups=[docker]
+devmachine workspaces edit whatsapp-eu --machine backup --set 'workspace.groups=[docker]'
 devmachine secrets set whatsapp-eu/wuzapi_admin_token
 devmachine credentials push --machine backup
 devmachine sync --machine backup

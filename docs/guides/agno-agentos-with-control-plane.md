@@ -43,7 +43,7 @@ does.
 
 ```
 devmachine packages add docker
-devmachine workspaces edit agents --set workspace.groups=[docker]
+devmachine workspaces edit agents --set 'workspace.groups=[docker]'
 devmachine sync
 ```
 

@@ -63,9 +63,9 @@ let each workspace use it:
 
 ```
 devmachine packages add docker
-devmachine workspaces edit acme --set workspace.groups=[docker]
-devmachine workspaces edit globex --set workspace.groups=[docker]
-devmachine workspaces edit initech --set workspace.groups=[docker]
+devmachine workspaces edit acme --set 'workspace.groups=[docker]'
+devmachine workspaces edit globex --set 'workspace.groups=[docker]'
+devmachine workspaces edit initech --set 'workspace.groups=[docker]'
 devmachine sync
 ```
 

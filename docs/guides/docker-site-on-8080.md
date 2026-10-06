@@ -53,7 +53,7 @@ your machine's name next to it.
 ### 2. Put the workspace in the docker group
 
 ```
-devmachine workspaces edit acme --set workspace.groups=[docker]
+devmachine workspaces edit acme --set 'workspace.groups=[docker]'
 devmachine sync
 ```
 

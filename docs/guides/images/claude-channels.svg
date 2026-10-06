@@ -1,0 +1,153 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 420" width="800" height="420" role="img" aria-labelledby="t d">
+  <title id="t">A message from outside arrives in the Claude Code session</title>
+  <desc id="d">A curl request with a secret header goes to your channel, an MCP server. The channel checks the secret and pushes the event into the running Claude Code session as a channel block. Claude reacts, calls the reply tool, and the reply travels back out.</desc>
+  <style>
+    svg { --card: #f5f3ef; --ink: #23211e; --muted: #6b665e; --line: #d9d4ca; --panel: #ffffff; --accent: #d97757; --ok: #2f8a3e; }
+    @media (prefers-color-scheme: dark) {
+      svg { --card: #1c1b19; --ink: #ece9e3; --muted: #a29d94; --line: #3a3833; --panel: #262522; --accent: #e58a6b; --ok: #6cc47a; }
+    }
+    text { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size: 13px; fill: var(--ink); }
+    .label { font-size: 14px; font-weight: 700; }
+    .muted { fill: var(--muted); }
+    .card { fill: var(--card); }
+    .panel { fill: var(--panel); stroke: var(--line); stroke-width: 1.5; }
+    .arrow { stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 4 4; fill: none; }
+    .head { fill: var(--muted); }
+    .packet { fill: var(--accent); }
+    .pill-ok { fill: none; stroke: var(--ok); stroke-width: 1.5; }
+    .ok { fill: var(--ok); font-weight: 700; }
+    .reply-tag { fill: var(--accent); font-weight: 700; }
+    .pill-reply { fill: none; stroke: var(--accent); stroke-width: 1.5; }
+    .bubble { fill: #c4613f; }
+    .bubble-text { fill: #ffffff; }
+    .term { fill: #1f1e1d; stroke: var(--line); stroke-width: 1.5; }
+    .term-bar { fill: #2c2a28; }
+    .tt { fill: #e6e3dc; }
+    .td { fill: #8f8a81; }
+    .tag { fill: #86b8e6; }
+    .dot-claude { fill: #e58a6b; }
+    .dot-tool { fill: #6cc47a; }
+    .prompt { fill: none; stroke: #5a5650; stroke-width: 1.2; }
+    .cover { fill: #1f1e1d; transform: translateX(310px); }
+
+    .p-in1, .p-in2, .p-out1, .p-out2 { opacity: 0; }
+    .p-in1 { animation: in1 10s linear infinite both; }
+    .p-in2 { animation: in2 10s linear infinite both; }
+    .p-out1 { animation: out1 10s linear infinite both; }
+    .p-out2 { animation: out2 10s linear infinite both; }
+    .glow { animation: glow 10s linear infinite both; }
+    .secret-ok { animation: show-secret 10s linear infinite both; }
+    .reply-pill { animation: show-reply 10s linear infinite both; }
+    .event { animation: show-event 10s linear infinite both; }
+    .c1 { animation: type1 10s linear infinite both; }
+    .c2 { animation: type2 10s linear infinite both; }
+    .tool { animation: show-tool 10s linear infinite both; }
+    .answer { animation: show-answer 10s linear infinite both; }
+    .sent { animation: show-sent 10s linear infinite both; }
+
+    @keyframes in1 { 0%, 5% { opacity: 0; transform: translateX(0); } 6% { opacity: 1; transform: translateX(0); } 16% { opacity: 1; transform: translateX(62px); } 17%, 100% { opacity: 0; transform: translateX(62px); } }
+    @keyframes in2 { 0%, 22% { opacity: 0; transform: translateX(0); } 23% { opacity: 1; transform: translateX(0); } 31% { opacity: 1; transform: translateX(52px); } 32%, 100% { opacity: 0; transform: translateX(52px); } }
+    @keyframes out1 { 0%, 64% { opacity: 0; transform: translateX(0); } 65% { opacity: 1; transform: translateX(0); } 73% { opacity: 1; transform: translateX(-52px); } 74%, 100% { opacity: 0; transform: translateX(-52px); } }
+    @keyframes out2 { 0%, 76% { opacity: 0; transform: translateX(0); } 77% { opacity: 1; transform: translateX(0); } 86% { opacity: 1; transform: translateX(-62px); } 87%, 100% { opacity: 0; transform: translateX(-62px); } }
+    @keyframes glow { 0%, 15% { stroke: var(--line); stroke-width: 1.5; } 17%, 23% { stroke: var(--accent); stroke-width: 3; } 26%, 100% { stroke: var(--line); stroke-width: 1.5; } }
+    @keyframes show-secret { 0%, 17% { opacity: 0; } 19%, 94% { opacity: 1; } 97%, 100% { opacity: 0; } }
+    @keyframes show-reply { 0%, 72% { opacity: 0; } 74%, 94% { opacity: 1; } 97%, 100% { opacity: 0; } }
+    @keyframes show-event { 0%, 31% { opacity: 0; } 33%, 94% { opacity: 1; } 97%, 100% { opacity: 0; } }
+    @keyframes type1 { 0%, 38% { transform: translateX(0); } 47%, 100% { transform: translateX(310px); } }
+    @keyframes type2 { 0%, 47% { transform: translateX(0); } 55%, 100% { transform: translateX(310px); } }
+    @keyframes show-tool { 0%, 58% { opacity: 0; } 60%, 94% { opacity: 1; } 97%, 100% { opacity: 0; } }
+    @keyframes show-answer { 0%, 37% { opacity: 0; } 38%, 94% { opacity: 1; } 97%, 100% { opacity: 0; } }
+    @keyframes show-sent { 0%, 86% { opacity: 0; } 88%, 94% { opacity: 1; } 97%, 100% { opacity: 0; } }
+
+    @media (prefers-reduced-motion: reduce) {
+      .p-in1, .p-in2, .p-out1, .p-out2, .glow, .secret-ok, .reply-pill, .event, .c1, .c2, .tool, .answer, .sent { animation: none; }
+    }
+  </style>
+
+  <defs>
+    <clipPath id="term-clip"><rect x="476" y="90" width="308" height="266"/></clipPath>
+  </defs>
+
+  <rect class="card" x="0" y="0" width="800" height="420" rx="16"/>
+
+  <text class="label" x="116" y="46" text-anchor="middle">outside world</text>
+  <text class="label" x="351" y="34" text-anchor="middle">your channel</text>
+  <text class="label" x="351" y="52" text-anchor="middle">(MCP server)</text>
+  <text class="label" x="630" y="46" text-anchor="middle">your Claude Code session</text>
+
+  <rect class="panel" x="16" y="64" width="200" height="292" rx="12"/>
+  <text class="muted" x="30" y="92">a webhook</text>
+  <text x="30" y="120">$ curl -X POST</text>
+  <text x="46" y="140">hooks.example.com</text>
+  <text x="46" y="160">-H X-Webhook-Secret</text>
+  <text x="46" y="180">-d "CI failed:</text>
+  <text x="77" y="200">test_login"</text>
+  <g class="sent">
+    <rect class="bubble" x="30" y="252" width="172" height="76" rx="12"/>
+    <text class="bubble-text" x="42" y="276">reply: the login</text>
+    <text class="bubble-text" x="42" y="296">test timed out,</text>
+    <text class="bubble-text" x="42" y="316">fixing it</text>
+  </g>
+
+  <line class="arrow" x1="220" y1="200" x2="278" y2="200"/>
+  <path class="head" d="M284 200 l-8 -5 v10 z"/>
+  <line class="arrow" x1="424" y1="200" x2="468" y2="200"/>
+  <path class="head" d="M474 200 l-8 -5 v10 z"/>
+  <line class="arrow" x1="480" y1="232" x2="426" y2="232"/>
+  <path class="head" d="M420 232 l8 -5 v10 z"/>
+  <line class="arrow" x1="284" y1="232" x2="226" y2="232"/>
+  <path class="head" d="M220 232 l8 -5 v10 z"/>
+
+  <rect class="panel glow" x="286" y="130" width="130" height="160" rx="12"/>
+  <text x="351" y="162" text-anchor="middle" font-weight="700">webhook.ts</text>
+  <text class="muted" x="351" y="184" text-anchor="middle">port 8788</text>
+  <g class="secret-ok">
+    <rect class="pill-ok" x="302" y="208" width="98" height="26" rx="13"/>
+    <text class="ok" x="351" y="226" text-anchor="middle">secret ok</text>
+  </g>
+  <g class="reply-pill">
+    <rect class="pill-reply" x="302" y="246" width="98" height="26" rx="13"/>
+    <text class="reply-tag" x="351" y="264" text-anchor="middle">reply</text>
+  </g>
+
+  <rect class="term" x="476" y="64" width="308" height="292" rx="12"/>
+  <path class="term-bar" d="M488 64 h284 a12 12 0 0 1 12 12 v14 h-308 v-14 a12 12 0 0 1 12 -12 z"/>
+  <circle cx="494" cy="77" r="5" fill="#ff5f57"/>
+  <circle cx="512" cy="77" r="5" fill="#febc2e"/>
+  <circle cx="530" cy="77" r="5" fill="#28c840"/>
+  <text class="td" x="630" y="82" text-anchor="middle">claude</text>
+
+  <g clip-path="url(#term-clip)">
+    <text class="td" x="488" y="112">Channels: server:webhook</text>
+    <g class="event">
+      <text class="tag" x="488" y="140">&lt;channel source="webhook"</text>
+      <text class="tag" x="504" y="158">chat_id="1"&gt;</text>
+      <text class="tt" x="488" y="176">CI failed: test_login</text>
+      <text class="tag" x="488" y="194">&lt;/channel&gt;</text>
+    </g>
+    <g class="answer">
+      <circle class="dot-claude" cx="492" cy="219" r="4"/>
+      <text class="tt" x="502" y="223">The login test timed out.</text>
+      <rect class="cover c1" x="500" y="208" width="290" height="20"/>
+    </g>
+    <g class="answer">
+      <text class="tt" x="502" y="243">Raising the wait and</text>
+      <text class="tt" x="502" y="261">running it again.</text>
+      <rect class="cover c2" x="500" y="228" width="290" height="40"/>
+    </g>
+    <g class="tool">
+      <circle class="dot-tool" cx="492" cy="285" r="4"/>
+      <text class="tt" x="502" y="289">webhook - reply</text>
+      <text class="td" x="518" y="307">sent</text>
+    </g>
+  </g>
+  <rect class="prompt" x="486" y="320" width="288" height="26" rx="6"/>
+  <text class="td" x="496" y="338">&gt;</text>
+
+  <circle class="packet p-in1" cx="220" cy="200" r="7"/>
+  <circle class="packet p-in2" cx="422" cy="200" r="7"/>
+  <circle class="packet p-out1" cx="476" cy="232" r="7"/>
+  <circle class="packet p-out2" cx="282" cy="232" r="7"/>
+
+  <text class="muted" x="400" y="394" text-anchor="middle">Anything that can POST reaches the session. Replies go back the same way.</text>
+</svg>

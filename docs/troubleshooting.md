@@ -624,6 +624,18 @@ error, so the command still succeeds.
 **What to do:** `devmachine sync` when the machine is back, or once more to
 install `caddy`.
 
+## `expose add --via` says "no address of … another machine can reach"
+
+**What it means:** The machine with Caddy has to reach the workspace's
+machine, and every address that machine has is a loopback one, such as the
+`127.0.0.1` a local VM starts with. Only your computer can use that address.
+
+**What to do:** Put the machine on your private network and run `devmachine
+login tailscale --machine <name>`, which adds its `tailscale:` name to
+`hosts`. Your own computer must be on that network too, since that name is
+resolved there. See [share an app on your computer with
+friends](guides/share-a-local-app-with-friends.md).
+
 ## `expose add` served, and the response is "Blocked request"
 
 **What it means:** This is your application's own check, not Caddy and not
@@ -766,6 +778,18 @@ input. A command that changes a server defaults to changing nothing.
 **What to do:** Pass `--yes` to skip the question, or `--check` to see what
 would happen without being asked at all.
 
+## `expose add --yes` or `dns add --yes` says "nothing was changed"
+
+**What it means:** `--yes` only skips questions about files on your
+computer. It never says yes to putting something on the internet, so the
+publish question was still asked. In a script or a pipe nobody answered,
+an empty answer counts as no, and the command stopped. It exits non-zero
+so a script does not take "I did not do it" for "done".
+
+**What to do:** Pass `--publish` to `expose add` or `dns add` when the
+command runs without a person to ask. `--check` shows what it would do
+first.
+
 ## `ERROR! Invalid options for include_role: devmachine_<package>_<name>`
 
 **What it means:** This was a bug in how devmachine generated its internal
@@ -885,6 +909,20 @@ echo 'ssh_deletekeys: false' | sudo tee /etc/cloud/cloud.cfg.d/99-keep-host-keys
 
 The next restart keeps the key you trusted.
 
+## `machines trust --expect` says "presented …, not the expected …; nothing was written"
+
+**What it means:** `machines trust` reads the key again each time it runs,
+and the key it got now is not the one you checked and passed to
+`--expect`. The server changed its key between the two runs — a rebuild,
+or a Lima VM restarted in between — or this run reached a different
+server. devmachine writes nothing rather than trust a key you did not
+check.
+
+**What to do:** Run `devmachine machines trust main --check` again and
+compare the new fingerprint from the machine's own console, as in
+[The SSH host key changed](#the-ssh-host-key-changed). Pass the new
+fingerprint to `--expect` only if it matches.
+
 ## The SSH trust file is malformed
 
 **What it means:** The error names `<config>/known_hosts` and the bad line.
@@ -894,6 +932,22 @@ thing.
 **What to do:** Fix that one line, or remove just that server's entry, then
 run `devmachine machines trust <machine>` to approve it again. The file uses
 plain OpenSSH `known_hosts` syntax.
+
+## `login` says "the login did not finish: exit status N"
+
+**What it means:** `login` opens a plain `ssh` session on the machine and
+runs the tool's own sign-in command there. The number is how that session
+ended:
+
+- **255** — `ssh` itself failed: the machine did not answer, or it
+  refused the key. The tool's sign-in never started.
+- **Any other number** — the sign-in command ran and exited with that
+  code: you cancelled it (Ctrl-C), or the tool failed. Its own message is
+  above this line.
+
+**What to do:** For 255, run `devmachine doctor --machine main`; it says
+whether the machine answers and takes the key. For any other number, read
+the tool's message above and run `devmachine login <credential>` again.
 
 ## "the login left nothing at …"
 
@@ -906,10 +960,12 @@ package's `stored_at`.
 
 ## `credentials push` says "nothing to deliver" and the value is out of date
 
-**What it means:** `push` only writes files that are missing. A server that
-already has the file keeps its old value.
+**What it means:** An env file `push` delivered itself is replaced when its
+value changed (`replaced`). A file a tool keeps for itself (`path:` in the
+package) is never rewritten once it is there, so the server keeps the old
+value.
 
-**What to do:** Remove the file on the server first — its path is in
+**What to do:** Remove that file on the server first — its path is in
 `devmachine credentials list` — then push again.
 
 ## I already committed a key
@@ -1040,6 +1096,49 @@ devmachine run "ps -u <user>"
 ```
 
 Stop what is listed, then run `devmachine workspaces destroy <name>` again.
+
+## `workspaces destroy` refuses: "destroying the account would leave Caddy serving it"
+
+**What it means:** The workspace publishes a site, and `destroy` could not
+take it off Caddy first. Without that step the account would go, and Caddy
+would keep serving the name to a port nobody owns. The message says which
+case it is:
+
+- **"the file that serves it cannot be found"** — devmachine could not
+  work out where Caddy keeps its site files: `caddy` is no longer in the
+  machine's packages, or the packages could not be read. The reason is in
+  the brackets.
+- **"through edge, which could not be reached"** or **"whose Caddy cannot
+  be found"** — the site goes through another machine (`--via edge`), and
+  that machine did not answer, or has no Caddy now.
+- **"taking alice's sites off edge: …; nothing was destroyed"** — `edge`
+  answered, but removing the site failed there.
+
+Nothing was destroyed in any of these cases.
+
+**What to do:** Once the machine answers, run
+`devmachine workspaces destroy alice` again. If Caddy is really gone,
+`devmachine expose rm app.example.com` each site and `devmachine sync`
+first.
+
+## `workspaces rm` says it "would keep serving it with nothing left to take it off"
+
+**What it means:** The workspace publishes a site through another machine
+(`--via edge`). The route lives in this workspace's entry, so forgetting
+the workspace would also forget the route — while `edge` keeps serving
+the name, with no command left that knows to remove it.
+
+**What to do:** `devmachine expose rm app.example.com` first, then
+`devmachine workspaces rm alice`.
+
+## `machines rm` says a machine "still serves … for another machine"
+
+**What it means:** Another machine's workspace publishes a site through
+this one (`--via`). Forgetting this machine would leave its Caddy serving
+the name, with nothing in the configuration that points at it.
+
+**What to do:** `devmachine expose rm app.example.com` for each name the
+message lists, then `devmachine machines rm edge`.
 
 ## `run` hangs, or answers with a login from a machine that no longer exists
 
