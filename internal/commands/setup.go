@@ -496,7 +496,7 @@ func refuseUnknownSystem(ctx context.Context, client remote.Client, out io.Write
 	if err != nil {
 		return remote.System{}, err
 	}
-	fmt.Fprintf(out, "%s runs %s.\n", address, system)
+	fmt.Fprintf(out, "%s runs %s.\n", address, system.Describe())
 	return system, nil
 }
 

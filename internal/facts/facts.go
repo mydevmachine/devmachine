@@ -184,7 +184,7 @@ func Observe(ctx context.Context, c remote.Client, now time.Time) (Facts, error)
 	}
 	switch f.System {
 	case "Linux":
-		linuxFacts(&f, values["os-release.ID"], values["os-release.VERSION_ID"])
+		linuxFacts(&f, values["os-release.ID"], values["os-release.ID_LIKE"], values["os-release.VERSION_ID"])
 	case "Darwin":
 		darwinFacts(&f, values["version"])
 	}
@@ -192,7 +192,8 @@ func Observe(ctx context.Context, c remote.Client, now time.Time) (Facts, error)
 }
 
 // linuxDistributions maps os-release's ID onto Ansible's names for it, and the
-// package manager and init system that come with it.
+// package manager and init system that come with it. A derivative takes its
+// base's family and package manager, and keeps its own name.
 var linuxDistributions = map[string]struct{ family, name, pkgMgr string }{
 	"debian":  {"Debian", "Debian", "apt"},
 	"ubuntu":  {"Debian", "Ubuntu", "apt"},
@@ -200,14 +201,18 @@ var linuxDistributions = map[string]struct{ family, name, pkgMgr string }{
 	"archarm": {"Archlinux", "Archlinux", "pacman"},
 }
 
-func linuxFacts(f *Facts, id, version string) {
+func linuxFacts(f *Facts, id, idLike, version string) {
 	f.DistributionVersion = version
-	d, ok := linuxDistributions[id]
+	base := remote.LinuxBase(id, idLike)
+	d, ok := linuxDistributions[base]
 	if !ok {
 		f.Distribution = id
 		return
 	}
 	f.OSFamily, f.Distribution, f.PkgMgr, f.ServiceMgr = d.family, d.name, d.pkgMgr, "systemd"
+	if base != id {
+		f.Distribution = id
+	}
 }
 
 // macPrefixes are where each Mac package manager installs, and so what a

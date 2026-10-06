@@ -1268,3 +1268,21 @@ func TestSetupAgainRefusesAnUnknownSystemBeforeInstallingAnsible(t *testing.T) {
 		t.Fatalf("it went on past the refusal: %q", steps.events)
 	}
 }
+
+func TestSetupSaysADerivativeIsNotTested(t *testing.T) {
+	t.Cleanup(swap(&detectSystem, func(context.Context, remote.Client) (remote.System, error) {
+		return remote.System{Kernel: "Linux", ID: "manjaro", Like: "arch"}, nil
+	}))
+	out := &strings.Builder{}
+	system, err := refuseUnknownSystem(context.Background(), nopClient{}, out, "127.0.0.1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if system.Base() != "arch" {
+		t.Fatalf("set up as %q", system.Base())
+	}
+	want := "127.0.0.1 runs manjaro, which is based on arch: it is set up the arch way, but devmachine is not tested on it.\n"
+	if out.String() != want {
+		t.Fatalf("got %q, want %q", out.String(), want)
+	}
+}

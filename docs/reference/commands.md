@@ -47,8 +47,9 @@ time](../how-it-works/trust-bootstrap.md) for why the order matters.
 
 Works on **Debian, Ubuntu, Arch Linux and macOS**. Before it changes anything it
 asks the machine what it runs (`uname -s`, then `ID` in `/etc/os-release`,
-or `sw_vers` on a Mac);
-anything else is named and it stops, with the machine untouched. See [what
+or `sw_vers` on a Mac). A distribution based on one of them (`ID_LIKE`),
+such as Manjaro or Linux Mint, is set up as its base, with a note that it
+is not tested; anything else is named and it stops, with the machine untouched. See [what
 `setup` refuses](../how-it-works/trust-bootstrap.md#it-checks-what-the-machine-runs-first).
 The password is used once and written nowhere.
 

@@ -26,7 +26,7 @@ func TestDetectSystemReadsTheLinuxDistribution(t *testing.T) {
 func TestDetectSystemRefusesALinuxItDoesNotSetUp(t *testing.T) {
 	c := systemClient("Linux\n", "ID=fedora\n")
 	_, err := DetectSystem(context.Background(), c)
-	want := `this CLI does not set up "fedora" yet: it supports debian, ubuntu and arch`
+	want := `this CLI does not set up "fedora" yet: it supports debian, ubuntu and arch, and systems based on them`
 	if err == nil || err.Error() != want {
 		t.Fatalf("got %v, want %q", err, want)
 	}
@@ -122,5 +122,91 @@ func TestSupportedLinuxIsTheInstallTable(t *testing.T) {
 	}
 	if SupportedLinux("fedora") {
 		t.Fatal("fedora is supported without a way to install Ansible")
+	}
+}
+
+func TestDetectSystemSetsUpADerivativeTheWayOfWhatItIsBasedOn(t *testing.T) {
+	for _, c := range []struct{ name, release, id, base string }{
+		{"manjaro", "NAME=\"Manjaro Linux\"\nID=manjaro\nID_LIKE=arch\n", "manjaro", "arch"},
+		{"manjaro arm", "NAME=\"Manjaro ARM\"\nID=manjaro-arm\nID_LIKE=\"manjaro arch\"\n", "manjaro-arm", "arch"},
+		{"endeavouros", "NAME=\"EndeavourOS\"\nID=\"endeavouros\"\nID_LIKE=\"arch\"\n", "endeavouros", "arch"},
+		{"cachyos", "NAME=\"CachyOS Linux\"\nID=cachyos\nID_LIKE=arch\n", "cachyos", "arch"},
+		{"linux mint", "NAME=\"Linux Mint\"\nID=linuxmint\nID_LIKE=\"ubuntu debian\"\n", "linuxmint", "ubuntu"},
+		{"lmde", "NAME=\"LMDE\"\nID=linuxmint\nID_LIKE=debian\n", "linuxmint", "debian"},
+		{"pop os", "NAME=\"Pop!_OS\"\nID=pop\nID_LIKE=\"ubuntu debian\"\n", "pop", "ubuntu"},
+		{"old raspbian", "NAME=\"Raspbian GNU/Linux\"\nID=raspbian\nID_LIKE=debian\n", "raspbian", "debian"},
+		{"quoted with spaces", "ID='zorin'\nID_LIKE=' ubuntu  debian '\n", "zorin", "ubuntu"},
+	} {
+		got, err := DetectSystem(context.Background(), systemClient("Linux\n", c.release))
+		if err != nil {
+			t.Fatalf("%s: %v", c.name, err)
+		}
+		if got.ID != c.id || got.Base() != c.base || !got.Derivative() {
+			t.Fatalf("%s: got %#v, base %q", c.name, got, got.Base())
+		}
+	}
+}
+
+func TestASupportedDistributionIsNotADerivative(t *testing.T) {
+	for _, release := range []string{
+		"NAME=\"Debian GNU/Linux\"\nID=debian\n",
+		"PRETTY_NAME=\"Raspberry Pi OS\"\nNAME=\"Debian GNU/Linux\"\nID=debian\n",
+		"NAME=\"Ubuntu\"\nID=ubuntu\nID_LIKE=debian\n",
+		"NAME=\"Arch Linux ARM\"\nID=archarm\nID_LIKE=arch\n",
+	} {
+		got, err := DetectSystem(context.Background(), systemClient("Linux\n", release))
+		if err != nil {
+			t.Fatalf("%q: %v", release, err)
+		}
+		if got.Derivative() || got.Base() != got.ID {
+			t.Fatalf("%q: got %#v", release, got)
+		}
+		if got.Describe() != got.ID {
+			t.Fatalf("%q: a person reads %q", release, got.Describe())
+		}
+	}
+}
+
+func TestDetectSystemStillRefusesWhatIsNotBasedOnASupportedDistribution(t *testing.T) {
+	for _, release := range []string{
+		"NAME=\"Fedora Linux\"\nID=fedora\n",
+		"NAME=\"Rocky Linux\"\nID=\"rocky\"\nID_LIKE=\"rhel centos fedora\"\n",
+		"NAME=\"openSUSE Tumbleweed\"\nID=\"opensuse-tumbleweed\"\nID_LIKE=\"opensuse suse\"\n",
+		"NAME=\"Alpine Linux\"\nID=alpine\n",
+		"ID=archlike\nID_LIKE=archlinux\n",
+	} {
+		_, err := DetectSystem(context.Background(), systemClient("Linux\n", release))
+		var unsupported *UnsupportedSystemError
+		if !errors.As(err, &unsupported) {
+			t.Fatalf("%q: got %v, want a refusal", release, err)
+		}
+	}
+}
+
+func TestADerivativeSaysItIsNotTested(t *testing.T) {
+	s := System{Kernel: "Linux", ID: "manjaro", Like: "arch"}
+	want := "manjaro, which is based on arch: it is set up the arch way, but devmachine is not tested on it"
+	if got := s.Describe(); got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+	if s.String() != "manjaro" {
+		t.Fatalf("String is %q", s.String())
+	}
+}
+
+func TestLinuxBaseReadsIDLikeOnlyWhenIDIsNotSupported(t *testing.T) {
+	for _, c := range []struct{ id, like, base string }{
+		{"debian", "", "debian"},
+		{"ubuntu", "debian", "ubuntu"},
+		{"archarm", "arch", "archarm"},
+		{"manjaro", "arch", "arch"},
+		{"pop", "ubuntu debian", "ubuntu"},
+		{"pop", `"ubuntu debian"`, "ubuntu"},
+		{"fedora", "", ""},
+		{"rocky", "rhel centos fedora", ""},
+	} {
+		if got := LinuxBase(c.id, c.like); got != c.base {
+			t.Fatalf("%s like %q: got %q, want %q", c.id, c.like, got, c.base)
+		}
 	}
 }
