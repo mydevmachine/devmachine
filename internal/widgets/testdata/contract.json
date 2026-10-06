@@ -1,0 +1,40 @@
+{
+  "engine": "1.0",
+  "layouts": ["canvas", "stack", "slot"],
+  "unit": 80,
+  "snap": 8,
+  "presets": {"small": [2,2], "medium": [4,2], "large": [4,4], "wide": [8,2], "tall": [2,4]},
+  "surfaces": {
+    "home": {"layout": "canvas", "status": "available", "context": {}},
+    "sidebar": {"layout": "stack", "status": "planned", "context": {"selected": {"type": "workspace", "presence": "optional"}}},
+    "context-sidebar": {"layout": "stack", "status": "planned", "context": {
+      "machine": {"type": "machine", "presence": "always"},
+      "session": {"type": "session", "presence": "always"},
+      "workspace": {"type": "workspace", "presence": "optional"},
+      "path": {"type": "path", "presence": "optional"},
+      "repo": {"type": "repo", "presence": "optional"},
+      "branch": {"type": "string", "presence": "optional"},
+      "harness": {"type": "string", "presence": "optional"}}}
+  },
+  "context_types": {
+    "machine": {"name": "string"},
+    "workspace": {"name": "string", "machine": "machine", "user": "string", "path": "path"},
+    "session": {"name": "string", "kind": "string", "harness": "string?"},
+    "repo": {"owner": "string", "name": "string"},
+    "path": {}, "string": {}
+  },
+  "providers": {
+    "app/clock": {"args": {}, "min_every": "5s", "returns": {"time": "string", "date": "string", "host": "string"}},
+    "app/summary": {"args": {}, "min_every": "5s", "returns": {"sessions": "int", "harness_sessions": "int", "workspaces": "int"}},
+    "app/machines": {"args": {}, "min_every": "5s", "returns": {"list": "machine_stats"}},
+    "app/harness-usage": {"args": {"harness": {"type": "string", "required": true}}, "min_every": "5s", "returns": {"harness": "string", "windows": "list", "error": "string?"}}
+  },
+  "views": {
+    "app.clock": {"accepts": ["app/clock"]},
+    "app.summary": {"accepts": ["app/summary"]},
+    "app.machines": {"accepts": ["app/machines"]},
+    "app.harness-usage": {"accepts": ["app/harness-usage"]}
+  },
+  "source_kinds": ["provider"],
+  "formats": {"widget": 1, "board": 1}
+}
