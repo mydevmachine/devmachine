@@ -1,0 +1,25 @@
+internal/credentials/dotenv.go
+  s_87d72b62cfc5a1::t_57108a9873623a 18-19
+docs/supported-systems.md
+  s_87d72b62cfc5a1::t_0d14037e7c00c8 64-70
+docs/troubleshooting.md
+  s_87d72b62cfc5a1::t_dbee6bbf3f231d 696-698
+docs/reference/commands.md
+  s_87d72b62cfc5a1::t_f06c9d7b036691 1156-1159
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1416e386307823e3a4b5493dcd8d75b74ae06d30",
+  "prompts": {},
+  "sessions": {
+    "s_87d72b62cfc5a1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5e69ca1d-9900-4500-8ba7-104b479b47eb",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
