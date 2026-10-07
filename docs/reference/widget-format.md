@@ -165,7 +165,7 @@ One unit is 80pt; positions and free resizes snap to 8pt.
 | `format` is not 1 | `format 2, and this CLI reads widget format 1` |
 | `requires.engine` missing | `every widget needs requires.engine, for example ">= 1.0"` |
 | `requires.engine` unreadable | `requires.engine "X": write it as ">= 1.0", "> 1.0" or "= 1.0"` |
-| a newer engine is required | `requires engine >= 1.1, and this CLI implements engine 1.0: update with devmachine update` |
+| a newer engine is required | ``requires engine >= 1.1, and this CLI implements engine 1.0: update with `devmachine update` `` |
 | an unknown top-level field | `unknown field "X"` |
 | `name` malformed or not the folder | `name is "X" but the folder is "Y": a widget is found by its folder` |
 | `summary` missing | `every widget needs a one-line summary` |

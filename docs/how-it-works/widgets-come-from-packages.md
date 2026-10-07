@@ -63,7 +63,6 @@ back in one step that cannot leave half a file. If the board has a mistake,
 they stop: writing it back would replace your typo with what the CLI
 guessed you meant, and could drop widgets. If the file changes while the
 command runs — the app saved it a moment before — the CLI stops too, and
-running it again works on the new file. To catch that, the CLI reads the
-file again just before it writes and stops if it changed; a save in the
-moment between that check and the write could still be lost, which is
-fine because the app and the CLI both write the board rarely.
+running it again works on the new file. A save between the final check and
+the write could still be lost. Both the app and the CLI write the board
+rarely.

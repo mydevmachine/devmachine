@@ -22,7 +22,6 @@ const BoardFormat = 1
 var ErrBoardChanged = errors.New("the board changed on disk since it was read; run the command again")
 
 var (
-	instanceID   = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
 	instanceType = regexp.MustCompile(`^[a-z][a-z0-9_-]*/[a-z][a-z0-9-]*$`)
 	yamlLine     = regexp.MustCompile(`line (\d+)`)
 )
@@ -32,6 +31,12 @@ var (
 	instanceFields = []string{"id", "type", "with", "frame", "size", "minimized", "z", "source", "view"}
 	frameFields    = []string{"x", "y", "w", "h"}
 )
+
+var instanceID = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
+
+// ValidInstanceID says whether id is written the way a board's ids are:
+// lower case letters, digits and dashes, starting with a letter or digit.
+func ValidInstanceID(id string) bool { return instanceID.MatchString(id) }
 
 // Frame is where an instance is drawn, in points.
 type Frame struct {
@@ -160,7 +165,7 @@ func ValidateBoard(b Board, path string, lookup Lookup) []Problem {
 	for _, w := range b.Widgets {
 		label := w.ID
 		switch {
-		case !instanceID.MatchString(w.ID):
+		case !ValidInstanceID(w.ID):
 			at(w.Line, "id %q: use lower case letters, digits and dashes", w.ID)
 		case seen[w.ID]:
 			at(w.Line, "id %q is used twice: every widget on a board has its own id", w.ID)

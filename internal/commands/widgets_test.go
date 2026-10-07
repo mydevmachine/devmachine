@@ -477,6 +477,23 @@ func TestWidgetsAddHonoursIDSizeAndPosition(t *testing.T) {
 	}
 }
 
+func TestWidgetsAddAtPlacesExactlyThereEvenOverAnotherWidget(t *testing.T) {
+	dir := widgetConfig(t)
+	if _, err := execute(t, "--config", dir, "widgets", "add", "devmachine-app/clock"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := execute(t, "--config", dir, "widgets", "add", "claude-code/usage", "--at", "27,21"); err != nil {
+		t.Fatal(err)
+	}
+	b, _, _, err := widgets.ReadBoard(widgets.BoardPath(dir, "home"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := b.Widgets[1].Frame; got != (widgets.Frame{X: 24, Y: 24, W: 320, H: 160}) {
+		t.Fatalf("got %+v", got)
+	}
+}
+
 func TestWidgetsAddRefuses(t *testing.T) {
 	cases := []struct {
 		name string

@@ -746,9 +746,10 @@ creating it when there is none. The id defaults to the widget's name, made
 unique (`usage`, `usage-2`). `--set` gives an input a value, converted to
 the input's type. `--size` is a preset the widget takes, default its
 `default_size`. `--at x,y` is the top-left corner in points, snapped to
-8pt; without it the widget takes the first free spot, scanning rows of 8pt
-from 24,24 across a band 1280pt wide and keeping 8pt from every other
-widget. Only areas that exist today are accepted: `--board sidebar` says
+8pt; the widget goes exactly there, even on top of another, because
+widgets may overlap on Home. Without it the widget takes the first free
+spot, scanning rows of 8pt from 24,24 across a band 1280pt wide and
+keeping 8pt from every other widget. Only areas that exist today are accepted: `--board sidebar` says
 the area arrives in a later version.
 
 `remove` takes the widget with that id off the board.

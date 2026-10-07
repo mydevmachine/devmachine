@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -13,8 +12,6 @@ import (
 	"github.com/mydevmachine/devmachine/internal/widgets"
 	"github.com/spf13/cobra"
 )
-
-var boardInstanceID = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
 
 type boardChange struct {
 	Board   string            `json:"board"`
@@ -71,14 +68,17 @@ func newWidgetsAddCmd(opts *options) *cobra.Command {
 			switch {
 			case id == "":
 				id = widgets.NextID(b, entry.Widget)
-			case !boardInstanceID.MatchString(id):
+			case !widgets.ValidInstanceID(id):
 				return fmt.Errorf("id %q: use lower case letters, digits and dashes", id)
 			case b.HasID(id):
 				return fmt.Errorf("id %q is already on the %s board", id, board)
 			}
 			w, h, _ := widgets.FrameFor(size)
-			frame := widgets.FreeSpot(b, w, h)
-			if at != "" {
+			var frame widgets.Frame
+			if at == "" {
+				frame = widgets.FreeSpot(b, w, h)
+			} else {
+				frame = widgets.Frame{W: w, H: h}
 				if frame.X, frame.Y, err = parsePoint(at); err != nil {
 					return err
 				}
