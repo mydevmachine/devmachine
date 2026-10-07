@@ -1477,6 +1477,25 @@ func TestWidgetsAddToAMissingMenubarStartsFromTheDefaultBoard(t *testing.T) {
 	}
 }
 
+func TestWidgetsAddToTheMenubarPanelWritesNoSize(t *testing.T) {
+	dir := menubarConfig(t)
+	out, err := execute(t, "--config", dir, "widgets", "add", "devmachine-app/usage-panel", "--board", "menubar-panel",
+		"--id", "usage-two", "--after", "pull-requests-panel")
+	if err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	if out != "added usage-two (devmachine-app/usage-panel) to the menubar-panel board after pull-requests-panel\n" {
+		t.Fatalf("got %q", out)
+	}
+	want := "format: 1\nsurface: menubar-panel\nwidgets:\n" +
+		"  - id: pull-requests-panel\n    type: devmachine-app/pull-requests-panel\n" +
+		"  - id: usage-two\n    type: devmachine-app/usage-panel\n" +
+		"  - id: usage-panel\n    type: devmachine-app/usage-panel\n"
+	if got := readCommandFile(t, widgets.BoardPath(dir, "menubar-panel")); got != want {
+		t.Fatalf("got\n%s", got)
+	}
+}
+
 func TestWidgetsAddRefusesOnTheMenuBar(t *testing.T) {
 	cases := []struct {
 		name string

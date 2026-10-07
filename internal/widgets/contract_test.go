@@ -78,12 +78,6 @@ func TestTheSidebarsHaveBoards(t *testing.T) {
 		if s := c.Surfaces[name]; s.Status != StatusAvailable || s.Layout != LayoutStack {
 			t.Errorf("%s is %+v", name, s)
 		}
-		if !IsStack(name) {
-			t.Errorf("IsStack(%s) is false", name)
-		}
-	}
-	if IsStack("home") {
-		t.Error("IsStack(home) is true")
 	}
 	if c.StackRow != 40 || !slices.Equal(c.StackEntry.Forbids, []string{"frame", "z"}) {
 		t.Fatalf("stack_row %d, stack_entry %+v", c.StackRow, c.StackEntry)

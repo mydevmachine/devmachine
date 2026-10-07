@@ -433,11 +433,6 @@ func CurrentContract() Contract {
 // what it shows.
 func Grows(view string) bool { return CurrentContract().Views[view].Grows }
 
-// IsStack says whether a surface lays its widgets out as an ordered list.
-func IsStack(surface string) bool {
-	return CurrentContract().Surfaces[surface].Layout == LayoutStack
-}
-
 // IsOrdered says whether a surface lays its widgets out as a list, where a
 // widget's place is its turn: every layout but the canvas.
 func IsOrdered(surface string) bool {
