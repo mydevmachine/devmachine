@@ -135,13 +135,15 @@ func (c *muxClient) Close() error { return nil }
 
 // exec runs command over ssh, trying each resolved address in turn.
 //
-// OpenSSH's own ssh distinguishes the two failure shapes this needs: exit
-// 255 is ssh's code for "never reached the machine" (bad address, refused
-// connection, failed handshake), so that address is dropped in favour of the
-// next one — unless ssh refused the host key: that is the answer, and trying
-// another address would hide it. Any other exit status is the remote command's own, and is
-// returned the same way sshClient.Run returns one: the error wraps it, and
-// stdout still holds whatever the command printed before it failed.
+// ssh exits 255 when it never reached the machine (bad address, refused
+// connection, failed handshake), but also when the remote command itself
+// exits 255 or dies by a signal. Only the first may go to the next address,
+// so an address is dropped only when nothing came back and ssh's own
+// message says it did not connect — unless ssh refused the host key: that is
+// the answer, and trying another address would hide it. Any other failure is
+// the remote command's own, and is returned the same way sshClient.Run
+// returns one: the error wraps it, and stdout still holds whatever the
+// command printed before it failed.
 func (c *muxClient) exec(ctx context.Context, command string, stdin io.Reader, stdout, stderr io.Writer) error {
 	var failures []string
 	var sent countingReader
@@ -191,8 +193,10 @@ func (c *muxClient) exec(ctx context.Context, command string, stdin io.Reader, s
 				return fmt.Errorf("machine %q at %s: the connection dropped after part of the output arrived, so it is not asked again of another address: %s",
 					c.machine, address, strings.TrimSpace(errBuf.String()))
 			}
-			failures = append(failures, fmt.Sprintf("%s (%s)", address, strings.TrimSpace(errBuf.String())))
-			continue
+			if connectFailed(errBuf.String()) {
+				failures = append(failures, fmt.Sprintf("%s (%s)", address, strings.TrimSpace(errBuf.String())))
+				continue
+			}
 		}
 		if reason := strings.TrimSpace(errBuf.String()); reason != "" && stderr == nil {
 			return fmt.Errorf("running %q: %w: %s", command, runErr, reason)
@@ -200,6 +204,33 @@ func (c *muxClient) exec(ctx context.Context, command string, stdin io.Reader, s
 		return fmt.Errorf("running %q: %w", command, runErr)
 	}
 	return fmt.Errorf("machine %q: no address answered: %s", c.machine, strings.Join(failures, "; "))
+}
+
+// connectFailures are what ssh says when it never reached a login on an
+// address, so the command cannot have run there.
+var connectFailures = []string{
+	"ssh: connect to host",
+	"Could not resolve hostname",
+	"Connection refused",
+	"Connection timed out",
+	"Operation timed out",
+	"No route to host",
+	"Network is unreachable",
+	"Host is down",
+	"Connection closed by",
+	"Connection reset by",
+	"kex_exchange_identification",
+	"Permission denied (",
+	"Too many authentication failures",
+}
+
+func connectFailed(stderr string) bool {
+	for _, failure := range connectFailures {
+		if strings.Contains(stderr, failure) {
+			return true
+		}
+	}
+	return false
 }
 
 // countingReader lets exec tell a connection that failed before reading any

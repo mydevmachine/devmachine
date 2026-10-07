@@ -237,7 +237,7 @@ func newRunCmd(opts *options) *cobra.Command {
 			case flags.argv && flags.pkg != "":
 				return errors.New("--argv and --package do not go together: --package already passes each word as it is")
 			case flags.pkg != "":
-				return nil
+				return packageArgs(cmd, flags, args)
 			case flags.argv && (cmd.ArgsLenAtDash() != 0 || len(args) == 0):
 				return errors.New("with --argv, the program and its arguments follow `--`: devmachine run --argv -- df -h /")
 			case flags.argv:
@@ -246,7 +246,7 @@ func newRunCmd(opts *options) *cobra.Command {
 			return cobra.ExactArgs(1)(cmd, args)
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx, stop := stopSignals(cmd.Context())
+			ctx, stop := stopSignals(remote.OwnProcessGroup(cmd.Context()))
 			defer stop()
 			if flags.pkg != "" {
 				return runResult(runPackage(ctx, cmd, opts, flags, args))
@@ -300,6 +300,24 @@ func shellWords(argv []string) string {
 	return strings.Join(quoted, " ")
 }
 
+// packageArgs refuses a wrong `run --package` call before anything connects,
+// so a mistake in the call exits 1 rather than 255.
+func packageArgs(cmd *cobra.Command, flags runFlags, args []string) error {
+	dashAt := cmd.ArgsLenAtDash()
+	if flags.script == "" {
+		if dashAt < 0 {
+			return fmt.Errorf("say what to run after `--`, for example: devmachine run --package %s -- <command>", flags.pkg)
+		}
+		return nil
+	}
+	if dashAt > 0 || (dashAt < 0 && len(args) > 0) {
+		return fmt.Errorf("the script's arguments follow `--`: devmachine run --package %s --script %s -- %s",
+			flags.pkg, flags.script, strings.Join(args, " "))
+	}
+	_, err := dns.CheckScriptPath(flags.script)
+	return err
+}
+
 // runPackage reaches an installed package's entrypoint directly: the generic
 // door for whatever `dns`, `packages` and the rest have not grown a verb for
 // yet. With --script it runs one file of the package instead, which is how a
@@ -310,16 +328,9 @@ func shellWords(argv []string) string {
 // what a package needs to read that account's own files or use its own
 // logins, such as a per-workspace GitHub login.
 func runPackage(ctx context.Context, cmd *cobra.Command, opts *options, flags runFlags, args []string) error {
-	dashAt := cmd.ArgsLenAtDash()
 	var pkgArgs []string
-	switch {
-	case dashAt >= 0:
+	if dashAt := cmd.ArgsLenAtDash(); dashAt >= 0 {
 		pkgArgs = args[dashAt:]
-	case flags.script == "":
-		return fmt.Errorf("say what to run after `--`, for example: devmachine run --package %s -- <command>", flags.pkg)
-	case len(args) > 0:
-		return fmt.Errorf("the script's arguments follow `--`: devmachine run --package %s --script %s -- %s",
-			flags.pkg, flags.script, strings.Join(args, " "))
 	}
 
 	tgt, err := workspaceTarget(opts, flags.workspace)

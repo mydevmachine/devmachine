@@ -130,12 +130,45 @@ func TestElevatedNeverUsesSudoOnYourOwnComputer(t *testing.T) {
 	}
 }
 
-func TestLocalClientStopsEveryProcessOfACommandWhenItsContextEnds(t *testing.T) {
+func TestLocalClientLeavesAnOrdinaryCommandInDevmachinesProcessGroup(t *testing.T) {
+	out, err := (&localClient{}).Run(context.Background(), "ps -o pgid= -p $$")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.TrimSpace(out); got != strconv.Itoa(syscall.Getpgrp()) {
+		t.Fatalf("an ordinary command ran in process group %s, want %d", got, syscall.Getpgrp())
+	}
+}
+
+func TestLocalClientGivesARunItsOwnProcessGroup(t *testing.T) {
+	out, err := (&localClient{}).Run(OwnProcessGroup(context.Background()), "ps -o pgid= -p $$; echo $$")
+	if err != nil {
+		t.Fatal(err)
+	}
+	fields := strings.Fields(out)
+	if len(fields) != 2 || fields[0] != fields[1] {
+		t.Fatalf("got %q, want the shell to lead its own process group", out)
+	}
+}
+
+func TestLocalClientStopsEveryProcessOfARunWhenItsContextEnds(t *testing.T) {
+	assertRunStopsItsChild(t, "sleep 60")
+}
+
+func TestLocalClientKillsAChildThatIgnoresSIGTERMAfterTheGrace(t *testing.T) {
+	orig := groupGrace
+	groupGrace = 100 * time.Millisecond
+	t.Cleanup(func() { groupGrace = orig })
+	assertRunStopsItsChild(t, "sh -c \"trap '' TERM; exec sleep 60\"")
+}
+
+func assertRunStopsItsChild(t *testing.T, child string) {
+	t.Helper()
 	pidFile := filepath.Join(t.TempDir(), "pid")
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(OwnProcessGroup(context.Background()))
 	done := make(chan error, 1)
 	go func() {
-		done <- (&localClient{}).Stream(ctx, "sleep 60 & echo $! > "+pidFile+"; wait", io.Discard, io.Discard)
+		done <- (&localClient{}).Stream(ctx, child+" & echo $! > "+pidFile+"; wait", io.Discard, io.Discard)
 	}()
 
 	var pid int
@@ -146,10 +179,11 @@ func TestLocalClientStopsEveryProcessOfACommandWhenItsContextEnds(t *testing.T) 
 		body, _ := os.ReadFile(pidFile)
 		pid, _ = strconv.Atoi(strings.TrimSpace(string(body)))
 	}
+	time.Sleep(50 * time.Millisecond)
 	cancel()
 	select {
 	case <-done:
-	case <-time.After(5 * time.Second):
+	case <-time.After(15 * time.Second):
 		t.Fatal("Stream kept going after its context ended")
 	}
 

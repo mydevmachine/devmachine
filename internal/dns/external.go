@@ -162,11 +162,7 @@ func (e *External) shellFor(args []string, stdin string) string {
 		quoted = append(quoted, quoteArg(a))
 	}
 
-	run := fmt.Sprintf("%s %s", quoteArg(e.entrypoint), strings.Join(quoted, " "))
-	if e.credential != "" {
-		env := quoteArg(credentials.EnvFile(e.credential))
-		run = fmt.Sprintf("[ ! -r %[1]s ] || { set -a; . %[1]s; set +a; }; %[2]s", env, run)
-	}
+	run := e.withCredential(fmt.Sprintf("%s %s", quoteArg(e.entrypoint), strings.Join(quoted, " ")))
 	if stdin == "" {
 		return run
 	}
@@ -174,6 +170,15 @@ func (e *External) shellFor(args []string, stdin string) string {
 	// the subshell, `|` binds only to `set -a`; the provider sees an empty stdin
 	// and rejects every write as malformed JSON.
 	return fmt.Sprintf("printf %s | ( %s )", shellQuote(stdin), run)
+}
+
+// withCredential sources the package's credential, when it has one, before run.
+func (e *External) withCredential(run string) string {
+	if e.credential == "" {
+		return run
+	}
+	env := quoteArg(credentials.EnvFile(e.credential))
+	return fmt.Sprintf("[ ! -r %[1]s ] || { set -a; . %[1]s; set +a; }; %[2]s", env, run)
 }
 
 // shellSafeArg matches a word that reads back identically whether or not it
@@ -213,8 +218,12 @@ func (e *External) Call(ctx context.Context, args []string, out, errOut io.Write
 	return e.client.Stream(ctx, e.shellFor(args, ""), out, errOut)
 }
 
-// Exec runs the external with these arguments as they are — none is fine —
-// without the command list Call enforces.
+// Exec runs the external with these arguments word for word — an empty one
+// included, none is fine — without the command list Call enforces.
 func (e *External) Exec(ctx context.Context, args []string, out, errOut io.Writer) error {
-	return e.client.Stream(ctx, e.shellFor(args, ""), out, errOut)
+	words := []string{quoteArg(e.entrypoint)}
+	for _, a := range args {
+		words = append(words, quoteArg(a))
+	}
+	return e.client.Stream(ctx, e.withCredential(strings.Join(words, " ")), out, errOut)
 }

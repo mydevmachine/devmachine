@@ -561,7 +561,8 @@ and its arguments. Without `--`, the arguments would be read as flags of
 
 **What it means:** `run --package <name> --script <path>` runs a file of
 that package, relative to its `package.yml`. A path that leaves the
-package (`../`, or starting with `/`) is refused. "has no file" means
+package (`../`, or starting with `/`) is refused before anything
+connects, and `run` exits 1. "has no file" means
 your copy of the package does not have that file, so the machine's copy,
 which `sync` made from yours, does not either.
 

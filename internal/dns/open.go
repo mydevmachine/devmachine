@@ -49,14 +49,24 @@ func secretCredential(m packages.Manifest) string {
 	return ""
 }
 
+// CheckScriptPath cleans a --script path, refusing one that leaves the
+// package: empty, absolute, or climbing out with "..".
+func CheckScriptPath(rel string) (string, error) {
+	clean := path.Clean(rel)
+	if rel == "" || path.IsAbs(rel) || clean == "." || clean == ".." || strings.HasPrefix(clean, "../") {
+		return "", fmt.Errorf("--script %q names a file inside the package, relative to its package.yml", rel)
+	}
+	return clean, nil
+}
+
 // Script builds a call to one file of an installed package, such as a
 // widget's script: the same copy on the machine, the same account and the
 // same credential as the entrypoint, without the entrypoint's command list,
 // which limits only the entrypoint.
 func Script(dir, machine, workspace, base, name, rel string, client remote.Client) (*External, error) {
-	clean := path.Clean(rel)
-	if rel == "" || path.IsAbs(rel) || clean == "." || clean == ".." || strings.HasPrefix(clean, "../") {
-		return nil, fmt.Errorf("--script %q names a file inside the package, relative to its package.yml", rel)
+	clean, err := CheckScriptPath(rel)
+	if err != nil {
+		return nil, err
 	}
 	found, err := lookupInstalled(dir, machine, workspace, name)
 	if err != nil {

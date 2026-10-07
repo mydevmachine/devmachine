@@ -1,13 +1,16 @@
 package commands
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/mydevmachine/devmachine/internal/config"
 	"github.com/mydevmachine/devmachine/internal/history"
+	"github.com/mydevmachine/devmachine/internal/remote"
 )
 
 func TestRunArgvQuotesEveryWord(t *testing.T) {
@@ -101,5 +104,44 @@ func TestRunFlagsThatDoNotGoTogether(t *testing.T) {
 	}
 	if len(runs) != 0 {
 		t.Fatalf("a refused run still ran %q", runs)
+	}
+}
+
+func TestRunPackageMistakesExitOneBeforeConnecting(t *testing.T) {
+	dir := configDirWithProviderAccepting(t, "cloudflare", []string{"zones"})
+	dialed := false
+	dialMux = func(context.Context, config.Machine, string) (remote.Client, string, error) {
+		dialed = true
+		return fakeRemote{}, "203.0.113.10", nil
+	}
+	t.Cleanup(func() { dialMux = remote.DialMux })
+	for _, args := range [][]string{
+		{"zones"},
+		{"--script", "../../etc/passwd", "--"},
+		{"--script", "/etc/passwd", "--"},
+		{"--script", "bin/provider", "status"},
+		{"--script", "bin/provider", "status", "--", "more"},
+	} {
+		_, err := execute(t, append([]string{"--config", dir, "run", "--package", "cloudflare"}, args...)...)
+		if got := exitCode(err); got != 1 {
+			t.Errorf("%v: exit %d from %v", args, got, err)
+		}
+	}
+	if dialed {
+		t.Fatal("a wrong call connected before it was refused")
+	}
+}
+
+func TestRunPackageScriptPassesAnEmptyWord(t *testing.T) {
+	var runs []string
+	dialing(t, factsRemote{runs: &runs})
+	dir := configDirWithProviderAccepting(t, "cloudflare", []string{"zones"})
+
+	_, err := execute(t, "--config", dir, "run", "--package", "cloudflare", "--script", "bin/provider", "--", "", "a b")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(runs) != 1 || !strings.HasSuffix(runs[0], "/bin/provider '' 'a b'") {
+		t.Fatalf("ran %q", runs)
 	}
 }

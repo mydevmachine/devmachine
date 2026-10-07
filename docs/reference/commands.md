@@ -41,9 +41,9 @@ so the first `sync` installs them; `--no-essentials` leaves it with none. Only a
 release that has `essentials` gets it — an older one starts empty and says so. On a Mac,
 where `essentials` does not run, the machine starts with `base`, `devmachine-app` and the
 package manager package instead, and `setup` says so; with `--no-essentials`, with the package
-manager package alone. If the proof step fails, nothing is locked down and
-the error says where to look. See [setting up a server for the first
-time](../how-it-works/trust-bootstrap.md) for why the order matters.
+manager package alone. If the proof step fails, nothing is locked down and the error says where
+to look. See [setting up a server for the first time](../how-it-works/trust-bootstrap.md) for
+why the order matters.
 
 Works on **Debian, Ubuntu, Arch Linux and macOS**. Before it changes anything it
 asks the machine what it runs (`uname -s`, then `ID` in `/etc/os-release`,
@@ -971,14 +971,18 @@ The app uses it for widgets that run every few seconds.
 worked, the same non-zero code when it ran and failed. When the command
 never ran — no such machine or workspace, no connection, a changed host
 key, a package that is not installed, a command `commands:` does not
-allow — it exits **255**, the code `ssh` uses for the same thing. (A
-command that itself exits 255 looks the same.) A mistake in how `run`
-was called, such as an unknown flag, exits 1 before anything connects.
+allow — it exits **255**, the code `ssh` uses for the same thing. So 255
+has three meanings: the command never ran, the command itself exited
+255, or it was stopped (see below); the `error:` line says which. A
+mistake in how `run` was called — an unknown flag, a missing `--`, a
+`--script` path outside the package — exits 1 before anything connects.
 
 **Stopping.** SIGINT (Ctrl-C) or SIGTERM ends `run` and the ssh or shell
-it started, and it exits 255. On a machine reached over SSH, a command
-that ignores its closed connection, such as an idle `tail -f`, ends the
-next time it writes.
+it started, and it exits 255. On your own computer (`self: true`) the
+command runs in a process group of its own, and everything it started
+gets SIGTERM, then SIGKILL five seconds later if it is still there. On a
+machine reached over SSH, a command that ignores its closed connection,
+such as an idle `tail -f`, ends the next time it writes.
 
 `run` keeps its SSH connection open for five minutes and reuses it, so a
 script calling it every few seconds skips the handshake each time.
