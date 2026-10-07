@@ -1,0 +1,39 @@
+docs/how-it-works/why-an-agent-written-widget-waits.md
+  s_c1c985d7f57ab9::t_e64d586150034e 28-31
+internal/widgets/permission_mode_test.go
+  s_c1c985d7f57ab9::t_cbddc5aea425e9 1-139
+internal/widgets/source.go
+  s_c1c985d7f57ab9::t_d079147bdecac9 36
+  s_c1c985d7f57ab9::t_a7629b0a489755 335,345-375
+  s_c1c985d7f57ab9::t_ecadb67f1e002a 21-35,37-38
+  s_c1c985d7f57ab9::t_df7584888dffa2 376
+docs/troubleshooting.md
+  s_c1c985d7f57ab9::t_d1fa5c627f88b3 1762-1793
+internal/widgets/widget.go
+  s_c1c985d7f57ab9::t_37a2c2983e4db9 238-241
+docs/reference/widget-format.md
+  s_c1c985d7f57ab9::t_1f2626ee1e81fd 227-251
+  s_c1c985d7f57ab9::t_cb0988bc2373e7 633-635
+docs/index.md
+  s_c1c985d7f57ab9::t_91aa72508db0d6 158-160
+docs/how-it-works/a-prompt-widgets-permission-mode.md
+  s_c1c985d7f57ab9::t_2dc6d11f9d5cc6 1-47
+internal/widgets/contract.go
+  s_c1c985d7f57ab9::t_fe8da26b51a493 18-21
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e4287bac1dab170acfd33ed21482524d381251d5",
+  "prompts": {},
+  "sessions": {
+    "s_c1c985d7f57ab9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b5256304-4a81-480d-a568-f8cf11d8ddcc",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
