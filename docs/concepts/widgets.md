@@ -51,12 +51,21 @@ name, the same way your packages always do.
 
 ## Areas and boards
 
-An area is a place in the app that holds widgets. Today there is one,
-**Home**, a free canvas. A sidebar and a sidebar next to each session come
-later; a widget can already say it fits them.
+An area is a place in the app that holds widgets. There are three:
 
-Each area has a board: `<config>/boards/home.yml`. It lists each widget
-on the area, where it is and how big:
+- **Home**, a free canvas: each widget has a place and a size.
+- **The sidebar**, on the left: a list, top to bottom. The workspace list
+  is one widget there, so you can put others above or below it.
+- **The context sidebar**, the Context tab next to a session: a list too.
+  Each of its sections (shortcuts, publish a port, monitors, shells,
+  sub-agents, to-do, pull requests, links) is one widget.
+
+The sidebar's top bar and footer, and the context panel's other tabs
+(Preview, Files, Git), stay as they are: they are not widgets.
+
+Each area has a board in `<config>/boards/`: `home.yml`, `sidebar.yml`
+and `context-sidebar.yml`. Home's board says where each widget is and how
+big:
 
 ```yaml
 format: 1
@@ -70,10 +79,35 @@ widgets:
     z: 1
 ```
 
-Edit it by hand, from the app, or with the CLI:
+A sidebar's board is just the list, in order:
+
+```yaml
+format: 1
+surface: sidebar
+widgets:
+  - id: workspaces
+    type: devmachine-app/workspaces
+    size: auto
+```
+
+When `sidebar.yml` or `context-sidebar.yml` is missing, the app writes
+the board that draws the sidebar and the Context tab as they always
+looked, and the CLI reads a missing one the same way. Settings →
+Appearance can reset each one.
+
+The context sidebar hands its widgets the selected session's context:
+`machine`, `session`, `workspace`, `path` (the session's folder), `repo`
+and `branch` (from Git), and `harness`. Switching sessions runs each
+widget again with the new values. A widget written in place that uses
+them, such as a command reading `{{context.path}}`, asks you to allow it
+again for each new set of values.
+
+Edit a board by hand, from the app, or with the CLI:
 
 ```
 devmachine widgets add claude-code/usage --set harness=codex
+devmachine widgets add claude-code/usage --board context-sidebar --after todo
+devmachine widgets move usage --before shortcuts --board context-sidebar
 devmachine widgets remove usage
 ```
 

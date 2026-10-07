@@ -33,6 +33,8 @@ func usageLookup(name string) (Entry, bool) {
 	}
 	return Entry{
 		Name:   name,
+		Fits:   []string{LayoutCanvas, LayoutStack, LayoutSlot},
+		View:   ViewRef{Kind: "app.harness-usage"},
 		Sizes:  []string{"small", "medium", "wide"},
 		Inputs: map[string]Input{"harness": {Type: "string", Default: "claude"}},
 	}, true

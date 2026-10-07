@@ -28,7 +28,7 @@ var (
 
 var (
 	boardFields    = []string{"format", "surface", "widgets"}
-	instanceFields = []string{"id", "type", "title", "with", "source", "view", "sizes", "fits", "frame", "size", "minimized", "z"}
+	instanceFields = []string{"id", "type", "title", "with", "source", "view", "sizes", "fits", "frame", "size", "minimized", "collapsed", "z"}
 	frameFields    = []string{"x", "y", "w", "h"}
 )
 
@@ -60,6 +60,7 @@ type Instance struct {
 	Frame     Frame          `yaml:"frame" json:"frame"`
 	Size      string         `yaml:"size" json:"size"`
 	Minimized bool           `yaml:"minimized" json:"minimized"`
+	Collapsed bool           `yaml:"collapsed" json:"collapsed,omitempty"`
 	Z         int            `yaml:"z" json:"z"`
 
 	// Inline is true when the entry carries its own source and view instead
@@ -82,6 +83,9 @@ func (w Instance) lineOf(field string) int {
 	}
 	return w.Line
 }
+
+// has says whether the entry was read with this key written.
+func (w Instance) has(field string) bool { return w.lines[field] > 0 }
 
 // Board is what <config>/boards/<surface>.yml holds.
 type Board struct {
@@ -108,7 +112,8 @@ func NewBoard(surface string) Board {
 
 // ParseBoard reads a board's text. A file that is not YAML, or not shaped
 // like a board, is one problem pointing at its line; each unknown key is a
-// problem at its own line. A widget with no size is custom.
+// problem at its own line. A widget with no size is custom on a canvas; in a
+// stack it stays left out.
 func ParseBoard(path string, body []byte) (Board, []Problem) {
 	fail := func(err error) (Board, []Problem) {
 		p := Problem{Path: path, Message: fmt.Sprintf("parsing the board: %v", err)}
@@ -127,6 +132,7 @@ func ParseBoard(path string, body []byte) (Board, []Problem) {
 	}
 	top := mapping(&root)
 	problems := unknownBoardKeys(path, top, boardFields, "the board")
+	stack := IsStack(b.Surface)
 	if entries := field(top, "widgets"); entries != nil && entries.Kind == yaml.SequenceNode {
 		for i, entry := range entries.Content {
 			if i >= len(b.Widgets) {
@@ -137,7 +143,7 @@ func ParseBoard(path string, body []byte) (Board, []Problem) {
 			w.sourceNode, w.viewNode = field(entry, "source"), field(entry, "view")
 			w.Inline = w.sourceNode != nil || w.viewNode != nil
 			w.lines = fieldLines(&yaml.Node{Kind: yaml.DocumentNode, Content: []*yaml.Node{entry}})
-			if field(entry, "size") == nil {
+			if field(entry, "size") == nil && !stack {
 				w.Size = SizeCustom
 			}
 			problems = append(problems, unknownBoardKeys(path, entry, instanceFields, "a widget")...)
@@ -184,6 +190,7 @@ func ValidateBoard(b Board, path string, lookup Lookup) []Problem {
 	if stem, isYAML := strings.CutSuffix(filepath.Base(path), ".yml"); isYAML && ok && stem != b.Surface {
 		at(0, "surface is %q but the file is %s: a board is found by its file name", b.Surface, filepath.Base(path))
 	}
+	stack := surface.Layout == LayoutStack
 
 	seen := map[string]bool{}
 	for _, w := range b.Widgets {
@@ -208,12 +215,19 @@ func ValidateBoard(b Board, path string, lookup Lookup) []Problem {
 			continue
 		}
 
-		if w.Frame.X < 0 || w.Frame.Y < 0 {
-			at(w.Line, "%s: frame x and y cannot be negative", label)
-		}
-		if w.Size != SizeCustom {
-			if _, ok := c.Presets[w.Size]; !ok {
-				at(w.Line, "%s: size %q is a preset (%s) or custom", label, w.Size, strings.Join(presetNames(c), ", "))
+		if stack {
+			problems = append(problems, stackEntryProblems(w, label, path)...)
+		} else {
+			if w.Frame.X < 0 || w.Frame.Y < 0 {
+				at(w.Line, "%s: frame x and y cannot be negative", label)
+			}
+			if w.Size != SizeCustom {
+				if _, ok := c.Presets[w.Size]; !ok {
+					at(w.Line, "%s: size %q is a preset (%s) or custom", label, w.Size, strings.Join(presetNames(c), ", "))
+				}
+			}
+			if w.has("collapsed") {
+				at(w.lineOf("collapsed"), "%s: a widget on a canvas folds with minimized: true, not collapsed", label)
 			}
 		}
 		if w.Inline {
@@ -222,18 +236,25 @@ func ValidateBoard(b Board, path string, lookup Lookup) []Problem {
 		}
 
 		entry, known := lookup(w.Type)
-		if !known {
+		switch {
+		case !known && stack:
+			problems = append(problems, stackSizeProblems(w, label, path, presetNames(c), "", true)...)
+			continue
+		case !known:
 			if w.Frame.W <= 0 || w.Frame.H <= 0 {
 				at(w.Line, "%s: frame w and h must be above zero", label)
 			}
 			continue
-		}
-		minW, minH := MinFrame(entry.Sizes)
-		if w.Frame.W < minW || w.Frame.H < minH {
-			at(w.Line, "%s: frame %dx%d is smaller than %s's minimum of %dx%d", label, w.Frame.W, w.Frame.H, w.Type, minW, minH)
-		}
-		if _, preset := c.Presets[w.Size]; preset && !slices.Contains(entry.Sizes, w.Size) {
-			at(w.Line, "%s: %s does not come in size %s: it takes %s", label, w.Type, w.Size, strings.Join(entry.Sizes, ", "))
+		case stack:
+			problems = append(problems, stackSizeProblems(w, label, path, entry.Sizes, entry.View.Kind, Grows(entry.View.Kind))...)
+		default:
+			minW, minH := MinFrame(entry.Sizes)
+			if w.Frame.W < minW || w.Frame.H < minH {
+				at(w.Line, "%s: frame %dx%d is smaller than %s's minimum of %dx%d", label, w.Frame.W, w.Frame.H, w.Type, minW, minH)
+			}
+			if _, preset := c.Presets[w.Size]; preset && !slices.Contains(entry.Sizes, w.Size) {
+				at(w.Line, "%s: %s does not come in size %s: it takes %s", label, w.Type, w.Size, strings.Join(entry.Sizes, ", "))
+			}
 		}
 		for _, name := range sortedKeys(w.With) {
 			input, ok := entry.Inputs[name]
@@ -303,6 +324,7 @@ func WriteBoard(path string, read []byte, b Board) error {
 // EncodeBoard writes b in the key order the app also writes, so the two
 // writers never fight over the same file's layout.
 func EncodeBoard(b Board) ([]byte, error) {
+	stack := IsStack(b.Surface)
 	widgets := &yaml.Node{Kind: yaml.SequenceNode}
 	for _, w := range b.Widgets {
 		entry := &yaml.Node{Kind: yaml.MappingNode}
@@ -325,15 +347,24 @@ func EncodeBoard(b Board) ([]byte, error) {
 				put(entry, "with", with)
 			}
 		}
-		frame := &yaml.Node{Kind: yaml.MappingNode, Style: yaml.FlowStyle}
-		put(frame, "x", intNode(w.Frame.X))
-		put(frame, "y", intNode(w.Frame.Y))
-		put(frame, "w", intNode(w.Frame.W))
-		put(frame, "h", intNode(w.Frame.H))
-		put(entry, "frame", frame)
-		put(entry, "size", scalarNode(w.Size))
-		put(entry, "minimized", &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!bool", Value: strconv.FormatBool(w.Minimized)})
-		put(entry, "z", intNode(w.Z))
+		if stack {
+			if w.Size != "" {
+				put(entry, "size", scalarNode(w.Size))
+			}
+			if w.Collapsed {
+				put(entry, "collapsed", boolNode(true))
+			}
+		} else {
+			frame := &yaml.Node{Kind: yaml.MappingNode, Style: yaml.FlowStyle}
+			put(frame, "x", intNode(w.Frame.X))
+			put(frame, "y", intNode(w.Frame.Y))
+			put(frame, "w", intNode(w.Frame.W))
+			put(frame, "h", intNode(w.Frame.H))
+			put(entry, "frame", frame)
+			put(entry, "size", scalarNode(w.Size))
+			put(entry, "minimized", boolNode(w.Minimized))
+			put(entry, "z", intNode(w.Z))
+		}
 		widgets.Content = append(widgets.Content, entry)
 	}
 	if len(widgets.Content) == 0 {
@@ -410,6 +441,10 @@ func scalarNode(value string) *yaml.Node {
 
 func intNode(value int) *yaml.Node {
 	return &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!int", Value: strconv.Itoa(value)}
+}
+
+func boolNode(value bool) *yaml.Node {
+	return &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!bool", Value: strconv.FormatBool(value)}
 }
 
 func field(m *yaml.Node, key string) *yaml.Node {

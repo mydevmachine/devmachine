@@ -273,6 +273,35 @@ The app runs a `command`, `prompt` or `session` written in a board only
 after you press **Allow** on it, and asks again whenever it changes. See
 [why a widget an agent wrote waits for you](../how-it-works/why-an-agent-written-widget-waits.md).
 
+### A board in a sidebar
+
+The sidebar (`sidebar.yml`) and the context sidebar (`context-sidebar.yml`)
+are stacks: a list, drawn top to bottom in the order it is written. A
+widget there has no `frame`, no `minimized` and no `z`.
+
+```yaml
+format: 1
+surface: context-sidebar
+widgets:
+  - id: todo
+    type: devmachine-app/todo
+    size: auto
+  - id: usage
+    type: claude-code/usage
+    size: medium
+    collapsed: true
+```
+
+| Field | What it is |
+| --- | --- |
+| `id`, `type`, `with` | As on Home. A widget written in place (`title`, `source`, `view`) works here too. |
+| `size` | A preset the widget takes, or `auto`. In a sidebar a widget is as wide as the panel and each preset row is 40pt high (`medium` is 80pt, `large` 160pt). `auto` makes it as tall as what it shows, and only a view that grows takes it (the app's sidebar views). Left out, it is `auto` for a view that grows and the widget's `default_size` otherwise. |
+| `collapsed` | `true` shows only its header, and nothing runs. Left out when false. |
+
+A widget fits a sidebar when `stack` is in its `fits`; a widget written in
+place fits every layout. A widget marked `single: true` appears once per
+board.
+
 ## What the engine offers
 
 `devmachine widgets schema --json` prints all of this as JSON.
@@ -423,6 +452,11 @@ One preset row in a sidebar is 40pt high, and a widget there is as wide as the p
 | a board widget with `with` or `{{inputs.x}}` | `disk: a widget written in the board has no inputs, so it takes no with` |
 | a board widget's `script` not absolute | `disk: source.script "bin/df": a widget written in a board names an absolute path on the target` |
 | a board widget's target is not in `config.yml` (checked by `widgets validate` only) | `disk: source.target names machine "X", which config.yml does not have` |
+| a sidebar widget with `frame` or `z` | `todo: a widget in a sidebar has no frame; its place is its position in the list` |
+| a sidebar widget with `minimized` | `usage: a widget in a sidebar folds with collapsed: true, not minimized` |
+| a Home widget with `collapsed` | `clock: a widget on a canvas folds with minimized: true, not collapsed` |
+| `size: auto` on a view that does not grow | `usage: size auto follows the content, and the app.harness-usage view does not grow: use small, medium, wide` |
+| a sidebar size that is neither auto nor a preset it takes | `todo: size "custom" in a sidebar is auto or one of medium, large` |
 
 `devmachine widgets validate` and `devmachine packages validate` report
 every problem at once, with the file and line.

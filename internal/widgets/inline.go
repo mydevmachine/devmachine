@@ -39,11 +39,19 @@ func validateInline(w Instance, label, path string, surface Surface, c Contract)
 	if len(sizes) == 0 {
 		sizes = presetNames(c)
 	}
-	if _, preset := c.Presets[w.Size]; preset && !slices.Contains(sizes, w.Size) {
-		at("size", "size %s is not one of its sizes: %s", w.Size, strings.Join(sizes, ", "))
-	}
-	if minW, minH := MinFrame(sizes); w.Frame.W < minW || w.Frame.H < minH {
-		at("frame", "frame %dx%d is smaller than its minimum of %dx%d", w.Frame.W, w.Frame.H, minW, minH)
+	if surface.Layout == LayoutStack {
+		view := ""
+		if w.View != nil {
+			view = w.View.Kind
+		}
+		problems = append(problems, stackSizeProblems(w, label, path, sizes, view, Grows(view))...)
+	} else {
+		if _, preset := c.Presets[w.Size]; preset && !slices.Contains(sizes, w.Size) {
+			at("size", "size %s is not one of its sizes: %s", w.Size, strings.Join(sizes, ", "))
+		}
+		if minW, minH := MinFrame(sizes); w.Frame.W < minW || w.Frame.H < minH {
+			at("frame", "frame %dx%d is smaller than its minimum of %dx%d", w.Frame.W, w.Frame.H, minW, minH)
+		}
 	}
 
 	if w.Source == nil || w.View == nil {

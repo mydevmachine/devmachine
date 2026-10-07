@@ -1885,6 +1885,41 @@ relative `script` has nothing to be relative to.
 **What to do:** Write the full path on the target, for example
 `/home/alice/bin/check-disk`, or use `run` with `args`.
 
+## "a widget in a sidebar has no frame; its place is its position in the list"
+
+**What it means:** A sidebar board is a list: the first widget is drawn at
+the top, the next under it. `frame` and `z` place a widget on Home's
+canvas and mean nothing here. The same message says `z` for a `z` key.
+
+**What to do:** Delete the `frame` (or `z`) line. To change the order,
+move the entry in the file, drag its header in the app, or run
+`devmachine widgets move <id> --before <other> --board <area>`.
+
+## "a widget in a sidebar folds with collapsed: true, not minimized"
+
+**What it means:** Home folds a widget into a pill (`minimized`); a
+sidebar folds it to its header (`collapsed`). Each area takes only its own
+key. The opposite message, "a widget on a canvas folds with minimized:
+true, not collapsed", is the same mistake on Home.
+
+**What to do:** Rename the key.
+
+## "size auto follows the content, and the X view does not grow"
+
+**What it means:** `auto` makes a widget as tall as what it shows. Only
+the app's sidebar views (`app.workspaces`, `app.todo` and the others) work
+that way; every other view has a fixed shape and needs a preset.
+
+**What to do:** Use one of the sizes the message lists, or leave `size`
+out to get the widget's `default_size`.
+
+## "size "X" in a sidebar is auto or one of …"
+
+**What it means:** A sidebar widget takes `auto` or a preset it lists in
+`sizes`. `custom` exists only on Home, after a free resize.
+
+**What to do:** Pick a size from the list in the message.
+
 ## "source.target names machine "…", which config.yml does not have"
 
 **What it means:** A widget written in a board runs on a machine or a
