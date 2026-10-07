@@ -14,6 +14,7 @@ import (
 
 	"github.com/mydevmachine/devmachine/internal/config"
 	"github.com/mydevmachine/devmachine/internal/expose"
+	"github.com/mydevmachine/devmachine/internal/facts"
 	"github.com/mydevmachine/devmachine/internal/packages"
 	agentskills "github.com/mydevmachine/devmachine/internal/skills"
 	"gopkg.in/yaml.v3"
@@ -788,9 +789,14 @@ func routeTasks(plan packages.MachinePlan, base string, siteChanges []string) st
 	for _, registered := range siteChanges {
 		when += fmt.Sprintf(" or (%s is defined and %s is changed)", registered, registered)
 	}
-	// caddy is a Linux package and the reload goes through systemd, which a
-	// Mac does not have.
+	// The reload goes through systemd on Linux. A Mac runs Caddy under
+	// launchd, so there it goes through Caddy's own admin endpoint, with the
+	// package managers' directories that a play's shell does not have.
 	out.WriteString("      when: ansible_facts['system'] == 'Linux' and (" + when + ")\n")
+	out.WriteString("      tags: [routes]\n\n")
+	fmt.Fprintf(&out, "    - name: reload caddy for the routes on a Mac\n      shell: PATH=\"%s:$PATH\" caddy reload --config %s --adapter caddyfile\n",
+		strings.Join(facts.MacPath(), ":"), expose.Caddyfile)
+	out.WriteString("      when: ansible_facts['system'] == 'Darwin' and (" + when + ")\n")
 	out.WriteString("      tags: [routes]\n\n")
 	return out.String()
 }

@@ -18,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/mydevmachine/devmachine/internal/network"
 	"github.com/mydevmachine/devmachine/internal/remote"
 )
 
@@ -221,6 +222,29 @@ var macPrefixes = []struct{ root, pkgMgr string }{
 	{"/opt/local", "macports"},
 	{"/opt/homebrew", "homebrew"},
 	{"/usr/local", "homebrew"},
+}
+
+// TailscaleAppDir holds the CLI of Tailscale's own Mac app.
+const TailscaleAppDir = network.TailscaleAppDir
+
+// CommandPath is what a command the CLI runs on the machine puts in front of
+// PATH: the package manager's directories and, on a Mac, Tailscale's app,
+// which a machine can have instead of the tailscale package.
+func (f Facts) CommandPath() []string {
+	if f.System != "Darwin" {
+		return f.PathPrefix
+	}
+	return append(slices.Clone(f.PathPrefix), TailscaleAppDir)
+}
+
+// MacPath is CommandPath for a Mac whose package manager is not known: every
+// place one installs.
+func MacPath() []string {
+	var out []string
+	for _, p := range macPrefixes {
+		out = append(out, p.root+"/bin", p.root+"/sbin")
+	}
+	return append(out, TailscaleAppDir)
 }
 
 func darwinFacts(f *Facts, version string) {

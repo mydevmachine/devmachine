@@ -948,10 +948,15 @@ func servingClients(ctx context.Context, dir string, cfg config.Config, w config
 				w.Name, r.Host, m.Name, err, r.Host, m.Name)
 		}
 		routesFile := path.Join(sitesDir, expose.WorkspaceFileName(w.Name))
-		out = append(out, servingClient{machine: m.Name, client: client,
-			script: "rm -f " + quoteForShell(routesFile) + " && " + reloadCaddyScript()})
+		out = append(out, servingClient{machine: m.Name, client: client, script: removeSitesScript(dir, m, routesFile)})
 	}
 	return out, nil
+}
+
+// removeSitesScript removes a workspace's routes file from a machine that
+// serves them, and reloads Caddy there.
+func removeSitesScript(dir string, m config.Machine, routesFile string) string {
+	return inMachinePath(dir, m, "rm -f "+quoteForShell(routesFile)+" && "+reloadCaddyScript())
 }
 
 // reloadCaddyScript reloads Caddy through systemd where there is one, and

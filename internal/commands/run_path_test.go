@@ -15,7 +15,7 @@ func TestRunPutsTheMachinesPathPrefixFirst(t *testing.T) {
 	if _, err := execute(t, "--config", dir, "--machine", "sandbox", "run", "port installed"); err != nil {
 		t.Fatal(err)
 	}
-	want := `PATH='/opt/local/bin:/opt/local/sbin':"$PATH"; export PATH; port installed`
+	want := macPathLine + "port installed"
 	if len(runs) != 1 || runs[0] != want {
 		t.Fatalf("ran %q, want %q", runs, want)
 	}

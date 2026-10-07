@@ -283,3 +283,29 @@ func TestRemoveDeletesTheFactsAndToleratesNone(t *testing.T) {
 		t.Fatalf("found %v, err %v", found, err)
 	}
 }
+
+func TestCommandPathOnAMacAlsoReachesTheTailscaleApp(t *testing.T) {
+	mac := Facts{System: "Darwin", PathPrefix: []string{"/opt/homebrew/bin", "/opt/homebrew/sbin"}}
+	want := []string{"/opt/homebrew/bin", "/opt/homebrew/sbin", TailscaleAppDir}
+	if got := mac.CommandPath(); !slices.Equal(got, want) {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+	if mac.PathPrefix[len(mac.PathPrefix)-1] != "/opt/homebrew/sbin" {
+		t.Fatalf("CommandPath changed the facts themselves: %v", mac.PathPrefix)
+	}
+}
+
+func TestCommandPathOnLinuxIsThePrefixAlone(t *testing.T) {
+	if got := (Facts{System: "Linux", PathPrefix: []string{}}).CommandPath(); len(got) != 0 {
+		t.Fatalf("got %v", got)
+	}
+}
+
+func TestMacPathCoversEveryManagerAndTheTailscaleApp(t *testing.T) {
+	got := MacPath()
+	for _, dir := range []string{"/opt/homebrew/bin", "/usr/local/bin", "/opt/local/bin", TailscaleAppDir} {
+		if !slices.Contains(got, dir) {
+			t.Fatalf("%s is missing from %v", dir, got)
+		}
+	}
+}

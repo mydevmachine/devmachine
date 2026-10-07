@@ -95,7 +95,7 @@ func TestResolveDropsTailscaleWhenTheBinaryIsMissing(t *testing.T) {
 
 func TestResolveExpandsTailscaleWhenItIsAvailable(t *testing.T) {
 	lookPath = func(string) (string, error) { return "/usr/bin/tailscale", nil }
-	tailscaleIP = func(string) (string, error) { return "100.64.0.5", nil }
+	tailscaleIP = func(string, string) (string, error) { return "100.64.0.5", nil }
 	t.Cleanup(func() { lookPath = realLookPath; tailscaleIP = realTailscaleIP })
 
 	m := config.Machine{Name: "main", Hosts: []config.Host{{Address: "tailscale:vps"}}}
@@ -108,7 +108,7 @@ func TestResolveExpandsTailscaleWhenItIsAvailable(t *testing.T) {
 
 func TestResolveDropsTailscaleWhenThePeerIsUnknown(t *testing.T) {
 	lookPath = func(string) (string, error) { return "/usr/bin/tailscale", nil }
-	tailscaleIP = func(string) (string, error) { return "", errors.New("no such peer") }
+	tailscaleIP = func(string, string) (string, error) { return "", errors.New("no such peer") }
 	t.Cleanup(func() { lookPath = realLookPath; tailscaleIP = realTailscaleIP })
 
 	m := config.Machine{Name: "main", Hosts: []config.Host{

@@ -915,6 +915,33 @@ func TestGenerateReloadsCaddyForTheRoutesOnlyOnLinux(t *testing.T) {
 	}
 }
 
+func TestGenerateReloadsCaddyForTheRoutesOnAMacThroughCaddyItself(t *testing.T) {
+	plan := planWith(t, "main", []string{"caddy"}, map[string][]string{"alice": nil})
+	plan.SitesDir = "/etc/caddy/sites.d"
+	plan.Routes = []packages.Route{{Workspace: "alice", Host: "app.example.com", Port: 8080}}
+	files, err := Generate(plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	site := string(files["site.yml"])
+	start := strings.Index(site, "- name: reload caddy for the routes on a Mac")
+	if start < 0 {
+		t.Fatalf("no reload task for a Mac:\n%s", site)
+	}
+	task := site[start:]
+	task = task[:strings.Index(task, "tags: [routes]")]
+	for _, want := range []string{
+		`shell: PATH="/opt/local/bin:/opt/local/sbin:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/local/sbin:` +
+			`/Applications/Tailscale.app/Contents/MacOS:$PATH" caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile`,
+		"when: ansible_facts['system'] == 'Darwin' and (",
+		"devmachine_routes_written is changed",
+	} {
+		if !strings.Contains(task, want) {
+			t.Fatalf("missing %q:\n%s", want, task)
+		}
+	}
+}
+
 func TestGenerateWithoutCaddyWritesNoRouteTasks(t *testing.T) {
 	plan := planWith(t, "main", []string{"base"}, nil)
 	files, err := Generate(plan)
