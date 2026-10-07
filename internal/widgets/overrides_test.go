@@ -24,6 +24,8 @@ func overrideLookup(name string) (Entry, bool) {
 		"claude-code/usage": {Source: Source{Kind: SourceProvider, Name: "app/harness-usage", Every: "60s"}},
 		"mine/tail":         {Source: Source{Kind: SourceCommand, Run: "journalctl", Mode: ModeStream}},
 		"mine/ask":          {Source: Source{Kind: SourcePrompt, Harness: "claude", Prompt: "Summarize."}},
+		"mine/page":         {Source: Source{Kind: SourceURL, URL: "https://example.com", Every: "60s"}},
+		"mine/shell":        {Source: Source{Kind: SourceSession, Session: "main", Every: "10s"}},
 		"mine/stats":        {Source: Source{Kind: SourceProvider, Name: "mine/stats", Every: "60s"}, Provider: &PackageProvider{MinEvery: "10s"}},
 	}
 	e, ok := entries[name]
@@ -110,5 +112,48 @@ widgets:
 	problems := overrideProblemsOf(t, body)
 	if len(problems) != 1 || problems[0].Message != "disk: a widget written in the board sets how often in source.every, not every" || problems[0].Line != 8 {
 		t.Fatalf("got %+v", problems)
+	}
+}
+
+func TestEveryOverrideOnAURLOrSessionSourceFollowsTheKindMinimum(t *testing.T) {
+	for _, tc := range []struct {
+		name, typ, every, want string
+	}{
+		{"url below", "mine/page", "1s", "usage: every 1s is below mine/page's minimum of 5s"},
+		{"url at the minimum", "mine/page", "5s", ""},
+		{"url manual", "mine/page", "manual", ""},
+		{"session below", "mine/shell", "1s", "usage: every 1s is below mine/shell's minimum of 2s"},
+		{"session at the minimum", "mine/shell", "2s", ""},
+		{"session manual", "mine/shell", "manual", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			body := strings.NewReplacer("claude-code/usage", tc.typ, "every: 2m", "every: "+tc.every).Replace(overrideBoard)
+			problems := overrideProblemsOf(t, body)
+			switch {
+			case tc.want == "" && len(problems) != 0:
+				t.Fatalf("got %+v", problems)
+			case tc.want != "" && (len(problems) != 1 || problems[0].Message != tc.want):
+				t.Fatalf("want %q, got %+v", tc.want, problems)
+			}
+		})
+	}
+}
+
+func TestATitleOfOnlySpacesAndAnEmptyEveryAreRefused(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		replace []string
+		want    string
+		line    int
+	}{
+		{"spaces title", []string{"title: Claude", `title: "   "`}, "usage: title is empty: write one, or take the key off to show the widget's own", 6},
+		{"empty every", []string{"every: 2m", `every: ""`}, `usage: every "" is not a duration: write it like 60s or 5m`, 7},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			problems := overrideProblemsOf(t, strings.NewReplacer(tc.replace...).Replace(overrideBoard))
+			if len(problems) != 1 || problems[0].Message != tc.want || problems[0].Line != tc.line {
+				t.Fatalf("want %q at %d, got %+v", tc.want, tc.line, problems)
+			}
+		})
 	}
 }
