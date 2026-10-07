@@ -313,6 +313,15 @@ func TestAnAppProviderTakesNoTargetOrTimeout(t *testing.T) {
 	}
 }
 
+func TestAnAppProviderRefusesManualAsItDidIn12(t *testing.T) {
+	body := edited(t, usageWidget, "  every: 60s\n", "  every: manual\n")
+	_, problems := Load(writeWidget(t, t.TempDir(), "usage", body))
+	want := `source.every "manual" is not a duration: write it like 60s or 5m`
+	if len(problems) != 1 || problems[0].Message != want {
+		t.Fatalf("want %q, got %v", want, problems)
+	}
+}
+
 func TestAProviderSourcePrintsItsTargetOnlyWhenItHasOne(t *testing.T) {
 	plain, err := json.Marshal(Source{Kind: SourceProvider, Name: "app/clock", Every: "5s"})
 	if err != nil {
