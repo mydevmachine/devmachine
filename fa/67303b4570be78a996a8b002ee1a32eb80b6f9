@@ -1,0 +1,59 @@
+internal/commands/mac_path_test.go
+  s_5ccc211ae481bf::t_ce882ac138dcb7 1-85
+docs/how-it-works/published-sites.md
+  s_5ccc211ae481bf::t_9bcdc7446988c3 40-42
+docs/how-it-works/what-the-cli-knows-about-a-machine.md
+  s_5ccc211ae481bf::t_c310b71a785012 43-48
+docs/troubleshooting.md
+  s_5ccc211ae481bf::t_2208999bbb6e0b 479-484
+internal/commands/expose.go
+  s_5ccc211ae481bf::t_d4c4f31bc78b83 191-196,218
+internal/commands/facts.go
+  s_5ccc211ae481bf::t_01368c8d684fa2 75-76,83-88,93
+internal/commands/login.go
+  s_5ccc211ae481bf::t_b96aa8d81ee9e6 74,107
+internal/commands/network_login.go
+  s_5ccc211ae481bf::t_0c64340e837edc 60-61
+internal/commands/run_path_test.go
+  s_5ccc211ae481bf::t_205633f192ed12 18
+internal/commands/workspaces.go
+  s_5ccc211ae481bf::t_187a1ec918132b 943,948-953
+internal/facts/facts.go
+  s_5ccc211ae481bf::t_ceea04255af5bb 21,227-249
+internal/facts/facts_test.go
+  s_5ccc211ae481bf::t_92e98e020ac7e5 286-311
+internal/network/network.go
+  s_5ccc211ae481bf::t_1c7fd6a2053436 22,167-191,207
+internal/network/network_test.go
+  s_5ccc211ae481bf::t_ae1494be609faf 245-277
+internal/provision/ansible.go
+  s_5ccc211ae481bf::t_9030907a836b5b 17,792-794,797-800
+internal/provision/ansible_test.go
+  s_5ccc211ae481bf::t_84c54590aae77c 918-944
+internal/provision/testdata/generate/site.yml
+  s_5ccc211ae481bf::t_1e7d52ff27c182 210-214
+internal/remote/networks.go
+  s_5ccc211ae481bf::t_6f10631b6068c0 9,146-148,150-164
+internal/remote/networks_test.go
+  s_5ccc211ae481bf::t_abada1f551c6dc 99,318-352
+internal/remote/remote.go
+  s_5ccc211ae481bf::t_cda7882418bb48 25,32,52-53,74-75
+internal/remote/remote_test.go
+  s_5ccc211ae481bf::t_7b23c51de56317 98,111
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fa67303b4570be78a996a8b002ee1a32eb80b6f9",
+  "prompts": {},
+  "sessions": {
+    "s_5ccc211ae481bf": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "570a9526-d48d-41cd-8528-3a3200e0855a",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
