@@ -215,14 +215,19 @@ func (e *External) Call(ctx context.Context, args []string, out, errOut io.Write
 			e.name, args[0], strings.Join(e.commands, ", "))
 	}
 
-	return e.client.Stream(ctx, e.shellFor(args, ""), out, errOut)
+	return e.run(ctx, args, out, errOut)
 }
 
 // Exec runs the external with these arguments word for word — an empty one
-// included, none is fine — without the command list Call enforces. Over SSH
-// the words go on the stdin of remote.ShellOnInput, so the account's login
-// shell never reads them; on this computer bash runs them directly.
+// included, none is fine — without the command list Call enforces.
 func (e *External) Exec(ctx context.Context, args []string, out, errOut io.Writer) error {
+	return e.run(ctx, args, out, errOut)
+}
+
+// run streams the external with these arguments word for word. Over SSH the
+// words go on the stdin of remote.ShellOnInput, so the account's login shell
+// never reads them; on this computer bash runs them directly.
+func (e *External) run(ctx context.Context, args []string, out, errOut io.Writer) error {
 	words := []string{quoteArg(e.entrypoint)}
 	for _, a := range args {
 		words = append(words, quoteArg(a))

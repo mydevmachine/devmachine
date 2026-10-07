@@ -394,9 +394,9 @@ func TestAnyCallsAPackageThatNeedsNoCredential(t *testing.T) {
 	if err := got.Call(context.Background(), []string{"context", "--session", "s1"}, &out, io.Discard); err != nil {
 		t.Fatal(err)
 	}
-	if len(client.commands) != 1 || strings.Contains(client.commands[0], "set -a") ||
-		!strings.Contains(client.commands[0], "bin/tool context --session s1") {
-		t.Fatalf("ran %q", client.commands)
+	if len(client.inputs) != 1 || strings.Contains(client.inputs[0], "set -a") ||
+		!strings.Contains(client.inputs[0], "bin/tool context --session s1") {
+		t.Fatalf("sent %q", client.inputs)
 	}
 }
 
@@ -411,8 +411,8 @@ func TestAnyCallsALocalPackageWhereAnsibleUnpackedIt(t *testing.T) {
 	if err := got.Call(context.Background(), []string{"context"}, io.Discard, io.Discard); err != nil {
 		t.Fatal(err)
 	}
-	if len(client.commands) != 1 || !strings.HasPrefix(client.commands[0], "/opt/devmachine/roles.local/tool/bin/tool ") {
-		t.Fatalf("ran %q, want the entrypoint under roles.local", client.commands)
+	if len(client.inputs) != 1 || !strings.HasPrefix(client.inputs[0], "exec /opt/devmachine/roles.local/tool/bin/tool ") {
+		t.Fatalf("sent %q, want the entrypoint under roles.local", client.inputs)
 	}
 }
 

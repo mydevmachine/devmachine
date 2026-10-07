@@ -276,6 +276,10 @@ func (f fakeRemote) RunInput(ctx context.Context, command string, _ io.Reader) (
 	return f.Run(ctx, command)
 }
 
+func (f fakeRemote) StreamInput(ctx context.Context, command string, _ io.Reader, stdout, stderr io.Writer) error {
+	return f.Stream(ctx, command, stdout, stderr)
+}
+
 func (f fakeRemote) Upload(context.Context, string, io.Reader) error { return nil }
 
 func (f fakeRemote) Close() error { return nil }

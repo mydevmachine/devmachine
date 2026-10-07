@@ -48,6 +48,20 @@ func (c localClient) Stream(ctx context.Context, command string, stdout, _ io.Wr
 	return err
 }
 
+func (c localClient) StreamInput(ctx context.Context, command string, stdin io.Reader, stdout, _ io.Writer) error {
+	script, err := io.ReadAll(stdin)
+	if err != nil {
+		return err
+	}
+	sh := exec.CommandContext(ctx, "sh", "-c", command)
+	sh.Stdin = strings.NewReader(strings.ReplaceAll(string(script), machineRolesLocalDir, c.root+"/"))
+	out, err := sh.CombinedOutput()
+	if _, writeErr := stdout.Write(out); writeErr != nil {
+		return writeErr
+	}
+	return err
+}
+
 func (c localClient) RunInput(ctx context.Context, command string, _ io.Reader) (string, error) {
 	return c.Run(ctx, command)
 }

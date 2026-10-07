@@ -948,6 +948,9 @@ reason a command failed still reaches the person, before the error.
 after `--` goes to the package; `commands:` in its manifest can limit
 what it accepts. With `--workspace`, it runs as that workspace's own
 account, for a command that needs that account's own files or logins.
+Each word after `--` reaches the entrypoint as it is, an empty one too:
+over SSH the command is `/bin/sh -s` and the words go on its input, so
+the account's login shell never reads them.
 See [packages](../concepts/packages.md).
 
 `--argv` runs a program with its arguments exactly as given: each word

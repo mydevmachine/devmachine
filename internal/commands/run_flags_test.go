@@ -231,6 +231,27 @@ func TestRunPackageMistakesExitOneBeforeConnecting(t *testing.T) {
 	}
 }
 
+func TestRunPackageSendsNoValueInTheCommand(t *testing.T) {
+	var commands, inputs []string
+	dialing(t, inputRemote{commands: &commands, inputs: &inputs})
+	dir := configDirWithProviderAccepting(t, "cloudflare", []string{"zones"})
+
+	args := append([]string{"--config", dir, "run", "--package", "cloudflare", "--", "zones"}, hostileWords...)
+	if _, err := execute(t, args...); err != nil {
+		t.Fatal(err)
+	}
+	if len(commands) != 1 || commands[0] != "/bin/sh -s" {
+		t.Fatalf("ran %q, want exactly /bin/sh -s", commands)
+	}
+	quoted := make([]string, len(hostileWords))
+	for i, w := range hostileWords {
+		quoted[i] = quoteForShell(w)
+	}
+	if want := "/bin/provider zones " + strings.Join(quoted, " ") + "\n"; !strings.HasSuffix(inputs[0], want) {
+		t.Fatalf("sent %q, want it to end in %q", inputs[0], want)
+	}
+}
+
 func TestRunPackageScriptPassesAnEmptyWord(t *testing.T) {
 	var commands, inputs []string
 	dialing(t, inputRemote{commands: &commands, inputs: &inputs})
