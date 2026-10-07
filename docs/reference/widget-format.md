@@ -612,7 +612,7 @@ A package declares providers in its `package.yml`; a widget names one `<package>
 | a choice input on an engine below 1.5 | `a widget with a choice input needs requires.engine ">= 1.5": an app on engine 1.4 cannot show its choices` |
 | a board's `with` of the wrong shape for a choice | `machines: input "machines" takes a list of names, written [a, b], and main is not one`, `usage: input "harness" takes one name, and [claude, codex] is not one` |
 | an empty `title` on an entry | `usage: title is empty: write one, or take the key off to show the widget's own` |
-| an `every` on an entry that its source does not take | `usage: every 1s is below claude-code/usage's minimum of 5s`, `usage: every "often" is not a duration: …`, `usage: every manual: claude-code/usage reads a provider, which runs on a schedule: …`, `tail: a stream runs while the widget is on screen, so it takes no every` |
+| an `every` on an entry that its source does not take | `usage: every 1s is below claude-code/usage's minimum of 5s`, `usage: every "often" is not a duration: …`, `usage: every manual: claude-code/usage reads a provider, which runs on a schedule: …`, `tail: a stream runs while the widget is on screen, so it takes no every`, `ask: permission_mode bypassPermissions runs without any check, so it runs only when you press refresh: write every: manual` |
 | an `every` on a widget written in the board | `disk: a widget written in the board sets how often in source.every, not every` |
 | template names something undeclared | `template {{inputs.X}} in source.with.Y needs inputs.X` |
 | `source.kind` unknown | `source.kind "X": engine 1.6 knows provider, command, url, prompt, session` |

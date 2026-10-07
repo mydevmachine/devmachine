@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mydevmachine/devmachine/internal/packages"
 	"github.com/mydevmachine/devmachine/internal/widgets"
 )
 
@@ -209,5 +210,43 @@ func TestWidgetsSetThatChangesNothingDoesNotRewriteTheBoard(t *testing.T) {
 	}
 	if got := readCommandFile(t, board); got != body {
 		t.Fatalf("a set that changes nothing rewrote the board:\n%s", got)
+	}
+}
+
+const yoloWidgetYAML = `format: 1
+name: yolo
+summary: Searches the web when you ask.
+requires: {engine: ">= 1.6"}
+fits: [canvas]
+source:
+  kind: prompt
+  harness: claude
+  permission_mode: bypassPermissions
+  prompt: Search the web for this week's Go release notes.
+view: {kind: markdown}
+sizes: [large]
+default_size: large
+`
+
+func TestWidgetsSetRefusesATimerOnADangerousMode(t *testing.T) {
+	dir := widgetConfig(t)
+	writeWidgetPackageAt(t, packages.LocalDir(dir), "mine", "machine", map[string]string{"yolo": yoloWidgetYAML})
+	board := widgets.BoardPath(dir, "home")
+	before := "format: 1\nsurface: home\nwidgets:\n  - id: yolo\n    type: mine/yolo\n" +
+		"    frame: {x: 24, y: 24, w: 320, h: 320}\n    size: large\n    minimized: false\n    z: 1\n"
+	writeCommandFile(t, board, before)
+	_, err := execute(t, "--config", dir, "widgets", "set", "yolo", "--board", "home", "--every", "30m")
+	want := "yolo: permission_mode bypassPermissions runs without any check, so it runs only when you press refresh: write every: manual"
+	if err == nil || !strings.Contains(err.Error(), want) {
+		t.Fatalf("want %q, got %v", want, err)
+	}
+	if readCommandFile(t, board) != before {
+		t.Fatal("a refused set changed the board")
+	}
+	if out, err := execute(t, "--config", dir, "widgets", "set", "yolo", "--board", "home", "--every", "manual"); err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	if !strings.Contains(readCommandFile(t, board), "    every: manual\n") {
+		t.Fatalf("got\n%s", readCommandFile(t, board))
 	}
 }

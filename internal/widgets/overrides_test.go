@@ -27,6 +27,7 @@ func overrideLookup(name string) (Entry, bool) {
 		"mine/page":         {Source: Source{Kind: SourceURL, URL: "https://example.com", Every: "60s"}},
 		"mine/shell":        {Source: Source{Kind: SourceSession, Session: "main", Every: "10s"}},
 		"mine/stats":        {Source: Source{Kind: SourceProvider, Name: "mine/stats", Every: "60s"}, Provider: &PackageProvider{MinEvery: "10s"}},
+		"mine/yolo":         {Source: Source{Kind: SourcePrompt, Harness: "claude", Prompt: "Search.", PermissionMode: "bypassPermissions"}},
 	}
 	e, ok := entries[name]
 	e.Name, e.Fits, e.View, e.Sizes = name, []string{LayoutCanvas}, ViewRef{Kind: "text"}, []string{"medium"}
@@ -155,5 +156,30 @@ func TestATitleOfOnlySpacesAndAnEmptyEveryAreRefused(t *testing.T) {
 				t.Fatalf("want %q at %d, got %+v", tc.want, tc.line, problems)
 			}
 		})
+	}
+}
+
+func TestADangerousModeTakesOnlyAManualEveryOverride(t *testing.T) {
+	timer := strings.NewReplacer("claude-code/usage", "mine/yolo", "every: 2m", "every: 30m").Replace(overrideBoard)
+	problems := overrideProblemsOf(t, timer)
+	want := "usage: permission_mode bypassPermissions runs without any check, so it runs only when you press refresh: write every: manual"
+	if len(problems) != 1 || problems[0].Message != want || problems[0].Line != 7 {
+		t.Fatalf("got %+v", problems)
+	}
+	if got := EveryOverrideProblem("30m", Entry{Name: "mine/yolo", Source: Source{Kind: SourcePrompt, Harness: "claude",
+		Prompt: "Search.", PermissionMode: "bypassPermissions"}}, true); got != strings.TrimPrefix(want, "usage: ") {
+		t.Fatalf("got %q", got)
+	}
+	for _, ok := range [][]string{
+		{"claude-code/usage", "mine/yolo", "every: 2m", "every: manual"},
+		{"claude-code/usage", "mine/ask", "every: 2m", "every: 30m"},
+	} {
+		if problems := overrideProblemsOf(t, strings.NewReplacer(ok...).Replace(overrideBoard)); len(problems) != 0 {
+			t.Errorf("%v: got %v", ok, problems)
+		}
+	}
+	below := strings.NewReplacer("claude-code/usage", "mine/yolo", "every: 2m", "every: soon").Replace(overrideBoard)
+	if problems := overrideProblemsOf(t, below); len(problems) != 1 || !strings.Contains(problems[0].Message, "neither a duration nor manual") {
+		t.Fatalf("got %+v", problems)
 	}
 }

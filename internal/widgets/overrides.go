@@ -23,8 +23,9 @@ func overrideProblems(w Instance, label, path string, entry Entry, known bool) [
 // EveryOverrideProblem says what is wrong with every written on a board
 // entry of entry's widget, or "" when it is fine. It takes what the
 // widget's own source.every takes, and never less than that source's
-// minimum. known is false for a type the catalog lacks: its source is
-// unknown, so only the shape is checked.
+// minimum. A prompt in a mode with no checks takes only manual. known is
+// false for a type the catalog lacks: its source is unknown, so only the
+// shape is checked.
 func EveryOverrideProblem(every string, entry Entry, known bool) string {
 	source := entry.Source
 	if known && source.Kind == SourceCommand && source.Mode == ModeStream {
@@ -45,6 +46,9 @@ func EveryOverrideProblem(every string, entry Entry, known bool) string {
 		return fmt.Sprintf("every %q is neither a duration nor manual: write it like 60s, 5m or manual", every)
 	case !known:
 		return ""
+	}
+	if problem := promptEveryProblem(source, every); problem != "" {
+		return problem
 	}
 	minimum := minEveryOf(entry)
 	if floor, err := time.ParseDuration(minimum); err == nil && d < floor {

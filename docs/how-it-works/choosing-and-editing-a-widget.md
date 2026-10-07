@@ -53,6 +53,10 @@ The override may not go below the source's minimum, for the same reason
 the widget itself may not: the minimum protects the machine the source
 runs on, not the widget.
 
+A prompt widget whose `permission_mode` runs without any check takes only
+`every: manual` there too: changing one copy cannot put it on a timer. See
+[a prompt widget's permission mode](a-prompt-widgets-permission-mode.md).
+
 ## Why widgets set leaves a written widget's source alone
 
 A widget written in a board runs what its `source` says only after you
