@@ -1,0 +1,19 @@
+cmd/settings/main.go
+  s_6f8b16387eb036::t_8a3f53f71d453a 81,106-126
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "12f0f78f88287cee4a26a71dfa65fcec4e9459b4",
+  "prompts": {},
+  "sessions": {
+    "s_6f8b16387eb036": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a8777da7-b0cf-49e8-ad24-ab1cfdf8da4c",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
