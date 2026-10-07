@@ -1,0 +1,21 @@
+scripts/accept/coding-agents.sh
+  s_5ccc211ae481bf::t_4df73fb1c4e32c 62
+scripts/accept/essentials.sh
+  s_5ccc211ae481bf::t_46c47a83326561 69
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3f2185fd7c4ef342d877204db39fbdac9b2f76eb",
+  "prompts": {},
+  "sessions": {
+    "s_5ccc211ae481bf": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "570a9526-d48d-41cd-8528-3a3200e0855a",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
