@@ -67,6 +67,20 @@ type Client interface {
 	Close() error
 }
 
+// ShellOnInput is the whole command sent over SSH when values must not reach
+// the account's login shell. That shell can be fish, where a backslash inside
+// single quotes is an escape and POSIX quoting stops being safe; a fixed
+// command holds no value for it to misread. The program and its quoted words
+// go on stdin, which only /bin/sh reads.
+const ShellOnInput = "/bin/sh -s"
+
+// IsLocal says whether c runs commands on this computer (a self machine)
+// rather than over SSH, where no login shell stands in between.
+func IsLocal(c Client) bool {
+	_, ok := c.(*localClient)
+	return ok
+}
+
 // InputStreamer is a Client that can stream a command's output while it
 // feeds the command's stdin.
 type InputStreamer interface {

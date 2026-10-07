@@ -964,7 +964,9 @@ package instead of its entrypoint — the copy `sync` put on the machine,
 as the same account, with the package's credential loaded first, the
 way the entrypoint runs. The path is relative to the package's
 `package.yml` and must stay inside the package. `commands:` limits only
-the entrypoint, not a script. Arguments for the script follow `--`.
+the entrypoint, not a script. Arguments for the script follow `--`;
+like `--argv`, over SSH they go on the input of `/bin/sh -s`, so the
+account's login shell never reads them.
 
 `--no-log` leaves the run out of [the command log](#the-command-log).
 The app uses it for widgets that run every few seconds.

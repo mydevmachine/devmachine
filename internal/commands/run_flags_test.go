@@ -122,19 +122,43 @@ func TestRunNoLogLeavesTheLogAlone(t *testing.T) {
 }
 
 func TestRunPackageScriptRunsTheMachinesCopy(t *testing.T) {
-	var runs []string
-	dialing(t, factsRemote{runs: &runs})
+	var commands, inputs []string
+	dialing(t, inputRemote{commands: &commands, inputs: &inputs})
 	dir := configDirWithProviderAccepting(t, "cloudflare", []string{"zones"})
 
 	_, err := execute(t, "--config", dir, "run", "--package", "cloudflare", "--script", "bin/provider", "--", "status", "--json")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(runs) != 1 || !strings.Contains(runs[0], "/opt/devmachine/roles.local/cloudflare/bin/provider status --json") {
-		t.Fatalf("ran %q", runs)
+	if len(commands) != 1 || commands[0] != "/bin/sh -s" {
+		t.Fatalf("ran %q, want exactly /bin/sh -s", commands)
 	}
-	if !strings.Contains(runs[0], "set -a") {
-		t.Fatalf("the package's credential was not sourced: %q", runs[0])
+	if !strings.HasSuffix(inputs[0], "exec /opt/devmachine/roles.local/cloudflare/bin/provider status --json\n") {
+		t.Fatalf("sent %q", inputs[0])
+	}
+	if !strings.Contains(inputs[0], "set -a") {
+		t.Fatalf("the package's credential was not sourced: %q", inputs[0])
+	}
+}
+
+func TestRunPackageScriptSendsNoValueInTheCommand(t *testing.T) {
+	var commands, inputs []string
+	dialing(t, inputRemote{commands: &commands, inputs: &inputs})
+	dir := configDirWithProviderAccepting(t, "cloudflare", []string{"zones"})
+
+	args := append([]string{"--config", dir, "run", "--package", "cloudflare", "--script", "bin/provider", "--"}, hostileWords...)
+	if _, err := execute(t, args...); err != nil {
+		t.Fatal(err)
+	}
+	if len(commands) != 1 || commands[0] != "/bin/sh -s" {
+		t.Fatalf("ran %q, want exactly /bin/sh -s", commands)
+	}
+	quoted := make([]string, len(hostileWords))
+	for i, w := range hostileWords {
+		quoted[i] = quoteForShell(w)
+	}
+	if want := strings.Join(quoted, " ") + "\n"; !strings.HasSuffix(inputs[0], want) {
+		t.Fatalf("sent %q, want it to end in %q", inputs[0], want)
 	}
 }
 
@@ -208,15 +232,15 @@ func TestRunPackageMistakesExitOneBeforeConnecting(t *testing.T) {
 }
 
 func TestRunPackageScriptPassesAnEmptyWord(t *testing.T) {
-	var runs []string
-	dialing(t, factsRemote{runs: &runs})
+	var commands, inputs []string
+	dialing(t, inputRemote{commands: &commands, inputs: &inputs})
 	dir := configDirWithProviderAccepting(t, "cloudflare", []string{"zones"})
 
 	_, err := execute(t, "--config", dir, "run", "--package", "cloudflare", "--script", "bin/provider", "--", "", "a b")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(runs) != 1 || !strings.HasSuffix(runs[0], "/bin/provider '' 'a b'") {
-		t.Fatalf("ran %q", runs)
+	if len(inputs) != 1 || !strings.HasSuffix(inputs[0], "/bin/provider '' 'a b'\n") {
+		t.Fatalf("sent %q", inputs)
 	}
 }

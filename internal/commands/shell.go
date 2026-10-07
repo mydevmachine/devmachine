@@ -272,7 +272,7 @@ func newRunCmd(opts *options) *cobra.Command {
 			// reading it.
 			if flags.argv && !tgt.machine.Self {
 				script := strings.NewReader(withMachinePath(opts, tgt.machine, argvScript(args)))
-				err = remote.StreamInput(ctx, client, argvShell, script, cmd.OutOrStdout(), cmd.ErrOrStderr())
+				err = remote.StreamInput(ctx, client, remote.ShellOnInput, script, cmd.OutOrStdout(), cmd.ErrOrStderr())
 			} else {
 				err = client.Stream(ctx, withMachinePath(opts, tgt.machine, command),
 					cmd.OutOrStdout(), cmd.ErrOrStderr())
@@ -294,14 +294,7 @@ func newRunCmd(opts *options) *cobra.Command {
 	return c
 }
 
-// argvShell is the whole command an --argv run sends over SSH. The machine
-// hands a command to the account's login shell, which can be fish, where a
-// backslash inside single quotes is an escape and POSIX quoting stops being
-// safe. A fixed command holds no value for that shell to misread; the words
-// go on stdin, which only /bin/sh reads.
-const argvShell = "/bin/sh -s"
-
-// argvScript is the line argvShell reads: the program and its words, quoted
+// argvScript is the line remote.ShellOnInput reads: the program and its words, quoted
 // for a POSIX shell, run in its place.
 func argvScript(argv []string) string {
 	return "exec " + shellWords(argv) + "\n"
