@@ -937,8 +937,7 @@ devmachine run "<command>" [--workspace w]
 devmachine run --package <name> [--workspace w] -- <command> [args...]
 ```
 
-Runs one command on a machine and prints its output; exits with the same
-code. Its standard output goes to yours and its standard error to yours,
+Runs one command on a machine and prints its output. Its standard output goes to yours and its standard error to yours,
 as they arrive, so a program can parse stdout (`run --package
 devmachine-app -- stats` prints JSON there) while a warning or the
 reason a command failed still reaches the person, before the error.
@@ -948,6 +947,19 @@ after `--` goes to the package; `commands:` in its manifest can limit
 what it accepts. With `--workspace`, it runs as that workspace's own
 account, for a command that needs that account's own files or logins.
 See [packages](../concepts/packages.md).
+
+**Exit code.** `run` exits with the command's own code: 0 when it
+worked, the same non-zero code when it ran and failed. When the command
+never ran — no such machine or workspace, no connection, a changed host
+key, a package that is not installed, a command `commands:` does not
+allow — it exits **255**, the code `ssh` uses for the same thing. (A
+command that itself exits 255 looks the same.) A mistake in how `run`
+was called, such as an unknown flag, exits 1 before anything connects.
+
+**Stopping.** SIGINT (Ctrl-C) or SIGTERM ends `run` and the ssh or shell
+it started, and it exits 255. On a machine reached over SSH, a command
+that ignores its closed connection, such as an idle `tail -f`, ends the
+next time it writes.
 
 `run` keeps its SSH connection open for five minutes and reuses it, so a
 script calling it every few seconds skips the handshake each time.

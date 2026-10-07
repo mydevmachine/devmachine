@@ -537,6 +537,18 @@ workspace account to the list, or, on the Mac, choose "All users" in
 System Settings > General > Sharing > Remote Login. See [what a machine
 needs](how-it-works/what-a-machine-needs.md#remote-login-set-to-only-these-users).
 
+## `devmachine run` exits 255
+
+**What it means:** The command never ran: `run` could not find the
+machine or workspace, could not connect, found a changed host key, or
+the package is not installed there. The line after `error:` says which.
+`ssh` uses 255 for the same thing, so a script can tell it apart from
+the command's own failure. A command that exits 255 by itself, or that
+was stopped with Ctrl-C or SIGTERM, also ends with 255.
+
+**What to do:** Read the `error:` line. For a connection, `devmachine
+doctor --machine <name>` checks the way in.
+
 ## `doctor` says an alias has "a fixed address, expected one resolved when ssh connects"
 
 **What it means:** The alias was written with the address itself, by an

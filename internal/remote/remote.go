@@ -24,6 +24,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/mydevmachine/devmachine/internal/config"
@@ -672,7 +673,7 @@ func (c *localClient) Run(ctx context.Context, command string) (string, error) {
 
 // RunInput executes one command with stdin fed from the reader.
 func (c *localClient) RunInput(ctx context.Context, command string, stdin io.Reader) (string, error) {
-	cmd := exec.CommandContext(ctx, "/bin/bash", "-c", command)
+	cmd := localCommand(ctx, command)
 	cmd.Stdin = stdin
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
@@ -689,13 +690,23 @@ func (c *localClient) RunInput(ctx context.Context, command string, stdin io.Rea
 // Stream executes one command with its output reaching the writers as it
 // arrives.
 func (c *localClient) Stream(ctx context.Context, command string, stdout, stderr io.Writer) error {
-	cmd := exec.CommandContext(ctx, "/bin/bash", "-c", command)
+	cmd := localCommand(ctx, command)
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("running %q: %w", command, err)
 	}
 	return nil
+}
+
+// localCommand runs command through bash in a process group of its own, so
+// the end of ctx kills everything the command started, not only bash: a child
+// left behind would keep running and keep the output pipes open.
+func localCommand(ctx context.Context, command string) *exec.Cmd {
+	cmd := exec.CommandContext(ctx, "/bin/bash", "-c", command)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.Cancel = func() error { return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL) }
+	return cmd
 }
 
 // Upload extracts a gzipped tar into a directory on your computer.

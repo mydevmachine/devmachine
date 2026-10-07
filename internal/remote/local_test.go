@@ -6,8 +6,11 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"syscall"
 	"testing"
+	"time"
 
 	"github.com/mydevmachine/devmachine/internal/config"
 )
@@ -124,5 +127,36 @@ func TestElevatedNeverUsesSudoOnYourOwnComputer(t *testing.T) {
 	local := &localClient{}
 	if Elevated(local) != Client(local) {
 		t.Fatal("a self machine's client was wrapped")
+	}
+}
+
+func TestLocalClientStopsEveryProcessOfACommandWhenItsContextEnds(t *testing.T) {
+	pidFile := filepath.Join(t.TempDir(), "pid")
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() {
+		done <- (&localClient{}).Stream(ctx, "sleep 60 & echo $! > "+pidFile+"; wait", io.Discard, io.Discard)
+	}()
+
+	var pid int
+	for deadline := time.Now().Add(5 * time.Second); pid == 0; time.Sleep(10 * time.Millisecond) {
+		if time.Now().After(deadline) {
+			t.Fatal("the command never started")
+		}
+		body, _ := os.ReadFile(pidFile)
+		pid, _ = strconv.Atoi(strings.TrimSpace(string(body)))
+	}
+	cancel()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Stream kept going after its context ended")
+	}
+
+	for deadline := time.Now().Add(2 * time.Second); syscall.Kill(pid, 0) == nil; time.Sleep(10 * time.Millisecond) {
+		if time.Now().After(deadline) {
+			_ = syscall.Kill(pid, syscall.SIGKILL)
+			t.Fatalf("process %d the command started outlived it", pid)
+		}
 	}
 }

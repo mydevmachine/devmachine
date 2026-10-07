@@ -225,17 +225,19 @@ func newRunCmd(opts *options) *cobra.Command {
 			return cobra.ExactArgs(1)(cmd, args)
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx, stop := stopSignals(cmd.Context())
+			defer stop()
 			if pkg != "" {
-				return runPackage(cmd, opts, pkg, workspace, args)
+				return runResult(runPackage(ctx, cmd, opts, pkg, workspace, args))
 			}
 
 			tgt, err := workspaceTarget(opts, workspace)
 			if err != nil {
-				return err
+				return runResult(err)
 			}
-			client, _, err := dialMux(cmd.Context(), tgt.machine, tgt.user)
+			client, _, err := dialMux(ctx, tgt.machine, tgt.user)
 			if err != nil {
-				return err
+				return runResult(err)
 			}
 			defer client.Close()
 
@@ -243,10 +245,10 @@ func newRunCmd(opts *options) *cobra.Command {
 			// so both streams reach the person as they come, before the error
 			// is reported; stdout stays the command's own for a program
 			// reading it.
-			err = client.Stream(cmd.Context(), withMachinePath(opts, tgt.machine, args[0]),
+			err = client.Stream(ctx, withMachinePath(opts, tgt.machine, args[0]),
 				cmd.OutOrStdout(), cmd.ErrOrStderr())
 			record(opts, tgt, args[0], err == nil)
-			return explainHostKey(cmd.Context(), tgt.machine, err)
+			return runResult(explainHostKey(ctx, tgt.machine, err))
 		},
 	}
 	c.Flags().StringVar(&workspace, "workspace", "", "run inside this workspace instead of as the machine's admin")
@@ -263,7 +265,7 @@ func newRunCmd(opts *options) *cobra.Command {
 // that workspace's own account on the machine the workspace lives on —
 // what a package needs to read that account's own files or use its own
 // logins, such as a per-workspace GitHub login.
-func runPackage(cmd *cobra.Command, opts *options, name, workspace string, args []string) error {
+func runPackage(ctx context.Context, cmd *cobra.Command, opts *options, name, workspace string, args []string) error {
 	dashAt := cmd.ArgsLenAtDash()
 	if dashAt < 0 {
 		return fmt.Errorf("say what to run after `--`, for example: devmachine run --package %s -- <command>", name)
@@ -278,7 +280,7 @@ func runPackage(cmd *cobra.Command, opts *options, name, workspace string, args 
 	if err != nil {
 		return err
 	}
-	client, _, err := dialMux(cmd.Context(), tgt.machine, tgt.user)
+	client, _, err := dialMux(ctx, tgt.machine, tgt.user)
 	if err != nil {
 		return err
 	}
@@ -298,9 +300,9 @@ func runPackage(cmd *cobra.Command, opts *options, name, workspace string, args 
 		return err
 	}
 
-	callErr := ext.Call(cmd.Context(), pkgArgs, cmd.OutOrStdout(), cmd.ErrOrStderr())
+	callErr := ext.Call(ctx, pkgArgs, cmd.OutOrStdout(), cmd.ErrOrStderr())
 	record(opts, tgt, fmt.Sprintf("run --package %s -- %s", name, strings.Join(pkgArgs, " ")), callErr == nil)
-	return explainHostKey(cmd.Context(), tgt.machine, callErr)
+	return explainHostKey(ctx, tgt.machine, callErr)
 }
 
 // explainHostKey turns ssh's bare refusal into what changed and how to fix it.
