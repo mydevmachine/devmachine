@@ -105,6 +105,105 @@ func stackConfig(t *testing.T) string {
 	return dir
 }
 
+const brandWidgetYAML = `format: 1
+name: brand
+summary: The Devmachine mark.
+requires: {engine: ">= 1.4"}
+fits: [slot]
+source: {kind: provider, name: app/brand, every: 1h}
+view: {kind: app.brand}
+sizes: [small]
+default_size: small
+places: [menubar]
+`
+
+const openPullRequestsWidgetYAML = `format: 1
+name: open-pull-requests
+summary: How many pull requests are open.
+requires: {engine: ">= 1.4"}
+fits: [slot]
+source: {kind: provider, name: app/open-pull-requests, every: 60s}
+view: {kind: number, hide_zero: true}
+sizes: [small]
+default_size: small
+places: [menubar]
+`
+
+const pullRequestsPanelWidgetYAML = `format: 1
+name: pull-requests-panel
+summary: Your open pull requests.
+requires: {engine: ">= 1.4"}
+fits: [tabs]
+source: {kind: provider, name: app/pull-requests-panel, every: 60s}
+view: {kind: app.pull-requests-panel}
+sizes: [large]
+default_size: large
+places: [menubar-panel]
+`
+
+const usagePanelWidgetYAML = `format: 1
+name: usage-panel
+summary: Every coding harness's usage windows.
+requires: {engine: ">= 1.4"}
+fits: [tabs]
+source: {kind: provider, name: app/usage-panel, every: 60s}
+view: {kind: app.usage-panel}
+sizes: [large]
+default_size: large
+places: [menubar-panel]
+`
+
+// menubarConfig is widgetConfig plus the app's four menu bar widgets in
+// release v40.
+func menubarConfig(t *testing.T) string {
+	t.Helper()
+	dir := widgetConfig(t)
+	app := filepath.Join(packages.CacheDir(dir, "v40"), "packages", "devmachine-app", "widgets")
+	for name, body := range map[string]string{
+		"brand": brandWidgetYAML, "open-pull-requests": openPullRequestsWidgetYAML,
+		"pull-requests-panel": pullRequestsPanelWidgetYAML, "usage-panel": usagePanelWidgetYAML,
+	} {
+		writeCommandFile(t, filepath.Join(app, name, "widget.yml"), body)
+	}
+	return dir
+}
+
+func TestWidgetsListBoardMenubarKeepsOneLineWidgets(t *testing.T) {
+	dir := menubarConfig(t)
+	names := func(board string) string {
+		out, err := execute(t, "--config", dir, "--format", "json", "widgets", "list", "--board", board)
+		if err != nil {
+			t.Fatalf("%v\n%s", err, out)
+		}
+		var catalog widgets.Catalog
+		if err := json.Unmarshal([]byte(out), &catalog); err != nil {
+			t.Fatal(err)
+		}
+		var got []string
+		for _, e := range catalog.Widgets {
+			got = append(got, e.Name)
+		}
+		return strings.Join(got, ",")
+	}
+	if got := names("menubar"); got != "devmachine-app/brand,devmachine-app/open-pull-requests" {
+		t.Errorf("menubar: %s", got)
+	}
+	if got := names("menubar-panel"); got != "devmachine-app/pull-requests-panel,devmachine-app/usage-panel" {
+		t.Errorf("menubar-panel: %s", got)
+	}
+	if got := names("home"); got != "claude-code/usage,devmachine-app/clock" {
+		t.Errorf("home: %s", got)
+	}
+	open, ok := listCatalog(t, dir).Find("devmachine-app/open-pull-requests")
+	if !ok || open.View.HideZero == nil || !*open.View.HideZero {
+		t.Fatalf("hide_zero did not reach the catalog: %+v", open.View)
+	}
+	out, err := execute(t, "--config", dir, "widgets", "help", "devmachine-app/brand")
+	if err != nil || !strings.Contains(out, "fits: menubar\n") {
+		t.Fatalf("%v\n%s", err, out)
+	}
+}
+
 func TestWidgetsListAndHelpSayASingleWidget(t *testing.T) {
 	dir := stackConfig(t)
 	catalog := listCatalog(t, dir)

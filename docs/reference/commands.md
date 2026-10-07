@@ -660,7 +660,7 @@ Detection looks for `~/.claude`, `~/.codex`, `~/.config/opencode`,
 ## widgets
 
 ```text
-devmachine widgets list [--board home|sidebar|context-sidebar]
+devmachine widgets list [--board home|sidebar|context-sidebar|menubar|menubar-panel]
 devmachine widgets help <package/widget>
 devmachine widgets validate [path...]
 devmachine widgets schema [--json]
@@ -735,8 +735,10 @@ prints:
 
 `origin` is `release` or `local`; `version` is the release tag, or `""`
 for your own package. `surfaces` are the areas the widget fits, planned
-ones included: the area's layout is in `fits` and the area gives every
-context key the widget requires. `single` is `true` when a board holds
+ones included: the area's layout is in `fits`, the widget's view is
+drawn there (in the menu bar, only `text`, `number`, `status` and
+`app.brand`), and the area gives every context key the widget requires.
+`single` is `true` when a board holds
 the widget at most once. `available` is `false` when the widget
 needs its package added and synced; `unavailable_reason` then names the
 command to run (see [why widgets come from

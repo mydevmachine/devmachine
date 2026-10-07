@@ -88,7 +88,7 @@ func newWidgetsListCmd(opts *options) *cobra.Command {
 			return nil
 		},
 	}
-	c.Flags().StringVar(&board, "board", "", "keep only the widgets that fit this area: home, sidebar or context-sidebar")
+	c.Flags().StringVar(&board, "board", "", "keep only the widgets that fit this area: home, sidebar, context-sidebar, menubar or menubar-panel")
 	return c
 }
 

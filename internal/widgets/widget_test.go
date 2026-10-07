@@ -207,22 +207,47 @@ func TestBrokenYAMLIsOneProblem(t *testing.T) {
 	}
 }
 
-func TestSurfacesFollowFitsAndRequiredContext(t *testing.T) {
+func TestSurfacesFollowFitsRequiredContextAndTheView(t *testing.T) {
 	cases := []struct {
 		fits    []string
 		context map[string]string
+		view    string
 		want    []string
 	}{
-		{[]string{"canvas", "stack", "slot"}, nil, []string{"context-sidebar", "home", "sidebar"}},
-		{[]string{"canvas"}, nil, []string{"home"}},
-		{[]string{"canvas", "stack"}, map[string]string{"repo": ContextRequired}, []string{"context-sidebar"}},
-		{[]string{"canvas", "stack"}, map[string]string{"repo": ContextOptional}, []string{"context-sidebar", "home", "sidebar"}},
+		{[]string{"canvas", "stack", "slot"}, nil, "", []string{"context-sidebar", "home", "sidebar"}},
+		{[]string{"canvas"}, nil, "", []string{"home"}},
+		{[]string{"canvas", "stack"}, map[string]string{"repo": ContextRequired}, "", []string{"context-sidebar"}},
+		{[]string{"canvas", "stack"}, map[string]string{"repo": ContextOptional}, "", []string{"context-sidebar", "home", "sidebar"}},
+		{[]string{"canvas", "stack", "slot"}, nil, "app.harness-usage", []string{"context-sidebar", "home", "sidebar"}},
+		{[]string{"slot"}, nil, "number", []string{"menubar"}},
+		{[]string{"slot", "tabs"}, nil, "text", []string{"menubar", "menubar-panel"}},
+		{[]string{"slot"}, nil, "app.brand", []string{"menubar"}},
+		{[]string{"tabs"}, nil, "app.usage-panel", []string{"menubar-panel"}},
+		{[]string{"slot", "tabs"}, map[string]string{"session": ContextRequired}, "text", nil},
 	}
 	for _, tc := range cases {
-		got := Surfaces(Widget{Fits: tc.fits, Context: tc.context})
+		got := Surfaces(Widget{Fits: tc.fits, Context: tc.context, View: ViewRef{Kind: tc.view}})
 		if !slices.Equal(got, tc.want) {
-			t.Errorf("fits %v context %v: got %v, want %v", tc.fits, tc.context, got, tc.want)
+			t.Errorf("fits %v context %v view %q: got %v, want %v", tc.fits, tc.context, tc.view, got, tc.want)
 		}
+	}
+}
+
+func TestAWidgetThatListsSlotButDrawsNoLineStaysValid(t *testing.T) {
+	w, problems := Load(writeWidget(t, t.TempDir(), "usage", usageWidget))
+	if len(problems) != 0 {
+		t.Fatalf("got %v", problems)
+	}
+	if slices.Contains(Surfaces(w), "menubar") {
+		t.Fatalf("usage fits the menubar: %v", Surfaces(w))
+	}
+	body := strings.Replace(usageWidget, "places: [home]", "places: [menubar]", 1)
+	_, problems = Load(writeWidget(t, t.TempDir(), "usage", body))
+	if len(problems) != 1 || !strings.Contains(problems[0].Message, `places "menubar": the widget does not fit that area`) {
+		t.Fatalf("got %v", problems)
+	}
+	if _, problems := Load(writeWidget(t, t.TempDir(), "open-pull-requests", openPullRequestsWidget)); len(problems) != 0 {
+		t.Fatalf("a number widget placed in the menubar: %v", problems)
 	}
 }
 
