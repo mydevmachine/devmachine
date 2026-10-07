@@ -1,0 +1,37 @@
+internal/commands/shell.go
+  s_c1c985d7f57ab9::t_3cab0e233f60e8 228-229,231,236,238,240,248,251,268,283,303,305
+internal/commands/run_exit.go
+  s_c1c985d7f57ab9::t_3cab0e233f60e8 1-52
+docs/reference/commands.md
+  s_c1c985d7f57ab9::t_49cc37baab981a 940,951-962
+  s_c1c985d7f57ab9::t_b0791f8f01c26a 963
+internal/remote/local_test.go
+  s_c1c985d7f57ab9::t_6450d5a54ea23f 132-162
+  s_c1c985d7f57ab9::t_f7ed9e22b030c4 9,11,13
+internal/remote/remote.go
+  s_c1c985d7f57ab9::t_5d881233ce5106 676,693,702-709
+  s_c1c985d7f57ab9::t_65054798715578 27
+  s_c1c985d7f57ab9::t_50025e5674b62e 710-711
+docs/troubleshooting.md
+  s_c1c985d7f57ab9::t_49cc37baab981a 540-551
+internal/commands/run_exit_test.go
+  s_c1c985d7f57ab9::t_6403943d970205 1-105
+internal/commands/root.go
+  s_c1c985d7f57ab9::t_3cab0e233f60e8 5,32-34,36-55
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3b823196041ac5773ec4d53f8032df67b62c5e9c",
+  "prompts": {},
+  "sessions": {
+    "s_c1c985d7f57ab9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b5256304-4a81-480d-a568-f8cf11d8ddcc",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
