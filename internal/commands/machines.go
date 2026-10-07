@@ -31,6 +31,7 @@ func newMachinesCmd(opts *options) *cobra.Command {
 		newMachinesShowCmd(opts),
 		newMachinesAddCmd(opts),
 		newMachinesTrustCmd(opts),
+		newMachinesPasswordLoginCmd(opts),
 		newMachinesScanCmd(opts),
 		newMachinesEditCmd(opts),
 		newMachinesRmCmd(opts),
@@ -144,6 +145,7 @@ func newMachinesAddCmd(opts *options) *cobra.Command {
 		"start the machine with no packages, instead of the essentials")
 	c.Flags().BoolVar(&s.noHarden, "no-harden", false,
 		"leave password login on (the key is still installed and proved)")
+	addKeepPasswordLoginFlag(c, &s)
 	c.Flags().BoolVar(&s.noAliases, "no-aliases", false,
 		"do not ask about SSH host entries, and do not write them")
 	c.Flags().BoolVar(&s.yes, "yes", false, "answer yes to writing SSH host entries, without asking")
@@ -423,6 +425,9 @@ func runMachinesAdd(ctx context.Context, dir string, in io.Reader, out io.Writer
 	if err := checkPackageManager(opts.packageManager); err != nil {
 		return err
 	}
+	if err := checkKeepPasswordLogin(opts); err != nil {
+		return err
+	}
 	location, err := config.NormalizeLocation(opts.location)
 	if err != nil {
 		return err
@@ -546,7 +551,11 @@ func runMachinesAdd(ctx context.Context, dir string, in io.Reader, out io.Writer
 		m.Packages = names
 		return nil
 	}
-	if err := bootstrap(ctx, out, dir, m, key, opts.noHarden, password, prep); err != nil {
+	login := passwordLoginFor(opts, r, out)
+	if opts.unattended() {
+		login.ask = nil
+	}
+	if m.PasswordLoginKeep, err = bootstrap(ctx, out, dir, m, key, login, password, prep); err != nil {
 		return err
 	}
 	if err := keepHostKey(m, trusted); err != nil {

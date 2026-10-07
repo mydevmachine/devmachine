@@ -1915,3 +1915,34 @@ func TestSetMachineSettingsRefusesOneTheFileDoesNotHave(t *testing.T) {
 		t.Fatal("it edited a machine that is not there")
 	}
 }
+
+func TestValidateAcceptsAccountsThatKeepPasswordLogin(t *testing.T) {
+	c := Config{Machines: []Machine{{
+		Name: "main", Hosts: []Host{{Address: "203.0.113.10"}}, User: "root", Port: 22,
+		PasswordLoginKeep: []string{"alice", "bob"},
+	}}}
+	if err := c.Validate(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestValidateRefusesAPasswordLoginAccountSshdWouldReadAsAPattern(t *testing.T) {
+	for _, name := range []string{"", "a,b", "*", "!root", "a b"} {
+		c := Config{Machines: []Machine{{
+			Name: "main", Hosts: []Host{{Address: "203.0.113.10"}}, User: "root", Port: 22,
+			PasswordLoginKeep: []string{name},
+		}}}
+		err := c.Validate()
+		if err == nil || !strings.Contains(err.Error(), "password_login_keep") {
+			t.Fatalf("%q: got %v", name, err)
+		}
+	}
+}
+
+func TestValidateRefusesPasswordLoginKeepOnYourOwnComputer(t *testing.T) {
+	c := Config{Machines: []Machine{{Name: "mac", Self: true, PasswordLoginKeep: []string{"alice"}}}}
+	err := c.Validate()
+	if err == nil || !strings.Contains(err.Error(), "password_login_keep") {
+		t.Fatalf("got %v", err)
+	}
+}

@@ -323,6 +323,57 @@ missing, or remove the `PasswordAuthentication yes` above it. Then run
 `setup` again. To go on without hardening for now, run it with
 `--no-harden`; password login stays on until `sshd_config` is fixed.
 
+## I can't SSH in with my password any more
+
+```
+Permission denied (publickey).
+```
+
+**What it means:** `setup` or `machines add` turned SSH password login off,
+and SSH has one setting for the whole machine, so it went off for
+**every account**, not only the admin login the CLI uses. On a Mac
+somebody uses day to day, that is their own account too. Only SSH
+changed: the login window, `sudo`, Screen Sharing and FileVault still
+take the password.
+
+**What to do:** From this computer, which still has the admin login's
+key, give the account its password back:
+
+```
+devmachine machines password-login <machine> --keep <account>
+```
+
+or put the system's own setting back for everybody with `--on` (refused
+while the machine has `ssh_hardening`; remove that package first). With
+no flag, the command shows who can log in with a password. Without the
+CLI, log in as the admin login and remove the file:
+
+```
+sudo rm /etc/ssh/sshd_config.d/00-devmachine-hardening.conf
+```
+
+A Mac reads it on the next connection; on Linux, `sudo systemctl reload
+ssh` (or `sshd`). Next time, answer the question `setup` asks before
+password login goes off, or pass `--keep-password-login`. See [password
+login, account by account](how-it-works/password-login.md).
+
+## "sshd still refuses a password for …"
+
+```
+the drop-in was written but sshd still refuses a password for "alice": something earlier in sshd_config decides it, so the previous drop-in was put back
+```
+
+**What it means:** the file that keeps a password for some accounts was
+written and accepted, but `sshd -T -C user=alice` still said
+`passwordauthentication no`. A `Match` block earlier in the main
+`sshd_config`, or another drop-in that sorts before `00-`, decides it
+first. The CLI put back the file that was there before.
+
+**What to do:** On the machine, look for `Match` blocks and
+`PasswordAuthentication` lines in `/etc/ssh/sshd_config` and in
+`/etc/ssh/sshd_config.d/`. Remove the one that turns it off for that
+account, then run the command again.
+
 ## "Missing privilege separation directory: /run/sshd"
 
 **What it means:** `sshd -t`, which checks the SSH configuration before

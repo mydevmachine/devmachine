@@ -193,3 +193,28 @@ func TestSetMachineLocationRefusesOneTheFileDoesNotHave(t *testing.T) {
 		t.Fatal("it edited a machine that is not there")
 	}
 }
+
+func TestSetMachinePasswordLoginKeepWritesAndClearsIt(t *testing.T) {
+	dir := configDirWith(t, "machines:\n  - name: main  # the server\n    hosts: [203.0.113.10]\n")
+
+	if err := SetMachinePasswordLoginKeep(dir, "main", []string{"alice", "bob"}); err != nil {
+		t.Fatal(err)
+	}
+	body, err := os.ReadFile(filepath.Join(dir, FileName))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(body), "password_login_keep: [alice, bob]") || !strings.Contains(string(body), "the server") {
+		t.Fatalf("got:\n%s", body)
+	}
+	if err := SetMachinePasswordLoginKeep(dir, "main", nil); err != nil {
+		t.Fatal(err)
+	}
+	body, err = os.ReadFile(filepath.Join(dir, FileName))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(body), "password_login_keep") {
+		t.Fatalf("an empty list was left behind:\n%s", body)
+	}
+}

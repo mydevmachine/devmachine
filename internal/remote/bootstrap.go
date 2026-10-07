@@ -160,6 +160,8 @@ PermitRootLogin prohibit-password
 const writeDropInScript = `set -eu
 umask 022
 mkdir -p /etc/ssh/sshd_config.d
+rm -f ` + previousDropInPath + `
+if [ -f ` + hardeningDropInPath + ` ]; then cp -p ` + hardeningDropInPath + ` ` + previousDropInPath + `; fi
 cat > ` + hardeningDropInPath + `
 chmod 0644 ` + hardeningDropInPath + `
 `
@@ -224,15 +226,19 @@ func (s sshdSteps) reloadSshd(ctx context.Context, c Client) error {
 // again, so validation is not a courtesy: it is the only thing between a typo
 // and a rebuild. It runs after the key has been proved, never before.
 func Harden(ctx context.Context, c Client, system System) error {
+	return HardenKeeping(ctx, c, system, nil)
+}
+
+func hardenWith(ctx context.Context, c Client, system System, body string) error {
 	steps := sshdStepsFor(system)
-	if _, err := c.RunInput(ctx, AsRoot(writeDropInScript), strings.NewReader(hardeningDropIn)); err != nil {
+	if _, err := c.RunInput(ctx, AsRoot(writeDropInScript), strings.NewReader(body)); err != nil {
 		return fmt.Errorf("writing %s: %w", hardeningDropInPath, err)
 	}
 
 	if out, err := c.Run(ctx, AsRoot(steps.validate)); err != nil {
 		// A file the daemon refused must not stay: the next reload by
 		// anything at all, a reboot included, would fail on it.
-		if _, rmErr := c.Run(ctx, AsRoot("rm -f "+hardeningDropInPath)); rmErr != nil {
+		if _, rmErr := c.Run(ctx, AsRoot(restoreScript)); rmErr != nil {
 			return fmt.Errorf("sshd refused %s (%w) and it could not be taken away again (%w): "+
 				"remove it by hand before sshd is reloaded", hardeningDropInPath, err, rmErr)
 		}
@@ -270,7 +276,7 @@ func provePasswordLoginOff(ctx context.Context, c Client, steps sshdSteps) error
 	}
 
 	// A file that does not do what it says misleads whoever reads it next.
-	if _, err := c.Run(ctx, AsRoot("rm -f "+hardeningDropInPath)); err != nil {
+	if _, err := c.Run(ctx, AsRoot(restoreScript)); err != nil {
 		return fmt.Errorf("sshd still allows passwords and %s could not be taken away again (%w): "+
 			"remove it by hand", hardeningDropInPath, err)
 	}
@@ -286,13 +292,7 @@ func provePasswordLoginOff(ctx context.Context, c Client, steps sshdSteps) error
 // with the value sshd settled on. OpenSSH 10 prints the names in CamelCase
 // where older versions print them in lower case, so case is ignored.
 func passwordLoginOff(effective string) bool {
-	for _, line := range strings.Split(effective, "\n") {
-		key, value, ok := strings.Cut(strings.TrimSpace(line), " ")
-		if ok && strings.EqualFold(key, "passwordauthentication") {
-			return strings.EqualFold(strings.TrimSpace(value), "no")
-		}
-	}
-	return false
+	return passwordAuthentication(effective) == "no"
 }
 
 // OSReleaseCommand reads the file that says which distribution a machine is.
