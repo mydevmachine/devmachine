@@ -8,6 +8,27 @@ page](https://github.com/mydevmachine/devmachine/releases).
 
 To get the latest version, see [Upgrade](upgrade.md).
 
+## v0.9.0 — 2026-10-07
+
+### Added
+
+- A package variable can declare its `type`: `string`, `boolean`, `number`,
+  `list` or `map`, and a list of mappings names its entries' fields with
+  `items.fields`. See [Types](reference/package-format.md#types).
+- `workspaces edit` and `machines edit` refuse a `--set` that does not fit
+  its variable's type, and `sync` refuses such a setting before it reaches
+  the machine. The error names the setting and the entry, such as
+  `workspace.repos[0]: "url" is required`.
+- `packages validate` refuses a default that does not fit its own type.
+- A guide for an old Mac as a machine.
+
+### Changed
+
+- `packages list` reports a variable's declared type, and the settings
+  reference names the fields a list's entries take.
+- Getting started no longer assumes a VPS: a Linux box or a Mac you already
+  have works too.
+
 ## App v0.1.22 — 2026-10-07
 
 ### Added
