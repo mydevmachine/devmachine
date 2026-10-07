@@ -69,8 +69,10 @@ devmachine update
 devmachine upload
 devmachine version
 devmachine widgets
+devmachine widgets add
 devmachine widgets help
 devmachine widgets list
+devmachine widgets remove
 devmachine widgets schema
 devmachine widgets validate
 devmachine workspaces

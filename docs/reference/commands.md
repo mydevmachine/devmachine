@@ -664,6 +664,8 @@ devmachine widgets list
 devmachine widgets help <package/widget>
 devmachine widgets validate [path...]
 devmachine widgets schema [--json]
+devmachine widgets add <package/widget> [--board home] [--id x] [--set name=value]... [--size s] [--at x,y]
+devmachine widgets remove <id> [--board home]
 ```
 
 The widgets the app draws, and the boards they sit on. Local only: these
@@ -736,6 +738,24 @@ prints `{"ok": false, "checked": [...], "widgets": [{"path": ..., "name":
 
 `schema` prints the engine contract: areas, providers, views and sizes.
 `--json` prints it as JSON, the same document the app is built against.
+
+`add` places a widget on a board and writes `<config>/boards/<board>.yml`,
+creating it when there is none. The id defaults to the widget's name, made
+unique (`usage`, `usage-2`). `--set` gives an input a value, converted to
+the input's type. `--size` is a preset the widget takes, default its
+`default_size`. `--at x,y` is the top-left corner in points, snapped to
+8pt; without it the widget takes the first free spot, scanning rows of 8pt
+from 24,24 across a band 1280pt wide and keeping 8pt from every other
+widget. Only areas that exist today are accepted: `--board sidebar` says
+the area arrives in a later version.
+
+`remove` takes the widget with that id off the board.
+
+Both re-read the board first and write it in one step (a temporary file,
+then a rename). A board with a problem is refused and left as it is; so is
+a board that changed while the command ran. Comments in a board are lost
+when the CLI rewrites it. `--format json` prints `{"board", "path",
+"widget"}` for `add` and `{"board", "path", "removed"}` for `remove`.
 
 ## aliases
 

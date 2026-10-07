@@ -384,3 +384,152 @@ func TestWidgetsHelpLeavesOutAMissingDefault(t *testing.T) {
 		t.Fatalf("got\n%s", out)
 	}
 }
+
+func TestWidgetsAddPlacesAtTheFirstFreeSpot(t *testing.T) {
+	dir := widgetConfig(t)
+	if _, err := execute(t, "--config", dir, "widgets", "add", "devmachine-app/clock"); err != nil {
+		t.Fatal(err)
+	}
+	out, err := execute(t, "--config", dir, "--format", "json", "widgets", "add", "claude-code/usage", "--set", "harness=codex")
+	if err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	var change struct {
+		Widget widgets.Instance `json:"widget"`
+	}
+	if err := json.Unmarshal([]byte(out), &change); err != nil {
+		t.Fatal(err)
+	}
+	if change.Widget.Frame != (widgets.Frame{X: 352, Y: 24, W: 320, H: 160}) || change.Widget.Z != 2 || change.Widget.With["harness"] != "codex" {
+		t.Fatalf("got %+v", change.Widget)
+	}
+
+	body := readCommandFile(t, widgets.BoardPath(dir, "home"))
+	want := "format: 1\nsurface: home\nwidgets:\n" +
+		"  - id: clock\n    type: devmachine-app/clock\n    frame: {x: 24, y: 24, w: 320, h: 160}\n    size: medium\n    minimized: false\n    z: 1\n" +
+		"  - id: usage\n    type: claude-code/usage\n    with: {harness: codex}\n    frame: {x: 352, y: 24, w: 320, h: 160}\n    size: medium\n    minimized: false\n    z: 2\n"
+	if body != want {
+		t.Fatalf("got\n%s", body)
+	}
+}
+
+func TestWidgetsAddHonoursIDSizeAndPosition(t *testing.T) {
+	dir := widgetConfig(t)
+	if _, err := execute(t, "--config", dir, "widgets", "add", "claude-code/usage", "--id", "codex-usage", "--size", "wide", "--at", "101,203"); err != nil {
+		t.Fatal(err)
+	}
+	b, _, _, err := widgets.ReadBoard(widgets.BoardPath(dir, "home"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := b.Widgets[0]
+	if got.ID != "codex-usage" || got.Size != "wide" || got.Frame != (widgets.Frame{X: 104, Y: 200, W: 640, H: 160}) {
+		t.Fatalf("got %+v", got)
+	}
+}
+
+func TestWidgetsAddRefuses(t *testing.T) {
+	cases := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{"an unknown widget", []string{"nope/nope"}, `no widget named "nope/nope"`},
+		{"a planned area", []string{"claude-code/usage", "--board", "sidebar"}, "the sidebar area arrives in a later version"},
+		{"an unknown area", []string{"claude-code/usage", "--board", "desk"}, "there is no desk area"},
+		{"a size the widget does not take", []string{"devmachine-app/clock", "--size", "wide"}, `does not come in size "wide"`},
+		{"an unknown input", []string{"devmachine-app/clock", "--set", "colour=red"}, `has no input "colour"`},
+		{"a malformed --set", []string{"claude-code/usage", "--set", "harness"}, "write it as name=value"},
+		{"a malformed --at", []string{"devmachine-app/clock", "--at", "-1,4"}, "write it as x,y"},
+		{"a malformed id", []string{"devmachine-app/clock", "--id", "Clock"}, `id "Clock": use lower case`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := widgetConfig(t)
+			_, err := execute(t, append([]string{"--config", dir, "widgets", "add"}, tc.args...)...)
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("want %q, got %v", tc.want, err)
+			}
+			if _, statErr := os.Stat(widgets.BoardPath(dir, "home")); statErr == nil {
+				t.Fatal("a refused add wrote a board")
+			}
+		})
+	}
+}
+
+func TestWidgetsAddRefusesATakenID(t *testing.T) {
+	dir := widgetConfig(t)
+	if _, err := execute(t, "--config", dir, "widgets", "add", "devmachine-app/clock"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := execute(t, "--config", dir, "widgets", "add", "claude-code/usage", "--id", "clock"); err == nil || !strings.Contains(err.Error(), `id "clock" is already on the home board`) {
+		t.Fatalf("got %v", err)
+	}
+}
+
+func TestWidgetsAddAndRemoveNeverRewriteAnInvalidBoard(t *testing.T) {
+	dir := widgetConfig(t)
+	broken := "format: 1\nsurface: home\nwidgets:\n  - id: Clock # keep this comment\n    type: devmachine-app/clock\n    frame: {x: 24, y: 24, w: 320, h: 160}\n    size: medium\n    minimized: false\n    z: 1\n"
+	path := widgets.BoardPath(dir, "home")
+	writeCommandFile(t, path, broken)
+
+	for _, args := range [][]string{{"add", "claude-code/usage"}, {"remove", "Clock"}} {
+		_, err := execute(t, append([]string{"--config", dir, "widgets"}, args...)...)
+		if err == nil || !strings.Contains(err.Error(), "the board has a problem, so it was not changed") {
+			t.Fatalf("%v: got %v", args, err)
+		}
+		if readCommandFile(t, path) != broken {
+			t.Fatalf("%v rewrote an invalid board", args)
+		}
+	}
+}
+
+func TestWidgetsRemoveTakesOneOff(t *testing.T) {
+	dir := widgetConfig(t)
+	for _, name := range []string{"devmachine-app/clock", "claude-code/usage"} {
+		if _, err := execute(t, "--config", dir, "widgets", "add", name); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := execute(t, "--config", dir, "widgets", "remove", "clock"); err != nil {
+		t.Fatal(err)
+	}
+	b, _, _, _ := widgets.ReadBoard(widgets.BoardPath(dir, "home"))
+	if len(b.Widgets) != 1 || b.Widgets[0].ID != "usage" {
+		t.Fatalf("got %+v", b.Widgets)
+	}
+	if _, err := execute(t, "--config", dir, "widgets", "remove", "clock"); err == nil || !strings.Contains(err.Error(), `no widget with id "clock"`) {
+		t.Fatalf("got %v", err)
+	}
+}
+
+func TestWidgetsRemoveWithoutABoardSaysSo(t *testing.T) {
+	dir := widgetConfig(t)
+	if _, err := execute(t, "--config", dir, "widgets", "remove", "clock"); err == nil || !strings.Contains(err.Error(), "there is no home board") {
+		t.Fatalf("got %v", err)
+	}
+}
+
+func TestWidgetsAddRefusesABoardWithAnUnknownKey(t *testing.T) {
+	dir := widgetConfig(t)
+	broken := "format: 1\nsurface: home\nwidgets:\n  - id: clock\n    type: devmachine-app/clock\n    frame: {x: 24, y: 24, w: 320, h: 160}\n    colour: red\n    size: medium\n    minimized: false\n    z: 1\n"
+	path := widgets.BoardPath(dir, "home")
+	writeCommandFile(t, path, broken)
+
+	_, err := execute(t, "--config", dir, "widgets", "add", "claude-code/usage")
+	if err == nil || !strings.Contains(err.Error(), "the board has a problem, so it was not changed") || !strings.Contains(err.Error(), "colour") {
+		t.Fatalf("got %v", err)
+	}
+	if readCommandFile(t, path) != broken {
+		t.Fatal("add rewrote a board with an unknown key")
+	}
+}
+
+func readCommandFile(t *testing.T, path string) string {
+	t.Helper()
+	body, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(body)
+}

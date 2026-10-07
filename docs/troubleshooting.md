@@ -1657,3 +1657,48 @@ checked.
 **What to do:** Pass the package folder (the one with `package.yml`), one
 widget folder, or one board file. To check every board and every widget of
 your own packages, run `devmachine widgets validate` with no path.
+
+## "the sidebar area arrives in a later version"
+
+**What it means:** Only Home has a board today. The sidebar and the
+sidebar next to a session are in the engine contract, so a widget can say
+it fits them, but nothing draws them yet.
+
+**What to do:** Use `--board home`, or leave `--board` out.
+
+## "X does not fit the home area"
+
+**What it means:** The widget's `fits` does not include Home's layout
+(`canvas`), or it requires a context key Home does not give.
+`devmachine widgets help <name>` lists the areas it fits.
+
+**What to do:** Pick a widget that fits Home, or, for your own widget, add
+`canvas` to `fits`.
+
+## "X is not available yet: add the package"
+
+**What it means:** The widget reads something its package installs, and
+that package is not on any machine or workspace in `config.yml` — or it
+is, and no sync has applied it yet (`packages.lock` does not list it).
+
+**What to do:** Run the command the message names: `devmachine packages
+add <package> --machine <name>`, then `devmachine sync`.
+
+## "the board has a problem, so it was not changed"
+
+**What it means:** `widgets add` or `widgets remove` read the board and
+found a mistake, listed under the message with its line. The CLI never
+rewrites a broken board: it would replace your text with its guess and
+could drop widgets.
+
+**What to do:** Fix the lines it names, check with `devmachine widgets
+validate`, and run the command again. The app keeps the last good layout
+meanwhile.
+
+## "the board changed on disk since it was read; run the command again"
+
+**What it means:** Something else — usually the app, after you moved a
+widget — wrote the board between the moment the CLI read it and the moment
+it was about to write. Writing anyway would have lost that change.
+
+**What to do:** Run the same command again.
