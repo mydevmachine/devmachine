@@ -1,0 +1,31 @@
+internal/packages/skeleton.go
+  s_c1c985d7f57ab9::t_4aefd0ad913da0 44
+docs/troubleshooting.md
+  s_c1c985d7f57ab9::t_98310f59b23a93 1628-1635
+internal/packages/manifest.go
+  s_c1c985d7f57ab9::t_4aefd0ad913da0 142-143,209-219
+  s_c1c985d7f57ab9::t_f81f5e2abeed00 144-145
+  s_c1c985d7f57ab9::t_b408e873ad5fd3 220
+internal/packages/validate.go
+  s_c1c985d7f57ab9::t_4aefd0ad913da0 15,122,214-215,218-251,253-262,267,274,277
+internal/packages/widgets_test.go
+  s_c1c985d7f57ab9::t_0ca5bd5f329648 1-88
+docs/reference/package-format.md
+  s_c1c985d7f57ab9::t_98310f59b23a93 213-230,334-337
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "bd835405677dd6c16d231fb8f69f11c4b70bb4eb",
+  "prompts": {},
+  "sessions": {
+    "s_c1c985d7f57ab9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b5256304-4a81-480d-a568-f8cf11d8ddcc",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
