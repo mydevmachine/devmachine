@@ -8,6 +8,48 @@ page](https://github.com/mydevmachine/devmachine/releases).
 
 To get the latest version, see [Upgrade](upgrade.md).
 
+## App v0.2.0 — 2026-10-07
+
+Needs CLI v0.10.0 and packages v41. With an older CLI or packages, a banner
+in the corner says what to update.
+
+### Added
+
+- Widgets on Home, the sidebar, a session's context sidebar and the menu bar.
+  Home is a canvas you drag and resize widgets on; the sidebars are stacks
+  you reorder; the menu bar title shows one widget and the popover shows
+  the rest as tabs. See [Widgets](concepts/widgets.md).
+- A gallery lists the widgets you can add. "New widget" makes one from five
+  templates: a command, a URL, a web page, a coding harness's answer to a
+  prompt, or a session's screen.
+- Each widget's menu has Edit…, to change its title, inputs and refresh
+  time, and Choose…, to pick the machines, workspaces or harnesses it shows.
+- A widget that runs code it did not ship with asks before it runs, and
+  asks again when what it runs changes.
+- The pull requests panel is a widget on Home and in both sidebars.
+- A prompt widget can pick its harness's permission mode. A mode that runs
+  without checks shows a red warning and runs only when you press refresh.
+- Settings can reset Home, each sidebar and the menu bar to their default
+  widgets.
+
+### Changed
+
+- The default Home shows what Home showed before, as widgets: the clock,
+  the summary, every machine in a row and one usage card per harness, laid
+  out for the window's size.
+- Delete and Remove in the sidebar now ask with the same End session dialog
+  as ⌘W.
+- One workspace whose login is refused no longer pauses every workspace.
+  Only that workspace stops, or its machine when the machine doesn't answer
+  or several of its logins are refused. The sidebar says so under the
+  workspace, with Try again.
+
+### Fixed
+
+- A deleted, renamed or new session shows in the sidebar at once, and a
+  late list can no longer bring a deleted session back.
+- Deleting a session that tmux had already closed no longer shows an error.
+
 ## v0.10.0 — 2026-10-07
 
 ### Added
