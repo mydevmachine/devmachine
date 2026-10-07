@@ -1,0 +1,42 @@
+internal/commands/widgets_test.go
+  s_c1c985d7f57ab9::t_9607fadbba0259 1574-1593
+  s_c1c985d7f57ab9::t_514cff61dd7402 1454-1573
+internal/widgets/stack_test.go
+  s_c1c985d7f57ab9::t_c568ed67095b76 236-253,259-260,270-273
+  s_c1c985d7f57ab9::t_a6575bd507314b 274-275
+docs/concepts/widgets.md
+  s_c1c985d7f57ab9::t_adbbbc46b7860e 61,69-73,76-77,79-80,106-107,117-120,127
+docs/reference/commands.md
+  s_c1c985d7f57ab9::t_8dc8823c81bab3 667,669-670,834-841,843,847-848,859-861
+docs/how-it-works/what-runs-in-the-menu-bar.md
+  s_c1c985d7f57ab9::t_939b3ad28ebc7d 1-37
+internal/widgets/stack.go
+  s_c1c985d7f57ab9::t_46c64fe892b1fa 80-88,94,99-103,107,112-117
+  s_c1c985d7f57ab9::t_5749b94422ebba 118-119
+docs/reference/widget-format.md
+  s_c1c985d7f57ab9::t_8dc8823c81bab3 409-412
+docs/troubleshooting.md
+  s_c1c985d7f57ab9::t_7d4f9d94de08e0 1840-1842
+  s_c1c985d7f57ab9::t_a4c7e2aed0ecb9 1804,1807-1812,2017-2019,2025-2031
+  s_c1c985d7f57ab9::t_221be989467065 2032
+internal/commands/widgets_board.go
+  s_c1c985d7f57ab9::t_6d7f9d04857ad8 32-34,54-56,58,60,62-68,77-79,84-85,87,108,140,143,145-146,196,224-227,240,272,304
+docs/index.md
+  s_c1c985d7f57ab9::t_adbbbc46b7860e 152-154
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9033c9698c3cbd83da50091d1ae1ef5f16e56663",
+  "prompts": {},
+  "sessions": {
+    "s_c1c985d7f57ab9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b5256304-4a81-480d-a568-f8cf11d8ddcc",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
