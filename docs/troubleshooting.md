@@ -1651,24 +1651,37 @@ program called `df -h /`, which does not exist. Nothing ran.
 **What to do:** Write `run: df` and `args: [-h, /]`. If you need a pipe
 or `&&`, set `shell: true`; then `run` is a shell line.
 
-## "source.run puts {{…}} inside quotes"
+## "source.run puts {{…}} inside '…'" (or `$'…'`, backticks, `[[ … ]]`, `(( … ))`)
 
-**What it means:** With `shell: true` the app wraps every template value
-in single quotes before the shell reads the line. If you already put the
-template inside quotes, as in `echo '{{inputs.path}}'`, the app's quotes
-close yours, and a value such as `a; rm -rf ~` or `$(id)` runs as shell
-code. The widget is refused so that cannot happen.
+**What it means:** With `shell: true` the app gives each value to the
+shell as a separate argument and puts `"$1"` where the template was, so
+the shell never reads the value as code. Inside `'…'` or `$'…'` the shell
+expands nothing, so the widget would show a literal `$1`. Backticks,
+`[[ … ]]`, `(( … ))` and `$(( … ))` read the text again, and a value
+such as `a[$(id)]` would run.
 
-**What to do:** Remove the quotes around the template:
-`echo {{inputs.path}}`. The value still reaches the program as one word,
-spaces and all.
+**What to do:** Write the template bare or inside `"…"`:
+`echo "{{inputs.path}}"`. Use `$(…)` instead of backticks, and `[ … ]`
+instead of `[[ … ]]` or `(( … ))`.
+
+## "source.run passes {{…}} to eval" (or `let`, `sh -c`), or "has a heredoc"
+
+**What it means:** `eval`, `let`, `sh -c` (and `bash`, `zsh`, `dash`,
+`ksh` with `-c`) run their arguments as shell code, and a heredoc's text
+is read by the shell too. A value placed there runs as a command, so the
+widget is refused.
+
+**What to do:** Pass the value straight to the program that needs it, as
+an argument: `grep -- {{inputs.word}} file`, not
+`sh -c "grep {{inputs.word}} file"`. The same goes for programs the check
+cannot see into, such as `ssh <host> …`, `awk`, `xargs`, `perl -e` and
+`python -c`: keep templates out of them.
 
 ## "source.run "…" starts with -" or "has ="
 
-**What it means:** Without `shell: true`, the app starts a local program
-through `env`. `env` reads a first word that starts with `-` as one of its
-own options, and a word with `=` as a variable to set, so the program you
-meant would not run.
+**What it means:** Without `shell: true`, `run` names the program to
+start. A first word that starts with `-` reads as an option, and a word
+with `=` as a variable to set, so the program you meant would not run.
 
 **What to do:** Put the program's name in `run` and options in `args`.
 To set a variable for the program, set `shell: true` and write

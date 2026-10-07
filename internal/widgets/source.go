@@ -235,15 +235,15 @@ func checkCommand(s Source, scope sourceScope, kind SourceKind, at reporter) {
 	program := strings.TrimSpace(template.ReplaceAllString(s.Run, "x"))
 	switch {
 	case s.Shell:
-		for _, quoted := range quotedTemplates(s.Run) {
-			at("source.run", "source.run puts %s inside quotes; with shell: true every value is quoted for you — remove the quotes around it", quoted)
+		for _, problem := range unsafeTemplates(s.Run) {
+			at("source.run", "source.run %s", problem)
 		}
 	case strings.ContainsFunc(program, unicode.IsSpace):
 		at("source.run", "source.run %q has spaces: put each argument in source.args, or set shell: true to run it as a shell line", s.Run)
 	case strings.HasPrefix(program, "-"):
-		at("source.run", "source.run %q starts with -: the app starts a program through env, which reads it as an option — name the program, and put options in source.args", s.Run)
+		at("source.run", "source.run %q starts with -: a program name never does — name the program, and put options in source.args", s.Run)
 	case strings.Contains(program, "="):
-		at("source.run", "source.run %q has =: the app starts a program through env, which reads it as a variable to set — name the program, or set shell: true", s.Run)
+		at("source.run", "source.run %q has =: it reads as a variable to set, not a program — name the program, or set shell: true", s.Run)
 	}
 	checkTemplates(s.Run, "source.run", "source.run", scope, at)
 	for i, arg := range s.Args {
@@ -412,37 +412,6 @@ func scriptFileProblem(packageDir, script string) string {
 		return "only its owner can run it: a workspace runs it as its own account, so make it chmod 755"
 	}
 	return ""
-}
-
-// quotedTemplates lists the templates of a shell line that sit inside '…' or
-// "…". The app wraps every value in single quotes, so a value inside the
-// author's own quotes closes them and the rest of it runs as shell code.
-func quotedTemplates(line string) []string {
-	starts := map[int]int{}
-	for _, at := range template.FindAllStringIndex(line, -1) {
-		starts[at[0]] = at[1]
-	}
-	var quoted []string
-	var quote byte
-	for i := 0; i < len(line); i++ {
-		if end, ok := starts[i]; ok {
-			if quote != 0 {
-				quoted = append(quoted, line[i:end])
-			}
-			i = end - 1
-			continue
-		}
-		_, templateNext := starts[i+1]
-		switch c := line[i]; {
-		case c == '\\' && quote != '\'' && !templateNext:
-			i++
-		case quote == 0 && (c == '\'' || c == '"'):
-			quote = c
-		case c == quote:
-			quote = 0
-		}
-	}
-	return quoted
 }
 
 func checkTemplates(value, label, line string, scope sourceScope, at reporter) {

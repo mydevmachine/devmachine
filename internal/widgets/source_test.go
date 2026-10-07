@@ -119,10 +119,6 @@ func TestEachSourceRuleReportsItsOwnProblem(t *testing.T) {
 		{"run with a carriage return", "disk", diskWidget, []string{"  run: df\n  args: [-h, /]\n", "  run: \"df\\r-h\"\n"}, "has spaces"},
 		{"run with a unicode space", "disk", diskWidget, []string{"  run: df\n  args: [-h, /]\n", "  run: \"df\\u2003-h\"\n"}, "has spaces"},
 		{"run with a no-break space", "disk", diskWidget, []string{"  run: df\n  args: [-h, /]\n", "  run: \"df\\u00a0-h\"\n"}, "has spaces"},
-		{"template inside single quotes", "disk", diskWidget, []string{"  run: df\n  args: [-h, /]\n", "  run: \"echo '{{inputs.machine}}'\"\n  shell: true\n"}, "source.run puts {{inputs.machine}} inside quotes; with shell: true every value is quoted for you"},
-		{"template inside double quotes", "disk", diskWidget, []string{"  run: df\n  args: [-h, /]\n", "  run: 'echo \"a {{inputs.machine}}\"'\n  shell: true\n"}, "source.run puts {{inputs.machine}} inside quotes"},
-		{"template after an escaped quote inside double quotes", "disk", diskWidget, []string{"  run: df\n  args: [-h, /]\n", "  run: 'echo \"a\\\" {{inputs.machine}}\"'\n  shell: true\n"}, "source.run puts {{inputs.machine}} inside quotes"},
-		{"template after a backslash inside double quotes", "disk", diskWidget, []string{"  run: df\n  args: [-h, /]\n", "  run: 'echo \"\\{{inputs.machine}}\"'\n  shell: true\n"}, "source.run puts {{inputs.machine}} inside quotes"},
 		{"run starting with a dash", "disk", diskWidget, []string{"  run: df\n", "  run: -df\n"}, `source.run "-df" starts with -`},
 		{"run with an equals sign", "disk", diskWidget, []string{"  run: df\n", "  run: LANG=C\n"}, `source.run "LANG=C" has =`},
 		{"every below the minimum", "disk", diskWidget, []string{"every: 60s", "every: 1s"}, "source.every 1s is below the command minimum of 5s"},
@@ -170,17 +166,73 @@ func TestEachSourceRuleReportsItsOwnProblem(t *testing.T) {
 	}
 }
 
-func TestEveryQuotedTemplateInAShellLineIsReported(t *testing.T) {
-	body := edited(t, diskWidget, "  run: df\n  args: [-h, /]\n",
-		"  run: >-\n    echo '{{inputs.machine}}' {{inputs.machine}}\n    \"{{ inputs.machine }}\"\n  shell: true\n")
-	_, problems := Load(writeWidget(t, t.TempDir(), "disk", body))
-	want := []string{"{{inputs.machine}}", "{{ inputs.machine }}"}
+func shellLineWidget(t *testing.T, line string) string {
+	t.Helper()
+	return edited(t, diskWidget, "  run: df\n  args: [-h, /]\n", "  run: >-\n    "+line+"\n  shell: true\n")
+}
+
+func TestATemplateTheShellReadsAgainAsCodeIsRefused(t *testing.T) {
+	cases := []struct{ name, line, want string }{
+		{"single quotes", `echo '{{inputs.machine}}'`, "source.run puts {{inputs.machine}} inside '…', where the shell never expands a value"},
+		{"ansi quotes with an escaped quote", `echo $'a\' {{inputs.machine}}'`, "source.run puts {{inputs.machine}} inside $'…'"},
+		{"backticks", "echo `echo {{inputs.machine}}`", "source.run puts {{inputs.machine}} inside backticks"},
+		{"backticks inside double quotes", "echo \"`echo {{inputs.machine}}`\"", "source.run puts {{inputs.machine}} inside backticks"},
+		{"heredoc", "cat <<EOF {{inputs.machine}}", "source.run has a heredoc (<<), and the shell reads {{inputs.machine}} in it as code"},
+		{"eval", "eval echo {{inputs.machine}}", "source.run passes {{inputs.machine}} to eval"},
+		{"eval after a substitution", "eval $(true) {{inputs.machine}}", "source.run passes {{inputs.machine}} to eval"},
+		{"eval after an assignment", "A=1 eval {{inputs.machine}}", "source.run passes {{inputs.machine}} to eval"},
+		{"sh -c", `sh -c "echo {{inputs.machine}}"`, "source.run passes {{inputs.machine}} to sh -c"},
+		{"bash -lc through sudo", "sudo -u alice /bin/bash -lc {{inputs.machine}}", "source.run passes {{inputs.machine}} to bash -c"},
+		{"sh -c around a substitution", `zsh -c "$(echo {{inputs.machine}})"`, "source.run passes {{inputs.machine}} to zsh -c"},
+		{"test brackets", "[[ {{inputs.machine}} == a ]] && echo y", "source.run puts {{inputs.machine}} inside [[ … ]]"},
+		{"arithmetic", "(( {{inputs.machine}} > 1 )) && echo y", "source.run puts {{inputs.machine}} inside (( … )) or $(( … ))"},
+		{"arithmetic expansion", `echo "$(( ({{inputs.machine}}) + 1 ))"`, "source.run puts {{inputs.machine}} inside (( … )) or $(( … ))"},
+		{"let", "let n={{inputs.machine}}", "source.run passes {{inputs.machine}} to let"},
+		{"single quotes before a comment", "echo a; echo '{{inputs.machine}}' # it's", "inside '…'"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, problems := Load(writeWidget(t, t.TempDir(), "disk", shellLineWidget(t, tc.line)))
+			if len(problems) != 1 || !strings.Contains(problems[0].Message, tc.want) {
+				t.Fatalf("want one problem containing %q, got %v", tc.want, problems)
+			}
+			if problems[0].Line != 10 {
+				t.Fatalf("want the problem on line 10, got %v", problems[0])
+			}
+		})
+	}
+}
+
+func TestATemplateTheShellOnlyExpandsIsAllowed(t *testing.T) {
+	cases := map[string]string{
+		"bare":                          "echo {{inputs.machine}}",
+		"inside double quotes":          `echo "a {{inputs.machine}}"`,
+		"after an escaped double quote": `echo "a\" {{inputs.machine}}"`,
+		"in a substitution in quotes":   `echo "$(echo "{{inputs.machine}}")"`,
+		"eval only as a word":           "echo eval {{inputs.machine}}",
+		"single brackets":               `if [ "{{inputs.machine}}" = a ]; then echo y; fi`,
+		"after a separator":             "eval true; echo {{inputs.machine}}",
+		"apostrophe in a comment":       "echo {{inputs.machine}} # it's fine",
+		"closed quotes before it":       `echo 'a' "b" {{inputs.machine}}`,
+		"arithmetic before it":          "echo $((1 + 2)) {{inputs.machine}}",
+	}
+	for name, line := range cases {
+		if _, problems := Load(writeWidget(t, t.TempDir(), "disk", shellLineWidget(t, line))); len(problems) != 0 {
+			t.Errorf("%s: %v", name, problems)
+		}
+	}
+}
+
+func TestEveryUnsafeTemplateInAShellLineIsReported(t *testing.T) {
+	line := "echo '{{inputs.machine}}' {{inputs.machine}} \"{{ inputs.machine }}\" `echo {{ inputs.machine}}`"
+	_, problems := Load(writeWidget(t, t.TempDir(), "disk", shellLineWidget(t, line)))
+	want := []string{"puts {{inputs.machine}} inside '…'", "puts {{ inputs.machine}} inside backticks"}
 	if len(problems) != len(want) {
 		t.Fatalf("want %d problems, got %v", len(want), problems)
 	}
-	for i, template := range want {
-		if problems[i].Line != 10 || !strings.Contains(problems[i].Message, "puts "+template+" inside quotes") {
-			t.Errorf("problem %d: want line 10 about %s, got %v", i, template, problems[i])
+	for i, w := range want {
+		if problems[i].Line != 10 || !strings.Contains(problems[i].Message, w) {
+			t.Errorf("problem %d: want line 10 with %q, got %v", i, w, problems[i])
 		}
 	}
 }
