@@ -879,9 +879,9 @@ when the CLI rewrites it. `--format json` prints
 there are some; for a widget in a list, which is a sidebar, the menu bar
 or its popover, `frame`, `minimized` and `z` are zero and mean nothing,
 and in the menu bar and its popover `size` is `""`; `collapsed` appears
-when true), `{"board", "path", "removed"}` for `remove`, and
-`{"board", "path", "moved", "order"}` for `move`, `order` being every id after the move, and `{"board", "path", "widget", "warnings"}` for
-`set`.
+when true), `{"board", "path", "removed"}` for `remove`,
+`{"board", "path", "moved", "order"}` for `move`, `order` being every id
+after the move, and `{"board", "path", "widget", "warnings"}` for `set`.
 
 ## aliases
 

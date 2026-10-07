@@ -393,9 +393,9 @@ The menu bar item is two boards, both lists drawn in the order they are
 written.
 
 `menubar.yml` is the title in the menu bar: at most 3 widgets, left to
-right, each one line. An entry there has only `id`, `type`, `title`, `with` and `every`
-(or `title`, `source` and `view` when written in place): no `frame`,
-`size`, `minimized`, `collapsed` or `z`. Only four views draw there:
+right, each one line. An entry there has only `id`, `type`, `title`, `with`
+and `every` (or `title`, `source` and `view` when written in place): no
+`frame`, `size`, `minimized`, `collapsed` or `z`. Only four views draw there:
 `text` (its first line, cut at 24 characters with "…"), `number`
 (`hide_zero: true` draws nothing at 0), `status` (a dot and its label)
 and `app.brand` ("❯_"). A widget fits it when `slot` is in its `fits` and
