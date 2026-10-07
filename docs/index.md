@@ -37,6 +37,7 @@ list](guides/index.md).
 
 - [Your first devmachine, explained](guides/your-first-devmachine.md)
 - [Try it on your own computer first](guides/a-local-vm-with-lima.md)
+- [An old Mac as a machine](guides/an-old-mac-as-a-machine.md)
 - [Express site with TLS](guides/express-site-with-tls.md)
 - [Docker site on 8080](guides/docker-site-on-8080.md)
 - [Next.js app at your own domain](guides/nextjs-site-with-tls.md)
@@ -115,6 +116,9 @@ these when something behaves in a way that surprises you.
   does, and its rough edges.
 - [Setting up a server for the first time](how-it-works/trust-bootstrap.md) —
   how `setup` makes sure it is talking to your server, and locks it down.
+- [Password login, account by account](how-it-works/password-login.md) — why
+  password login goes off for every account by default, how some keep it,
+  and why the exceptions live in one file.
 - [Your computer as a machine](how-it-works/your-computer-as-a-machine.md) —
   using your own computer instead of a server.
 - [What the CLI knows about a machine](how-it-works/what-the-cli-knows-about-a-machine.md)

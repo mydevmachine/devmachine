@@ -78,7 +78,7 @@ func main() {
 		}
 		for _, key := range slices.Sorted(maps.Keys(m.Variables)) {
 			v := m.Variables[key]
-			fmt.Fprintf(&out, "| `%s.%s` | %s | %s |\n", m.Name, key, v.Summary, defaultOf(v.Default))
+			fmt.Fprintf(&out, "| `%s.%s` | %s%s | %s |\n", m.Name, key, v.Summary, entriesOf(v), defaultOf(v.Default))
 		}
 	}
 
@@ -102,4 +102,25 @@ func defaultOf(value any) string {
 	default:
 		return fmt.Sprintf("`%v`", v)
 	}
+}
+
+// entriesOf names the fields each entry of a typed list takes, since a list of
+// mappings cannot be written from its summary alone.
+func entriesOf(v packages.Variable) string {
+	if v.Items == nil || len(v.Items.Fields) == 0 {
+		return ""
+	}
+	var fields []string
+	for _, name := range slices.Sorted(maps.Keys(v.Items.Fields)) {
+		f := v.Items.Fields[name]
+		field := "`" + name + "`"
+		if f.Required {
+			field += " (required)"
+		}
+		if f.Summary != "" {
+			field += ": " + strings.TrimSuffix(f.Summary, ".")
+		}
+		fields = append(fields, field)
+	}
+	return " Each entry: " + strings.Join(fields, "; ") + "."
 }

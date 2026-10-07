@@ -19,6 +19,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"slices"
 	"strings"
 	"time"
@@ -163,6 +164,31 @@ func SettingsJSON(settings map[string]any) (string, error) {
 	return string(body), nil
 }
 
+// TailscaleAppDir holds the CLI of Tailscale's own Mac app. It is the app's
+// executable, and it answers to `tailscale` because the Mac's disk ignores
+// case unless somebody formatted it otherwise.
+const TailscaleAppDir = "/Applications/Tailscale.app/Contents/MacOS"
+
+// goos is a seam, so the tests can be a Mac anywhere.
+var goos = runtime.GOOS
+
+// scriptEnviron is this computer's environment for a resolve script. A Mac
+// that has Tailscale only as the app has no tailscale on PATH, so the app's
+// directory goes last: a CLI installed on its own still wins.
+func scriptEnviron() []string {
+	env := os.Environ()
+	if goos != "darwin" {
+		return env
+	}
+	for i, kv := range env {
+		if strings.HasPrefix(kv, "PATH=") {
+			env[i] = kv + string(os.PathListSeparator) + TailscaleAppDir
+			return env
+		}
+	}
+	return append(env, "PATH="+TailscaleAppDir)
+}
+
 // Resolve runs the package's resolve script on this computer and returns the
 // addresses it printed, in its order.
 //
@@ -178,7 +204,7 @@ func (p Provider) Resolve(ctx context.Context, name string, settings map[string]
 
 	path := filepath.Join(p.Dir, p.Network.Resolve)
 	cmd := exec.CommandContext(ctx, path, name)
-	cmd.Env = append(os.Environ(), SettingsEnv+"="+encoded)
+	cmd.Env = append(scriptEnviron(), SettingsEnv+"="+encoded)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	// A script that leaves a child holding its output open would otherwise

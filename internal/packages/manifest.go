@@ -55,9 +55,28 @@ var KnownPlatforms = []string{PlatformLinux, PlatformMacOS}
 var ReadableFormats = []int{1}
 
 // Variable is a value a package reads, and what it falls back to.
+//
+// Type and Items are optional. A variable without a type takes any value, as
+// every variable did before types existed; one with a type has each setting
+// checked on this computer, so a mistyped field is refused by the command that
+// wrote it rather than by Ansible on the machine, halfway through a sync.
 type Variable struct {
 	Summary string `yaml:"summary"`
 	Default any    `yaml:"default"`
+	Type    string `yaml:"type"`
+	Items   *Items `yaml:"items"`
+}
+
+// Items describes each entry of a list variable whose entries are mappings.
+type Items struct {
+	Fields map[string]Field `yaml:"fields"`
+}
+
+// Field is one key of a list entry. A field without a type is a string.
+type Field struct {
+	Summary  string `yaml:"summary"`
+	Type     string `yaml:"type"`
+	Required bool   `yaml:"required"`
 }
 
 // Credential is something a package's tool cannot work without, and how it is

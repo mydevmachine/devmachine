@@ -30,6 +30,7 @@ devmachine machines create-local
 devmachine machines delete-local
 devmachine machines edit
 devmachine machines list
+devmachine machines password-login
 devmachine machines rm
 devmachine machines scan
 devmachine machines show

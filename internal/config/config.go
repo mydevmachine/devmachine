@@ -127,6 +127,12 @@ type Machine struct {
 	// Settings override the variables a package declares. A key is written
 	// `<package>.<name>`.
 	Settings map[string]any `yaml:"settings,omitempty"`
+	// PasswordLoginKeep are the accounts that still log in over SSH with a
+	// password once password login is off for everybody else. It lives on
+	// the machine, not in a package setting, because setup turns password
+	// login off before any package exists, and ssh_hardening reads it to
+	// keep the same exceptions on every converge.
+	PasswordLoginKeep []string `yaml:"password_login_keep,omitempty"`
 	// KnownHostsFile is runtime metadata resolved from the configuration
 	// directory. It is never another source of user configuration.
 	KnownHostsFile string `yaml:"-"`
@@ -437,6 +443,38 @@ func (c Config) RouteOwner(host string) (Workspace, Route, bool) {
 	return Workspace{}, Route{}, false
 }
 
+// accountName is a name sshd's Match User reads as one account: no comma,
+// which would be a second one, and no * or !, which would be a pattern. It is
+// also what useradd and dscl both accept.
+var accountName = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9_.-]{0,63}$`)
+
+// ValidAccountName refuses a name that would change what a Match User line
+// means.
+func ValidAccountName(name string) error {
+	if !accountName.MatchString(name) {
+		return fmt.Errorf("%q is not an account name: use letters, digits, '_', '.' and '-', starting with a letter, digit or '_'", name)
+	}
+	return nil
+}
+
+func validatePasswordLoginKeep(m Machine) error {
+	if len(m.PasswordLoginKeep) == 0 {
+		return nil
+	}
+	if m.Self {
+		return fmt.Errorf("machine %q is your computer, and `password_login_keep` is about SSH into a machine: remove it", m.Name)
+	}
+	for _, name := range m.PasswordLoginKeep {
+		if err := ValidAccountName(name); err != nil {
+			return fmt.Errorf("machine %q, `password_login_keep`: %w", m.Name, err)
+		}
+	}
+	if name, dup := firstDuplicate(m.PasswordLoginKeep); dup {
+		return fmt.Errorf("machine %q lists %q twice in `password_login_keep`", m.Name, name)
+	}
+	return nil
+}
+
 // Validate reports the first thing that makes the configuration unusable, in
 // words that say what to change.
 func (c Config) Validate() error {
@@ -491,6 +529,9 @@ func (c Config) Validate() error {
 
 		if _, err := NormalizeLocation(m.Location); err != nil {
 			return fmt.Errorf("machine %q has `location: %s`: %w", m.Name, m.Location, err)
+		}
+		if err := validatePasswordLoginKeep(m); err != nil {
+			return err
 		}
 		if name, dup := firstDuplicate(m.Packages); dup {
 			return fmt.Errorf("machine %q lists the package %q twice", m.Name, name)
@@ -992,6 +1033,7 @@ func machineNode(m Machine) *yaml.Node {
 	if len(m.Packages) > 0 {
 		setField(node, "packages", sequenceNode(m.Packages))
 	}
+	setField(node, "password_login_keep", sequenceNode(m.PasswordLoginKeep))
 	return node
 }
 
@@ -1101,6 +1143,26 @@ func SetMachineLocation(dir, name, location string) error {
 				for _, entry := range machines.Content {
 					if entry.Kind == yaml.MappingNode && scalar(field(entry, "name")) == name {
 						setField(entry, "location", stringNode(location))
+						return nil
+					}
+				}
+			}
+			return fmt.Errorf("`machines` has no entry named %q", name)
+		})
+	})
+}
+
+// SetMachinePasswordLoginKeep replaces one machine's `password_login_keep:`
+// and leaves every other field, and every comment, as it was. An empty list
+// removes the key.
+func SetMachinePasswordLoginKeep(dir, name string, keep []string) error {
+	return locked(dir, func() error {
+		return editDocument(dir, func(root *yaml.Node) error {
+			machines := field(root, "machines")
+			if machines != nil && machines.Kind == yaml.SequenceNode {
+				for _, entry := range machines.Content {
+					if entry.Kind == yaml.MappingNode && scalar(field(entry, "name")) == name {
+						setField(entry, "password_login_keep", sequenceNode(keep))
 						return nil
 					}
 				}

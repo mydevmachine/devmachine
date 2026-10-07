@@ -301,11 +301,13 @@ func TestHardeningDropInIsValidToARealSshd(t *testing.T) {
 	probe := "/etc/ssh/sshd_config.d/00-devmachine-probe.conf"
 	defer client.Run(context.Background(), AsRoot("rm -f "+probe))
 
-	if _, err := client.RunInput(context.Background(), AsRoot("cat > "+probe), strings.NewReader(hardeningDropIn)); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := client.Run(context.Background(), AsRoot(validateScript)); err != nil {
-		t.Fatalf("a real sshd refused the drop-in: %v", err)
+	for _, body := range []string{hardeningDropIn, HardeningDropIn([]string{"alice", "bob"})} {
+		if _, err := client.RunInput(context.Background(), AsRoot("cat > "+probe), strings.NewReader(body)); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := client.Run(context.Background(), AsRoot(validateScript)); err != nil {
+			t.Fatalf("a real sshd refused the drop-in: %v\n%s", err, body)
+		}
 	}
 }
 

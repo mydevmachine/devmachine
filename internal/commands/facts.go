@@ -57,7 +57,7 @@ func showMachine(out io.Writer, opts *options, name string) error {
 	}
 
 	show := machineShowJSON{}
-	for _, entry := range asJSON(cfg).Machines {
+	for _, entry := range asJSON(dir, cfg).Machines {
 		if entry.Name == m.Name {
 			show.machineJSON = entry
 		}
@@ -72,19 +72,25 @@ func showMachine(out io.Writer, opts *options, name string) error {
 	return printMachine(out, show)
 }
 
-// withMachinePath puts the machine's path prefix, as last observed, in front of
-// PATH for one command. A machine never read, or one that needs no prefix,
+// withMachinePath puts the machine's command path, as last observed, in front
+// of PATH for one command. A machine never read, or one that needs no prefix,
 // gets the command as it was written.
 func withMachinePath(opts *options, m config.Machine, command string) string {
 	dir, _, err := config.Dir(opts.configDir)
 	if err != nil {
 		return command
 	}
+	return inMachinePath(dir, m, command)
+}
+
+// inMachinePath is withMachinePath for a caller that already has the
+// configuration directory.
+func inMachinePath(dir string, m config.Machine, command string) string {
 	observed, found, err := facts.Load(dir, m.Name)
 	if err != nil || !found {
 		return command
 	}
-	return withPathPrefix(observed.PathPrefix, command)
+	return withPathPrefix(observed.CommandPath(), command)
 }
 
 func withPathPrefix(prefix []string, command string) string {

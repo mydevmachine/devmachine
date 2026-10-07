@@ -150,6 +150,9 @@ func prepareSync(ctx context.Context, opts *options) (preparedSync, error) {
 	if err := refuseForeignPackages(plan, machine.Name, knownPlatform(dir, machine)); err != nil {
 		return preparedSync{}, err
 	}
+	if err := refuseMistypedPlan(plan); err != nil {
+		return preparedSync{}, err
+	}
 	summary := provision.Summary(plan)
 	for _, r := range provision.UnresolvedRoutes(plan) {
 		summary = append(summary, fmt.Sprintf("warning: https://%s is left as it is on %s, since %s's address is not known: %v",

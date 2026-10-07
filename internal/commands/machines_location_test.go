@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/mydevmachine/devmachine/internal/config"
+	"github.com/mydevmachine/devmachine/internal/facts"
 	"github.com/mydevmachine/devmachine/internal/hostkeys"
 )
 
@@ -381,5 +382,46 @@ func TestMachinesEditTheSameLocationIsNothingToChange(t *testing.T) {
 	_, err := execute(t, "--config", dir, "machines", "edit", "main", "--yes", "--location", "Home")
 	if err == nil || !strings.Contains(err.Error(), "nothing to change") {
 		t.Fatalf("got %v", err)
+	}
+}
+
+func TestJSONReportsEachMachinesKnownPlatform(t *testing.T) {
+	dir := writeConfigDir(t, machinesInThreePlaces)
+	saveFacts(t, dir, "main", facts.Facts{System: "Linux"})
+	want := map[string]string{"main": "linux", "sandbox": "", "mac": "macos"}
+
+	for _, args := range [][]string{{"config", "show"}, {"machines", "list"}} {
+		out, err := execute(t, append([]string{"--config", dir, "--format", "json"}, args...)...)
+		if err != nil {
+			t.Fatalf("%v returned %v (%s)", args, err, out)
+		}
+		var machines []machineJSON
+		if args[0] == "config" {
+			var got configJSON
+			err = json.Unmarshal([]byte(out), &got)
+			machines = got.Machines
+		} else {
+			err = json.Unmarshal([]byte(out), &machines)
+		}
+		if err != nil || len(machines) != len(want) {
+			t.Fatalf("%v: output was not the machines: %v (%q)", args, err, out)
+		}
+		for _, m := range machines {
+			if m.Platform != want[m.Name] {
+				t.Fatalf("%v %s: platform = %q, want %q", args, m.Name, m.Platform, want[m.Name])
+			}
+		}
+	}
+}
+
+func TestJSONLeavesOutThePlatformOfAMachineNeverRead(t *testing.T) {
+	dir := writeConfigDir(t, oneMachine)
+
+	out, err := execute(t, "--config", dir, "--format", "json", "machines", "list")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(out, `"platform"`) {
+		t.Fatalf("a platform for a machine never read: %s", out)
 	}
 }

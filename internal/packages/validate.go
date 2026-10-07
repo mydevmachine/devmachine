@@ -122,6 +122,7 @@ func Validate(dir string) ([]Problem, error) {
 	problems = append(problems, validateEntrypoint(dir, m)...)
 	problems = append(problems, validateProviders(m)...)
 	problems = append(problems, validateCredentials(m)...)
+	problems = append(problems, validateVariables(m)...)
 	problems = append(problems, validateSkills(dir, m)...)
 	problems = append(problems, validateWidgets(dir, m)...)
 	problems = append(problems, validateNetwork(dir, m)...)

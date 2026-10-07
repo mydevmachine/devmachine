@@ -8,6 +8,69 @@ page](https://github.com/mydevmachine/devmachine/releases).
 
 To get the latest version, see [Upgrade](upgrade.md).
 
+## v0.9.0 — 2026-10-07
+
+### Added
+
+- A package variable can declare its `type`: `string`, `boolean`, `number`,
+  `list` or `map`, and a list of mappings names its entries' fields with
+  `items.fields`. See [Types](reference/package-format.md#types).
+- `workspaces edit` and `machines edit` refuse a `--set` that does not fit
+  its variable's type, and `sync` refuses such a setting before it reaches
+  the machine. The error names the setting and the entry, such as
+  `workspace.repos[0]: "url" is required`.
+- `packages validate` refuses a default that does not fit its own type.
+- A guide for an old Mac as a machine.
+
+### Changed
+
+- `packages list` reports a variable's declared type, and the settings
+  reference names the fields a list's entries take.
+- Getting started no longer assumes a VPS: a Linux box or a Mac you already
+  have works too.
+
+## App v0.1.22 — 2026-10-07
+
+### Added
+
+- Adding a machine asks what happens to SSH password login once the key
+  works: off for every account, off except the accounts you pick, or left
+  as it is.
+- Settings → Machines → ⋯ → SSH password login shows which accounts can
+  still log in with a password, and changes it.
+
+### Changed
+
+- A new workspace on a machine that has never synced shows one card that
+  asks for the first sync, instead of two cards.
+- The app calls a workspace an account on its machine, not a Linux account,
+  and picks the packages that fit a machine by its real system.
+
+## v0.8.2 — 2026-10-07
+
+### Added
+
+- `setup` and `machines add` ask before they turn SSH password login off,
+  and can keep it for the accounts you name. `--keep-password-login a,b`
+  answers without a terminal.
+- `machines password-login <machine>` shows which accounts can log in with
+  a password, and changes it later with `--off`, `--keep a,b` or `--on`.
+  See [Password login](how-it-works/password-login.md).
+- `machines list`, `machines show` and `config show` report each machine's
+  known system as `platform` in JSON.
+- With packages v39, `docker` (colima, one VM per workspace), `tailscale`,
+  `claude-remote-control`, `caddy`, `firewall`, `ssh_hardening` and
+  `hostinger` run on a Mac too.
+
+### Fixed
+
+- `workspaces new` leaves out a package the machine's system cannot run,
+  and says so. `packages add` and `workspaces edit --add` refuse one before
+  anything is written, instead of failing later in `sync`.
+- `expose`, `login` and the Caddy reload in `sync` find tools that Homebrew
+  or MacPorts installed on a Mac, and `login tailscale` finds the CLI inside
+  the Tailscale app.
+
 ## v0.8.1 — 2026-10-06
 
 ### Added
@@ -62,6 +125,14 @@ To get the latest version, see [Upgrade](upgrade.md).
 - `machines rm` also forgets what the CLI observed about the machine.
 - A package directory that is a symlink is followed when it is sent to the
   machine.
+
+## App v0.1.21 — 2026-10-06
+
+### Added
+
+- With harness icons on, a session that runs no coding agent shows a
+  terminal icon before its name, the same size as the agent icons.
+- A session running [Herdr](https://herdr.dev/) shows the Herdr icon.
 
 ## App v0.1.20 — 2026-10-06
 

@@ -71,7 +71,7 @@ func runLogin(cmd *cobra.Command, opts *options, name, workspace string) error {
 	}
 
 	cmd.Printf("opening a session on %s to run: %s\n", found.machine.Name, d.Command)
-	runErr := runInteractive("ssh", loginArgs(found.machine, tgt.login(), address, d.Command)...)
+	runErr := runInteractive("ssh", loginArgs(found.machine, tgt.login(), address, withMachinePath(opts, found.machine, d.Command))...)
 	record(opts, tgt, "login "+credentials.Key(d), runErr == nil)
 	if runErr != nil {
 		return fmt.Errorf("the login did not finish: %w", runErr)
@@ -104,7 +104,7 @@ func finishTailscaleLogin(cmd *cobra.Command, dir string, m config.Machine) erro
 	defer func() { _ = client.Close() }()
 
 	hint := fmt.Sprintf("<name> is what `tailscale status` on %s lists for it.", m.Name)
-	out, err := client.Run(cmd.Context(), tailscaleStatusCommand)
+	out, err := client.Run(cmd.Context(), inMachinePath(dir, m, tailscaleStatusCommand))
 	if err != nil {
 		cmd.Printf("logged in, but could not read its tailnet name (%v).\n", err)
 		cmd.Print(networkHostsByHand(m, "tailscale", hint))

@@ -22,12 +22,14 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/mydevmachine/devmachine/internal/config"
 	"github.com/mydevmachine/devmachine/internal/hostkeys"
+	"github.com/mydevmachine/devmachine/internal/network"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/agent"
 	"golang.org/x/crypto/ssh/knownhosts"
@@ -47,6 +49,8 @@ var (
 	lookPath        = realLookPath
 	realTailscaleIP = tailscaleIPFromStatus
 	tailscaleIP     = realTailscaleIP
+	goos            = runtime.GOOS
+	tailscaleAppCLI = network.TailscaleAppDir + "/Tailscale"
 	realDialContext = dialContext
 	dialSSH         = realDialContext
 )
@@ -98,8 +102,8 @@ func StreamInput(ctx context.Context, c Client, command string, stdin io.Reader,
 	return streamer.StreamInput(ctx, command, stdin, stdout, stderr)
 }
 
-func tailscaleIPFromStatus(name string) (string, error) {
-	body, err := exec.Command("tailscale", "status", "--json").Output()
+func tailscaleIPFromStatus(binary, name string) (string, error) {
+	body, err := exec.Command(binary, "status", "--json").Output()
 	if err != nil {
 		return "", fmt.Errorf("asking tailscale for its status: %w", err)
 	}

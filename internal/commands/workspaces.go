@@ -272,6 +272,9 @@ func runWorkspaceNew(cmd *cobra.Command, opts *options, name string, o workspace
 	if err != nil {
 		return err
 	}
+	if list, err = fitNewWorkspace(cmd.Printf, dir, cfg, machine, name, list, o.packagesGiven); err != nil {
+		return err
+	}
 
 	w := config.Workspace{Name: name, Machine: machine.Name, User: o.user, Packages: list}
 
@@ -728,6 +731,14 @@ func runWorkspaceEdit(cmd *cobra.Command, opts *options, name string, e workspac
 	if err := edited.Validate(); err != nil {
 		return err
 	}
+	for _, p := range e.add {
+		if err := refuseForeignAdd(dir, edited, workspacePackageTarget(name), p); err != nil {
+			return err
+		}
+	}
+	if err := refuseMistypedSettings(dir, cfg.Packages, w.Settings, e.set); err != nil {
+		return err
+	}
 
 	if e.check {
 		for _, line := range changes {
@@ -940,10 +951,15 @@ func servingClients(ctx context.Context, dir string, cfg config.Config, w config
 				w.Name, r.Host, m.Name, err, r.Host, m.Name)
 		}
 		routesFile := path.Join(sitesDir, expose.WorkspaceFileName(w.Name))
-		out = append(out, servingClient{machine: m.Name, client: client,
-			script: "rm -f " + quoteForShell(routesFile) + " && " + reloadCaddyScript()})
+		out = append(out, servingClient{machine: m.Name, client: client, script: removeSitesScript(dir, m, routesFile)})
 	}
 	return out, nil
+}
+
+// removeSitesScript removes a workspace's routes file from a machine that
+// serves them, and reloads Caddy there.
+func removeSitesScript(dir string, m config.Machine, routesFile string) string {
+	return inMachinePath(dir, m, "rm -f "+quoteForShell(routesFile)+" && "+reloadCaddyScript())
 }
 
 // reloadCaddyScript reloads Caddy through systemd where there is one, and

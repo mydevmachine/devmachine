@@ -31,6 +31,7 @@ func newMachinesCmd(opts *options) *cobra.Command {
 		newMachinesShowCmd(opts),
 		newMachinesAddCmd(opts),
 		newMachinesTrustCmd(opts),
+		newMachinesPasswordLoginCmd(opts),
 		newMachinesScanCmd(opts),
 		newMachinesEditCmd(opts),
 		newMachinesRmCmd(opts),
@@ -54,7 +55,11 @@ func newMachinesListCmd(opts *options) *cobra.Command {
 			}
 
 			if opts.format == formatJSON {
-				return writeJSON(cmd.OutOrStdout(), asJSON(cfg).Machines)
+				dir, _, err := config.Dir(opts.configDir)
+				if err != nil {
+					return err
+				}
+				return writeJSON(cmd.OutOrStdout(), asJSON(dir, cfg).Machines)
 			}
 			if !found {
 				cmd.Println("No machines yet: `devmachine setup` adds the first one.")
@@ -140,6 +145,7 @@ func newMachinesAddCmd(opts *options) *cobra.Command {
 		"start the machine with no packages, instead of the essentials")
 	c.Flags().BoolVar(&s.noHarden, "no-harden", false,
 		"leave password login on (the key is still installed and proved)")
+	addKeepPasswordLoginFlag(c, &s)
 	c.Flags().BoolVar(&s.noAliases, "no-aliases", false,
 		"do not ask about SSH host entries, and do not write them")
 	c.Flags().BoolVar(&s.yes, "yes", false, "answer yes to writing SSH host entries, without asking")
@@ -299,6 +305,9 @@ func runMachineEdit(cmd *cobra.Command, opts *options, name string, e machineEdi
 	if err := edited.Validate(); err != nil {
 		return err
 	}
+	if err := refuseMistypedSettings(dir, cfg.Packages, settings, e.set); err != nil {
+		return err
+	}
 
 	if e.check {
 		for _, line := range changes {
@@ -417,6 +426,9 @@ func newMachinesRmCmd(opts *options) *cobra.Command {
 // setup does: every branch of the bootstrap is reachable without a terminal.
 func runMachinesAdd(ctx context.Context, dir string, in io.Reader, out io.Writer, opts setupOptions) error {
 	if err := checkPackageManager(opts.packageManager); err != nil {
+		return err
+	}
+	if err := checkKeepPasswordLogin(opts); err != nil {
 		return err
 	}
 	location, err := config.NormalizeLocation(opts.location)
@@ -542,7 +554,11 @@ func runMachinesAdd(ctx context.Context, dir string, in io.Reader, out io.Writer
 		m.Packages = names
 		return nil
 	}
-	if err := bootstrap(ctx, out, dir, m, key, opts.noHarden, password, prep); err != nil {
+	login := passwordLoginFor(opts, r, out)
+	if opts.unattended() {
+		login.ask = nil
+	}
+	if m.PasswordLoginKeep, err = bootstrap(ctx, out, dir, m, key, login, password, prep); err != nil {
 		return err
 	}
 	if err := keepHostKey(m, trusted); err != nil {

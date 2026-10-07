@@ -48,7 +48,7 @@ fi
 
 AGENTS="antigravity opencode pi kimi-code cline codex"
 
-"$DEVMACHINE_ACCEPT_BIN" machines create-local "$VM" \
+accept_create_local "$VM" \
   >"$SCENARIO_LOG_DIR/create.log" 2>&1 || die "could not create $VM"
 CLOUD_INIT=$(limactl shell "$VM" -- cloud-init status --wait 2>&1 || true)
 printf '%s\n' "$CLOUD_INIT" > "$SCENARIO_LOG_DIR/cloud-init.log"
@@ -59,7 +59,7 @@ esac
 
 PORT=$(limactl list --format '{{.SSHLocalPort}}' "$VM")
 [ -n "$PORT" ] || die "$VM never received an SSH port"
-SETUP=$(printf '%s\n' "$VM" "127.0.0.1" "root" "$PORT" "example.com" "y" "1" "devmachine" "n" \
+SETUP=$(printf '%s\n' "$VM" "127.0.0.1" "root" "$PORT" "example.com" "y" "1" "devmachine" "1" "n" \
   | "$DEVMACHINE_ACCEPT_BIN" setup --no-aliases 2>&1) || die "could not set up $VM: $SETUP"
 printf '%s\n' "$SETUP" > "$SCENARIO_LOG_DIR/setup.log"
 

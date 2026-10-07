@@ -74,6 +74,7 @@ type bootstrapSteps struct {
 	proved           bool
 	provedWith       remote.Auth
 	hardened         bool
+	hardenKeep       []string
 	ansible          bool
 	checkedRoot      bool
 	detected         bool
@@ -138,8 +139,9 @@ func stubBootstrap(t *testing.T, s bootstrapStubs) *bootstrapSteps {
 		steps.events = append(steps.events, "install ansible")
 		return nil
 	}))
-	t.Cleanup(swap(&harden, func(context.Context, remote.Client, remote.System) error {
+	t.Cleanup(swap(&harden, func(_ context.Context, _ remote.Client, _ remote.System, keep []string) error {
 		steps.hardened = true
+		steps.hardenKeep = keep
 		steps.events = append(steps.events, "harden")
 		return nil
 	}))
@@ -223,7 +225,7 @@ func TestSetupWithExistingConfigurationOnlyPreparesTheSelectedMachine(t *testing
 		t.Fatal("setup installed a key for an existing configuration")
 		return nil
 	}))
-	t.Cleanup(swap(&harden, func(context.Context, remote.Client, remote.System) error {
+	t.Cleanup(swap(&harden, func(context.Context, remote.Client, remote.System, []string) error {
 		t.Fatal("setup hardened an existing machine")
 		return nil
 	}))
@@ -343,7 +345,7 @@ func TestSetupAsksToWriteSSHAliasesAndWritesThemOnYes(t *testing.T) {
 	dir := t.TempDir()
 
 	out, err := runSetupIn(t, dir,
-		answers("main", "203.0.113.10", "root", "22", "", "1", "y", "n"), setupOptions{})
+		answers("main", "203.0.113.10", "root", "22", "", "1", "", "y", "n"), setupOptions{})
 	if err != nil {
 		t.Fatalf("runSetup returned %v", err)
 	}
@@ -417,7 +419,7 @@ func TestSetupOffersTailscaleAndAddsThePackageOnYes(t *testing.T) {
 	dir := t.TempDir()
 
 	if _, err := runSetupIn(t, dir,
-		answers("main", "203.0.113.10", "root", "22", "", "1", "n", "y"),
+		answers("main", "203.0.113.10", "root", "22", "", "1", "", "n", "y"),
 		setupOptions{}); err != nil {
 		t.Fatalf("runSetup returned %v", err)
 	}
@@ -441,7 +443,7 @@ func TestSetupDecliningTailscaleAddsNoPackage(t *testing.T) {
 	dir := t.TempDir()
 
 	if _, err := runSetupIn(t, dir,
-		answers("main", "203.0.113.10", "root", "22", "", "1", "n", "n"),
+		answers("main", "203.0.113.10", "root", "22", "", "1", "", "n", "n"),
 		setupOptions{}); err != nil {
 		t.Fatalf("runSetup returned %v", err)
 	}

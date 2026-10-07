@@ -37,7 +37,9 @@ they record it:
    has to be in place for this: nothing else would check the full
    configuration with it.
 5. Reload Caddy (`systemctl reload caddy`, then `caddy reload` if that
-   fails), and delete what was set aside.
+   fails), and delete what was set aside. A Mac has no systemd: its Caddy
+   runs under launchd, and `caddy reload` reaches it through Caddy's own
+   admin endpoint. `sync` reloads it the same way there.
 
 If Caddy refuses the file in step 4 or 5, the old files go back, Caddy
 never loads the new one, and the command prints Caddy's own error. Caddy

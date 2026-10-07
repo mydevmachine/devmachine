@@ -15,7 +15,7 @@ one document — read this instead of parsing help text.
 ## setup
 
 ```
-devmachine setup [--force] [--no-harden] [--no-essentials] [--no-aliases] [--yes]
+devmachine setup [--force] [--no-harden] [--keep-password-login a,b] [--no-essentials] [--no-aliases] [--yes]
                  [--package-manager brew|ports] [--install-prerequisites]
 ```
 
@@ -34,7 +34,17 @@ your provider's dashboard. Say no and nothing is sent or changed.
 Then it gets the server ready, in order: try the key; if that fails, ask
 for the password (never shown on screen); install the key; open a **new
 connection using only the key** to prove it works; turn password login
-off, and ask SSH (`sshd -T`) that it really is off; install Ansible. The new machine is written with the `essentials`
+off, and ask SSH (`sshd -T`) that it really is off; install Ansible.
+
+Before password login goes off it asks how: off for every account (the
+default, Enter), off except for accounts you name, or left as it is. It
+lists the other accounts people log in with, and on a Mac it says plainly
+that the change covers every account on it: whoever logs in over SSH with a
+password today needs a key afterwards. The accounts you keep are written as
+`password_login_keep:` on the machine, and `ssh_hardening` keeps the same
+exceptions on every sync. Change it later with [`machines
+password-login`](#machines). See [password login,
+account by account](../how-it-works/password-login.md). The new machine is written with the `essentials`
 package (base, git, firewall, ssh_hardening, caddy and devmachine-app — see
 [what a new machine starts with](../how-it-works/what-a-new-machine-starts-with.md)),
 so the first `sync` installs them; `--no-essentials` leaves it with none. Only a pinned package
@@ -82,6 +92,7 @@ there.
 | --- | --- |
 | `--force` | discard the existing configuration and start over |
 | `--no-harden` | leave password login on; the key is still installed and proved |
+| `--keep-password-login a,b` | turn password login off for every account except these, without asking |
 | `--no-essentials` | start the machine with no packages, instead of `essentials` (on a Mac, instead of `base` and `devmachine-app`) |
 | `--no-aliases` | do not ask about SSH host entries, and do not write them |
 | `--yes` | answer yes to the SSH host entries question, without asking; never installs prerequisites |
@@ -306,10 +317,11 @@ list --format json`) wins over it.
 ```
 devmachine machines list                  each machine, its addresses, port, location and workspaces
 devmachine machines show [name]           one machine, and what it runs as setup, sync or doctor last read it
-devmachine machines add [--location l] [--no-harden] [--no-essentials] [--no-aliases] [--yes] [--package-manager brew|ports] [--install-prerequisites]   set up another server and record it
+devmachine machines add [--location l] [--no-harden] [--keep-password-login a,b] [--no-essentials] [--no-aliases] [--yes] [--package-manager brew|ports] [--install-prerequisites]   set up another server and record it
 devmachine machines add --self <name> [--location l] [--package-manager brew|ports] [--install-prerequisites]   add your computer as a machine, with no address
 devmachine machines add --name <n> --address <a> --fingerprint <SHA256:…> [--user u] [--port p] [--key new|file|agent:<SHA256:…>] [--location l] [--password-stdin] [--tailscale]   the same, asking nothing
 devmachine machines trust [name] [--check] [--replace] [--expect <fp>] [--yes]   check or update its SSH fingerprint
+devmachine machines password-login <name> [--off | --keep a,b | --on] [--check] [--yes]   show or change which accounts log in over SSH with a password
 devmachine machines scan --address <a> [--port p]   the SSH fingerprint of a server not added yet; writes nothing
 devmachine machines edit <name> [--set k=v] [--unset k] [--location l] [--check] [--yes]   change a machine's package settings or location
 devmachine machines rm <name> [--yes]     forget a machine; the server keeps running
@@ -328,7 +340,10 @@ first machine, and `--format json` prints `[]`.
 `admin_user`, `port`, `key`, `agent_key`, `workspaces`, `packages` (the
 machine's own package list from `config.yml`, `[]` when it has none),
 `location` (never empty: `external` or `local` when `config.yml` names
-none), and `self: true` on your own computer. Without `--format json`,
+none), `platform` (`linux` or `macos`, the names `platforms` uses in a
+`package.yml`, from what a command last read on the machine; `macos` on your
+own computer; left out for a machine no command has read yet), and
+`self: true` on your own computer. Without `--format json`,
 `list` prints a table with a `LOCATION` column. `config show --format json` carries the
 same machine entries. **Your computer is never picked by default** — a
 command with no `--machine` still acts on the server, even with a self
@@ -351,6 +366,7 @@ prints the same entry as `list --format json`, plus `observed`:
   "workspaces": [],
   "packages": ["mac-ports"],
   "location": "external",
+  "platform": "macos",
   "observed": {
     "observed_at": "2026-10-05T15:22:00-03:00",
     "system": "Darwin",
@@ -376,7 +392,8 @@ machine](../how-it-works/what-the-cli-knows-about-a-machine.md).
 writes a package option, read as YAML (`--set
 hostinger.zones=[example.com]` writes a list); an empty value or `--unset
 <package>.<name>` removes it. Both repeat. A setting for a package the
-machine does not install is refused. Comments in `config.yml` survive, and
+machine does not install is refused, and so is one that does not fit the
+[type](package-format.md#types) its package declares. Comments in `config.yml` survive, and
 `sync` applies the change. `--location <text>` sets or changes where the
 machine is; `--location ""` clears it, back to `external` (or `local` for
 your own computer).
@@ -417,6 +434,7 @@ one the way `setup` does — see [setup without a terminal](#setup):
 | `--tailscale` | off | also add the `tailscale` package |
 | `--domain` | — | the domain; only when there is no `config.yml` yet, and refused otherwise |
 | `--password-stdin` | off | read the admin password from stdin, for a server that takes nothing else yet |
+| `--keep-password-login` | — | accounts that keep SSH password login when it goes off for everybody else; without it, it goes off for every account |
 | `--package-manager` | — | on a Mac with neither or both managers, `brew` or `ports`; without it such a Mac stops |
 | `--install-prerequisites` | off | on a Mac, consent to install what is missing; without it a Mac that lacks something stops |
 
@@ -480,6 +498,26 @@ pinned key), `presented_fingerprint`, `check`, `changed`, and, while the
 key is not yet trusted, `fix` (the command that trusts it, with
 `--expect`) and `verify` (a command that prints the same key's
 fingerprint on the server, to run from its own console).
+
+`password-login` asks the machine's sshd, account by account, who can
+log in over SSH with a password, and changes it. With no flag it only
+reads. `--off` turns password login off for every account; `--keep a,b`
+turns it off for every account except those; `--on` takes the CLI's
+drop-in away, so the system's own setting applies again (password login
+on, on macOS, Debian and Ubuntu). The change goes over the admin login's
+key, the proof that a way in stays open. sshd checks the new file before
+anything uses it, and sshd -T is asked afterwards for every kept
+account; a file it refuses, or one that does not do what it says, is
+put back as it was. The kept accounts are written as
+`password_login_keep:` on the machine, which `ssh_hardening` reads on
+every sync. `--on` is refused while the machine has `ssh_hardening`,
+which would turn it off again. On a Mac it says first that the change
+covers every account on it. `--check` says what would change; `--yes`
+skips the question. JSON fields: `machine`, `default` (password login for
+an account no exception names), `drop_in` (whether the CLI's file is
+there), `accounts` (each with `user` and `password_login`) and `keep`
+(what the configuration says). See [password login, account by
+account](../how-it-works/password-login.md).
 
 `scan` reads the host key a server presents, for an address that is not
 a machine yet — the step before `add --fingerprint`, so a person (or an
@@ -562,6 +600,15 @@ changes the account.
 <name>` copies another workspace's package list instead — packages only,
 never the account or the machine.
 
+When the CLI knows the machine's system (what `setup`, `sync` or `doctor`
+last read from it), `new` leaves out of the default or copied list any
+package that does not run there, itself or through a package it needs, and
+says which one and why: a workspace on a Mac starts without
+`claude-remote-control`, which runs only on Linux. A package named in
+`--packages` is refused instead of dropped, since you asked for it by name.
+`edit --add` refuses the same way. With the system not yet known, nothing
+is left out.
+
 `defaults` with no flag prints that list and changes nothing. With `--add`
 or `--rm` it edits it; existing workspaces keep their own lists. With
 `--format json`, both print `{"packages": ["dev", "zsh"], "changed":
@@ -599,7 +646,8 @@ repeatable. `--set <package>.<name>=<value>` writes a package option
 (read as YAML — see [packages](../concepts/packages.md)); an empty value
 or `--unset <package>.<name>` removes it. `--share <credential>=own` keeps this workspace's own login
 instead of the shared one; `=machine` shares it again. A package option
-for a package the workspace does not install is refused.
+for a package the workspace does not install is refused, and so is one that
+does not fit the [type](package-format.md#types) its package declares.
 
 **Changing `--machine` does not move a workspace.** The next `sync`
 creates the account on the new machine; the old one keeps everything.
@@ -1529,6 +1577,11 @@ devmachine packages outdated
 Manages what is installed on your machines and workspaces. See [the
 package format](package-format.md).
 
+`add` refuses a package that does not run on the machine's system — or on
+the system of the workspace's machine — once the CLI knows that system, so
+the mistake shows now and not at the next `sync`. See
+[troubleshooting](../troubleshooting.md#package-x-runs-on-linux-machine-y-is-macos).
+
 `list` shows each package once with every machine and workspace that
 uses it; one nothing provides is listed as `missing`.
 
@@ -1578,8 +1631,9 @@ the only answer is `own`; it is always `false` for a secret or a file.
 `variables` lists the settings the
 manifest declares, sorted by name, always an array: each one's `name`,
 `summary`, the manifest's `default` (`null` when it has none) and `type`
-(`string`, `number`, `boolean`, `list` or `map`), read off the default and
-left out when there is no default. It is what `--set <package>.<name>=…`
+(`string`, `number`, `boolean`, `list` or `map`): the one the manifest
+declares, or else read off the default, and left out when there is
+neither. It is what `--set <package>.<name>=…`
 on `machines edit` or `workspaces edit` accepts. **It carries the
 manifest's default, never a value you set** — your values are in
 `workspaces list` and `config.yml`. `installed_on` is `[]` when nothing

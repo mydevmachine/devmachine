@@ -323,6 +323,57 @@ missing, or remove the `PasswordAuthentication yes` above it. Then run
 `setup` again. To go on without hardening for now, run it with
 `--no-harden`; password login stays on until `sshd_config` is fixed.
 
+## I can't SSH in with my password any more
+
+```
+Permission denied (publickey).
+```
+
+**What it means:** `setup` or `machines add` turned SSH password login off,
+and SSH has one setting for the whole machine, so it went off for
+**every account**, not only the admin login the CLI uses. On a Mac
+somebody uses day to day, that is their own account too. Only SSH
+changed: the login window, `sudo`, Screen Sharing and FileVault still
+take the password.
+
+**What to do:** From this computer, which still has the admin login's
+key, give the account its password back:
+
+```
+devmachine machines password-login <machine> --keep <account>
+```
+
+or put the system's own setting back for everybody with `--on` (refused
+while the machine has `ssh_hardening`; remove that package first). With
+no flag, the command shows who can log in with a password. Without the
+CLI, log in as the admin login and remove the file:
+
+```
+sudo rm /etc/ssh/sshd_config.d/00-devmachine-hardening.conf
+```
+
+A Mac reads it on the next connection; on Linux, `sudo systemctl reload
+ssh` (or `sshd`). Next time, answer the question `setup` asks before
+password login goes off, or pass `--keep-password-login`. See [password
+login, account by account](how-it-works/password-login.md).
+
+## "sshd still refuses a password for …"
+
+```
+the drop-in was written but sshd still refuses a password for "alice": something earlier in sshd_config decides it, so the previous drop-in was put back
+```
+
+**What it means:** the file that keeps a password for some accounts was
+written and accepted, but `sshd -T -C user=alice` still said
+`passwordauthentication no`. A `Match` block earlier in the main
+`sshd_config`, or another drop-in that sorts before `00-`, decides it
+first. The CLI put back the file that was there before.
+
+**What to do:** On the machine, look for `Match` blocks and
+`PasswordAuthentication` lines in `/etc/ssh/sshd_config` and in
+`/etc/ssh/sshd_config.d/`. Remove the one that turns it off for that
+account, then run the command again.
+
 ## "Missing privilege separation directory: /run/sshd"
 
 **What it means:** `sshd -t`, which checks the SSH configuration before
@@ -476,6 +527,12 @@ address instead. This is by design.
 with the reason the package gave. Then run `tailscale status` and check the
 server is listed under the name you wrote.
 
+On a Mac with only Tailscale's app, there is no `tailscale` on `PATH`. The
+CLI still finds the app's own CLI in
+`/Applications/Tailscale.app/Contents/MacOS`, so the app being open and
+signed in is enough. Run `/Applications/Tailscale.app/Contents/MacOS/Tailscale
+status` to check it by hand.
+
 ## "no package declares the prefix"
 
 **What it means:** A `hosts` entry is written `<prefix>:<name>`, and no
@@ -621,6 +678,16 @@ workspace package), then sync again. If the package is your own and does
 run on that system, add the system to its `platforms`. If the machine was
 rebuilt with another system, run `devmachine doctor --machine <name>` so
 the CLI reads it again.
+
+`devmachine packages add` and `devmachine workspaces edit --add` stop the
+same mistake up front, with `package "docker" runs only on linux and
+machine "studio" is macos, so it was not added`; nothing is written.
+`devmachine workspaces new` leaves such a package out of the default list
+and says so, and refuses it in `--packages` with `leave it out of
+--packages`. A package can also be refused because of one it needs:
+`needs systemd-unit, which runs only on linux`. Both check only once the
+machine's system is known, so a list written before that can still reach
+`sync` with a package that does not fit.
 
 A Mac added by an older CLI may list `essentials`, which runs only on
 Linux. Swap it for what a new Mac starts with:
@@ -2565,3 +2632,17 @@ Somebody edited the file by hand, so nothing was fetched.
 
 **What to do:** Put back the address the package came from, or
 `devmachine packages remove X` and install it again.
+
+## "… is required", "… is not a field of this list" or "a number, got the string …"
+
+**What it means:** A setting does not fit the type its package declares for
+it, for example `workspace.repos[0]: "url" is required`. The text before the
+colon is the setting, and `[0]` is its first entry. The command that wrote it
+refused it, or `sync` stopped before reaching the machine, so nothing on the
+machine changed.
+
+**What to do:** Fix the value with `--set`, or in `config.yml` if the setting
+was written by hand. `devmachine --format json packages list` shows each
+variable's type, and [the settings reference](reference/settings.md) names the
+fields a list's entries take. A field the list does not take is usually a typo
+of one it does: the message lists the ones it accepts.
