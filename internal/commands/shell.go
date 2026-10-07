@@ -201,8 +201,14 @@ func explainRemoteLogin(opts *options, tgt target, err error) error {
 		err, tgt.user, tgt.machine.Name)
 }
 
+// runFlags is how `run` was asked to run.
+type runFlags struct {
+	workspace, pkg, script string
+	argv, noLog            bool
+}
+
 func newRunCmd(opts *options) *cobra.Command {
-	var workspace, pkg string
+	var flags runFlags
 
 	c := &cobra.Command{
 		Use:   "run <command>",
@@ -217,9 +223,24 @@ func newRunCmd(opts *options) *cobra.Command {
 			"is what limits, and only for a package that asked to be limited. " +
 			"Add --workspace and the entrypoint runs as that workspace's own " +
 			"account instead of the machine's admin — for a command that has " +
-			"to read that account's own files or use its own logins.",
+			"to read that account's own files or use its own logins.\n\n" +
+			"--script, with --package, runs one file of the installed package " +
+			"instead of its entrypoint. --argv takes a program and its " +
+			"arguments after `--` and passes each word as it is, so no shell " +
+			"reads them. --no-log leaves the run out of the command log, for a " +
+			"program that polls.\n\n" +
+			"Exits with the command's own code, or 255 when it never ran.",
 		Args: func(cmd *cobra.Command, args []string) error {
-			if pkg != "" {
+			switch {
+			case flags.script != "" && flags.pkg == "":
+				return errors.New("--script names a file inside a package: add --package <name>")
+			case flags.argv && flags.pkg != "":
+				return errors.New("--argv and --package do not go together: --package already passes each word as it is")
+			case flags.pkg != "":
+				return nil
+			case flags.argv && (cmd.ArgsLenAtDash() != 0 || len(args) == 0):
+				return errors.New("with --argv, the program and its arguments follow `--`: devmachine run --argv -- df -h /")
+			case flags.argv:
 				return nil
 			}
 			return cobra.ExactArgs(1)(cmd, args)
@@ -227,11 +248,15 @@ func newRunCmd(opts *options) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx, stop := stopSignals(cmd.Context())
 			defer stop()
-			if pkg != "" {
-				return runResult(runPackage(ctx, cmd, opts, pkg, workspace, args))
+			if flags.pkg != "" {
+				return runResult(runPackage(ctx, cmd, opts, flags, args))
+			}
+			command := args[0]
+			if flags.argv {
+				command = shellWords(args)
 			}
 
-			tgt, err := workspaceTarget(opts, workspace)
+			tgt, err := workspaceTarget(opts, flags.workspace)
 			if err != nil {
 				return runResult(err)
 			}
@@ -245,34 +270,59 @@ func newRunCmd(opts *options) *cobra.Command {
 			// so both streams reach the person as they come, before the error
 			// is reported; stdout stays the command's own for a program
 			// reading it.
-			err = client.Stream(ctx, withMachinePath(opts, tgt.machine, args[0]),
+			err = client.Stream(ctx, withMachinePath(opts, tgt.machine, command),
 				cmd.OutOrStdout(), cmd.ErrOrStderr())
-			record(opts, tgt, args[0], err == nil)
+			if !flags.noLog {
+				record(opts, tgt, command, err == nil)
+			}
 			return runResult(explainHostKey(ctx, tgt.machine, err))
 		},
 	}
-	c.Flags().StringVar(&workspace, "workspace", "", "run inside this workspace instead of as the machine's admin")
-	c.Flags().StringVar(&pkg, "package", "",
+	c.Flags().StringVar(&flags.workspace, "workspace", "", "run inside this workspace instead of as the machine's admin")
+	c.Flags().StringVar(&flags.pkg, "package", "",
 		"reach this package's entrypoint instead of a shell command; the command follows a `--`")
+	c.Flags().StringVar(&flags.script, "script", "",
+		"with --package, run this file of the package (relative to its package.yml) instead of its entrypoint")
+	c.Flags().BoolVar(&flags.argv, "argv", false,
+		"the program and its arguments follow `--`, each passed as one word; no shell reads them")
+	c.Flags().BoolVar(&flags.noLog, "no-log", false, "leave this run out of the command log, for a program that polls")
 	return c
+}
+
+// shellWords joins argv into one line the remote shell splits back into
+// exactly these words: every word is quoted, so nothing in one is read as
+// shell syntax.
+func shellWords(argv []string) string {
+	quoted := make([]string, len(argv))
+	for i, word := range argv {
+		quoted[i] = quoteForShell(word)
+	}
+	return strings.Join(quoted, " ")
 }
 
 // runPackage reaches an installed package's entrypoint directly: the generic
 // door for whatever `dns`, `packages` and the rest have not grown a verb for
-// yet.
+// yet. With --script it runs one file of the package instead, which is how a
+// package's widget runs its script on a machine.
 //
 // With no workspace it runs as the machine's admin. With one, it runs as
 // that workspace's own account on the machine the workspace lives on —
 // what a package needs to read that account's own files or use its own
 // logins, such as a per-workspace GitHub login.
-func runPackage(ctx context.Context, cmd *cobra.Command, opts *options, name, workspace string, args []string) error {
+func runPackage(ctx context.Context, cmd *cobra.Command, opts *options, flags runFlags, args []string) error {
 	dashAt := cmd.ArgsLenAtDash()
-	if dashAt < 0 {
-		return fmt.Errorf("say what to run after `--`, for example: devmachine run --package %s -- <command>", name)
+	var pkgArgs []string
+	switch {
+	case dashAt >= 0:
+		pkgArgs = args[dashAt:]
+	case flags.script == "":
+		return fmt.Errorf("say what to run after `--`, for example: devmachine run --package %s -- <command>", flags.pkg)
+	case len(args) > 0:
+		return fmt.Errorf("the script's arguments follow `--`: devmachine run --package %s --script %s -- %s",
+			flags.pkg, flags.script, strings.Join(args, " "))
 	}
-	pkgArgs := args[dashAt:]
 
-	tgt, err := workspaceTarget(opts, workspace)
+	tgt, err := workspaceTarget(opts, flags.workspace)
 	if err != nil {
 		return err
 	}
@@ -295,13 +345,23 @@ func runPackage(ctx context.Context, cmd *cobra.Command, opts *options, name, wo
 	if err != nil {
 		return err
 	}
-	ext, err := dns.Any(dir, tgt.machine.Name, tgt.workspace, base, name, client)
+	call, what := (*dns.External).Call, fmt.Sprintf("run --package %s -- %s", flags.pkg, strings.Join(pkgArgs, " "))
+	var ext *dns.External
+	if flags.script != "" {
+		ext, err = dns.Script(dir, tgt.machine.Name, tgt.workspace, base, flags.pkg, flags.script, client)
+		call = (*dns.External).Exec
+		what = fmt.Sprintf("run --package %s --script %s -- %s", flags.pkg, flags.script, strings.Join(pkgArgs, " "))
+	} else {
+		ext, err = dns.Any(dir, tgt.machine.Name, tgt.workspace, base, flags.pkg, client)
+	}
 	if err != nil {
 		return err
 	}
 
-	callErr := ext.Call(ctx, pkgArgs, cmd.OutOrStdout(), cmd.ErrOrStderr())
-	record(opts, tgt, fmt.Sprintf("run --package %s -- %s", name, strings.Join(pkgArgs, " ")), callErr == nil)
+	callErr := call(ext, ctx, pkgArgs, cmd.OutOrStdout(), cmd.ErrOrStderr())
+	if !flags.noLog {
+		record(opts, tgt, what, callErr == nil)
+	}
 	return explainHostKey(ctx, tgt.machine, callErr)
 }
 

@@ -933,8 +933,10 @@ needs mosh on both sides. Both check `<config>/known_hosts` first.
 ## run
 
 ```
-devmachine run "<command>" [--workspace w]
-devmachine run --package <name> [--workspace w] -- <command> [args...]
+devmachine run "<command>" [--workspace w] [--no-log]
+devmachine run --argv [--workspace w] [--no-log] -- <program> [args...]
+devmachine run --package <name> [--workspace w] [--no-log] -- <command> [args...]
+devmachine run --package <name> --script <path> [--workspace w] [--no-log] [-- args...]
 ```
 
 Runs one command on a machine and prints its output. Its standard output goes to yours and its standard error to yours,
@@ -947,6 +949,23 @@ after `--` goes to the package; `commands:` in its manifest can limit
 what it accepts. With `--workspace`, it runs as that workspace's own
 account, for a command that needs that account's own files or logins.
 See [packages](../concepts/packages.md).
+
+`--argv` runs a program with its arguments exactly as given: each word
+after `--` is quoted before it reaches the machine's shell, so a space,
+a `;` or a `$(…)` in one is just a character. It is how the app runs a
+widget's command; use it whenever the words come from somewhere else.
+
+`--script <path>`, with `--package`, runs one file of the installed
+package instead of its entrypoint — the copy `sync` put on the machine,
+as the same account, with the package's credential loaded first, the
+way the entrypoint runs. The path is relative to the package's
+`package.yml` and must stay inside the package. `commands:` limits only
+the entrypoint, not a script. Arguments for the script follow `--`.
+
+`--no-log` leaves the run out of [the command log](#the-command-log).
+The app uses it for widgets that run every few seconds.
+
+`run` never sends your input to the command: it reads end-of-file.
 
 **Exit code.** `run` exits with the command's own code: 0 when it
 worked, the same non-zero code when it ran and failed. When the command
@@ -1627,6 +1646,9 @@ devmachine help [command] [--json]
 
 UTC time, target, success or failure, then the quoted command. See
 [configuration](../concepts/configuration.md#the-command-log).
+
+`run --no-log` adds nothing: it is for a program that polls, such as a
+widget, whose runs would bury everything else.
 
 **`setup`, `machines add` and `login` are not logged** — the first two
 handle a root password, and `login` runs a command you watch yourself.

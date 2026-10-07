@@ -212,3 +212,9 @@ func (e *External) Call(ctx context.Context, args []string, out, errOut io.Write
 
 	return e.client.Stream(ctx, e.shellFor(args, ""), out, errOut)
 }
+
+// Exec runs the external with these arguments as they are — none is fine —
+// without the command list Call enforces.
+func (e *External) Exec(ctx context.Context, args []string, out, errOut io.Writer) error {
+	return e.client.Stream(ctx, e.shellFor(args, ""), out, errOut)
+}

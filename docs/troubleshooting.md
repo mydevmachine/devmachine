@@ -549,6 +549,26 @@ was stopped with Ctrl-C or SIGTERM, also ends with 255.
 **What to do:** Read the `error:` line. For a connection, `devmachine
 doctor --machine <name>` checks the way in.
 
+## "with --argv, the program and its arguments follow `--`"
+
+**What it means:** With `--argv`, everything after `--` is the program
+and its arguments. Without `--`, the arguments would be read as flags of
+`devmachine` itself.
+
+**What to do:** `devmachine run --argv -- df -h /`.
+
+## "--script "…" names a file inside the package" or "… has no file …"
+
+**What it means:** `run --package <name> --script <path>` runs a file of
+that package, relative to its `package.yml`. A path that leaves the
+package (`../`, or starting with `/`) is refused. "has no file" means
+your copy of the package does not have that file, so the machine's copy,
+which `sync` made from yours, does not either.
+
+**What to do:** Use the path as it appears inside the package folder,
+for example `widgets/disk/check.sh`. If you just added the file, run
+`devmachine sync` so the machine gets it.
+
 ## `doctor` says an alias has "a fixed address, expected one resolved when ssh connects"
 
 **What it means:** The alias was written with the address itself, by an
