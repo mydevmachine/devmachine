@@ -1,0 +1,31 @@
+internal/gittest/gittest.go
+  s_c1c985d7f57ab9::t_d8b24a2ea0da10 1-108
+internal/packages/address_test.go
+  s_c1c985d7f57ab9::t_5a0998f1b991cd 1-49
+internal/packages/origin.go
+  s_c1c985d7f57ab9::t_e14b93bfe3c1e7 1-54
+internal/packages/address.go
+  s_c1c985d7f57ab9::t_eec5e9b99ad170 1-56
+internal/packages/origin_test.go
+  s_c1c985d7f57ab9::t_06c1dbad8fbfad 1-36
+internal/packages/clone_test.go
+  s_c1c985d7f57ab9::t_bd54abb117d57f 1-64
+internal/packages/clone.go
+  s_c1c985d7f57ab9::t_b7826f8648c10a 1-67
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0a06cf696f8985f11198b30d057c7f4f62a629d7",
+  "prompts": {},
+  "sessions": {
+    "s_c1c985d7f57ab9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b5256304-4a81-480d-a568-f8cf11d8ddcc",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
