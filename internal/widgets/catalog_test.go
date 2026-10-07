@@ -1,0 +1,114 @@
+package widgets
+
+import (
+	"encoding/json"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+func notInstalled(string) Installed { return Installed{} }
+
+func TestResolveListsEachWidgetWithItsOrigin(t *testing.T) {
+	release, local := t.TempDir(), t.TempDir()
+	writeWidget(t, filepath.Join(release, "claude-code", "widgets"), "usage", usageWidget)
+	writeWidget(t, filepath.Join(local, "mine", "widgets"), "usage", usageWidget)
+
+	catalog := Resolve("v40", []PackageWidgets{
+		{Package: "claude-code", Scope: "workspace", Origin: OriginRelease, Version: "v40", Root: filepath.Join(release, "claude-code", "widgets")},
+		{Package: "mine", Scope: "workspace", Origin: OriginLocal, Root: filepath.Join(local, "mine", "widgets")},
+	}, notInstalled)
+
+	if len(catalog.Widgets) != 2 || len(catalog.Problems) != 0 {
+		t.Fatalf("got %+v", catalog)
+	}
+	first, second := catalog.Widgets[0], catalog.Widgets[1]
+	if first.Name != "claude-code/usage" || first.Origin != OriginRelease || first.Version != "v40" {
+		t.Fatalf("got %+v", first)
+	}
+	if second.Name != "mine/usage" || second.Origin != OriginLocal || second.Version != "" {
+		t.Fatalf("got %+v", second)
+	}
+	if !first.Available || first.UnavailableReason != "" {
+		t.Fatalf("an app/* widget is available without its package: %+v", first)
+	}
+}
+
+func TestResolveLeavesABrokenWidgetOutAndListsItsProblem(t *testing.T) {
+	root := t.TempDir()
+	writeWidget(t, root, "usage", usageWidget)
+	writeWidget(t, root, "bad", strings.Replace(strings.Replace(usageWidget, "name: usage", "name: bad", 1),
+		"view: {kind: app.harness-usage}", "view: {kind: gauge}", 1))
+
+	catalog := Resolve("v40", []PackageWidgets{{Package: "mine", Origin: OriginLocal, Root: root}}, notInstalled)
+	if len(catalog.Widgets) != 1 || len(catalog.Problems) != 1 {
+		t.Fatalf("got %+v", catalog)
+	}
+	if !strings.Contains(catalog.Problems[0].Message, `view.kind "gauge" needs engine 1.1`) {
+		t.Fatalf("got %+v", catalog.Problems)
+	}
+}
+
+func TestAvailabilityNeedsThePackageForAnythingButAppProviders(t *testing.T) {
+	prs := Widget{Source: Source{Name: "github/prs"}}
+	machinePkg := PackageWidgets{Package: "github-prs", Scope: "machine"}
+	workspacePkg := PackageWidgets{Package: "github-prs", Scope: "workspace"}
+
+	cases := []struct {
+		name   string
+		w      Widget
+		pkg    PackageWidgets
+		state  Installed
+		ok     bool
+		reason string
+	}{
+		{"app provider", Widget{Source: Source{Name: "app/clock"}}, machinePkg, Installed{}, true, ""},
+		{"not added, machine package", prs, machinePkg, Installed{}, false, "add the package: devmachine packages add github-prs --machine <name>"},
+		{"not added, workspace package", prs, workspacePkg, Installed{}, false, "add the package: devmachine packages add github-prs --workspace <name>"},
+		{"added, not synced", prs, machinePkg, Installed{Added: true}, false, "sync to install the package: devmachine sync"},
+		{"added and synced", prs, machinePkg, Installed{Added: true, Synced: true}, true, ""},
+	}
+	for _, tc := range cases {
+		ok, reason := Availability(tc.w, tc.pkg, tc.state)
+		if ok != tc.ok || reason != tc.reason {
+			t.Errorf("%s: got %v %q", tc.name, ok, reason)
+		}
+	}
+}
+
+func TestCatalogJSONHasTheAgreedShape(t *testing.T) {
+	root := t.TempDir()
+	writeWidget(t, root, "usage", usageWidget)
+	catalog := Resolve("v40", []PackageWidgets{{Package: "claude-code", Origin: OriginRelease, Version: "v40", Root: root}}, notInstalled)
+
+	body, err := json.Marshal(catalog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got map[string]any
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{"engine", "packages_release", "widgets", "problems"} {
+		if _, ok := got[key]; !ok {
+			t.Errorf("missing %q", key)
+		}
+	}
+	entry := got["widgets"].([]any)[0].(map[string]any)
+	for _, key := range []string{"name", "package", "widget", "origin", "version", "path", "summary", "requires_engine",
+		"fits", "context", "inputs", "source", "view", "sizes", "default_size", "places", "surfaces", "available", "unavailable_reason"} {
+		if _, ok := entry[key]; !ok {
+			t.Errorf("widget entry is missing %q", key)
+		}
+	}
+	if len(entry) != 19 {
+		t.Errorf("widget entry has %d keys, want 19: %v", len(entry), entry)
+	}
+	source := entry["source"].(map[string]any)
+	if source["every"] != "60s" || source["with"].(map[string]any)["harness"] != "{{inputs.harness}}" {
+		t.Errorf("got %v", source)
+	}
+	if got["problems"] == nil {
+		t.Error("problems must be [] when there are none, never null")
+	}
+}
