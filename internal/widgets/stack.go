@@ -1,6 +1,7 @@
 package widgets
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -131,4 +132,26 @@ func (b Board) index(id string) (int, error) {
 		}
 	}
 	return 0, fmt.Errorf("no widget with id %q on the %s board", id, b.Surface)
+}
+
+// Move takes the widget with this id out of the list and puts it right after
+// the widget after, or right before the widget before; exactly one is set.
+// A refused move leaves the list as it was.
+func (b *Board) Move(id, after, before string) error {
+	if (after == "") == (before == "") {
+		return errors.New("move needs exactly one of after or before")
+	}
+	if after+before == id {
+		return fmt.Errorf("%s cannot move next to itself", id)
+	}
+	from, err := b.index(id)
+	if err != nil {
+		return err
+	}
+	if _, err := b.index(after + before); err != nil {
+		return err
+	}
+	w := b.Widgets[from]
+	b.Widgets = slices.Delete(b.Widgets, from, from+1)
+	return b.Insert(w, after, before)
 }

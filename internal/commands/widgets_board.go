@@ -18,6 +18,8 @@ type boardChange struct {
 	Path    string            `json:"path"`
 	Widget  *widgets.Instance `json:"widget,omitempty"`
 	Removed string            `json:"removed,omitempty"`
+	Moved   string            `json:"moved,omitempty"`
+	Order   []string          `json:"order,omitempty"`
 }
 
 func newWidgetsAddCmd(opts *options) *cobra.Command {
@@ -177,7 +179,7 @@ func newWidgetsRemoveCmd(opts *options) *cobra.Command {
 				return err
 			}
 			path := widgets.BoardPath(dir, board)
-			if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
+			if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) && !widgets.IsStack(board) {
 				return fmt.Errorf("there is no %s board at %s", board, path)
 			}
 			b, read, err := readValidBoard(path, board, catalog.Find)
@@ -198,6 +200,65 @@ func newWidgetsRemoveCmd(opts *options) *cobra.Command {
 		},
 	}
 	c.Flags().StringVar(&board, "board", "home", "the board to take it off")
+	return c
+}
+
+func newWidgetsMoveCmd(opts *options) *cobra.Command {
+	var board, after, before string
+	c := &cobra.Command{
+		Use:   "move <id>",
+		Short: "Move a widget up or down a sidebar's list",
+		Long: "Puts the widget right after --after or right before --before. Only the " +
+			"sidebar and the context sidebar have an order; a missing board is read as " +
+			"the area's default board. The board is re-read first and written atomically.",
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			dir, _, err := config.Dir(opts.configDir)
+			if err != nil {
+				return err
+			}
+			if err := checkBoardSurface(board); err != nil {
+				return err
+			}
+			if !widgets.IsStack(board) {
+				return fmt.Errorf("the %s area is a canvas: a widget there has a place, not a turn in a list; move it in the app or change its frame", board)
+			}
+			catalog, err := cachedCatalog(dir)
+			if err != nil {
+				return err
+			}
+			path := widgets.BoardPath(dir, board)
+			b, read, err := readValidBoard(path, board, catalog.Find)
+			if err != nil {
+				return err
+			}
+			if err := b.Move(args[0], after, before); err != nil {
+				return err
+			}
+			if err := widgets.WriteBoard(path, read, b); err != nil {
+				return err
+			}
+			if opts.format == formatJSON {
+				order := make([]string, len(b.Widgets))
+				for i, w := range b.Widgets {
+					order[i] = w.ID
+				}
+				return writeJSON(cmd.OutOrStdout(), boardChange{Board: board, Path: path, Moved: args[0], Order: order})
+			}
+			if after != "" {
+				cmd.Printf("moved %s after %s on the %s board\n", args[0], after, board)
+			} else {
+				cmd.Printf("moved %s before %s on the %s board\n", args[0], before, board)
+			}
+			return nil
+		},
+	}
+	c.Flags().StringVar(&board, "board", "", "the board: sidebar or context-sidebar")
+	c.Flags().StringVar(&after, "after", "", "the id it goes right after")
+	c.Flags().StringVar(&before, "before", "", "the id it goes right before")
+	c.MarkFlagsMutuallyExclusive("after", "before")
+	c.MarkFlagsOneRequired("after", "before")
+	_ = c.MarkFlagRequired("board")
 	return c
 }
 

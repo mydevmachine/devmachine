@@ -32,6 +32,7 @@ func newWidgetsCmd(opts *options) *cobra.Command {
 		newWidgetsSchemaCmd(opts),
 		newWidgetsAddCmd(opts),
 		newWidgetsRemoveCmd(opts),
+		newWidgetsMoveCmd(opts),
 	)
 	return cmd
 }

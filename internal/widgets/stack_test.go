@@ -274,3 +274,26 @@ func idsOf(b Board) string {
 	}
 	return strings.Join(ids, ",")
 }
+
+func TestMoveReordersTheList(t *testing.T) {
+	b := Board{Surface: "sidebar", Widgets: []Instance{{ID: "a"}, {ID: "b"}, {ID: "c"}}}
+	if err := b.Move("c", "", "a"); err != nil || idsOf(b) != "c,a,b" {
+		t.Fatalf("got %v %s", err, idsOf(b))
+	}
+	if err := b.Move("c", "b", ""); err != nil || idsOf(b) != "a,b,c" {
+		t.Fatalf("got %v %s", err, idsOf(b))
+	}
+	for _, tc := range []struct{ id, after, before, want string }{
+		{"a", "a", "", "a cannot move next to itself"},
+		{"ghost", "a", "", `no widget with id "ghost" on the sidebar board`},
+		{"a", "", "ghost", `no widget with id "ghost" on the sidebar board`},
+		{"a", "", "", "move needs exactly one of after or before"},
+	} {
+		if err := b.Move(tc.id, tc.after, tc.before); err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Errorf("want %q, got %v", tc.want, err)
+		}
+	}
+	if idsOf(b) != "a,b,c" {
+		t.Fatalf("a refused move changed the list: %s", idsOf(b))
+	}
+}

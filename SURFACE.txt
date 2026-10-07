@@ -72,6 +72,7 @@ devmachine widgets
 devmachine widgets add
 devmachine widgets help
 devmachine widgets list
+devmachine widgets move
 devmachine widgets remove
 devmachine widgets schema
 devmachine widgets validate

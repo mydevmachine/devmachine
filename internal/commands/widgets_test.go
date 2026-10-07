@@ -996,3 +996,94 @@ func TestWidgetsAddKeepsAnInlineStackWidget(t *testing.T) {
 		t.Fatalf("got\n%s", got)
 	}
 }
+
+func TestWidgetsMoveReordersAStack(t *testing.T) {
+	dir := stackConfig(t)
+	board := widgets.BoardPath(dir, "sidebar")
+	writeCommandFile(t, board, "format: 1\nsurface: sidebar\nwidgets:\n"+
+		"  - id: workspaces\n    type: devmachine-app/workspaces\n    size: auto\n"+
+		"  - id: usage\n    type: claude-code/usage\n    size: medium\n")
+	out, err := execute(t, "--config", dir, "--format", "json", "widgets", "move", "usage", "--before", "workspaces", "--board", "sidebar")
+	if err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	var change struct {
+		Moved string   `json:"moved"`
+		Order []string `json:"order"`
+	}
+	if err := json.Unmarshal([]byte(out), &change); err != nil {
+		t.Fatal(err)
+	}
+	if change.Moved != "usage" || strings.Join(change.Order, ",") != "usage,workspaces" {
+		t.Fatalf("got %+v", change)
+	}
+	text, err := execute(t, "--config", dir, "widgets", "move", "usage", "--after", "workspaces", "--board", "sidebar")
+	if err != nil || text != "moved usage after workspaces on the sidebar board\n" {
+		t.Fatalf("%v %q", err, text)
+	}
+	if got := readCommandFile(t, board); !strings.HasSuffix(got, "  - id: usage\n    type: claude-code/usage\n    size: medium\n") {
+		t.Fatalf("got\n%s", got)
+	}
+}
+
+func TestWidgetsMoveOnAMissingStackUsesTheDefaultBoard(t *testing.T) {
+	dir := stackConfig(t)
+	if out, err := execute(t, "--config", dir, "widgets", "move", "links", "--before", "shortcuts", "--board", "context-sidebar"); err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	b, _, _, err := widgets.ReadBoard(widgets.BoardPath(dir, "context-sidebar"))
+	if err != nil || len(b.Widgets) != 8 || b.Widgets[0].ID != "links" || b.Widgets[1].ID != "shortcuts" {
+		t.Fatalf("%v %+v", err, b.Widgets)
+	}
+}
+
+func TestWidgetsMoveKeepsAnInlineStackWidget(t *testing.T) {
+	dir := stackConfig(t)
+	board := widgets.BoardPath(dir, "context-sidebar")
+	writeCommandFile(t, board, "format: 1\nsurface: context-sidebar\nwidgets:\n"+inlineStackEntry+"  - id: usage\n    type: claude-code/usage\n    size: medium\n")
+	if out, err := execute(t, "--config", dir, "widgets", "move", "notes", "--after", "usage", "--board", "context-sidebar"); err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	want := "format: 1\nsurface: context-sidebar\nwidgets:\n  - id: usage\n    type: claude-code/usage\n    size: medium\n" + inlineStackEntry
+	if got := readCommandFile(t, board); got != want {
+		t.Fatalf("got\n%s", got)
+	}
+}
+
+func TestWidgetsMoveRefuses(t *testing.T) {
+	cases := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{"Home", []string{"clock", "--after", "usage", "--board", "home"}, "the home area is a canvas: a widget there has a place, not a turn in a list"},
+		{"no board flag", []string{"usage", "--after", "todo"}, `required flag(s) "board" not set`},
+		{"no neighbour", []string{"usage", "--board", "sidebar"}, "[after before]"},
+		{"an unknown id", []string{"ghost", "--after", "workspaces", "--board", "sidebar"}, `no widget with id "ghost" on the sidebar board`},
+		{"next to itself", []string{"workspaces", "--after", "workspaces", "--board", "sidebar"}, "workspaces cannot move next to itself"},
+		{"an unknown area", []string{"usage", "--after", "todo", "--board", "desk"}, "there is no desk area"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := stackConfig(t)
+			_, err := execute(t, append([]string{"--config", dir, "widgets", "move"}, tc.args...)...)
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("want %q, got %v", tc.want, err)
+			}
+			if _, statErr := os.Stat(widgets.BoardPath(dir, "sidebar")); statErr == nil {
+				t.Fatal("a refused move wrote a board")
+			}
+		})
+	}
+}
+
+func TestWidgetsRemoveOnAMissingStackUsesTheDefaultBoard(t *testing.T) {
+	dir := stackConfig(t)
+	if out, err := execute(t, "--config", dir, "widgets", "remove", "publish-port", "--board", "context-sidebar"); err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	b, _, _, err := widgets.ReadBoard(widgets.BoardPath(dir, "context-sidebar"))
+	if err != nil || len(b.Widgets) != 7 || b.HasID("publish-port") {
+		t.Fatalf("%v %+v", err, b.Widgets)
+	}
+}

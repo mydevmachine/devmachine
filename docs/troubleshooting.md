@@ -1832,6 +1832,21 @@ area.
 **What to do:** On Home use `--at x,y` or nothing; in a sidebar use
 `--after <id>`, `--before <id>` or nothing (the end of the list).
 
+## "the home area is a canvas: a widget there has a place, not a turn in a list"
+
+**What it means:** `widgets move` orders a sidebar. Home has no order:
+each widget has its own position, and they may overlap.
+
+**What to do:** Drag it in the app, or change its `frame` in
+`home.yml`. To move a widget in a sidebar, pass `--board sidebar` or
+`--board context-sidebar`.
+
+## "X cannot move next to itself"
+
+**What it means:** `--after` or `--before` named the widget being moved.
+
+**What to do:** Name the widget it should sit next to.
+
 ## "no widget with id "X" on the sidebar board"
 
 **What it means:** `--after`, `--before`, `move` or `remove` named an id
@@ -1909,10 +1924,11 @@ it was about to write. Writing anyway would have lost that change.
 
 ## "there is no home board at …"
 
-**What it means:** `widgets remove` found no board file for that area, so
-there is nothing to take off. Nobody has placed a widget there from the
-CLI, or the app has not saved a layout yet. `widgets add` creates the
-file; `remove` never does.
+**What it means:** `widgets remove` found no Home board file, so there
+is nothing to take off. Nobody has placed a widget there from the CLI, or
+the app has not saved a layout yet. `widgets add` creates the file;
+`remove` never does on Home. A missing sidebar board is different: it is
+read as the default board, so `remove` and `move` work on it.
 
 **What to do:** Check `--board` and the config directory the path names.
 To see what is on a board, open `<config>/boards/<board>.yml`.
