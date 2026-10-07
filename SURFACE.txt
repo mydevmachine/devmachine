@@ -68,6 +68,10 @@ devmachine tunnel
 devmachine update
 devmachine upload
 devmachine version
+devmachine widgets
+devmachine widgets help
+devmachine widgets list
+devmachine widgets schema
 devmachine workspaces
 devmachine workspaces defaults
 devmachine workspaces destroy

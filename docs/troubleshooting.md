@@ -1633,3 +1633,14 @@ a CLI older than 0.9.0 use it. That CLI ignores `widgets:` without a word,
 so the widgets would never be checked or listed.
 
 **What to do:** Add `requires: {cli: ">= 0.9.0"}` to `package.yml`.
+
+## `widgets list` fails with "finding the latest packages release"
+
+**What it means:** Nothing is pinned in `config.yml`, or there is no
+`config.yml` yet, so the CLI asked GitHub for the latest packages release
+to read widgets from, and could not reach it. The app shows this as "could
+not fetch packages".
+
+**What to do:** Check the network and run it again. Once a release is
+pinned — `setup` pins one, and so does `devmachine packages pin` — and in
+the cache, `widgets list` works offline.

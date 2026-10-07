@@ -657,6 +657,72 @@ it there. Claude, Antigravity and Cline get a link to it:
 Detection looks for `~/.claude`, `~/.codex`, `~/.config/opencode`,
 `~/.pi`, `~/.gemini/antigravity-cli`, `~/.kimi-code` and `~/.cline`.
 
+## widgets
+
+```text
+devmachine widgets list
+devmachine widgets help <package/widget>
+devmachine widgets schema [--json]
+```
+
+The widgets the app draws, and the boards they sit on. Local only: these
+commands never connect to a machine. See [Widgets](../concepts/widgets.md)
+and [the widget format](widget-format.md).
+
+`list` reads the pinned packages release and your own packages. With
+nothing pinned, or no `config.yml` yet, it reads the latest release; when
+that cannot be found it fails, with nothing on stdout. `--format json`
+prints:
+
+```json
+{
+  "engine": "1.0",
+  "packages_release": "v40",
+  "widgets": [
+    {
+      "name": "claude-code/usage",
+      "package": "claude-code",
+      "widget": "usage",
+      "origin": "release",
+      "version": "v40",
+      "path": "/Users/alice/.config/devmachine/cache/packages/v40/packages/claude-code/widgets/usage",
+      "summary": "Coding-harness usage windows.",
+      "requires_engine": ">= 1.0",
+      "fits": ["canvas", "stack", "slot"],
+      "context": {},
+      "inputs": {"harness": {"type": "string", "default": "claude", "summary": "Which harness."}},
+      "source": {"kind": "provider", "name": "app/harness-usage", "with": {"harness": "{{inputs.harness}}"}, "every": "60s"},
+      "view": {"kind": "app.harness-usage"},
+      "sizes": ["small", "medium", "wide"],
+      "default_size": "medium",
+      "places": ["home"],
+      "surfaces": ["context-sidebar", "home", "sidebar"],
+      "available": true,
+      "unavailable_reason": ""
+    }
+  ],
+  "problems": [
+    {"path": "/Users/alice/.config/devmachine/packages/mine/widgets/bad/widget.yml", "message": "view.kind \"gauge\" needs engine 1.1"}
+  ]
+}
+```
+
+`origin` is `release` or `local`; `version` is the release tag, or `""`
+for your own package. `surfaces` are the areas the widget fits, planned
+ones included: the area's layout is in `fits` and the area gives every
+context key the widget requires. `available` is `false` when the widget
+needs its package added and synced; `unavailable_reason` then names the
+command to run (see [why widgets come from
+packages](../how-it-works/widgets-come-from-packages.md)). A widget with a
+problem is left out of `widgets` and listed in `problems`, and the command
+still exits 0, so one broken widget never hides the rest.
+
+`help` prints one widget's inputs, context, sizes and the areas it fits;
+with `--format json`, the same entry as `list`.
+
+`schema` prints the engine contract: areas, providers, views and sizes.
+`--json` prints it as JSON, the same document the app is built against.
+
 ## aliases
 
 ```
