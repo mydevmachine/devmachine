@@ -1,0 +1,21 @@
+internal/commands/password_login_test.go
+  s_5ccc211ae481bf::t_7f8f1667b3179a 265-277
+internal/commands/setup.go
+  s_5ccc211ae481bf::t_c9ba9a116e99ee 280-283
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7b4d1578783cb28db1d1723d071d868096254979",
+  "prompts": {},
+  "sessions": {
+    "s_5ccc211ae481bf": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "570a9526-d48d-41cd-8528-3a3200e0855a",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
