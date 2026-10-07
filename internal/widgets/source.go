@@ -149,12 +149,16 @@ func (t *Target) UnmarshalJSON(body []byte) error {
 }
 
 // sourceScope is what a source may name: the inputs and context keys its
-// templates can use, and the package folder its script lives in ("" when
-// unknown). An inline source is one written straight into a board.
+// templates can use, the package folder its script lives in ("" when
+// unknown), and the package providers it may read with the name of the
+// package it ships in ("" for a widget written in a board or read alone). An
+// inline source is one written straight into a board.
 type sourceScope struct {
 	inputs     map[string]Input
 	context    map[string]string
 	packageDir string
+	owner      string
+	providers  ProviderSet
 	inline     bool
 }
 
@@ -197,6 +201,10 @@ func checkSource(s Source, node *yaml.Node, scope sourceScope, c Contract, at re
 }
 
 func checkProvider(s Source, scope sourceScope, c Contract, at reporter) {
+	if pkg, command, ok := SplitProviderName(s.Name); ok {
+		checkPackageProvider(s, pkg, command, scope, c, at)
+		return
+	}
 	provider, ok := c.Providers[s.Name]
 	if !ok {
 		at("source.name", "source.name %q is not a provider engine %s knows: %s",
@@ -480,16 +488,24 @@ func checkTemplates(value, label, line string, scope sourceScope, at reporter) {
 }
 
 // sourceOutput is what a source hands its view: a provider's name, or how a
-// command or a url is parsed. A prompt gives text; a session gives nothing a
-// parse names, so only a view that takes its kind draws it. known is false
-// for a source whose own problem is already reported.
-func sourceOutput(s Source, c Contract) (string, bool) {
+// command or a url is parsed. A package provider gives one JSON object; a
+// prompt gives text; a session gives nothing a parse names, so only a view
+// that takes its kind draws it. known is false for a source whose own problem
+// is already reported.
+func sourceOutput(s Source, scope sourceScope, c Contract) (string, bool) {
 	parsed := func(fallback string) (string, bool) {
 		output := orDefault(s.Parse, fallback)
 		return output, slices.Contains(c.Sources[s.Kind].Fields["parse"].Values, output)
 	}
 	switch s.Kind {
 	case SourceProvider:
+		if pkg, command, ok := SplitProviderName(s.Name); ok {
+			if scope.inline && scope.providers == nil {
+				return ParseJSON, true
+			}
+			_, known := scope.providers[pkg][command]
+			return ParseJSON, known && (scope.inline || pkg == scope.owner)
+		}
 		return s.Name, isProvider(c, s.Name)
 	case SourceCommand:
 		return parsed(ParseText)

@@ -253,7 +253,7 @@ func TestAPackageScriptMustBeAFileEveryAccountCanRun(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			pkgDir, widgetDir := writeScriptPackage(t, tc.mode)
-			_, problems := LoadIn(pkgDir, widgetDir)
+			_, problems := LoadIn(Owner{Dir: pkgDir}, widgetDir)
 			if tc.want == "" {
 				if len(problems) != 0 {
 					t.Fatalf("got %v", problems)
@@ -276,7 +276,7 @@ func TestAPackageScriptCannotLeaveThePackageThroughALink(t *testing.T) {
 	if err := os.Symlink(outside, filepath.Join(widgetDir, "check.sh")); err != nil {
 		t.Fatal(err)
 	}
-	_, problems := LoadIn(pkgDir, widgetDir)
+	_, problems := LoadIn(Owner{Dir: pkgDir}, widgetDir)
 	if len(problems) != 1 || !strings.Contains(problems[0].Message, "leads outside the package through a link") {
 		t.Fatalf("got %v", problems)
 	}

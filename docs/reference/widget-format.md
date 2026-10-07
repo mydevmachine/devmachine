@@ -76,6 +76,43 @@ provider's minimum). It works without adding its package. An app provider
 A provider can also be a package's own command, written
 `<package>/<command>` — see [package providers](#package-providers) below.
 
+#### Package providers
+
+A package can let its widgets read one of its own commands, declared under
+`providers` in its `package.yml` (see [the package
+format](package-format.md#providers)):
+
+```yaml
+requires: {engine: ">= 1.3"}
+inputs:
+  machine: {type: string, summary: Which machine.}
+source:
+  kind: provider
+  name: devmachine-app/stats
+  with: {path: /}
+  target: {machine: "{{inputs.machine}}"}
+  every: 60s
+view: {kind: gauge, value: "{{json.disk.used_percent}}", unit: "%"}
+```
+
+- `name` is `<package>/<command>`. A widget in a package reads only that
+  package's own providers. A widget written in a board reads any
+  package's.
+- `target` is required, `{machine: <name>}` or `{workspace: <name>}`. A
+  package's command runs on a machine, never on your computer, so `local`
+  is refused.
+- `every` is at least the provider's `min_every`, or `manual`.
+- `with` becomes arguments after the command, one `--<key> <value>` pair
+  per key, keys sorted: the widget above runs `stats --path /`. A key is
+  lower case letters, digits, dashes and underscores; a value is any text,
+  and may hold `{{inputs.x}}` or `{{context.x}}`.
+- `timeout` stops a run that takes longer, default `30s`, at most `10m`.
+- The answer is one JSON object, read like `parse: json`: draw it with a
+  view that takes `json`, and pick the value with `view.value`.
+- `requires.engine` must refuse engine 1.2, which cannot run it.
+- The package has to be added to that machine or workspace and synced;
+  until then `widgets list` names the command to add it.
+
 ### `command`
 
 ```yaml
@@ -462,6 +499,13 @@ A package declares providers in its `package.yml`; a widget names one `<package>
 | `source.with` wrong | `source.with.X is not an argument of P`, `source.with.X is required by P` |
 | an app provider with target or timeout | `source.target: app/clock is the app's own data, so it takes no target` |
 | `source.every` missing, unreadable or too short | `source.every 1s is below the P minimum of 5s` |
+| a package widget reading another package's provider | `source.name claude-code/usage: a package widget reads only its own package's providers, written devmachine-app/<command>` |
+| a provider the package does not declare | `source.name devmachine-app/context: devmachine-app has no provider context; its providers: stats` |
+| a package provider with no target, or `local` | `source.name devmachine-app/stats: a package provider runs on a machine or workspace: write source.target: {machine: <name>} or {workspace: <name>}` |
+| `every` below the provider's `min_every` | `source.every 5s is below the devmachine-app/stats minimum of 10s` |
+| a `with` key that is not lower case | `source.with.Path: devmachine-app/stats gets it as --Path, so write the key in lower case …` |
+| a package provider with an engine that allows 1.2 | `a widget reading a package provider needs requires.engine ">= 1.3": an app on engine 1.2 cannot run it` |
+| a widget outside any package reading a package provider | `source.name devmachine-app/stats: only a widget in a package, or one written in a board, reads a package provider` |
 | `view.kind` unknown, or draws another provider | `view.kind "app.clock" draws app/clock, not P` |
 | a view key that view does not take | `view.colour is not a field of the gauge view: it takes kind, …` |
 | JSON without `value`, or `value` without JSON | `view.value picks what to show out of the JSON …`, `view.value only applies when source.parse is json` |

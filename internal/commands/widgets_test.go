@@ -1184,3 +1184,28 @@ func TestWidgetsMoveThatChangesNothingDoesNotRewriteTheFile(t *testing.T) {
 		t.Fatalf("file was rewritten:\n%s", got)
 	}
 }
+
+func TestWidgetsValidateReadsTheOwnPackagesProviders(t *testing.T) {
+	dir := widgetConfig(t)
+	pkg := filepath.Join(packages.LocalDir(dir), "mine")
+	writeCommandFile(t, filepath.Join(pkg, "package.yml"), "format: 1\nname: mine\nscope: machine\nsummary: Mine.\n"+
+		"requires: {cli: \">= 0.9.0\"}\nwidgets: widgets\nentrypoint: bin/mine\ncommands: [disk]\n"+
+		"providers:\n  disk: {returns: {used: number}, min_every: 10s}\n")
+	writeCommandFile(t, filepath.Join(pkg, "tasks", "main.yml"), "---\n[]\n")
+	writeCommandFile(t, filepath.Join(pkg, "widgets", "disk", "widget.yml"), `format: 1
+name: disk
+summary: Disk.
+requires: {engine: ">= 1.3"}
+fits: [canvas]
+source: {kind: provider, name: mine/disk, target: {machine: main}, every: 60s}
+view: {kind: number, value: "{{json.used}}"}
+sizes: [small]
+default_size: small
+`)
+	for _, path := range []string{pkg, filepath.Join(pkg, "widgets", "disk")} {
+		out, err := execute(t, "--config", dir, "widgets", "validate", path)
+		if err != nil || !strings.Contains(out, "mine/disk fits home") {
+			t.Fatalf("%s: %v\n%s", path, err, out)
+		}
+	}
+}

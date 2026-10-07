@@ -76,7 +76,7 @@ type Catalog struct {
 func Resolve(release string, pkgs []PackageWidgets, installed func(pkg string) Installed) Catalog {
 	catalog := Catalog{Engine: Engine, PackagesRelease: release, Widgets: []Entry{}, Problems: []ListProblem{}}
 	for _, pkg := range pkgs {
-		found, problems := LoadAll(pkg.Dir, pkg.Root)
+		found, problems := LoadAll(Owner{Dir: pkg.Dir, Name: pkg.Package}, pkg.Root)
 		for _, p := range problems {
 			catalog.Problems = append(catalog.Problems, ListProblem{Path: p.Path, Message: p.Message})
 		}

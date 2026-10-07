@@ -54,12 +54,12 @@ func checkView(v ViewRef, node *yaml.Node, s Source, scope sourceScope, c Contra
 			at("view."+key, "view.%s is not a field of the %s view: %s", key, v.Kind, fieldList(view.Fields))
 		}
 	}
-	output, known := sourceOutput(s, c)
+	output, known := sourceOutput(s, scope, c)
 	if !known {
 		return
 	}
 	if !accepts(view, s.Kind, output) {
-		if s.Kind == SourceProvider {
+		if s.Kind == SourceProvider && !IsPackageProvider(s.Name) {
 			at("view.kind", "view.kind %q draws %s, not %s", v.Kind, strings.Join(view.Accepts, ", "), s.Name)
 			return
 		}

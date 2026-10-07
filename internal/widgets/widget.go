@@ -45,9 +45,10 @@ type Widget struct {
 
 	// Dir is the folder the widget was read from.
 	Dir string `yaml:"-"`
-	// PackageDir is the folder holding the package.yml the widget came with,
-	// "" when it was read on its own; a script is checked against it.
-	PackageDir string `yaml:"-"`
+	// Owner is the package the widget came with, zero when it was read on its
+	// own; a script is checked against its folder, and a package provider
+	// against its providers.
+	Owner Owner `yaml:"-"`
 }
 
 // Problem is one thing wrong with a widget or a board, and where it is.
@@ -80,15 +81,15 @@ var widgetFields = []string{
 }
 
 // Load reads and checks the widget in dir, outside any package.
-func Load(dir string) (Widget, []Problem) { return LoadIn("", dir) }
+func Load(dir string) (Widget, []Problem) { return LoadIn(Owner{}, dir) }
 
-// LoadIn reads and checks the widget in dir, which belongs to the package in
-// packageDir ("" when unknown). The widget is only usable when no problem
-// comes back.
-func LoadIn(packageDir, dir string) (Widget, []Problem) {
+// LoadIn reads and checks the widget in dir, which belongs to the package
+// owner (zero when unknown). The widget is only usable when no problem comes
+// back.
+func LoadIn(owner Owner, dir string) (Widget, []Problem) {
 	path := filepath.Join(dir, FileName)
 	fail := func(message string) (Widget, []Problem) {
-		return Widget{Dir: dir, PackageDir: packageDir}, []Problem{{Path: path, Message: message}}
+		return Widget{Dir: dir, Owner: owner}, []Problem{{Path: path, Message: message}}
 	}
 
 	body, err := os.ReadFile(path)
@@ -103,7 +104,7 @@ func LoadIn(packageDir, dir string) (Widget, []Problem) {
 	if err := root.Decode(&w); err != nil {
 		return fail(fmt.Sprintf("parsing %s: %v", FileName, err))
 	}
-	w.Dir, w.PackageDir = dir, packageDir
+	w.Dir, w.Owner = dir, owner
 	return w, Validate(w, path, &root)
 }
 
@@ -210,8 +211,15 @@ func Validate(w Widget, path string, root *yaml.Node) []Problem {
 		}
 	}
 
-	scope := sourceScope{inputs: w.Inputs, context: w.Context, packageDir: w.PackageDir}
+	scope := sourceScope{inputs: w.Inputs, context: w.Context, packageDir: w.Owner.Dir,
+		owner: w.Owner.Name, providers: w.Owner.scope()}
 	checkSource(w.Source, field(mapping(root), "source"), scope, c, at)
+	if w.Source.Kind == SourceProvider && IsPackageProvider(w.Source.Name) {
+		if constraint, err := parseEngineConstraint(w.Requires.Engine); err == nil && constraint.allows(LastEngineWithoutPackageProviders) {
+			at("requires.engine", `a widget reading a package provider needs requires.engine ">= 1.3": an app on engine %s cannot run it`,
+				LastEngineWithoutPackageProviders)
+		}
+	}
 	checkView(w.View, field(mapping(root), "view"), w.Source, scope, c, at)
 	if view, ok := c.Views[w.View.Kind]; ok && len(view.Layouts) > 0 {
 		for _, layout := range w.Fits {

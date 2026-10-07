@@ -2043,3 +2043,49 @@ a machine.
 
 **What to do:** Write `min_every: 5s` or more. Pick what the command can
 really afford: one that reads every container on a machine wants `30s`.
+
+## "a package widget reads only its own package's providers"
+
+**What it means:** A widget in package A names `B/<command>`. The app
+shows a widget only when its package is on the machine, so a widget that
+read another package's command could look ready while that package is
+missing.
+
+**What to do:** Ship the widget in package B, or write it straight into a
+board: a widget written in a board may read any package's provider.
+
+## "X has no provider C" or "no package X"
+
+**What it means:** The widget names `X/C`, and package X does not list C
+under `providers` in its `package.yml` — or there is no package X in the
+pinned release or your own packages. A board widget is checked by
+`devmachine widgets validate`; `widgets add` and `remove` keep working, so
+removing a package never locks a board.
+
+**What to do:** Check the name against `devmachine widgets list --format
+json` (its `providers` lists every one), or add C to the package's
+`providers`.
+
+## "a package provider runs on a machine or workspace"
+
+**What it means:** A package's command lives on the machine its package
+was synced to. There is nothing to run on your own computer.
+
+**What to do:** Add `target: {machine: <name>}` or `target: {workspace:
+<name>}`. To run something on your computer, use a `command` source.
+
+## "source.with.X: … gets it as --X"
+
+**What it means:** Each key of `with` becomes a flag, `--X`, before its
+value. A key with capitals, spaces or a leading dash would turn into a
+different flag than the one you wrote.
+
+**What to do:** Write the key in lower case letters, digits, dashes and
+underscores, starting with a letter. The value can be any text.
+
+## "a widget reading a package provider needs requires.engine \">= 1.3\""
+
+**What it means:** The app's engine 1.2 does not know package providers,
+and its `requires.engine` lets that app try.
+
+**What to do:** Write `requires: {engine: ">= 1.3"}`.

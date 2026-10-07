@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/mydevmachine/devmachine/internal/widgets"
 	"gopkg.in/yaml.v3"
 )
 
@@ -243,4 +244,14 @@ func WidgetsDir(m Manifest) (string, bool) {
 		return "", false
 	}
 	return filepath.Join(m.Path, m.Widgets), true
+}
+
+// WidgetOwner is the package as its widgets see it: its folder, its name,
+// and the providers they may read.
+func WidgetOwner(m Manifest) widgets.Owner {
+	providers := make(map[string]widgets.PackageProvider, len(m.Providers))
+	for name, p := range m.Providers {
+		providers[name] = widgets.PackageProvider{Returns: p.Returns, MinEvery: p.MinEvery}
+	}
+	return widgets.Owner{Dir: m.Path, Name: m.Name, Providers: providers}
 }

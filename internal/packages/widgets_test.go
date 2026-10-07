@@ -86,3 +86,30 @@ func TestWidgetsDir(t *testing.T) {
 		t.Fatalf("got %q %v", got, ok)
 	}
 }
+
+func TestValidateAcceptsAWidgetReadingItsOwnProvider(t *testing.T) {
+	dir := writeWidgetPackage(t, "requires: {cli: \">= 0.9.0\"}\nwidgets: widgets\nentrypoint: bin/devmachine-app\n"+
+		"commands: [stats]\nproviders:\n  stats: {returns: {disk: object}, min_every: 10s}\n", "")
+	writeMode(t, filepath.Join(dir, "bin", "devmachine-app"), "#!/usr/bin/env python3\n", 0o755)
+	write(t, filepath.Join(dir, "widgets", "disk", "widget.yml"), `format: 1
+name: disk
+summary: How full the disk is.
+requires: {engine: ">= 1.3"}
+fits: [canvas]
+source: {kind: provider, name: devmachine-app/stats, target: {machine: main}, every: 60s}
+view: {kind: gauge, value: "{{json.disk.used_percent}}"}
+sizes: [small]
+default_size: small
+`)
+	problems, err := Validate(dir)
+	if err != nil || len(problems) != 0 {
+		t.Fatalf("%v %#v", err, problems)
+	}
+	write(t, filepath.Join(dir, "widgets", "disk", "widget.yml"), strings.Replace(readFile(t,
+		filepath.Join(dir, "widgets", "disk", "widget.yml")), "devmachine-app/stats", "devmachine-app/load", 1))
+	problems, err = Validate(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	problemAbout(t, problems, "devmachine-app has no provider load; its providers: stats")
+}

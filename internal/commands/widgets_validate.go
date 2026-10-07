@@ -167,7 +167,7 @@ func validateTarget(path string, lookup widgets.Lookup, names widgets.TargetName
 		if !ok {
 			return nil, []widgets.Problem{{Path: manifest, Message: fmt.Sprintf("package %s declares no `widgets:` folder", m.Name)}}, nil, nil
 		}
-		valid, problems := widgets.LoadAll(m.Path, root)
+		valid, problems := widgets.LoadAll(packages.WidgetOwner(m), root)
 		return fitsOf(m.Name, valid), problems, targetWarnings(valid, names), nil
 	}
 	return nil, nil, nil, fmt.Errorf("%s is neither a widget, a package nor a board", path)
@@ -189,13 +189,13 @@ func boardProblems(path string, lookup widgets.Lookup) (widgets.Board, []byte, [
 }
 
 func loadOne(dir string, names widgets.TargetNames) ([]widgetFit, []widgets.Problem, []widgets.Problem, error) {
-	pkg, pkgDir := packageOf(dir)
-	w, problems := widgets.LoadIn(pkgDir, dir)
+	owner := ownerOf(dir)
+	w, problems := widgets.LoadIn(owner, dir)
 	if len(problems) > 0 {
 		return nil, problems, nil, nil
 	}
 	found := []widgets.Widget{w}
-	return fitsOf(pkg, found), nil, targetWarnings(found, names), nil
+	return fitsOf(owner.Name, found), nil, targetWarnings(found, names), nil
 }
 
 func fitsOf(pkg string, valid []widgets.Widget) []widgetFit {
@@ -210,27 +210,27 @@ func fitsOf(pkg string, valid []widgets.Widget) []widgetFit {
 	return fits
 }
 
-// packageOf is the name and folder of the package whose widgets folder holds
-// the widget folder dir, or "" and "" when no package claims it.
-func packageOf(dir string) (string, string) {
+// ownerOf is the package whose widgets folder holds the widget folder dir, or
+// the zero owner when no package claims it.
+func ownerOf(dir string) widgets.Owner {
 	abs, err := filepath.Abs(dir)
 	if err != nil {
-		return "", ""
+		return widgets.Owner{}
 	}
 	folder := filepath.Dir(abs)
 	for at := folder; ; at = filepath.Dir(at) {
 		if fileExists(packages.ManifestPath(at)) {
 			m, err := packages.ParseManifest(at)
 			if err != nil {
-				return "", ""
+				return widgets.Owner{}
 			}
 			if root, ok := packages.WidgetsDir(m); ok && filepath.Clean(root) == folder {
-				return m.Name, at
+				return packages.WidgetOwner(m)
 			}
-			return "", ""
+			return widgets.Owner{}
 		}
 		if filepath.Dir(at) == at {
-			return "", ""
+			return widgets.Owner{}
 		}
 	}
 }
