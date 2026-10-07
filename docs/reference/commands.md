@@ -1467,6 +1467,7 @@ written through, so a link in its place cannot redirect the write.
 devmachine packages list
 devmachine packages add <name> [--machine m | --workspace w] [--check] [--yes]
 devmachine packages rm  <name> [--machine m | --workspace w] [--check] [--yes]
+devmachine packages install <git-address>[@<ref>] [--check] [--yes]
 devmachine packages new <name> [--scope machine|workspace] [--into <dir>]
 devmachine packages validate <dir>
 devmachine packages schema [--json]
@@ -1541,6 +1542,46 @@ start with. With no network to find it, it fails and says so.
 `add`/`rm` only edit `config.yml` — `sync` applies the change. Pass
 `--machine` or `--workspace`; with one configured machine, that is the
 target. Comments in `config.yml` survive.
+
+`install` brings in a package somebody published in a git repository:
+`https://example.com/alice/tools.git`, or `git@example.com:alice/tools.git`
+to use your SSH key. `@<ref>` picks a tag, a branch or a commit; without
+it, the default branch. Only `https://` and `git@` addresses are accepted.
+The repository holds one package, with `package.yml` at its top.
+
+It fetches that one commit (needs `git`), checks it the way `packages
+validate` does, and refuses:
+
+- a name the pinned release already has — your package would replace the
+  official one everywhere;
+- a name you already have in `<config>/packages/`;
+- a link that leads outside the package;
+- a package that does not validate (every problem is listed).
+
+Then it shows what the package brings — its widgets and which of them run
+code, the commands of its entrypoint, its providers, every executable file,
+every task file and the credentials it asks for — and asks before writing
+`<config>/packages/<name>/`. `--yes` does not ask; `--check` shows and
+writes nothing. It records where the package came from in
+`<config>/packages/<name>/.devmachine-source.yml`:
+
+```yaml
+url: https://example.com/alice/tools.git
+ref: v1
+commit: 0123456789abcdef0123456789abcdef01234567
+installed_at: "2026-10-07T12:00:00Z"
+```
+
+That file is what makes it third-party: its widgets that run code ask
+before they run (see [where a public widget comes
+from](../how-it-works/where-a-public-widget-comes-from.md)). Installing
+touches no machine: `packages add <name> --machine <m>` and `sync` do,
+and its tasks then run as root there, like any package's.
+
+`--format json` needs `--check` or `--yes`, since it cannot ask, and
+prints `{"name", "scope", "summary", "needs", "widgets": [{"name",
+"source", "runs_code"}], "commands", "providers", "scripts", "tasks",
+"credentials", "url", "ref", "commit", "path", "installed"}`.
 
 `new` writes a package that already passes `validate`; refuses to
 overwrite one that exists. `validate` reports every problem at once, with

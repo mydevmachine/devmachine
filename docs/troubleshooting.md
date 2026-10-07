@@ -2128,3 +2128,71 @@ it as the least trusted kind: its widgets that run code ask first.
 
 **What to do:** Run `devmachine packages update <name>` to fetch it again
 and rewrite the file. If you wrote the package yourself, delete the file.
+
+## "X is an official package: a package from a git address cannot take its name"
+
+**What it means:** The pinned packages release already has a package
+called X. A package in your own folder always wins over the release's of
+the same name, so installing this one would quietly replace the official
+X on every machine that has it.
+
+**What to do:** Ask the package's author to rename it. If you wrote it,
+rename it: `name` in `package.yml`.
+
+## "you already have your own package X"
+
+**What it means:** `<config>/packages/X/` exists and you wrote it — it has
+no `.devmachine-source.yml`. `install` never writes over your own work.
+
+**What to do:** Rename one of the two, or move yours away first.
+
+## "X is already installed from …"
+
+**What it means:** You installed X from a git address before. When the
+message says only "from a git address", its `.devmachine-source.yml` does
+not read, but it is there, so the folder is still not yours to overwrite.
+
+**What to do:** `devmachine packages update X` fetches it again.
+
+## "… has no package.yml at its top"
+
+**What it means:** The repository is not one package: `package.yml` is
+not in its top folder. A repository holding several packages, or a
+package in a subfolder, cannot be installed.
+
+**What to do:** Ask the author to publish the package in its own
+repository, or copy its folder into `<config>/packages/` yourself.
+
+## "… is a link leading outside the package"
+
+**What it means:** The repository holds a symbolic link to a file outside
+the package. `sync` would copy whatever it points at — a key on your
+computer, for instance — to every machine the package is added to.
+
+**What to do:** Do not install it. Tell its author: a package holds its
+own files.
+
+## "fetching …: …"
+
+**What it means:** `git` could not fetch that address or ref. Its own
+message follows: a repository that does not exist, a ref that is not
+there, no access to a private repository (git does not ask for a password
+here, and `ssh` does not ask anything), or no network.
+
+**What to do:** Check the address and the ref in a browser or with `git
+ls-remote <address>`. For a private repository, use a `git@` address with
+an SSH key that has access, loaded in your SSH agent.
+
+## "git is not installed"
+
+**What it means:** `packages install` and `update` fetch with `git`, and
+it is not on your PATH.
+
+**What to do:** Install git (on a Mac, `xcode-select --install`).
+
+## "the package at … has N problem(s)"
+
+**What it means:** The fetched package does not pass `packages validate`.
+Every problem is listed with its file and line. Nothing was written.
+
+**What to do:** Tell the package's author; each line says what to fix.

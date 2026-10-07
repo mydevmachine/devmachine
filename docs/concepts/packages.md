@@ -132,3 +132,14 @@ already passes `packages validate`. Browse the official ones on the
 [packages page](https://mydevmachine.sh/packages/) for examples, and read
 [why packages work this way](../how-it-works/why-nothing-is-embedded.md)
 for the reasoning behind it.
+
+### Packages from other people
+
+`devmachine packages install https://example.com/alice/tools.git` brings
+in a package somebody published in a git repository. It shows what the
+package brings and asks first. It lands in `<config>/packages/` beside your
+own, with a `.devmachine-source.yml` saying where it came from;
+`packages update <name>` fetches it again and `packages remove <name>`
+deletes it. Its widgets that run code ask before they run. See [where a
+public widget comes
+from](../how-it-works/where-a-public-widget-comes-from.md).

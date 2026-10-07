@@ -40,6 +40,7 @@ devmachine mosh
 devmachine packages
 devmachine packages add
 devmachine packages help
+devmachine packages install
 devmachine packages list
 devmachine packages new
 devmachine packages outdated
