@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -31,13 +30,15 @@ func newWidgetsValidateCmd(opts *options) *cobra.Command {
 				return err
 			}
 			targets := args
+			problems := []widgets.Problem{}
 			if len(targets) == 0 {
-				if targets, err = defaultValidateTargets(dir); err != nil {
+				var broken []widgets.Problem
+				if targets, broken, err = defaultValidateTargets(dir); err != nil {
 					return err
 				}
+				problems = append(problems, broken...)
 			}
 
-			problems := []widgets.Problem{}
 			fits := []widgetFit{}
 			for _, target := range targets {
 				valid, found, err := validateTarget(target, catalog.Find)
@@ -60,7 +61,7 @@ func newWidgetsValidateCmd(opts *options) *cobra.Command {
 					return err
 				}
 			} else {
-				if len(targets) == 0 {
+				if len(targets) == 0 && len(problems) == 0 {
 					cmd.Printf("nothing to check: no board in %s and no widget in your own packages\n", widgets.BoardsDir(dir))
 				}
 				for _, f := range fits {
@@ -117,17 +118,17 @@ func validateTarget(path string, lookup widgets.Lookup) ([]widgets.Widget, []wid
 		problems, err := validateBoardFile(path, lookup)
 		return nil, problems, err
 	}
-	if _, err := os.Stat(filepath.Join(path, widgets.FileName)); err == nil {
+	if fileExists(filepath.Join(path, widgets.FileName)) {
 		return loadOne(path)
 	}
-	if _, err := os.Stat(packages.ManifestPath(path)); err == nil {
+	if manifest := packages.ManifestPath(path); fileExists(manifest) {
 		m, err := packages.ParseManifest(path)
 		if err != nil {
-			return nil, nil, err
+			return nil, []widgets.Problem{{Path: manifest, Message: err.Error()}}, nil
 		}
 		root, ok := packages.WidgetsDir(m)
 		if !ok {
-			return nil, nil, fmt.Errorf("package %s declares no `widgets:` folder", m.Name)
+			return nil, []widgets.Problem{{Path: manifest, Message: fmt.Sprintf("package %s declares no `widgets:` folder", m.Name)}}, nil
 		}
 		valid, problems := widgets.LoadAll(root)
 		return valid, problems, nil
@@ -156,28 +157,29 @@ func loadOne(dir string) ([]widgets.Widget, []widgets.Problem, error) {
 	return []widgets.Widget{w}, nil, nil
 }
 
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}
+
 // defaultValidateTargets is every board, and every own package with widgets.
-func defaultValidateTargets(dir string) ([]string, error) {
-	boards, err := filepath.Glob(filepath.Join(widgets.BoardsDir(dir), "*.yml"))
+// An own package whose package.yml does not read is a problem, never skipped.
+func defaultValidateTargets(dir string) ([]string, []widgets.Problem, error) {
+	targets, err := filepath.Glob(filepath.Join(widgets.BoardsDir(dir), "*.yml"))
 	if err != nil {
-		return nil, fmt.Errorf("listing the boards: %w", err)
+		return nil, nil, fmt.Errorf("listing the boards: %w", err)
 	}
-	targets := boards
-	entries, err := os.ReadDir(packages.LocalDir(dir))
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return nil, fmt.Errorf("reading %s: %w", packages.LocalDir(dir), err)
-	}
-	for _, entry := range entries {
-		pkgDir := filepath.Join(packages.LocalDir(dir), entry.Name())
-		m, err := packages.ParseManifest(pkgDir)
-		if err != nil {
-			continue
-		}
-		if _, ok := packages.WidgetsDir(m); ok {
-			targets = append(targets, pkgDir)
+	found, broken := packages.OpenCached(dir, "").Scan()
+	for _, f := range found {
+		if _, ok := packages.WidgetsDir(f.Manifest); ok {
+			targets = append(targets, f.Manifest.Path)
 		}
 	}
-	return targets, nil
+	problems := make([]widgets.Problem, 0, len(broken))
+	for _, b := range broken {
+		problems = append(problems, widgets.Problem{Path: b.Path, Message: b.Err.Error()})
+	}
+	return targets, problems, nil
 }
 
 func nonNil(s []string) []string {

@@ -260,6 +260,45 @@ func TestWidgetsValidateChecksEachKindOfPath(t *testing.T) {
 		if path != board && !strings.Contains(out, "clock fits home") {
 			t.Errorf("%s: the surfaces it fits are missing from\n%s", path, out)
 		}
+		if path == board && !strings.Contains(out, "1 checked, all fine") {
+			t.Errorf("%s: the board's result is missing from\n%s", path, out)
+		}
+	}
+}
+
+func TestWidgetsValidateWithNoPathReportsABrokenOwnPackage(t *testing.T) {
+	dir := widgetConfig(t)
+	local := packages.LocalDir(dir)
+	writeWidgetPackageAt(t, local, "mine", "machine", map[string]string{"clock": clockWidgetYAML})
+	writeCommandFile(t, filepath.Join(local, "broken", "package.yml"), "format: 1\nname: [broken\n")
+	writeCommandFile(t, filepath.Join(local, "notes", "README.md"), "not a package\n")
+
+	out, err := execute(t, "--config", dir, "widgets", "validate")
+	if err == nil || !strings.Contains(err.Error(), "1 problem(s)") {
+		t.Fatalf("got %v\n%s", err, out)
+	}
+	if !strings.Contains(out, filepath.Join(local, "broken", "package.yml")) || !strings.Contains(out, "clock fits home") {
+		t.Fatalf("got\n%s", out)
+	}
+}
+
+func TestWidgetsValidateReportsEveryPackageProblemAtOnce(t *testing.T) {
+	dir := widgetConfig(t)
+	local := packages.LocalDir(dir)
+	writeCommandFile(t, filepath.Join(local, "broken", "package.yml"), "format: 1\nname: [broken\n")
+	writeWidgetPackageAt(t, local, "mine", "machine", nil)
+	writeCommandFile(t, filepath.Join(local, "plain", "package.yml"), "format: 1\nname: plain\nscope: machine\nsummary: No widgets.\n")
+	writeCommandFile(t, filepath.Join(local, "plain", "tasks", "main.yml"), "---\n[]\n")
+
+	out, err := execute(t, "--config", dir, "widgets", "validate",
+		filepath.Join(local, "broken"), filepath.Join(local, "mine"), filepath.Join(local, "plain"))
+	if err == nil || !strings.Contains(err.Error(), "3 problem(s)") {
+		t.Fatalf("got %v\n%s", err, out)
+	}
+	for _, want := range []string{"broken", "the widgets folder is not there", "declares no `widgets:` folder"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("%q is missing from\n%s", want, out)
+		}
 	}
 }
 

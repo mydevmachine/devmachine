@@ -1644,3 +1644,16 @@ not fetch packages".
 **What to do:** Check the network and run it again. Once a release is
 pinned — `setup` pins one, and so does `devmachine packages pin` — and in
 the cache, `widgets list` works offline.
+
+## `widgets validate` says "… is neither a widget, a package nor a board"
+
+**What it means:** The path exists, but `validate` cannot tell what to
+check. It knows a path by what it holds: a file named `widget.yml`, a folder
+with a `widget.yml`, a folder with a `package.yml`, or any other file, which
+it reads as a board. This is a folder with none of those in it, such as a
+package's `widgets/` folder or `<config>/boards/` itself. Nothing was
+checked.
+
+**What to do:** Pass the package folder (the one with `package.yml`), one
+widget folder, or one board file. To check every board and every widget of
+your own packages, run `devmachine widgets validate` with no path.
