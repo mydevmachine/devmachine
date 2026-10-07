@@ -2105,6 +2105,19 @@ holds such a name is unsafe to hand to the app.
 `devmachine-app/stats`. `devmachine widgets list --format json` lists
 every provider under `providers`.
 
+## Installing a package from a `git@` address waits and never ends
+
+**What it means:** A `git@host:path` address goes through `ssh`, and `ssh`
+asks its own questions: whether to trust a host it has never seen
+(`Are you sure you want to continue connecting?`) or the passphrase of
+your key. The CLI stops git from asking for an https password, but it
+cannot answer `ssh` for you, so the fetch waits for an answer.
+
+**What to do:** Answer the question in the terminal, or press Ctrl-C and
+run `ssh -T git@<host>` once to trust the host and unlock your key (with
+`ssh-add`). Then install again. An `https://` address of a public
+repository never asks.
+
 ## "… its widgets are treated as third-party"
 
 **What it means:** A package in `<config>/packages/` has a

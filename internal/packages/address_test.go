@@ -32,6 +32,10 @@ func TestParseGitAddress(t *testing.T) {
 		"git@example.com:../a":                      "git@example.com:alice/tools.git",
 		"https://example.com":                       "https://example.com/alice/tools.git",
 		"https://example.com/a.git?x=1":             "https://example.com/alice/tools.git",
+		"git@example.com:-x":                        "git@example.com:alice/tools.git",
+		"https://example.com/a.git#frag":            "https://example.com/alice/tools.git",
+		"https://example.com/a.git@-x":              "ref",
+		"https://h?@evil/x":                         "no user name or token",
 	}
 	for arg, want := range bad {
 		if _, _, err := ParseGitAddress(arg); err == nil || !strings.Contains(err.Error(), want) {
