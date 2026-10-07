@@ -1,0 +1,52 @@
+internal/widgets/discover.go
+  s_c1c985d7f57ab9::t_dcf2fc99ef26a3 9-10,13,40
+internal/commands/widgets_validate.go
+  s_c1c985d7f57ab9::t_d08edac5ba4711 131,158-159,163,178-180,183,190,193,195,198
+docs/concepts/widgets.md
+  s_c1c985d7f57ab9::t_49e1f16234320b 34-40
+docs/troubleshooting.md
+  s_c1c985d7f57ab9::t_49e1f16234320b 1612,1614-1616,1618-1647
+docs/reference/widget-format.md
+  s_c1c985d7f57ab9::t_49e1f16234320b 54,63-149,274,286-299
+internal/widgets/widget.go
+  s_c1c985d7f57ab9::t_dcf2fc99ef26a3 52-54,86-92,95,110,205-207
+docs/how-it-works/widgets-come-from-packages.md
+  s_c1c985d7f57ab9::t_49e1f16234320b 24-25,27
+internal/widgets/source.go
+  s_c1c985d7f57ab9::t_9a77ff042a41cb 1-524
+internal/widgets/catalog.go
+  s_c1c985d7f57ab9::t_dcf2fc99ef26a3 25-26,43,78,100-102,104,129,158-163
+  s_c1c985d7f57ab9::t_32bf0fe93911db 164
+internal/widgets/widget_test.go
+  s_c1c985d7f57ab9::t_ac9d68051335e0 73,80
+internal/widgets/catalog_test.go
+  s_c1c985d7f57ab9::t_953e6cc1a34391 99
+  s_c1c985d7f57ab9::t_ac9d68051335e0 47,104-105,115-125
+  s_c1c985d7f57ab9::t_a74ef6938e5844 126
+internal/packages/validate.go
+  s_c1c985d7f57ab9::t_dcf2fc99ef26a3 247
+internal/widgets/source_test.go
+  s_c1c985d7f57ab9::t_ac9d68051335e0 1-231
+internal/widgets/discover_test.go
+  s_c1c985d7f57ab9::t_ac9d68051335e0 18,33,40,47
+internal/commands/widgets.go
+  s_c1c985d7f57ab9::t_d08edac5ba4711 179
+internal/commands/widgets_test.go
+  s_c1c985d7f57ab9::t_c69547e64c7a3b 4,48-69,184,671-729
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "884f9090f81a27046711799174fd1ccabfbf4a2b",
+  "prompts": {},
+  "sessions": {
+    "s_c1c985d7f57ab9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b5256304-4a81-480d-a568-f8cf11d8ddcc",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
