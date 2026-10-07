@@ -876,3 +876,123 @@ func TestWidgetsAddIgnoresTargetNames(t *testing.T) {
 		t.Fatalf("the inline widget changed:\n%s", got)
 	}
 }
+
+func TestWidgetsAddPutsAStackWidgetInOrder(t *testing.T) {
+	dir := stackConfig(t)
+	writeCommandFile(t, widgets.BoardPath(dir, "context-sidebar"), "format: 1\nsurface: context-sidebar\nwidgets: []\n")
+	for _, args := range [][]string{
+		{"claude-code/usage"},
+		{"devmachine-app/todo", "--before", "usage"},
+		{"claude-code/usage", "--id", "usage-2", "--after", "todo", "--set", "harness=codex"},
+	} {
+		if out, err := execute(t, append([]string{"--config", dir, "widgets", "add", "--board", "context-sidebar"}, args...)...); err != nil {
+			t.Fatalf("%v\n%s", err, out)
+		}
+	}
+	want := "format: 1\nsurface: context-sidebar\nwidgets:\n" +
+		"  - id: todo\n    type: devmachine-app/todo\n    size: auto\n" +
+		"  - id: usage-2\n    type: claude-code/usage\n    with: {harness: codex}\n    size: medium\n" +
+		"  - id: usage\n    type: claude-code/usage\n    size: medium\n"
+	if got := readCommandFile(t, widgets.BoardPath(dir, "context-sidebar")); got != want {
+		t.Fatalf("got\n%s", got)
+	}
+}
+
+func TestWidgetsAddToAMissingStackStartsFromTheDefaultBoard(t *testing.T) {
+	dir := stackConfig(t)
+	out, err := execute(t, "--config", dir, "widgets", "add", "claude-code/usage", "--board", "context-sidebar", "--after", "shortcuts")
+	if err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	if out != "added usage (claude-code/usage) to the context-sidebar board after shortcuts\n" {
+		t.Fatalf("got %q", out)
+	}
+	b, _, _, err := widgets.ReadBoard(widgets.BoardPath(dir, "context-sidebar"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var ids []string
+	for _, w := range b.Widgets {
+		ids = append(ids, w.ID)
+	}
+	want := "shortcuts,usage,publish-port,monitors,shells,sub-agents,todo,pull-requests,links"
+	if strings.Join(ids, ",") != want {
+		t.Fatalf("got %v", ids)
+	}
+}
+
+func TestWidgetsAddRefusesASecondSingleWidget(t *testing.T) {
+	dir := stackConfig(t)
+	_, err := execute(t, "--config", dir, "widgets", "add", "devmachine-app/workspaces", "--board", "sidebar")
+	if err == nil || !strings.Contains(err.Error(), "devmachine-app/workspaces goes on a board once, and the sidebar board has it as workspaces") {
+		t.Fatalf("got %v", err)
+	}
+	if _, statErr := os.Stat(widgets.BoardPath(dir, "sidebar")); statErr == nil {
+		t.Fatal("a refused add wrote the sidebar board")
+	}
+	writeCommandFile(t, widgets.BoardPath(dir, "sidebar"), "format: 1\nsurface: sidebar\nwidgets:\n  - id: workspaces\n    type: devmachine-app/workspaces\n    size: auto\n")
+	if out, err := execute(t, "--config", dir, "widgets", "remove", "workspaces", "--board", "sidebar"); err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	if out, err := execute(t, "--config", dir, "widgets", "add", "devmachine-app/workspaces", "--board", "sidebar"); err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	if got := readCommandFile(t, widgets.BoardPath(dir, "sidebar")); got != "format: 1\nsurface: sidebar\nwidgets:\n  - id: workspaces\n    type: devmachine-app/workspaces\n    size: auto\n" {
+		t.Fatalf("got\n%s", got)
+	}
+}
+
+func TestWidgetsAddRefusesTheWrongPlacementFlag(t *testing.T) {
+	cases := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{"--at on a stack", []string{"claude-code/usage", "--board", "sidebar", "--at", "0,0"}, "--at places a widget on Home's canvas; in the sidebar area use --after or --before"},
+		{"--after on Home", []string{"claude-code/usage", "--after", "clock"}, "--after and --before order a sidebar's list; the home area is a canvas, so use --at"},
+		{"an unknown neighbour", []string{"claude-code/usage", "--board", "sidebar", "--after", "ghost"}, `no widget with id "ghost" on the sidebar board`},
+		{"auto on a view that does not grow", []string{"claude-code/usage", "--board", "sidebar", "--size", "auto"}, "claude-code/usage does not grow with its content, so it takes no --size auto: it takes small, medium, wide"},
+		{"a widget that does not fit a stack", []string{"devmachine-app/clock", "--board", "sidebar"}, "devmachine-app/clock does not fit the sidebar area"},
+		{"a widget that needs a session", []string{"devmachine-app/todo", "--board", "sidebar"}, "devmachine-app/todo does not fit the sidebar area"},
+		{"both neighbours", []string{"claude-code/usage", "--board", "sidebar", "--after", "a", "--before", "b"}, "[after before]"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := stackConfig(t)
+			_, err := execute(t, append([]string{"--config", dir, "widgets", "add"}, tc.args...)...)
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("want %q, got %v", tc.want, err)
+			}
+			for _, surface := range []string{"home", "sidebar"} {
+				if _, statErr := os.Stat(widgets.BoardPath(dir, surface)); statErr == nil {
+					t.Fatalf("a refused add wrote the %s board", surface)
+				}
+			}
+		})
+	}
+}
+
+const inlineStackEntry = `  - id: notes
+    title: Files in the session folder
+    source:
+      kind: command
+      run: ls
+      args: ["{{context.path}}"]
+      every: 30s
+      parse: lines
+    view: {kind: list}
+    size: medium
+`
+
+func TestWidgetsAddKeepsAnInlineStackWidget(t *testing.T) {
+	dir := stackConfig(t)
+	board := widgets.BoardPath(dir, "context-sidebar")
+	writeCommandFile(t, board, "format: 1\nsurface: context-sidebar\nwidgets:\n"+inlineStackEntry)
+	if out, err := execute(t, "--config", dir, "widgets", "add", "claude-code/usage", "--board", "context-sidebar", "--before", "notes"); err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	want := "format: 1\nsurface: context-sidebar\nwidgets:\n  - id: usage\n    type: claude-code/usage\n    size: medium\n" + inlineStackEntry
+	if got := readCommandFile(t, board); got != want {
+		t.Fatalf("got\n%s", got)
+	}
+}

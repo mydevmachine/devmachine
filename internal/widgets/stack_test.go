@@ -203,3 +203,74 @@ func TestAutoOnAnInlineEntryWithNoViewNamesNoBlankView(t *testing.T) {
 		t.Fatalf("double space in %q", problems[0].Message)
 	}
 }
+
+const defaultContextSidebar = `format: 1
+surface: context-sidebar
+widgets:
+  - id: shortcuts
+    type: devmachine-app/shortcuts
+    size: auto
+  - id: publish-port
+    type: devmachine-app/publish-port
+    size: auto
+  - id: monitors
+    type: devmachine-app/monitors
+    size: auto
+  - id: shells
+    type: devmachine-app/shells
+    size: auto
+  - id: sub-agents
+    type: devmachine-app/sub-agents
+    size: auto
+  - id: todo
+    type: devmachine-app/todo
+    size: auto
+  - id: pull-requests
+    type: devmachine-app/pull-requests
+    size: auto
+  - id: links
+    type: devmachine-app/links
+    size: auto
+`
+
+func TestTheDefaultBoardsDrawWhatTheAppAlwaysShowed(t *testing.T) {
+	for surface, want := range map[string]string{
+		"sidebar":         "format: 1\nsurface: sidebar\nwidgets:\n  - id: workspaces\n    type: devmachine-app/workspaces\n    size: auto\n",
+		"context-sidebar": defaultContextSidebar,
+		"home":            "format: 1\nsurface: home\nwidgets: []\n",
+	} {
+		body, err := EncodeBoard(DefaultBoard(surface))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(body) != want {
+			t.Errorf("%s: got\n%s", surface, body)
+		}
+	}
+}
+
+func TestInsertPutsAWidgetInOrder(t *testing.T) {
+	b := Board{Surface: "sidebar", Widgets: []Instance{{ID: "a"}, {ID: "b"}}}
+	for _, step := range []struct{ id, after, before string }{{"end", "", ""}, {"first", "", "a"}, {"middle", "a", ""}} {
+		if err := b.Insert(Instance{ID: step.id}, step.after, step.before); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got := idsOf(b); got != "first,a,middle,b,end" {
+		t.Fatalf("got %s", got)
+	}
+	if err := b.Insert(Instance{ID: "x"}, "ghost", ""); err == nil || !strings.Contains(err.Error(), `no widget with id "ghost" on the sidebar board`) {
+		t.Fatalf("got %v", err)
+	}
+	if id, ok := b.IDOfType(""); !ok || id != "first" {
+		t.Fatalf("got %q %v", id, ok)
+	}
+}
+
+func idsOf(b Board) string {
+	ids := make([]string, len(b.Widgets))
+	for i, w := range b.Widgets {
+		ids[i] = w.ID
+	}
+	return strings.Join(ids, ",")
+}

@@ -302,6 +302,22 @@ A widget fits a sidebar when `stack` is in its `fits`; a widget written in
 place fits every layout. A widget marked `single: true` appears once per
 board.
 
+When the file is missing, the app writes, and the CLI reads, these:
+
+```yaml
+format: 1
+surface: sidebar
+widgets:
+  - id: workspaces
+    type: devmachine-app/workspaces
+    size: auto
+```
+
+and a `context-sidebar.yml` with, in this order, `shortcuts`,
+`publish-port`, `monitors`, `shells`, `sub-agents`, `todo`,
+`pull-requests` and `links`, each `type: devmachine-app/<id>` and
+`size: auto`.
+
 ## What the engine offers
 
 `devmachine widgets schema --json` prints all of this as JSON.

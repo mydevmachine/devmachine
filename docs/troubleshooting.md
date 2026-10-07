@@ -1822,6 +1822,25 @@ already holds the workspace list.
 bring it back after removing it, `devmachine widgets add
 devmachine-app/workspaces --board sidebar`.
 
+## "--at places a widget on Home's canvas" or "--after and --before order a sidebar's list"
+
+**What it means:** Home is a canvas: a widget there has a position, given
+with `--at`. The sidebars are lists: a widget there has a turn, given with
+`--after` or `--before`. Each flag only means something in its own kind of
+area.
+
+**What to do:** On Home use `--at x,y` or nothing; in a sidebar use
+`--after <id>`, `--before <id>` or nothing (the end of the list).
+
+## "no widget with id "X" on the sidebar board"
+
+**What it means:** `--after`, `--before`, `move` or `remove` named an id
+the board does not have. On a missing sidebar board the ids are those of
+the default board (`workspaces`; `shortcuts`, `todo` and the others).
+
+**What to do:** Check the ids in the board file, or with `devmachine
+widgets validate`, and run the command again.
+
 ## "the X view is drawn only in stack"
 
 **What it means:** A widget written in a board uses one of the app's

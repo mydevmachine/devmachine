@@ -664,7 +664,7 @@ devmachine widgets list
 devmachine widgets help <package/widget>
 devmachine widgets validate [path...]
 devmachine widgets schema [--json]
-devmachine widgets add <package/widget> [--board home] [--id x] [--set name=value]... [--size s] [--at x,y]
+devmachine widgets add <package/widget> [--board home|sidebar|context-sidebar] [--id x] [--set name=value]... [--size s] [--at x,y | --after id | --before id]
 devmachine widgets remove <id> [--board home]
 ```
 
@@ -752,23 +752,37 @@ check names, so removing a machine does not lock a board.
 `schema` prints the engine contract: areas, providers, views and sizes.
 `--json` prints it as JSON, the same document the app is built against.
 
-`add` places a widget on a board and writes `<config>/boards/<board>.yml`,
-creating it when there is none. The id defaults to the widget's name, made
-unique (`usage`, `usage-2`). `--set` gives an input a value, converted to
-the input's type. `--size` is a preset the widget takes, default its
+`add` places a widget on a board and writes `<config>/boards/<board>.yml`.
+The id defaults to the widget's name, made unique (`usage`, `usage-2`).
+`--set` gives an input a value, converted to the input's type. The widget
+must fit the area (`devmachine widgets list --board <area>` shows which do),
+and a widget marked `single` is refused when the board already has it.
+
+On Home (the default), `--size` is a preset the widget takes, default its
 `default_size`. `--at x,y` is the top-left corner in points, snapped to
 8pt; the widget goes exactly there, even on top of another, because
 widgets may overlap on Home. Without it the widget takes the first free
 spot, scanning rows of 8pt from 24,24 across a band 1280pt wide and
-keeping 8pt from every other widget.
+keeping 8pt from every other widget. `--after` and `--before` are refused.
+
+In the sidebar or the context sidebar, the widget goes at the end of the
+list, or right after `--after <id>`, or right before `--before <id>` (one
+of the two at most). `--size` is a preset or `auto`; without it the widget
+gets `auto` when its view grows with its content and its `default_size`
+otherwise. `--at` is refused. When the board file is missing, the CLI
+starts from the board the app draws by default, so the workspace list and
+the Context tab's sections stay. The default boards are listed in [the
+widget format](widget-format.md#a-board-in-a-sidebar).
 
 `remove` takes the widget with that id off the board.
 
 Both re-read the board first and write it in one step (a temporary file,
 then a rename). A board with a problem is refused and left as it is; so is
 a board that changed while the command ran. Comments in a board are lost
-when the CLI rewrites it. `--format json` prints `{"board", "path",
-"widget"}` for `add` and `{"board", "path", "removed"}` for `remove`.
+when the CLI rewrites it. `--format json` prints `{"board", "path", "widget"}` for `add` (for a
+sidebar widget, `frame`, `minimized` and `z` are zero and mean nothing;
+`collapsed` appears when true) and `{"board", "path", "removed"}` for
+`remove`.
 
 ## aliases
 

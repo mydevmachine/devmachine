@@ -106,13 +106,12 @@ func (b Board) HasID(id string) bool {
 
 // Remove takes the instance with this id off the board.
 func (b *Board) Remove(id string) error {
-	for i, w := range b.Widgets {
-		if w.ID == id {
-			b.Widgets = slices.Delete(b.Widgets, i, i+1)
-			return nil
-		}
+	i, err := b.index(id)
+	if err != nil {
+		return err
 	}
-	return fmt.Errorf("no widget with id %q on the %s board", id, b.Surface)
+	b.Widgets = slices.Delete(b.Widgets, i, i+1)
+	return nil
 }
 
 // CoerceInput turns a --set value into the type its input declares.

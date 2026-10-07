@@ -21,14 +21,15 @@ type boardChange struct {
 }
 
 func newWidgetsAddCmd(opts *options) *cobra.Command {
-	var board, id, size, at string
+	var board, id, size, at, after, before string
 	var sets []string
 	c := &cobra.Command{
 		Use:   "add <package/widget>",
 		Short: "Place a widget on a board",
-		Long: "Without --at it takes the first free spot, scanning rows of 8pt from " +
-			"the top left. The board is re-read first and written atomically; a board " +
-			"with a problem is refused, never rewritten.",
+		Long: "On Home, without --at it takes the first free spot, scanning rows of 8pt " +
+			"from the top left. In a sidebar it goes at the end of the list, or next to " +
+			"--after or --before. The board is re-read first and written atomically; a " +
+			"board with a problem is refused, never rewritten.",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			catalog, dir, err := loadCatalog(cmd.Context(), opts)
@@ -45,6 +46,13 @@ func newWidgetsAddCmd(opts *options) *cobra.Command {
 			if err := checkBoardSurface(board); err != nil {
 				return err
 			}
+			stack := widgets.IsStack(board)
+			switch {
+			case stack && at != "":
+				return fmt.Errorf("--at places a widget on Home's canvas; in the %s area use --after or --before", board)
+			case !stack && (after != "" || before != ""):
+				return fmt.Errorf("--after and --before order a sidebar's list; the %s area is a canvas, so use --at", board)
+			}
 			if !slices.Contains(entry.Surfaces, board) {
 				return fmt.Errorf("%s does not fit the %s area: it fits %s", entry.Name, board, strings.Join(entry.Surfaces, ", "))
 			}
@@ -54,12 +62,17 @@ func newWidgetsAddCmd(opts *options) *cobra.Command {
 			if err != nil {
 				return err
 			}
-
-			if size == "" {
-				size = entry.DefaultSize
+			if other, taken := b.IDOfType(entry.Name); entry.Single && taken {
+				return fmt.Errorf("%s goes on a board once, and the %s board has it as %s", entry.Name, board, other)
 			}
-			if !slices.Contains(entry.Sizes, size) {
-				return fmt.Errorf("%s does not come in size %q: it takes %s", entry.Name, size, strings.Join(entry.Sizes, ", "))
+
+			if stack {
+				size, err = stackSize(entry, size)
+			} else {
+				size, err = canvasSize(entry, size)
+			}
+			if err != nil {
+				return err
 			}
 			with, err := inputValues(entry, sets)
 			if err != nil {
@@ -73,35 +86,76 @@ func newWidgetsAddCmd(opts *options) *cobra.Command {
 			case b.HasID(id):
 				return fmt.Errorf("id %q is already on the %s board", id, board)
 			}
-			w, h, _ := widgets.FrameFor(size)
-			var frame widgets.Frame
-			if at == "" {
-				frame = widgets.FreeSpot(b, w, h)
-			} else {
-				frame = widgets.Frame{W: w, H: h}
-				if frame.X, frame.Y, err = parsePoint(at); err != nil {
+
+			instance := widgets.Instance{ID: id, Type: entry.Name, With: with, Size: size}
+			where := "at the end"
+			if stack {
+				if err := b.Insert(instance, after, before); err != nil {
 					return err
 				}
+				switch {
+				case after != "":
+					where = "after " + after
+				case before != "":
+					where = "before " + before
+				}
+			} else {
+				w, h, _ := widgets.FrameFor(size)
+				instance.Frame = widgets.Frame{W: w, H: h}
+				if at == "" {
+					instance.Frame = widgets.FreeSpot(b, w, h)
+				} else if instance.Frame.X, instance.Frame.Y, err = parsePoint(at); err != nil {
+					return err
+				}
+				instance.Z = widgets.NextZ(b)
+				b.Widgets = append(b.Widgets, instance)
+				where = fmt.Sprintf("at %d,%d", instance.Frame.X, instance.Frame.Y)
 			}
-
-			instance := widgets.Instance{ID: id, Type: entry.Name, With: with, Frame: frame, Size: size, Z: widgets.NextZ(b)}
-			b.Widgets = append(b.Widgets, instance)
 			if err := widgets.WriteBoard(path, read, b); err != nil {
 				return err
 			}
 			if opts.format == formatJSON {
 				return writeJSON(cmd.OutOrStdout(), boardChange{Board: board, Path: path, Widget: &instance})
 			}
-			cmd.Printf("added %s (%s) to the %s board at %d,%d\n", id, entry.Name, board, frame.X, frame.Y)
+			cmd.Printf("added %s (%s) to the %s board %s\n", id, entry.Name, board, where)
 			return nil
 		},
 	}
-	c.Flags().StringVar(&board, "board", "home", "the board to place it on")
+	c.Flags().StringVar(&board, "board", "home", "the board to place it on: home, sidebar or context-sidebar")
 	c.Flags().StringVar(&id, "id", "", "the instance id (default: the widget's name, made unique)")
 	c.Flags().StringArrayVar(&sets, "set", nil, "an input value, as name=value (repeatable)")
-	c.Flags().StringVar(&size, "size", "", "a preset the widget takes (default: its default_size)")
-	c.Flags().StringVar(&at, "at", "", "the top-left corner in points, as x,y (default: the first free spot)")
+	c.Flags().StringVar(&size, "size", "", "a preset the widget takes, or auto in a sidebar (default: auto when its view grows, else its default_size)")
+	c.Flags().StringVar(&at, "at", "", "on Home, the top-left corner in points, as x,y (default: the first free spot)")
+	c.Flags().StringVar(&after, "after", "", "in a sidebar, the id it goes right after")
+	c.Flags().StringVar(&before, "before", "", "in a sidebar, the id it goes right before")
+	c.MarkFlagsMutuallyExclusive("after", "before")
 	return c
+}
+
+// canvasSize is the preset a widget on Home gets: --size, or its default_size.
+func canvasSize(entry widgets.Entry, size string) (string, error) {
+	if size == "" {
+		size = entry.DefaultSize
+	}
+	if !slices.Contains(entry.Sizes, size) {
+		return "", fmt.Errorf("%s does not come in size %q: it takes %s", entry.Name, size, strings.Join(entry.Sizes, ", "))
+	}
+	return size, nil
+}
+
+// stackSize is the size a widget in a sidebar gets: --size, else auto when
+// its view grows with its content, else its default_size.
+func stackSize(entry widgets.Entry, size string) (string, error) {
+	grows := widgets.Grows(entry.View.Kind)
+	switch {
+	case size == "" && grows:
+		return widgets.SizeAuto, nil
+	case size == widgets.SizeAuto && grows:
+		return size, nil
+	case size == widgets.SizeAuto:
+		return "", fmt.Errorf("%s does not grow with its content, so it takes no --size auto: it takes %s", entry.Name, strings.Join(entry.Sizes, ", "))
+	}
+	return canvasSize(entry, size)
 }
 
 func newWidgetsRemoveCmd(opts *options) *cobra.Command {
@@ -158,13 +212,13 @@ func checkBoardSurface(board string) error {
 	return nil
 }
 
-// readValidBoard reads the board, or starts an empty one when there is none.
+// readValidBoard reads the board, or starts the area's default board when there is none.
 // A board with a problem is refused: rewriting it would turn somebody's typo
 // into lost widgets.
 func readValidBoard(path, surface string, lookup widgets.Lookup) (widgets.Board, []byte, error) {
 	b, read, problems, err := boardProblems(path, lookup)
 	if errors.Is(err, os.ErrNotExist) {
-		return widgets.NewBoard(surface), nil, nil
+		return widgets.DefaultBoard(surface), nil, nil
 	}
 	if err != nil {
 		return widgets.Board{}, nil, err

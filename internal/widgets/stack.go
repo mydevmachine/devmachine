@@ -63,3 +63,72 @@ func fitProblems(w Instance, label, path, name string, surface Surface, entry En
 	}
 	return problems
 }
+
+// DefaultSidebarWidget is the widget the default sidebar board holds: the
+// workspace list the sidebar always showed.
+const DefaultSidebarWidget = "devmachine-app/workspaces"
+
+// DefaultContextSidebar are the devmachine-app widgets of the default context
+// sidebar board, in the order the Context tab always showed its sections.
+var DefaultContextSidebar = []string{"shortcuts", "publish-port", "monitors", "shells", "sub-agents", "todo", "pull-requests", "links"}
+
+// DefaultBoard is the board an area has when its file is missing: what the
+// app draws, and writes, before anybody changed it. Home starts empty.
+func DefaultBoard(surface string) Board {
+	b := NewBoard(surface)
+	var types []string
+	switch surface {
+	case "sidebar":
+		types = []string{DefaultSidebarWidget}
+	case "context-sidebar":
+		for _, name := range DefaultContextSidebar {
+			types = append(types, "devmachine-app/"+name)
+		}
+	}
+	for _, t := range types {
+		_, name, _ := strings.Cut(t, "/")
+		b.Widgets = append(b.Widgets, Instance{ID: name, Type: t, Size: SizeAuto})
+	}
+	return b
+}
+
+// Insert puts w in the list right after the widget with id after, right
+// before the one with id before, or at the end when both are "".
+func (b *Board) Insert(w Instance, after, before string) error {
+	at := len(b.Widgets)
+	switch {
+	case after != "":
+		i, err := b.index(after)
+		if err != nil {
+			return err
+		}
+		at = i + 1
+	case before != "":
+		i, err := b.index(before)
+		if err != nil {
+			return err
+		}
+		at = i
+	}
+	b.Widgets = slices.Insert(b.Widgets, at, w)
+	return nil
+}
+
+// IDOfType is the id of the first widget of this type on the board.
+func (b Board) IDOfType(widgetType string) (string, bool) {
+	for _, w := range b.Widgets {
+		if w.Type == widgetType {
+			return w.ID, true
+		}
+	}
+	return "", false
+}
+
+func (b Board) index(id string) (int, error) {
+	for i, w := range b.Widgets {
+		if w.ID == id {
+			return i, nil
+		}
+	}
+	return 0, fmt.Errorf("no widget with id %q on the %s board", id, b.Surface)
+}
