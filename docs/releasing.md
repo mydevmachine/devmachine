@@ -18,6 +18,15 @@ make accept
 test suite against it. `make accept` runs the CLI acceptance suite. Both must
 be green.
 
+Each acceptance scenario gets its own VM, cloned from one base VM that
+`machines create-local` builds and stops right after cloud-init. The base is
+kept between runs, as `devmachine-accept-base-<hash>`, and rebuilt when the
+local machine template or Lima changes. A clone boots in seconds instead of
+building from the image, and still looks freshly bought: root with a
+password, no key, no Ansible. `host-key-pinning` and `essentials` still run
+`create-local` themselves. `DEVMACHINE_ACCEPT_FRESH=1 make accept` makes every
+scenario build its VM from the image, as before.
+
 Two things that trip people up here:
 
 - An acceptance scenario that rewrites `config.yml` as text must run

@@ -91,7 +91,7 @@ require_converged_recap() {
   esac
 }
 
-"$DEVMACHINE_ACCEPT_BIN" machines create-local "$VM" || die "could not create $VM"
+accept_create_local "$VM" || die "could not create $VM"
 CLOUD_INIT=$(limactl shell "$VM" -- cloud-init status --wait 2>&1 || true)
 case "$CLOUD_INIT" in
   *"status: done"*) ;;

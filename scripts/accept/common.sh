@@ -150,4 +150,98 @@ destroy_accept_vm() {
   "$accept_bin" machines delete-local --yes "$accept_vm"
 }
 
+# A scenario's VM is a clone of one base VM that `machines create-local` built
+# and stopped right after cloud-init, before anything else touched it, so the
+# clone still looks freshly bought to the CLI: root with a password, no key, no
+# Ansible. Creating each VM from the image costs about 40 seconds; a clone
+# boots in about 12. host-key-pinning and essentials still call create-local
+# themselves, so that command stays tested. DEVMACHINE_ACCEPT_FRESH=1 makes
+# every scenario do the same.
+accept_create_local() {
+  accept_vm=$1
+  require_accept_vm "$accept_vm" || return 1
+  if [ "${DEVMACHINE_ACCEPT_FRESH:-0}" = 1 ]; then
+    "$DEVMACHINE_ACCEPT_BIN" machines create-local "$accept_vm"
+    return
+  fi
+  _accept_lock_base || return 1
+  if ! _accept_base_vm || ! limactl clone --tty=false "$ACCEPT_BASE_VM" "$accept_vm"; then
+    _accept_unlock_base
+    return 1
+  fi
+  _accept_unlock_base
+  printf 'cloned %s from %s\n' "$accept_vm" "$ACCEPT_BASE_VM"
+  limactl start --tty=false "$accept_vm"
+}
+
+_accept_base_dir() {
+  printf '%s/devmachine-accept\n' "${XDG_CACHE_HOME:-$HOME/.cache}"
+}
+
+# The base is kept between runs. Its name carries a hash of what decides how
+# create-local builds a VM, so changing the template or Lima builds a new one.
+_accept_base_vm() {
+  accept_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd) || return 1
+  accept_key=$({ cat "$accept_root/internal/local/machine.yaml" "$accept_root/internal/local/size.go"
+    limactl --version; } | shasum -a 256 | cut -c1-12)
+  ACCEPT_BASE_VM="devmachine-accept-base-$accept_key"
+  accept_ready="$(_accept_base_dir)/$ACCEPT_BASE_VM.ready"
+  if [ -f "$accept_ready" ] \
+    && [ "$(limactl list --format '{{.Status}}' "$ACCEPT_BASE_VM" 2>/dev/null)" = "Stopped" ]; then
+    return 0
+  fi
+
+  for accept_old in $(limactl list --quiet 2>/dev/null | grep '^devmachine-accept-base-' || true); do
+    limactl delete -f "$accept_old" >/dev/null 2>&1 || true
+    rm -f "$(_accept_base_dir)/$accept_old.ready"
+  done
+  printf 'building the acceptance base VM %s\n' "$ACCEPT_BASE_VM"
+  "$DEVMACHINE_ACCEPT_BIN" machines create-local "$ACCEPT_BASE_VM" \
+    >"$(_accept_base_dir)/$ACCEPT_BASE_VM.log" 2>&1 || {
+    echo "could not create the base VM; see $(_accept_base_dir)/$ACCEPT_BASE_VM.log" >&2
+    return 1
+  }
+  accept_cloud_init=$(limactl shell "$ACCEPT_BASE_VM" -- cloud-init status --wait 2>&1 || true)
+  case "$accept_cloud_init" in
+    *"status: done"*) ;;
+    *)
+      echo "the base VM did not finish cloud-init: $accept_cloud_init" >&2
+      return 1
+      ;;
+  esac
+  # An empty machine-id makes every clone generate its own on first boot, the
+  # way a cloud image does. Host keys need nothing: Lima gives each start a new
+  # cloud-init instance-id, so cloud-init makes new ones.
+  limactl shell "$ACCEPT_BASE_VM" -- sudo sh -c \
+    'truncate -s 0 /etc/machine-id && rm -f /var/lib/dbus/machine-id' || return 1
+  limactl stop "$ACCEPT_BASE_VM" >/dev/null 2>&1 || return 1
+  touch "$accept_ready"
+}
+
+# Two runs at once must not build or delete the base under each other. A lock
+# left by a run that died is taken over.
+_accept_lock_base() {
+  accept_lock="$(_accept_base_dir)/base.lock"
+  mkdir -p "$(_accept_base_dir)" || return 1
+  accept_waited=0
+  until mkdir "$accept_lock" 2>/dev/null; do
+    accept_holder=$(cat "$accept_lock/pid" 2>/dev/null || true)
+    if [ -n "$accept_holder" ] && ! kill -0 "$accept_holder" 2>/dev/null; then
+      rm -rf "$accept_lock"
+      continue
+    fi
+    accept_waited=$((accept_waited + 1))
+    if [ "$accept_waited" -gt 600 ]; then
+      echo "the acceptance base VM is locked by process $accept_holder" >&2
+      return 1
+    fi
+    sleep 1
+  done
+  printf '%s\n' "$$" > "$accept_lock/pid"
+}
+
+_accept_unlock_base() {
+  rm -rf "$(_accept_base_dir)/base.lock"
+}
+
 accept_reset
