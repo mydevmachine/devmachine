@@ -1050,6 +1050,39 @@ func TestWidgetsMoveKeepsAnInlineStackWidget(t *testing.T) {
 	}
 }
 
+const handWrittenStackSourceAndView = `    source:
+      # poll every minute
+      run: 'echo'
+      kind: command
+      args:
+        - 'hi'
+      every: 60s
+    view: {kind: 'text', wrap: false} # flow
+`
+
+func TestAddMoveAndRemoveKeepAHandWrittenInlineStackWidget(t *testing.T) {
+	dir := stackConfig(t)
+	board := widgets.BoardPath(dir, "sidebar")
+	before := "format: 1\nsurface: sidebar\nwidgets:\n  - id: hello\n    title: Hello\n" + handWrittenStackSourceAndView + "    size: medium\n"
+	writeCommandFile(t, board, before)
+	steps := [][]string{
+		{"add", "claude-code/usage", "--board", "sidebar", "--before", "hello"},
+		{"move", "usage", "--after", "hello", "--board", "sidebar"},
+		{"remove", "usage", "--board", "sidebar"},
+	}
+	for _, step := range steps {
+		if out, err := execute(t, append([]string{"--config", dir, "widgets"}, step...)...); err != nil {
+			t.Fatalf("%v: %v\n%s", step, err, out)
+		}
+		if got := readCommandFile(t, board); !strings.Contains(got, handWrittenStackSourceAndView) {
+			t.Fatalf("after %v the hand-written source and view changed:\n%s", step, got)
+		}
+	}
+	if got := readCommandFile(t, board); got != before {
+		t.Fatalf("got\n%s\nwant\n%s", got, before)
+	}
+}
+
 func TestWidgetsMoveRefuses(t *testing.T) {
 	cases := []struct {
 		name string
