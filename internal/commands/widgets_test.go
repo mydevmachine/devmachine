@@ -525,6 +525,52 @@ func TestWidgetsAddRefusesABoardWithAnUnknownKey(t *testing.T) {
 	}
 }
 
+func typedInputConfig(t *testing.T) string {
+	t.Helper()
+	dir := widgetConfig(t)
+	dial := strings.Replace(clockWidgetYAML, "name: clock", "name: dial", 1)
+	dial = strings.Replace(dial, "fits: [canvas]\n", "fits: [canvas]\ninputs:\n  n: {type: number, default: 1, summary: A count.}\n  flag: {type: boolean, default: false, summary: A switch.}\n", 1)
+	writeWidgetPackageAt(t, packages.LocalDir(dir), "mine", "machine", map[string]string{"dial": dial})
+	return dir
+}
+
+func TestWidgetsAddWritesTypedInputs(t *testing.T) {
+	dir := typedInputConfig(t)
+	if out, err := execute(t, "--config", dir, "widgets", "add", "mine/dial", "--set", "n=5", "--set", "flag=true"); err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	b, _, problems, err := widgets.ReadBoard(widgets.BoardPath(dir, "home"))
+	if err != nil || len(problems) > 0 {
+		t.Fatalf("%v %v", err, problems)
+	}
+	with := b.Widgets[0].With
+	if n, ok := with["n"].(int); !ok || n != 5 {
+		t.Fatalf("n: got %#v", with["n"])
+	}
+	if flag, ok := with["flag"].(bool); !ok || !flag {
+		t.Fatalf("flag: got %#v", with["flag"])
+	}
+}
+
+func TestWidgetsAddRefusesAValueOfTheWrongType(t *testing.T) {
+	cases := map[string]string{
+		"n=five":   `input n is a number, and "five" is not`,
+		"flag=yes": `input flag is true or false, and "yes" is neither`,
+	}
+	for set, want := range cases {
+		t.Run(set, func(t *testing.T) {
+			dir := typedInputConfig(t)
+			_, err := execute(t, "--config", dir, "widgets", "add", "mine/dial", "--set", set)
+			if err == nil || !strings.Contains(err.Error(), want) {
+				t.Fatalf("want %q, got %v", want, err)
+			}
+			if _, statErr := os.Stat(widgets.BoardPath(dir, "home")); statErr == nil {
+				t.Fatal("a refused add wrote a board")
+			}
+		})
+	}
+}
+
 func readCommandFile(t *testing.T, path string) string {
 	t.Helper()
 	body, err := os.ReadFile(path)

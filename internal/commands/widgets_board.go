@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"reflect"
 	"regexp"
 	"slices"
 	"strconv"
@@ -163,15 +162,12 @@ func checkBoardSurface(board string) error {
 // A board with a problem is refused: rewriting it would turn somebody's typo
 // into lost widgets.
 func readValidBoard(path, surface string, lookup widgets.Lookup) (widgets.Board, []byte, error) {
-	b, read, problems, err := widgets.ReadBoard(path)
+	b, read, problems, err := boardProblems(path, lookup)
 	if errors.Is(err, os.ErrNotExist) {
 		return widgets.NewBoard(surface), nil, nil
 	}
 	if err != nil {
 		return widgets.Board{}, nil, err
-	}
-	if len(problems) == 0 || !reflect.ValueOf(b).IsZero() {
-		problems = append(problems, widgets.ValidateBoard(b, path, lookup)...)
 	}
 	if len(problems) > 0 {
 		lines := make([]string, len(problems))

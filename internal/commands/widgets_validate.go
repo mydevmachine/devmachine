@@ -137,16 +137,23 @@ func validateTarget(path string, lookup widgets.Lookup) ([]widgets.Widget, []wid
 }
 
 func validateBoardFile(path string, lookup widgets.Lookup) ([]widgets.Problem, error) {
-	b, _, problems, err := widgets.ReadBoard(path)
+	_, _, problems, err := boardProblems(path, lookup)
+	return problems, err
+}
+
+// boardProblems reads the board at path and returns it, the bytes it was read
+// from, and everything wrong with it.
+func boardProblems(path string, lookup widgets.Lookup) (widgets.Board, []byte, []widgets.Problem, error) {
+	b, read, problems, err := widgets.ReadBoard(path)
 	if err != nil {
-		return nil, err
+		return widgets.Board{}, nil, nil, err
 	}
 	// ParseBoard hands back an empty board with its one problem when the file
 	// is not a board at all; checking that empty board would only add noise.
 	if len(problems) > 0 && reflect.ValueOf(b).IsZero() {
-		return problems, nil
+		return b, read, problems, nil
 	}
-	return append(problems, widgets.ValidateBoard(b, path, lookup)...), nil
+	return b, read, append(problems, widgets.ValidateBoard(b, path, lookup)...), nil
 }
 
 func loadOne(dir string) ([]widgets.Widget, []widgets.Problem, error) {

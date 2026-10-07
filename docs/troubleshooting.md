@@ -1702,3 +1702,13 @@ widget — wrote the board between the moment the CLI read it and the moment
 it was about to write. Writing anyway would have lost that change.
 
 **What to do:** Run the same command again.
+
+## "there is no home board at …"
+
+**What it means:** `widgets remove` found no board file for that area, so
+there is nothing to take off. Nobody has placed a widget there from the
+CLI, or the app has not saved a layout yet. `widgets add` creates the
+file; `remove` never does.
+
+**What to do:** Check `--board` and the config directory the path names.
+To see what is on a board, open `<config>/boards/<board>.yml`.
