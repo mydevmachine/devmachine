@@ -69,8 +69,11 @@ func newWidgetsListCmd(opts *options) *cobra.Command {
 				if e.Version != "" {
 					origin += " " + e.Version
 				}
-				if e.PackageSource != nil {
-					origin = "third-party from " + e.PackageSource.URL
+				if e.Trust == widgets.TrustThirdParty {
+					origin = "third-party"
+					if e.PackageSource != nil && e.PackageSource.URL != "" {
+						origin += " from " + e.PackageSource.URL
+					}
 				}
 				state := "available"
 				if !e.Available {

@@ -1273,6 +1273,20 @@ func TestABrokenOriginFileStillMeansThirdParty(t *testing.T) {
 	if len(catalog.Problems) != 1 || !strings.Contains(catalog.Problems[0].Message, "its widgets are treated as third-party") {
 		t.Fatalf("got %+v", catalog.Problems)
 	}
+	out, err := execute(t, "--config", dir, "widgets", "list")
+	if err != nil || !strings.Contains(out, "alice-tools/disk  (third-party)") || strings.Contains(out, "(local") {
+		t.Fatalf("%v\n%s", err, out)
+	}
+}
+
+func TestAThirdPartyPackageWithoutAURLSaysThirdParty(t *testing.T) {
+	dir := widgetConfig(t)
+	tools := writeProviderPackage(t, dir, "alice-tools")
+	writeCommandFile(t, filepath.Join(tools, packages.OriginFile), "ref: v1\ncommit: 0123abc\n")
+	out, err := execute(t, "--config", dir, "widgets", "list")
+	if err != nil || !strings.Contains(out, "alice-tools/disk  (third-party)") || strings.Contains(out, "third-party from") {
+		t.Fatalf("%v\n%s", err, out)
+	}
 }
 
 const ghostStatsBoard = `format: 1

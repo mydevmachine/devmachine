@@ -140,3 +140,48 @@ func TestCloneSaysWhenGitIsMissing(t *testing.T) {
 		t.Fatalf("got %v", err)
 	}
 }
+
+func TestCloneNeverLetsSSHAsk(t *testing.T) {
+	bin := t.TempDir()
+	seen := filepath.Join(t.TempDir(), "seen")
+	script := fmt.Sprintf("#!/bin/sh\nprintf '%%s|%%s' \"$GIT_SSH_COMMAND\" \"$GIT_TERMINAL_PROMPT\" > %q\nexit 1\n", seen)
+	if err := os.WriteFile(filepath.Join(bin, "git"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin)
+	t.Setenv("GIT_SSH_COMMAND", "ssh -o BatchMode=no")
+	if _, err := Clone(context.Background(), "git@example.com:alice/tools.git", "", filepath.Join(t.TempDir(), "clone")); err == nil {
+		t.Fatal("the fake git failed, so Clone should too")
+	}
+	got, err := os.ReadFile(seen)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "ssh -o BatchMode=yes|0" {
+		t.Fatalf("git saw %q", got)
+	}
+}
+
+func TestCloneIgnoresGitConfigFromTheEnvironment(t *testing.T) {
+	bin := t.TempDir()
+	seen := filepath.Join(t.TempDir(), "seen")
+	script := fmt.Sprintf("#!/bin/sh\nenv | grep -E '^GIT_CONFIG_(PARAMETERS|COUNT|KEY_|VALUE_)' > %q\nexit 1\n", seen)
+	if err := os.WriteFile(filepath.Join(bin, "git"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Setenv("GIT_CONFIG_PARAMETERS", "'core.sshCommand'='touch /tmp/pwned'")
+	t.Setenv("GIT_CONFIG_COUNT", "1")
+	t.Setenv("GIT_CONFIG_KEY_0", "core.sshCommand")
+	t.Setenv("GIT_CONFIG_VALUE_0", "touch /tmp/pwned")
+	if _, err := Clone(context.Background(), "git@example.com:alice/tools.git", "", filepath.Join(t.TempDir(), "clone")); err == nil {
+		t.Fatal("the fake git failed, so Clone should too")
+	}
+	got, err := os.ReadFile(seen)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 0 {
+		t.Fatalf("git saw %q", got)
+	}
+}

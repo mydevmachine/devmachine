@@ -2105,18 +2105,19 @@ holds such a name is unsafe to hand to the app.
 `devmachine-app/stats`. `devmachine widgets list --format json` lists
 every provider under `providers`.
 
-## Installing a package from a `git@` address waits and never ends
+## Installing from a `git@` address fails with "Host key verification failed" or "Permission denied (publickey)"
 
 **What it means:** A `git@host:path` address goes through `ssh`, and `ssh`
-asks its own questions: whether to trust a host it has never seen
-(`Are you sure you want to continue connecting?`) or the passphrase of
-your key. The CLI stops git from asking for an https password, but it
-cannot answer `ssh` for you, so the fetch waits for an answer.
+would normally ask its own questions: whether to trust a host it has
+never seen, or the passphrase of your key. The CLI runs it with
+`BatchMode=yes`, so it never asks — nobody may be at a terminal to answer,
+the macOS app included — and fails at once instead. It also ignores a
+`GIT_SSH_COMMAND` set in your shell for the same reason; `~/.ssh/config`
+still applies.
 
-**What to do:** Answer the question in the terminal, or press Ctrl-C and
-run `ssh -T git@<host>` once to trust the host and unlock your key (with
-`ssh-add`). Then install again. An `https://` address of a public
-repository never asks.
+**What to do:** Run `ssh -T git@<host>` once to trust the host, and load
+your key into the SSH agent with `ssh-add`. Then install again. An
+`https://` address of a public repository never needs either.
 
 ## "… its widgets are treated as third-party"
 

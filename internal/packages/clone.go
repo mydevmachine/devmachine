@@ -18,16 +18,26 @@ import (
 var repositoryVars = []string{"GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_OBJECT_DIRECTORY",
 	"GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_COMMON_DIR"}
 
-// gitRun runs git in dir. GIT_TERMINAL_PROMPT=0 makes a private repository
-// fail with git's own message instead of waiting for a password nobody types.
+// droppedVar says whether git must not inherit the variable name: the
+// repository ones, and the config ones, which can set core.sshCommand or a
+// hook path and so run a program while fetching somebody else's repository.
+func droppedVar(name string) bool {
+	return slices.Contains(repositoryVars, name) || name == "GIT_SSH_COMMAND" ||
+		name == "GIT_CONFIG_PARAMETERS" || name == "GIT_CONFIG_COUNT" ||
+		strings.HasPrefix(name, "GIT_CONFIG_KEY_") || strings.HasPrefix(name, "GIT_CONFIG_VALUE_")
+}
+
+// gitRun runs git in dir. GIT_TERMINAL_PROMPT=0 and ssh's BatchMode make a
+// private repository, an unknown host or a locked key fail with git's own
+// message instead of waiting for an answer nobody types, the app included.
 func gitRun(ctx context.Context, dir string, args ...string) (string, error) {
 	cmd := exec.CommandContext(ctx, "git", args...)
 	cmd.Dir = dir
 	cmd.Env = slices.DeleteFunc(os.Environ(), func(kv string) bool {
 		name, _, _ := strings.Cut(kv, "=")
-		return slices.Contains(repositoryVars, name)
+		return droppedVar(name)
 	})
-	cmd.Env = append(cmd.Env, "GIT_TERMINAL_PROMPT=0")
+	cmd.Env = append(cmd.Env, "GIT_TERMINAL_PROMPT=0", "GIT_SSH_COMMAND=ssh -o BatchMode=yes")
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	if err := cmd.Run(); err != nil {
