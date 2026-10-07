@@ -257,12 +257,61 @@ func TestWidgetsValidateChecksEachKindOfPath(t *testing.T) {
 		if err != nil {
 			t.Errorf("%s: %v\n%s", path, err, out)
 		}
-		if path != board && !strings.Contains(out, "clock fits home") {
+		if path != board && !strings.Contains(out, "mine/clock fits home") {
 			t.Errorf("%s: the surfaces it fits are missing from\n%s", path, out)
 		}
 		if path == board && !strings.Contains(out, "1 checked, all fine") {
 			t.Errorf("%s: the board's result is missing from\n%s", path, out)
 		}
+	}
+}
+
+func TestWidgetsValidateNamesEachWidgetByItsPackage(t *testing.T) {
+	dir := widgetConfig(t)
+	local := packages.LocalDir(dir)
+	writeWidgetPackageAt(t, local, "mine", "machine", map[string]string{"usage": usageWidgetYAML})
+	writeWidgetPackageAt(t, local, "theirs", "machine", map[string]string{"usage": usageWidgetYAML})
+
+	out, err := execute(t, "--config", dir, "widgets", "validate")
+	if err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	for _, want := range []string{"mine/usage fits ", "theirs/usage fits "} {
+		if !strings.Contains(out, want) {
+			t.Errorf("%q is missing from\n%s", want, out)
+		}
+	}
+
+	out, err = execute(t, "--config", dir, "--format", "json", "widgets", "validate", filepath.Join(local, "theirs", "widgets", "usage"))
+	if err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	var result struct {
+		Widgets []widgetFit `json:"widgets"`
+	}
+	if err := json.Unmarshal([]byte(out), &result); err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Widgets) != 1 || result.Widgets[0].Name != "theirs/usage" {
+		t.Fatalf("got %+v", result.Widgets)
+	}
+}
+
+func TestWidgetsValidateNamesAWidgetOutsideAPackageByItsName(t *testing.T) {
+	dir := widgetConfig(t)
+	folder := filepath.Join(t.TempDir(), "clock")
+	writeCommandFile(t, filepath.Join(folder, "widget.yml"), clockWidgetYAML)
+
+	out, err := execute(t, "--config", dir, "widgets", "validate", folder)
+	if err != nil || !strings.HasPrefix(out, "clock fits home") {
+		t.Fatalf("got %v\n%s", err, out)
+	}
+}
+
+func TestWidgetsUnknownSubcommandFails(t *testing.T) {
+	_, err := execute(t, "--config", t.TempDir(), "widgets", "frobnicate")
+	if err == nil || !strings.Contains(err.Error(), `unknown command "frobnicate" for "devmachine widgets"`) {
+		t.Fatalf("got %v", err)
 	}
 }
 
@@ -277,7 +326,7 @@ func TestWidgetsValidateWithNoPathReportsABrokenOwnPackage(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "1 problem(s)") {
 		t.Fatalf("got %v\n%s", err, out)
 	}
-	if !strings.Contains(out, filepath.Join(local, "broken", "package.yml")) || !strings.Contains(out, "clock fits home") {
+	if !strings.Contains(out, filepath.Join(local, "broken", "package.yml")) || !strings.Contains(out, "mine/clock fits home") {
 		t.Fatalf("got\n%s", out)
 	}
 }

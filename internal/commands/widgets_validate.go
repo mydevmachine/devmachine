@@ -46,9 +46,7 @@ func newWidgetsValidateCmd(opts *options) *cobra.Command {
 					return err
 				}
 				problems = append(problems, found...)
-				for _, w := range valid {
-					fits = append(fits, widgetFit{Path: w.Dir, Name: w.Name, Surfaces: nonNil(widgets.Surfaces(w))})
-				}
+				fits = append(fits, valid...)
 			}
 
 			if opts.format == formatJSON {
@@ -106,7 +104,7 @@ type widgetFit struct {
 
 // validateTarget checks one path, whichever of the four things it is, and
 // returns the widgets that passed beside the problems.
-func validateTarget(path string, lookup widgets.Lookup) ([]widgets.Widget, []widgets.Problem, error) {
+func validateTarget(path string, lookup widgets.Lookup) ([]widgetFit, []widgets.Problem, error) {
 	info, err := os.Stat(path)
 	if err != nil {
 		return nil, nil, fmt.Errorf("reading %s: %w", path, err)
@@ -131,7 +129,7 @@ func validateTarget(path string, lookup widgets.Lookup) ([]widgets.Widget, []wid
 			return nil, []widgets.Problem{{Path: manifest, Message: fmt.Sprintf("package %s declares no `widgets:` folder", m.Name)}}, nil
 		}
 		valid, problems := widgets.LoadAll(root)
-		return valid, problems, nil
+		return fitsOf(m.Name, valid), problems, nil
 	}
 	return nil, nil, fmt.Errorf("%s is neither a widget, a package nor a board", path)
 }
@@ -156,12 +154,49 @@ func boardProblems(path string, lookup widgets.Lookup) (widgets.Board, []byte, [
 	return b, read, append(problems, widgets.ValidateBoard(b, path, lookup)...), nil
 }
 
-func loadOne(dir string) ([]widgets.Widget, []widgets.Problem, error) {
+func loadOne(dir string) ([]widgetFit, []widgets.Problem, error) {
 	w, problems := widgets.Load(dir)
 	if len(problems) > 0 {
 		return nil, problems, nil
 	}
-	return []widgets.Widget{w}, nil, nil
+	return fitsOf(packageOf(dir), []widgets.Widget{w}), nil, nil
+}
+
+func fitsOf(pkg string, valid []widgets.Widget) []widgetFit {
+	fits := make([]widgetFit, 0, len(valid))
+	for _, w := range valid {
+		name := w.Name
+		if pkg != "" {
+			name = pkg + "/" + w.Name
+		}
+		fits = append(fits, widgetFit{Path: w.Dir, Name: name, Surfaces: nonNil(widgets.Surfaces(w))})
+	}
+	return fits
+}
+
+// packageOf is the name of the package whose widgets folder holds the widget
+// folder dir, or "" when no package claims it.
+func packageOf(dir string) string {
+	abs, err := filepath.Abs(dir)
+	if err != nil {
+		return ""
+	}
+	folder := filepath.Dir(abs)
+	for at := folder; ; at = filepath.Dir(at) {
+		if fileExists(packages.ManifestPath(at)) {
+			m, err := packages.ParseManifest(at)
+			if err != nil {
+				return ""
+			}
+			if root, ok := packages.WidgetsDir(m); ok && filepath.Clean(root) == folder {
+				return m.Name
+			}
+			return ""
+		}
+		if filepath.Dir(at) == at {
+			return ""
+		}
+	}
 }
 
 func fileExists(path string) bool {

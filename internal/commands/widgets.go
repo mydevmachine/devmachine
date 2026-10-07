@@ -22,6 +22,8 @@ func newWidgetsCmd(opts *options) *cobra.Command {
 		Long: "Widgets come from packages: a release's and your own. Boards live " +
 			"in <config>/boards/. Local only: these commands never connect to a machine.\n\n" +
 			"`widgets help <package/widget>` describes a widget; `--help` shows how to use a command.",
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error { return cmd.Help() },
 	}
 	cmd.AddCommand(
 		newWidgetsListCmd(opts),

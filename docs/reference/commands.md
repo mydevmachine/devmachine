@@ -730,11 +730,13 @@ describes a widget; `--help` shows how to use a command.
 `validate` takes a `widget.yml`, a widget folder, a package folder or a
 board file. With no path it checks every board in `<config>/boards/` and
 every widget in your own packages. For each widget that passes it prints
-the areas it fits (`clock fits home`). It reports every problem at once,
-with file and line, and exits non-zero when there is one. `--format json`
-prints `{"ok": false, "checked": [...], "widgets": [{"path": ..., "name":
-..., "surfaces": [...]}], "problems": [{"path": ..., "line": ...,
-"message": ...}]}`.
+its full name and the areas it fits (`mine/clock fits home`); a widget
+folder that sits in no package's widgets folder prints its name alone
+(`clock fits home`). It reports every problem at once, with file and line,
+and exits non-zero when there is one. `--format json` prints `{"ok":
+false, "checked": [...], "widgets": [{"path": ..., "name": ...,
+"surfaces": [...]}], "problems": [{"path": ..., "line": ..., "message":
+...}]}`, with `name` written the same way.
 
 `schema` prints the engine contract: areas, providers, views and sizes.
 `--json` prints it as JSON, the same document the app is built against.
