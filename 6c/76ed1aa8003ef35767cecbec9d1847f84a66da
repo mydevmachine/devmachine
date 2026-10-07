@@ -1,0 +1,51 @@
+internal/widgets/reference.go
+  s_c1c985d7f57ab9::t_e48cb7cd882ba4 87-96
+internal/widgets/contract_test.go
+  s_c1c985d7f57ab9::t_fad79281f571cb 109-134
+internal/widgets/widget_test.go
+  s_c1c985d7f57ab9::t_dc98d9b9c1fa47 129,188,191
+docs/troubleshooting.md
+  s_c1c985d7f57ab9::t_cb01a10b2592ce 1755,1762-1770
+  s_c1c985d7f57ab9::t_7547856e4307ed 1771
+docs/reference/widget-format.md
+  s_c1c985d7f57ab9::t_76b83eeff531df 429
+  s_c1c985d7f57ab9::t_97e488a763f780 444
+  s_c1c985d7f57ab9::t_0686cd9fd0a10a 331,379-382,387
+  s_c1c985d7f57ab9::t_ebbb8c5f979f1e 461,463
+  s_c1c985d7f57ab9::t_3ec3fe624421fd 73-77
+internal/widgets/reference_test.go
+  s_c1c985d7f57ab9::t_dc98d9b9c1fa47 35-37
+internal/widgets/testdata/contract.json
+  s_c1c985d7f57ab9::t_1abee3cadc5d7f 2,40-51,105-107
+internal/widgets/contract.go
+  s_c1c985d7f57ab9::t_4f9603ded4eda7 6-18
+  s_c1c985d7f57ab9::t_7d3c7394949b2d 171-186
+  s_c1c985d7f57ab9::t_bb9a63ba0cbeb1 206
+  s_c1c985d7f57ab9::t_e5cf4fac6f7ca7 278-289
+  s_c1c985d7f57ab9::t_1ee3261ef6c144 350-354
+  s_c1c985d7f57ab9::t_026c4ff29048ad 189-203
+internal/widgets/source.go
+  s_c1c985d7f57ab9::t_dd2c130ffdd989 206-211
+  s_c1c985d7f57ab9::t_cf03ff5810bdf1 41-42,50-56
+internal/commands/widgets_test.go
+  s_c1c985d7f57ab9::t_dc98d9b9c1fa47 166
+internal/widgets/source_test.go
+  s_c1c985d7f57ab9::t_55870ca66076c9 300-333
+  s_c1c985d7f57ab9::t_dc98d9b9c1fa47 4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6c76ed1aa8003ef35767cecbec9d1847f84a66da",
+  "prompts": {},
+  "sessions": {
+    "s_c1c985d7f57ab9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b5256304-4a81-480d-a568-f8cf11d8ddcc",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
