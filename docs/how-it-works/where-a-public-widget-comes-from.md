@@ -55,8 +55,11 @@ credentials it asks for. It refuses:
   or hides text in a terminal, such as ESC or a Unicode bidirectional
   override: such a name could erase the lines above the prompt, the
   "runs as root" warning included, and you would answer a question you
-  cannot read. The prompt also prints any such character as an escape,
-  in case one gets past;
+  cannot read. A file name that is not UTF-8 is refused for the same
+  reason. The prompt also prints any such character as an escape, in
+  case one gets past, and so does every error that quotes the
+  repository: git's output, a problem in its `package.yml`, a link's
+  name;
 - a link that leads outside the package, which would copy a file from your
   computer to your machines;
 - a package that does not validate.

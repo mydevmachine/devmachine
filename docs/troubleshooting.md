@@ -2200,7 +2200,8 @@ own files.
 **What it means:** A file name in the repository, or the package's
 summary, a command, a provider, a credential or a package it needs, holds
 a control character (ESC, a carriage return, DEL and the like) or a
-Unicode bidirectional override. Printed as it is, such a name can move
+Unicode bidirectional mark or override, or a file name is not UTF-8.
+Printed as it is, such a name can move
 the cursor and erase the lines above it — the list of tasks, or the
 warning that they run as root — so the prompt would show less than the
 package brings. The message prints the name with the character written

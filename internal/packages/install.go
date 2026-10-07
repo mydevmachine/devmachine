@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/mydevmachine/devmachine/internal/widgets"
 )
@@ -104,20 +105,34 @@ func roleFolder(name string) bool {
 
 // hidesText says whether a rune can move the cursor, erase a line or
 // reorder what follows it in a terminal: C0 and C1 controls, DEL, and the
-// Unicode bidirectional overrides and isolates.
+// Unicode bidirectional marks, overrides and isolates.
 func hidesText(r rune) bool {
+	switch r {
+	case '\u200e', '\u200f', '\u061c':
+		return true
+	}
 	return unicode.IsControl(r) || (r >= '\u202a' && r <= '\u202e') || (r >= '\u2066' && r <= '\u2069')
 }
 
+// hiddenText says whether s holds a rune that hidesText refuses, or bytes
+// that are not UTF-8, which a terminal may read as the start of one.
+func hiddenText(s string) bool {
+	return !utf8.ValidString(s) || strings.ContainsFunc(s, hidesText)
+}
+
 // EscapeControl writes every rune that could move or hide text in a
-// terminal as an escape, such as \x1b or \u202e, and leaves the rest.
+// terminal as an escape, such as \x1b or \u202e, and every byte that is not
+// UTF-8 as \xNN, and leaves the rest.
 func EscapeControl(s string) string {
-	if !strings.ContainsFunc(s, hidesText) {
+	if !hiddenText(s) {
 		return s
 	}
 	var b strings.Builder
-	for _, r := range s {
+	for i := 0; i < len(s); {
+		r, size := utf8.DecodeRuneInString(s[i:])
 		switch {
+		case r == utf8.RuneError && size == 1:
+			fmt.Fprintf(&b, `\x%02x`, s[i])
 		case !hidesText(r):
 			b.WriteRune(r)
 		case r < 0x100:
@@ -125,9 +140,29 @@ func EscapeControl(s string) string {
 		default:
 			fmt.Fprintf(&b, `\u%04x`, r)
 		}
+		i += size
 	}
 	return b.String()
 }
+
+// escapeLines is EscapeControl for text of several lines, such as git's
+// output: it keeps the line breaks and escapes the rest of each line.
+func escapeLines(s string) string {
+	lines := strings.Split(s, "\n")
+	for i, line := range lines {
+		lines[i] = EscapeControl(line)
+	}
+	return strings.Join(lines, "\n")
+}
+
+// escapedError is an error whose message reached Stage from a fetched
+// repository — git's output, a YAML error quoting package.yml — escaped as
+// the prompt is. It still unwraps to the error it carries.
+type escapedError struct{ err error }
+
+func (e escapedError) Error() string { return escapeLines(e.err.Error()) }
+
+func (e escapedError) Unwrap() error { return e.err }
 
 // refuseHiddenText refuses a package whose file names or summary hold a rune
 // that moves or hides text in a terminal: the prompt before installing is
@@ -147,7 +182,7 @@ func refuseHiddenText(where, dir string, s Summary) error {
 		if err != nil {
 			return err
 		}
-		if strings.ContainsFunc(rel, hidesText) {
+		if hiddenText(rel) {
 			return refuse("the file name", filepath.ToSlash(rel))
 		}
 		return nil
@@ -168,7 +203,7 @@ func refuseHiddenText(where, dir string, s Summary) error {
 	}
 	for _, f := range fields {
 		for _, v := range f.values {
-			if strings.ContainsFunc(v, hidesText) {
+			if hiddenText(v) {
 				return refuse(f.what, v)
 			}
 		}
@@ -193,9 +228,9 @@ type InvalidPackageError struct {
 func (e *InvalidPackageError) Error() string {
 	lines := make([]string, len(e.Problems))
 	for i, p := range e.Problems {
-		lines[i] = "  " + p.Error()
+		lines[i] = "  " + EscapeControl(p.Error())
 	}
-	return fmt.Sprintf("the package at %s has %d problem(s):\n%s", e.Where, len(e.Problems), strings.Join(lines, "\n"))
+	return fmt.Sprintf("the package at %s has %d problem(s):\n%s", EscapeControl(e.Where), len(e.Problems), strings.Join(lines, "\n"))
 }
 
 // Staged is a package fetched from a git address into a temporary folder
@@ -244,7 +279,7 @@ func Stage(ctx context.Context, configDir, address, ref string) (*Staged, error)
 	staged := &Staged{temp: temp}
 	fail := func(err error) (*Staged, error) {
 		staged.Discard()
-		return nil, err
+		return nil, escapedError{err}
 	}
 
 	clone := filepath.Join(temp, ".clone")
@@ -414,7 +449,7 @@ func linksStayInside(dir string) error {
 		if err != nil {
 			return err
 		}
-		rel = filepath.ToSlash(rel)
+		rel = EscapeControl(filepath.ToSlash(rel))
 		target, err := filepath.EvalSymlinks(path)
 		if err != nil {
 			return fmt.Errorf("%s is a link to nothing: a package from a git address holds its own files", rel)

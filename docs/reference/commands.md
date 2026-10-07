@@ -1574,7 +1574,8 @@ validate` does, and refuses:
 - a link that leads outside the package;
 - a file name, summary, command, provider, credential or needed package
   holding a character that moves or hides text in a terminal (a control
-  character such as ESC, or a Unicode bidirectional override);
+  character such as ESC, or a Unicode bidirectional mark or override),
+  or a file name that is not UTF-8;
 - a package that does not validate (every problem is listed).
 
 Then it shows what the package brings — its widgets and which of them run

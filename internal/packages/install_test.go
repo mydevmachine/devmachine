@@ -494,22 +494,25 @@ func TestStageRefusesControlCharacters(t *testing.T) {
 		}
 	}
 	cases := map[string]func(r *gittest.Repo){
-		"escape in a task name":        func(r *gittest.Repo) { r.Write("tasks/x\r\x1b[2K.yml", "---\n[]\n", 0o644) },
-		"escape in a file name":        func(r *gittest.Repo) { r.Write("templates/a\x1b[1A", "x", 0o644) },
-		"escape in a script path":      func(r *gittest.Repo) { r.Write("bin/run\x1b[2J", "#!/bin/sh\n", 0o755) },
-		"bidi override in a file name": func(r *gittest.Repo) { r.Write("files/evil\u202ecod.yml", "x", 0o644) },
-		"bidi isolate in a file name":  func(r *gittest.Repo) { r.Write("files/evil\u2066x", "x", 0o644) },
-		"delete in a file name":        func(r *gittest.Repo) { r.Write("files/a\x7fb", "x", 0o644) },
-		"C1 control in a file name":    func(r *gittest.Repo) { r.Write("files/a\u009bb", "x", 0o644) },
-		"escape in the summary":        manifest("summary: Tools from alice.", `summary: "Tools\e[2J from alice."`),
-		"newline in the summary":       manifest("summary: Tools from alice.", `summary: "Tools\nfrom alice."`),
-		"bidi override in the summary": manifest("summary: Tools from alice.", `summary: "Tools \u202efrom alice."`),
-		"escape in a command name":     manifest("commands: [disk, help]", `commands: [disk, "help\e[1A"]`),
-		"escape in a credential name":  manifest("{name: alice-token,", `{name: "alice-token\e[2K",`),
-		"bidi isolate in a credential": manifest("{name: alice-token,", `{name: "alice-token\u2069",`),
-		"escape in a provider name":    manifest("providers:\n  disk:", "providers:\n  \"disk\\e[1A\":"),
-		"escape in a needed package":   manifest("needs: [base]", `needs: ["base\e[2K"]`),
-		"escape in a widget folder":    func(r *gittest.Repo) { r.Write("widgets/x\x1b[2K/widget.yml", aliceHealthWidget, 0o644) },
+		"escape in a task name":         func(r *gittest.Repo) { r.Write("tasks/x\r\x1b[2K.yml", "---\n[]\n", 0o644) },
+		"escape in a file name":         func(r *gittest.Repo) { r.Write("templates/a\x1b[1A", "x", 0o644) },
+		"escape in a script path":       func(r *gittest.Repo) { r.Write("bin/run\x1b[2J", "#!/bin/sh\n", 0o755) },
+		"bidi override in a file name":  func(r *gittest.Repo) { r.Write("files/evil\u202ecod.yml", "x", 0o644) },
+		"bidi isolate in a file name":   func(r *gittest.Repo) { r.Write("files/evil\u2066x", "x", 0o644) },
+		"delete in a file name":         func(r *gittest.Repo) { r.Write("files/a\x7fb", "x", 0o644) },
+		"C1 control in a file name":     func(r *gittest.Repo) { r.Write("files/a\u009bb", "x", 0o644) },
+		"escape in the summary":         manifest("summary: Tools from alice.", `summary: "Tools\e[2J from alice."`),
+		"newline in the summary":        manifest("summary: Tools from alice.", `summary: "Tools\nfrom alice."`),
+		"bidi override in the summary":  manifest("summary: Tools from alice.", `summary: "Tools \u202efrom alice."`),
+		"escape in a command name":      manifest("commands: [disk, help]", `commands: [disk, "help\e[1A"]`),
+		"escape in a credential name":   manifest("{name: alice-token,", `{name: "alice-token\e[2K",`),
+		"bidi isolate in a credential":  manifest("{name: alice-token,", `{name: "alice-token\u2069",`),
+		"escape in a provider name":     manifest("providers:\n  disk:", "providers:\n  \"disk\\e[1A\":"),
+		"escape in a needed package":    manifest("needs: [base]", `needs: ["base\e[2K"]`),
+		"escape in a widget folder":     func(r *gittest.Repo) { r.Write("widgets/x\x1b[2K/widget.yml", aliceHealthWidget, 0o644) },
+		"left-to-right mark in a name":  func(r *gittest.Repo) { r.Write("files/a\u200eb", "x", 0o644) },
+		"right-to-left mark in summary": manifest("summary: Tools from alice.", `summary: "Tools \u200ffrom alice."`),
+		"arabic letter mark in command": manifest("commands: [disk, help]", `commands: [disk, "help\u061c"]`),
 	}
 	for name, change := range cases {
 		r := aliceToolsRepo(t)
@@ -532,12 +535,14 @@ func TestStageRefusesControlCharacters(t *testing.T) {
 
 func TestEscapeControl(t *testing.T) {
 	for in, want := range map[string]string{
-		"plain text, ünïcode": "plain text, ünïcode",
-		"a\x1b[2Jb":           `a\x1b[2Jb`,
-		"a\r\nb\tc":           `a\x0d\x0ab\x09c`,
-		"a\x7fb\u009bc":       `a\x7fb\x9bc`,
-		"evil\u202ecod":       `evil\u202ecod`,
-		"x\u2066y\u2069":      `x\u2066y\u2069`,
+		"plain text, ünïcode":    "plain text, ünïcode",
+		"a\x1b[2Jb":              `a\x1b[2Jb`,
+		"a\r\nb\tc":              `a\x0d\x0ab\x09c`,
+		"a\x7fb\u009bc":          `a\x7fb\x9bc`,
+		"evil\u202ecod":          `evil\u202ecod`,
+		"x\u2066y\u2069":         `x\u2066y\u2069`,
+		"a\u200eb\u200fc\u061cd": `a\u200eb\u200fc\u061cd`,
+		"a\xffb\xc3":             `a\xffb\xc3`,
 	} {
 		if got := EscapeControl(in); got != want {
 			t.Errorf("%q: got %q, want %q", in, got, want)
@@ -629,4 +634,71 @@ func TestReplaceLeavesNoOldCopyAndTheSweepTellsAFinishedSwapFromAFailedOne(t *te
 	if _, err := os.Stat(failed); err != nil {
 		t.Fatal("the sweep deleted an old copy that could not be put back")
 	}
+}
+
+func TestHiddenTextRefusesInvalidUTF8(t *testing.T) {
+	for in, want := range map[string]bool{"tasks/main.yml": false, "files/a\xffb": true, "files/\xc3": true, "files/ünï": false} {
+		if got := hiddenText(in); got != want {
+			t.Errorf("%q: got %v, want %v", in, got, want)
+		}
+	}
+}
+
+func TestStageRefusesAFileNameThatIsNotUTF8(t *testing.T) {
+	probe := filepath.Join(t.TempDir(), "a\xffb")
+	if err := os.WriteFile(probe, []byte("x"), 0o644); err != nil {
+		t.Skipf("this file system refuses names that are not UTF-8: %v", err)
+	}
+	r := aliceToolsRepo(t)
+	r.Write("files/a\xffb", "x", 0o644)
+	r.Commit("a name that is not UTF-8")
+	_, err := Stage(context.Background(), t.TempDir(), r.URL(), "")
+	if err == nil || !strings.Contains(err.Error(), `files/a\xffb`) {
+		t.Fatalf("got %v", err)
+	}
+}
+
+func assertEscaped(t *testing.T, err error, want string) {
+	t.Helper()
+	if err == nil {
+		t.Fatal("no error")
+	}
+	if strings.ContainsFunc(err.Error(), func(r rune) bool { return r != '\n' && hidesText(r) }) {
+		t.Fatalf("the error holds a control character: %q", err)
+	}
+	if !strings.Contains(err.Error(), want) {
+		t.Fatalf("the error lacks %q: %q", want, err)
+	}
+}
+
+func TestInvalidPackageErrorEscapesEachLine(t *testing.T) {
+	err := &InvalidPackageError{Where: "https://example.com/a\x1b", Problems: []Problem{
+		{File: "tasks/x\x1b[2K.yml", What: "bad"}, {File: "package.yml", Line: 2, What: "summary \x1b[1A\r"},
+	}}
+	assertEscaped(t, err, `tasks/x\x1b[2K.yml: bad`)
+	if lines := strings.Split(err.Error(), "\n"); len(lines) != 3 || !strings.Contains(lines[2], `summary \x1b[1A\x0d`) {
+		t.Fatalf("got %q", lines)
+	}
+}
+
+func TestStageEscapesALinkNameInItsError(t *testing.T) {
+	r := aliceToolsRepo(t)
+	r.Link("files/id\x1b[2K", filepath.Join(t.TempDir(), "secret"))
+	r.Commit("a link outside")
+	_, err := Stage(context.Background(), t.TempDir(), r.URL(), "")
+	assertEscaped(t, err, `files/id\x1b[2K is a link`)
+}
+
+func TestStageEscapesAYAMLError(t *testing.T) {
+	r := aliceToolsRepo(t)
+	r.Write("package.yml", strings.Replace(aliceToolsManifest, "format: 1", `format: "1\e[2J"`, 1), 0o644)
+	r.Commit("a format that is not a number")
+	_, err := Stage(context.Background(), t.TempDir(), r.URL(), "")
+	assertEscaped(t, err, "package.yml")
+}
+
+func TestStageEscapesWhatGitSays(t *testing.T) {
+	missing := filepath.Join(t.TempDir(), "no\x1b[2Jrepo")
+	_, err := Stage(context.Background(), t.TempDir(), "file://"+missing, "")
+	assertEscaped(t, err, `no\x1b[2Jrepo`)
 }

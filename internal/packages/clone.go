@@ -45,7 +45,7 @@ func gitRun(ctx context.Context, dir string, args ...string) (string, error) {
 			return "", errors.New("git is not installed: installing a package from a git address needs it")
 		}
 		if message := strings.TrimSpace(stderr.String()); message != "" {
-			return "", fmt.Errorf("%w: %s", err, message)
+			return "", fmt.Errorf("%w: %s", err, escapeLines(message))
 		}
 		return "", err
 	}
