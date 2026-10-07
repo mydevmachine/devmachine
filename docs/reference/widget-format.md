@@ -83,14 +83,19 @@ widgets:
 | `type` | The widget, `<package>/<widget>`. |
 | `with` | Values for the widget's inputs. Left out when there are none. |
 | `frame` | Position and size in points. `x` and `y` are 0 or more; `w` and `h` are at least the smallest preset the widget takes. |
-| `size` | A preset, or `custom` after a free resize. |
+| `size` | A preset, or `custom` after a free resize. Left out, it is `custom`. |
 | `minimized` | `true` draws a pill with the title instead. |
 | `z` | Higher is in front. |
 
 A `type` no package provides is not an error: the app keeps the entry and
 shows a placeholder, so a missing package never loses a layout. A widget
 written in place, with its own `source` and `view` and no `type`, needs
-engine 1.1 and is refused for now.
+engine 1.1 and is refused for now. A widget has either a `type` or a
+`source` and a `view`, never both.
+
+A key the board does not know, at the top, in a widget or in a `frame`, is
+a mistake, for example `unknown key "minimised" in a widget`. A typo is
+caught instead of being dropped on the next write.
 
 When the app or the CLI rewrites a board, comments in it are lost.
 

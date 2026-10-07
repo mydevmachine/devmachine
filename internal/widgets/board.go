@@ -27,6 +27,12 @@ var (
 	yamlLine     = regexp.MustCompile(`line (\d+)`)
 )
 
+var (
+	boardFields    = []string{"format", "surface", "widgets"}
+	instanceFields = []string{"id", "type", "with", "frame", "size", "minimized", "z", "source", "view"}
+	frameFields    = []string{"x", "y", "w", "h"}
+)
+
 // Frame is where an instance is drawn, in points.
 type Frame struct {
 	X int `yaml:"x" json:"x"`
@@ -75,7 +81,8 @@ func NewBoard(surface string) Board {
 }
 
 // ParseBoard reads a board's text. A file that is not YAML, or not shaped
-// like a board, is one problem pointing at its line.
+// like a board, is one problem pointing at its line; each unknown key is a
+// problem at its own line. A widget with no size is custom.
 func ParseBoard(path string, body []byte) (Board, []Problem) {
 	fail := func(err error) (Board, []Problem) {
 		p := Problem{Path: path, Message: fmt.Sprintf("parsing the board: %v", err)}
@@ -92,16 +99,36 @@ func ParseBoard(path string, body []byte) (Board, []Problem) {
 	if err := root.Decode(&b); err != nil {
 		return fail(err)
 	}
-	if entries := field(mapping(&root), "widgets"); entries != nil && entries.Kind == yaml.SequenceNode {
+	top := mapping(&root)
+	problems := unknownBoardKeys(path, top, boardFields, "the board")
+	if entries := field(top, "widgets"); entries != nil && entries.Kind == yaml.SequenceNode {
 		for i, entry := range entries.Content {
 			if i >= len(b.Widgets) {
 				break
 			}
 			b.Widgets[i].Line = entry.Line
 			b.Widgets[i].Inline = field(entry, "source") != nil || field(entry, "view") != nil
+			if field(entry, "size") == nil {
+				b.Widgets[i].Size = SizeCustom
+			}
+			problems = append(problems, unknownBoardKeys(path, entry, instanceFields, "a widget")...)
+			problems = append(problems, unknownBoardKeys(path, field(entry, "frame"), frameFields, "a frame")...)
 		}
 	}
-	return b, nil
+	return b, problems
+}
+
+func unknownBoardKeys(path string, m *yaml.Node, allowed []string, where string) []Problem {
+	if m == nil || m.Kind != yaml.MappingNode {
+		return nil
+	}
+	var problems []Problem
+	for i := 0; i+1 < len(m.Content); i += 2 {
+		if key := m.Content[i]; !slices.Contains(allowed, key.Value) {
+			problems = append(problems, Problem{Path: path, Line: key.Line, Message: fmt.Sprintf("unknown key %q in %s", key.Value, where)})
+		}
+	}
+	return problems
 }
 
 // ValidateBoard returns everything wrong with b. A type the catalog does not
@@ -141,6 +168,9 @@ func ValidateBoard(b Board, path string, lookup Lookup) []Problem {
 		seen[w.ID] = true
 
 		switch {
+		case w.Type != "" && w.Inline:
+			at(w.Line, "%s: a widget has either a type or a source and a view, not both", label)
+			continue
 		case w.Type == "" && w.Inline:
 			at(w.Line, "%s: a widget with its own source and view needs engine 1.1; this CLI implements engine %s", label, Engine)
 			continue

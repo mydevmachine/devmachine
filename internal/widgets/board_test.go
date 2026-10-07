@@ -82,6 +82,10 @@ func TestEachBoardRuleReportsItsOwnProblem(t *testing.T) {
 		{"a preset the widget does not take", "z: 1\n  - id: usage\n    type: claude-code/usage\n    with: {harness: claude}\n    frame: {x: 352, y: 24, w: 320, h: 160}\n    size: medium", "z: 1\n  - id: usage\n    type: claude-code/usage\n    with: {harness: claude}\n    frame: {x: 352, y: 24, w: 320, h: 160}\n    size: large", "does not come in size large"},
 		{"an input the widget does not have", "with: {harness: claude}", "with: {colour: red}", `has no input "colour"`},
 		{"an input of the wrong type", "with: {harness: claude}", "with: {harness: 3}", `input "harness" is a string, and 3 is not`},
+		{"unknown key in the board", "surface: home\n", "surface: home\nx: 1\n", `unknown key "x" in the board`},
+		{"unknown key in a widget", "minimized: false\n    z: 1", "minimised: false\n    z: 1", `unknown key "minimised" in a widget`},
+		{"unknown key in a frame", "w: 320, h: 160}\n    size: medium\n    minimized: false\n    z: 1", "w: 320, h: 160, d: 1}\n    size: medium\n    minimized: false\n    z: 1", `unknown key "d" in a frame`},
+		{"type and an inline source", "    type: devmachine-app/clock\n", "    type: devmachine-app/clock\n    source: {kind: provider, name: app/clock}\n", "a widget has either a type or a source and a view, not both"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -266,5 +270,35 @@ func TestSnapAndCoerce(t *testing.T) {
 	}
 	if v, _ := CoerceInput("s", Input{Type: "string"}, "codex"); v != "codex" {
 		t.Fatalf("got %v", v)
+	}
+}
+
+func TestAWidgetWithoutASizeIsCustom(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "home.yml")
+	body := strings.Replace(homeBoard, "    size: medium\n", "", 1)
+	b, problems := ParseBoard(path, []byte(body))
+	if len(problems) != 0 {
+		t.Fatal(problems)
+	}
+	if b.Widgets[0].Size != SizeCustom {
+		t.Fatalf("got %q", b.Widgets[0].Size)
+	}
+	if got := ValidateBoard(b, path, usageLookup); len(got) != 0 {
+		t.Fatal(got)
+	}
+	encoded, err := EncodeBoard(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(encoded), "    size: custom\n") {
+		t.Fatalf("got\n%s", encoded)
+	}
+}
+
+func TestUnknownBoardKeysPointAtTheirLine(t *testing.T) {
+	body := strings.Replace(homeBoard, "minimized: false\n    z: 1", "minimised: false\n    z: 1", 1)
+	_, problems := ParseBoard("home.yml", []byte(body))
+	if len(problems) != 1 || problems[0].Line != 8 {
+		t.Fatalf("got %v", problems)
 	}
 }
