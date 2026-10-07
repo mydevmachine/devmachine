@@ -1,0 +1,25 @@
+internal/commands/run_flags_test.go
+  s_c1c985d7f57ab9::t_fb22ee7d1d6a6a 268-300
+docs/concepts/widgets.md
+  s_c1c985d7f57ab9::t_686e0e7b4b8b1f 52-58
+docs/how-it-works/why-an-agent-written-widget-waits.md
+  s_c1c985d7f57ab9::t_485a776f3e3208 17-22
+docs/how-it-works/where-a-public-widget-comes-from.md
+  s_c1c985d7f57ab9::t_93671556564119 2-73
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "96691fce0bba94c8bb3612e45b6b83c7b8ab827e",
+  "prompts": {},
+  "sessions": {
+    "s_c1c985d7f57ab9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b5256304-4a81-480d-a568-f8cf11d8ddcc",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
