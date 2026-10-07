@@ -1847,6 +1847,14 @@ each widget has its own position, and they may overlap.
 
 **What to do:** Name the widget it should sit next to.
 
+## "--after needs an id" or "--before needs an id"
+
+**What it means:** The flag was given with an empty value, often from an
+unset shell variable (`--after "$ID"`). The CLI does not read that as "not
+given": it would put the widget at the end without a word.
+
+**What to do:** Give the id, or leave the flag out.
+
 ## "no widget with id "X" on the sidebar board"
 
 **What it means:** `--after`, `--before`, `move` or `remove` named an id
@@ -1856,7 +1864,7 @@ the default board (`workspaces`; `shortcuts`, `todo` and the others).
 **What to do:** Check the ids in the board file, or with `devmachine
 widgets validate`, and run the command again.
 
-## "the X view is drawn only in stack"
+## "port: the X view is drawn only in stack, and this board's area is laid out as canvas"
 
 **What it means:** A widget written in a board uses one of the app's
 sidebar views, such as `app.publish-port`, and those are drawn only in a
@@ -1875,7 +1883,7 @@ there that session. A widget only sees the context keys it declares.
 The widget then fits only the context sidebar, which is right: there is
 no session to read anywhere else.
 
-## "the X view is drawn only in stack"
+## "fits canvas, and the X view is drawn only in stack"
 
 **What it means:** The view is one of the app's sidebar views
 (`app.workspaces`, `app.todo` and the others). They are lists, drawn as
@@ -1969,6 +1977,9 @@ key. The opposite message, "a widget on a canvas folds with minimized:
 true, not collapsed", is the same mistake on Home.
 
 **What to do:** Rename the key.
+
+The same message comes for `minimized: false`: a stack refuses the
+`minimized` key whatever its value. Delete the line.
 
 ## "size auto follows the content, and the X view does not grow"
 

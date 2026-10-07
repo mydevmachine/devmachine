@@ -1151,3 +1151,36 @@ func TestWidgetsListBoardKeepsWhatFitsThatArea(t *testing.T) {
 		t.Fatalf("got %v", err)
 	}
 }
+
+func TestWidgetsAddAndMoveRefuseAnEmptyAnchor(t *testing.T) {
+	dir := stackConfig(t)
+	board := widgets.BoardPath(dir, "sidebar")
+	writeCommandFile(t, board, "format: 1\nsurface: sidebar\nwidgets:\n"+
+		"  - id: workspaces\n    type: devmachine-app/workspaces\n    size: auto\n")
+	for _, flag := range []string{"--after", "--before"} {
+		out, err := execute(t, "--config", dir, "widgets", "move", "workspaces", flag, "", "--board", "sidebar")
+		if err == nil || !strings.Contains(err.Error(), flag+" needs an id") {
+			t.Fatalf("move %s: %v\n%s", flag, err, out)
+		}
+		out, err = execute(t, "--config", dir, "widgets", "add", "claude-code/usage", "--board", "sidebar", flag, "")
+		if err == nil || !strings.Contains(err.Error(), flag+" needs an id") {
+			t.Fatalf("add %s: %v\n%s", flag, err, out)
+		}
+	}
+}
+
+func TestWidgetsMoveThatChangesNothingDoesNotRewriteTheFile(t *testing.T) {
+	dir := stackConfig(t)
+	board := widgets.BoardPath(dir, "sidebar")
+	original := "format: 1\n# kept\nsurface: sidebar\nwidgets:\n" +
+		"  - id: workspaces\n    type: devmachine-app/workspaces\n    size: auto\n" +
+		"  - id: usage\n    type: claude-code/usage\n    size: medium\n"
+	writeCommandFile(t, board, original)
+	out, err := execute(t, "--config", dir, "widgets", "move", "usage", "--after", "workspaces", "--board", "sidebar")
+	if err != nil || out != "moved usage after workspaces on the sidebar board\n" {
+		t.Fatalf("%v %q", err, out)
+	}
+	if got := readCommandFile(t, board); got != original {
+		t.Fatalf("file was rewritten:\n%s", got)
+	}
+}

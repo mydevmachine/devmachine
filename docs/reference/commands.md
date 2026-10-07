@@ -664,7 +664,8 @@ devmachine widgets list [--board home|sidebar|context-sidebar]
 devmachine widgets help <package/widget>
 devmachine widgets validate [path...]
 devmachine widgets schema [--json]
-devmachine widgets add <package/widget> [--board home|sidebar|context-sidebar] [--id x] [--set name=value]... [--size s] [--at x,y | --after id | --before id]
+devmachine widgets add <package/widget> [--board home|sidebar|context-sidebar]
+    [--id x] [--set name=value]... [--size s] [--at x,y | --after id | --before id]
 devmachine widgets remove <id> [--board home|sidebar|context-sidebar]
 devmachine widgets move <id> (--after id | --before id) --board sidebar|context-sidebar
 ```
@@ -787,7 +788,9 @@ the rest.
 `move` changes a widget's turn in a sidebar's list: right after
 `--after <id>` or right before `--before <id>` (exactly one). `--board`
 is required, and Home is refused: a widget there has a place, not a turn.
-A missing board is read as the default board.
+A missing board is read as the default board. A move that leaves the order
+as it was does not rewrite the file. An empty `--after ""` or `--before ""`
+is refused, on `add` as on `move`.
 
 All three re-read the board first and write it in one step (a temporary file,
 then a rename). A board with a problem is refused and left as it is; so is

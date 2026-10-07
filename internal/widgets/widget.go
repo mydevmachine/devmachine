@@ -174,10 +174,10 @@ func Validate(w Widget, path string, root *yaml.Node) []Problem {
 	}
 
 	contextStart := len(problems)
-	known := contextKeys(c)
+	contextNames := contextKeys(c)
 	for _, key := range sortedKeys(w.Context) {
-		if !slices.Contains(known, key) {
-			at("context", "context key %q is not given by any surface: the keys are %s", key, strings.Join(known, ", "))
+		if !slices.Contains(contextNames, key) {
+			at("context", "context key %q is not given by any surface: the keys are %s", key, strings.Join(contextNames, ", "))
 		}
 		if value := w.Context[key]; value != ContextRequired && value != ContextOptional {
 			at("context", "context key %q is %q: write required or optional", key, value)

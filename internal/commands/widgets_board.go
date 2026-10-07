@@ -34,6 +34,9 @@ func newWidgetsAddCmd(opts *options) *cobra.Command {
 			"board with a problem is refused, never rewritten.",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := checkAnchors(cmd); err != nil {
+				return err
+			}
 			catalog, dir, err := loadCatalog(cmd.Context(), opts)
 			if err != nil {
 				return err
@@ -213,6 +216,9 @@ func newWidgetsMoveCmd(opts *options) *cobra.Command {
 			"the area's default board. The board is re-read first and written atomically.",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := checkAnchors(cmd); err != nil {
+				return err
+			}
 			dir, _, err := config.Dir(opts.configDir)
 			if err != nil {
 				return err
@@ -232,18 +238,17 @@ func newWidgetsMoveCmd(opts *options) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			orderBefore := boardOrder(b)
 			if err := b.Move(args[0], after, before); err != nil {
 				return err
 			}
-			if err := widgets.WriteBoard(path, read, b); err != nil {
-				return err
+			if !slices.Equal(orderBefore, boardOrder(b)) {
+				if err := widgets.WriteBoard(path, read, b); err != nil {
+					return err
+				}
 			}
 			if opts.format == formatJSON {
-				order := make([]string, len(b.Widgets))
-				for i, w := range b.Widgets {
-					order[i] = w.ID
-				}
-				return writeJSON(cmd.OutOrStdout(), boardChange{Board: board, Path: path, Moved: args[0], Order: order})
+				return writeJSON(cmd.OutOrStdout(), boardChange{Board: board, Path: path, Moved: args[0], Order: boardOrder(b)})
 			}
 			if after != "" {
 				cmd.Printf("moved %s after %s on the %s board\n", args[0], after, board)
@@ -260,6 +265,25 @@ func newWidgetsMoveCmd(opts *options) *cobra.Command {
 	c.MarkFlagsOneRequired("after", "before")
 	_ = c.MarkFlagRequired("board")
 	return c
+}
+
+func boardOrder(b widgets.Board) []string {
+	order := make([]string, len(b.Widgets))
+	for i, w := range b.Widgets {
+		order[i] = w.ID
+	}
+	return order
+}
+
+// checkAnchors refuses --after or --before given with an empty id, which the
+// empty default would otherwise read as not given.
+func checkAnchors(cmd *cobra.Command) error {
+	for _, name := range []string{"after", "before"} {
+		if v, _ := cmd.Flags().GetString(name); cmd.Flags().Changed(name) && v == "" {
+			return fmt.Errorf("--%s needs an id", name)
+		}
+	}
+	return nil
 }
 
 func checkBoardSurface(board string) error {
