@@ -2026,6 +2026,29 @@ and `remove` still work on the board in the meantime.
 
 **What to do:** Add X to `commands`, or remove it from `providers`.
 
+## "provider "X": use lower case letters, digits, dashes and underscores, starting with a letter"
+
+**What it means:** A key under `providers` in `package.yml` is not a name
+a widget can use. A widget names a provider as `<package>/<command>`, and
+the app runs it as `devmachine run --package <package> <command>`, so the
+key must be a plain command word: no capital, space, dot, slash or leading
+dash.
+
+**What to do:** Rename the provider and the matching entry in `commands`,
+for example `disk-usage` instead of `Disk Usage`.
+
+## "`providers` are commands of an `entrypoint`, and this package declares none"
+
+**What it means:** `package.yml` has a `providers` key but no
+`entrypoint`. A provider is one command of the package's entrypoint: the
+app runs the entrypoint with that command and reads the JSON it prints.
+Without one there is nothing to run.
+
+**What to do:** Add `entrypoint: bin/<name>` pointing at an executable in
+the package, with each provider listed in `commands`. `devmachine packages
+new` writes one. If the package has no command to offer, remove
+`providers`.
+
 ## `package.yml` says "did not find expected ',' or '}'"
 
 **What it means:** A line written between `{` and `}` holds a value YAML
@@ -2249,6 +2272,40 @@ it.
 **What to do:** `devmachine packages rm X --machine <name>` (or
 `--workspace <name>`), `devmachine sync`, then `devmachine packages remove
 X`.
+
+## "X is in the future workspace defaults"
+
+**What it means:** `defaults.workspace` in `config.yml` lists X, so every
+workspace you create from now on starts with it. Deleting the package
+would make creating the next workspace fail to find it.
+
+**What to do:** `devmachine workspaces defaults --rm X`, then
+`devmachine packages remove X`.
+
+## "the fetched copy of X was swept away while waiting for your answer"
+
+**What it means:** `packages install` or `update` fetches into
+`<config>/packages/.install-…/` and then asks. A fetch folder older than
+an hour is taken as one a Ctrl-C left behind, and the next `install` or
+`update` deletes it. The question stayed open long enough for that to
+happen, so there is nothing left to install.
+
+**What to do:** Run the command again and answer the question.
+
+## A package is gone after a Ctrl-C during packages update
+
+**What it means:** `update` swaps the new copy in with two renames: the
+old folder moves to `<config>/packages/.install-…/.previous`, then the new
+one moves into its place. A Ctrl-C between the two leaves neither in
+`<config>/packages/X/`. Nothing is lost: both copies are inside that
+`.install-…` folder, and the hourly sweep never deletes a folder that holds
+a `.previous`.
+
+**What to do:** Find the folder with `ls -a <config>/packages/`. To keep
+the version you had, move `.install-…/.previous` back to
+`<config>/packages/X`. To take the new one, move `.install-…/X` there
+instead; it was already checked and records its new commit. Then delete
+the `.install-…` folder.
 
 ## "… now holds a package named Y, not X"
 

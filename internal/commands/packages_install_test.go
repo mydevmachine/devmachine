@@ -3,6 +3,7 @@ package commands
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -461,4 +462,73 @@ func TestPackagesUpdateRefusesARecordedAddressThatInstallWouldRefuse(t *testing.
 		t.Fatalf("got %v", err)
 	}
 	assertNoInstallDebris(t, dir, "")
+}
+
+func TestPackagesUpdateShowsChangedCredentialsScriptsAndTasks(t *testing.T) {
+	dir, r := installAliceTools(t)
+	r.Write("package.yml", aliceToolsManifest+"credentials:\n  - {name: alice-token, kind: secret, scope: machine, env: ALICE_TOKEN}\n", 0o644)
+	r.Write("bin/alice-tools", "#!/usr/bin/env python3\nprint('new')\n", 0o755)
+	r.Write("tasks/extra.yml", "---\n[]\n", 0o644)
+	r.Commit("token, new script, extra tasks")
+
+	out, err := execute(t, "--config", dir, "packages", "update", "alice-tools", "--check")
+	if err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	for _, want := range []string{"credentials added: alice-token", "scripts changed: bin/alice-tools", "tasks added: tasks/extra.yml"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output lacks %q:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "are the same") {
+		t.Errorf("a changed package reads as unchanged:\n%s", out)
+	}
+}
+
+type sweepingAnswer struct {
+	local string
+	done  bool
+}
+
+func (a *sweepingAnswer) Read(p []byte) (int, error) {
+	if a.done {
+		return 0, io.EOF
+	}
+	a.done = true
+	entries, _ := os.ReadDir(a.local)
+	for _, e := range entries {
+		if strings.HasPrefix(e.Name(), ".install-") {
+			_ = os.RemoveAll(filepath.Join(a.local, e.Name()))
+		}
+	}
+	return copy(p, "y\n"), nil
+}
+
+func TestPackagesInstallSaysSoWhenTheFetchWasSweptDuringThePrompt(t *testing.T) {
+	dir := installConfig(t)
+	r := aliceToolsRepo(t, "alice-tools")
+	cmd := NewRootCmd()
+	out := &strings.Builder{}
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetIn(&sweepingAnswer{local: packages.LocalDir(dir)})
+	cmd.SetArgs([]string{"--config", dir, "packages", "install", r.URL()})
+	err := cmd.Execute()
+	if err == nil || !strings.Contains(err.Error(), "the fetched copy of alice-tools was swept away while waiting for your answer") {
+		t.Fatalf("got %v\n%s", err, out)
+	}
+	assertNoInstallDebris(t, dir, "")
+}
+
+func TestPackagesRemoveRefusesAPackageInTheWorkspaceDefaults(t *testing.T) {
+	dir, _ := installAliceTools(t)
+	writeCommandFile(t, filepath.Join(dir, "config.yml"), "machines: []\ndefaults:\n  workspace: [dev, alice-tools]\npackages: v40\n")
+	_, err := execute(t, "--config", dir, "packages", "remove", "alice-tools", "--yes")
+	if err == nil || !strings.Contains(err.Error(), "alice-tools is in the future workspace defaults") ||
+		!strings.Contains(err.Error(), "devmachine workspaces defaults --rm alice-tools") {
+		t.Fatalf("got %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(packages.LocalDir(dir), "alice-tools")); err != nil {
+		t.Fatal("the package was deleted")
+	}
 }

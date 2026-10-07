@@ -56,6 +56,8 @@ func isUnsafe(p string) bool {
 		return true
 	case strings.HasSuffix(p, ".env"):
 		return true
+	case strings.HasPrefix(p, "packages/.install-"):
+		return true
 	default:
 		return false
 	}

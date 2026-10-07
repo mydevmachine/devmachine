@@ -377,17 +377,70 @@ func TestStageSweepsStaleFetchFolders(t *testing.T) {
 	}
 }
 
-func TestCompareNamesWhatWasAddedAndRemoved(t *testing.T) {
-	before := Summary{Widgets: []SummaryWidget{{Name: "a/disk"}, {Name: "a/health"}}, Commands: []string{"disk", "help"}, Providers: []string{"disk"}}
-	after := Summary{Widgets: []SummaryWidget{{Name: "a/disk"}, {Name: "a/load"}}, Commands: []string{"disk", "load"}, Providers: []string{"disk", "load"}}
-	got := Compare(before, after)
-	if !slices.Equal(got.WidgetsAdded, []string{"a/load"}) || !slices.Equal(got.WidgetsRemoved, []string{"a/health"}) ||
-		!slices.Equal(got.CommandsAdded, []string{"load"}) || !slices.Equal(got.CommandsRemoved, []string{"help"}) ||
-		!slices.Equal(got.ProvidersAdded, []string{"load"}) || len(got.ProvidersRemoved) != 0 || got.Empty() {
-		t.Fatalf("got %+v", got)
+func comparePackage(t *testing.T, manifest string, files map[string]string, scripts map[string]string) string {
+	t.Helper()
+	dir := filepath.Join(t.TempDir(), "alice-tools")
+	write(t, ManifestPath(dir), manifest)
+	for name, body := range files {
+		write(t, filepath.Join(dir, name), body)
 	}
-	if !Compare(before, before).Empty() {
-		t.Fatal("the same summary changed")
+	for name, body := range scripts {
+		writeMode(t, filepath.Join(dir, name), body, 0o755)
+	}
+	return dir
+}
+
+func TestCompareNamesWhatWasAddedRemovedAndChanged(t *testing.T) {
+	beforeManifest := strings.Replace(aliceToolsManifest, "env: ALICE_TOKEN}\n",
+		"env: ALICE_TOKEN}\n  - {name: bob-token, kind: secret, scope: machine, env: BOB_TOKEN}\n", 1)
+	before := comparePackage(t, beforeManifest,
+		map[string]string{"tasks/main.yml": "---\n[]\n", "tasks/old.yml": "---\n[]\n",
+			"widgets/disk/widget.yml": aliceDiskWidget, "widgets/health/widget.yml": aliceHealthWidget},
+		map[string]string{"bin/alice-tools": "#!/usr/bin/env python3\n", "bin/old": "#!/bin/sh\n"})
+	afterManifest := strings.NewReplacer(
+		"commands: [disk, help]", "commands: [disk, load]",
+		"    min_every: 10s\n", "    min_every: 10s\n  load:\n    returns: {avg: number}\n    min_every: 10s\n",
+		"env: ALICE_TOKEN}\n", "env: ALICE_KEY}\n  - {name: carol-token, kind: secret, scope: machine, env: CAROL_TOKEN}\n",
+	).Replace(aliceToolsManifest)
+	after := comparePackage(t, afterManifest,
+		map[string]string{"tasks/main.yml": "---\n- debug: {msg: hi}\n", "tasks/new.yml": "---\n[]\n",
+			"widgets/disk/widget.yml": aliceDiskWidget},
+		map[string]string{"bin/alice-tools": "#!/usr/bin/env python3\nprint(1)\n", "bin/new": "#!/bin/sh\n"})
+
+	got, err := Compare(before, after)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct {
+		field     string
+		got, want []string
+	}{
+		{"widgets added", got.WidgetsAdded, []string{}},
+		{"widgets removed", got.WidgetsRemoved, []string{"alice-tools/health"}},
+		{"commands added", got.CommandsAdded, []string{"load"}},
+		{"commands removed", got.CommandsRemoved, []string{"help"}},
+		{"providers added", got.ProvidersAdded, []string{"load"}},
+		{"providers removed", got.ProvidersRemoved, []string{}},
+		{"credentials added", got.CredentialsAdded, []string{"carol-token"}},
+		{"credentials removed", got.CredentialsRemoved, []string{"bob-token"}},
+		{"credentials changed", got.CredentialsChanged, []string{"alice-token"}},
+		{"scripts added", got.ScriptsAdded, []string{"bin/new"}},
+		{"scripts removed", got.ScriptsRemoved, []string{"bin/old"}},
+		{"scripts changed", got.ScriptsChanged, []string{"bin/alice-tools"}},
+		{"tasks added", got.TasksAdded, []string{"tasks/new.yml"}},
+		{"tasks removed", got.TasksRemoved, []string{"tasks/old.yml"}},
+		{"tasks changed", got.TasksChanged, []string{"tasks/main.yml"}},
+	} {
+		if !slices.Equal(c.got, c.want) {
+			t.Errorf("%s: got %q, want %q", c.field, c.got, c.want)
+		}
+	}
+	if got.Empty() {
+		t.Fatal("a changed package reads as unchanged")
+	}
+	same, err := Compare(before, before)
+	if err != nil || !same.Empty() {
+		t.Fatalf("the same package changed: %+v %v", same, err)
 	}
 }
 
@@ -405,5 +458,31 @@ func TestUninstallRefusesAPackageWithoutAnOrigin(t *testing.T) {
 		if _, err := Uninstall(configDir, name); err == nil || !strings.Contains(err.Error(), "is not a package name") {
 			t.Errorf("%q: got %v", name, err)
 		}
+	}
+}
+
+func TestTouchKeepsAStagedFolderFromTheSweep(t *testing.T) {
+	r := aliceToolsRepo(t)
+	configDir := t.TempDir()
+	staged, err := Stage(context.Background(), configDir, r.URL(), "v1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer staged.Discard()
+	now := time.Now()
+	old := now.Add(-2 * staleAfter)
+	if err := os.Chtimes(staged.temp, old, old); err != nil {
+		t.Fatal(err)
+	}
+	if err := staged.Touch(now); err != nil {
+		t.Fatal(err)
+	}
+	sweepStale(LocalDir(configDir), now)
+	if _, err := os.Stat(staged.Dir); err != nil {
+		t.Fatal("the sweep removed a folder in use")
+	}
+	_ = os.RemoveAll(staged.temp)
+	if err := staged.Touch(now); err == nil || !strings.Contains(err.Error(), "swept away while waiting for your answer") {
+		t.Fatalf("got %v", err)
 	}
 }

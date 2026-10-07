@@ -1,6 +1,7 @@
 package packages
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -32,5 +33,24 @@ func TestReadOriginRefusesABrokenFile(t *testing.T) {
 	write(t, filepath.Join(dir, OriginFile), "url: [\n")
 	if _, _, err := ReadOrigin(dir); err == nil || !strings.Contains(err.Error(), OriginFile) {
 		t.Fatalf("got %v", err)
+	}
+}
+
+func TestWriteOriginNeverWritesThroughALink(t *testing.T) {
+	dir := t.TempDir()
+	task := filepath.Join(dir, "tasks", "main.yml")
+	write(t, task, "---\n[]\n")
+	if err := os.Symlink(filepath.Join("tasks", "main.yml"), filepath.Join(dir, OriginFile)); err != nil {
+		t.Fatal(err)
+	}
+	if err := WriteOrigin(dir, Origin{URL: "https://example.com/alice/tools.git"}); err != nil {
+		t.Fatal(err)
+	}
+	if got := readFile(t, task); got != "---\n[]\n" {
+		t.Fatalf("the file the link pointed at was written: %q", got)
+	}
+	info, err := os.Lstat(filepath.Join(dir, OriginFile))
+	if err != nil || !info.Mode().IsRegular() {
+		t.Fatalf("got %v %v", info, err)
 	}
 }

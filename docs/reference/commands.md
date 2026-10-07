@@ -1600,8 +1600,10 @@ prints `{"name", "scope", "summary", "needs", "widgets": [{"name",
 `update` fetches the address and ref recorded in
 `.devmachine-source.yml` again, checking the address as `install` does.
 When the commit did not move it says so and changes nothing. Otherwise it
-shows the old and new commit and the widgets, commands and providers
-added or removed, and asks before replacing the folder (`--yes`,
+shows the old and new commit; the widgets, commands and providers added
+or removed; and the credentials, scripts and tasks added, removed or
+changed (a script or task changed when its bytes did, a credential when
+anything `package.yml` says about it did), and asks before replacing the folder (`--yes`,
 `--check` as for `install`). A new commit changes what the app approved,
 so the package's widgets that run code ask again. It refuses a package
 you wrote yourself, a repository that now holds a package of another
@@ -1610,12 +1612,21 @@ fails leaves the old copy as it was: the new one is fetched and checked
 in a folder beside it, and only then swapped in. `--format json` prints
 `{"package", "path", "url", "ref", "previous_commit", "commit",
 "changes": {"widgets_added", "widgets_removed", "commands_added",
-"commands_removed", "providers_added", "providers_removed"}, "updated"}`.
+"commands_removed", "providers_added", "providers_removed",
+"credentials_added", "credentials_removed", "credentials_changed",
+"scripts_added", "scripts_removed", "scripts_changed", "tasks_added",
+"tasks_removed", "tasks_changed"}, "updated"}`, each an array of names.
+A Ctrl-C in the middle of the swap can leave the folder missing, with
+both copies kept under `<config>/packages/.install-…/`: see
+[troubleshooting](../troubleshooting.md#a-package-is-gone-after-a-ctrl-c-during-packages-update).
 
 `remove` deletes `<config>/packages/<name>/` for a package installed with
 `install`, after asking. It never deletes a package you wrote, and it
 refuses one still added to a machine or a workspace: take it off with
-`rm` and `sync` first, or the next sync would find it missing. Not to be
+`rm` and `sync` first, or the next sync would find it missing. It also
+refuses one listed in the future workspace defaults: take it out with
+`workspaces defaults --rm <name>` first, or the next workspace would
+find it missing. Not to be
 confused with `rm`, which takes a package off a machine or a workspace
 and deletes nothing. `--format json` prints `{"package", "path",
 "removed"}`.

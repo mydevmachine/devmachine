@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -99,6 +100,9 @@ func installPackage(cmd *cobra.Command, opts *options, arg string, check, yes bo
 		if !ok {
 			return errDeclined
 		}
+	}
+	if err := staged.Touch(time.Now()); err != nil {
+		return err
 	}
 	if _, err := staged.Install(dir, time.Now()); err != nil {
 		return err
@@ -205,8 +209,9 @@ func newPackagesUpdateCmd(opts *options) *cobra.Command {
 		Use:   "update <name>",
 		Short: "Fetch a package installed from a git address again",
 		Long: "Fetches the address and ref recorded when it was installed, says what changed — the " +
-			"commit, and the widgets, commands and providers added or removed — and asks before " +
-			"replacing it. A new commit means its widgets that run code ask again.",
+			"commit; the widgets, commands and providers added or removed; and the credentials, " +
+			"scripts and tasks added, removed or changed — and asks before replacing it. A new " +
+			"commit means its widgets that run code ask again.",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return updatePackage(cmd, opts, args[0], check, yes)
@@ -263,10 +268,6 @@ func updatePackage(cmd *cobra.Command, opts *options, name string, check, yes bo
 	if err != nil {
 		return fmt.Errorf("the address recorded in %s: %w", filepath.Join(target, packages.OriginFile), err)
 	}
-	before, err := packages.Summarize(target)
-	if err != nil {
-		return err
-	}
 	staged, err := packages.Stage(cmd.Context(), dir, address, ref)
 	if err != nil {
 		return err
@@ -280,8 +281,12 @@ func updatePackage(cmd *cobra.Command, opts *options, name string, check, yes bo
 		return err
 	}
 
+	changes, err := packages.Compare(target, staged.Dir)
+	if err != nil {
+		return err
+	}
 	report := updateReport{Package: name, Path: target, URL: address, Ref: ref, PreviousCommit: origin.Commit,
-		Commit: staged.Origin.Commit, Changes: packages.Compare(before, staged.Summary)}
+		Commit: staged.Origin.Commit, Changes: changes}
 	if staged.Origin.Commit == origin.Commit {
 		if opts.format == formatJSON {
 			return writeJSON(cmd.OutOrStdout(), report)
@@ -307,6 +312,9 @@ func updatePackage(cmd *cobra.Command, opts *options, name string, check, yes bo
 			return errDeclined
 		}
 	}
+	if err := staged.Touch(time.Now()); err != nil {
+		return err
+	}
 	if _, err := staged.Replace(dir, time.Now()); err != nil {
 		return err
 	}
@@ -329,13 +337,16 @@ func printChanges(cmd *cobra.Command, r updateReport) {
 		{"widgets added", c.WidgetsAdded}, {"widgets removed", c.WidgetsRemoved},
 		{"commands added", c.CommandsAdded}, {"commands removed", c.CommandsRemoved},
 		{"providers added", c.ProvidersAdded}, {"providers removed", c.ProvidersRemoved},
+		{"credentials added", c.CredentialsAdded}, {"credentials removed", c.CredentialsRemoved}, {"credentials changed", c.CredentialsChanged},
+		{"scripts added", c.ScriptsAdded}, {"scripts removed", c.ScriptsRemoved}, {"scripts changed", c.ScriptsChanged},
+		{"tasks added", c.TasksAdded}, {"tasks removed", c.TasksRemoved}, {"tasks changed", c.TasksChanged},
 	} {
 		if len(row.items) > 0 {
 			cmd.Printf("%s: %s\n", row.label, strings.Join(row.items, ", "))
 		}
 	}
 	if c.Empty() {
-		cmd.Println("its widgets, commands and providers are the same; files inside them may have changed")
+		cmd.Println("its widgets, commands, providers, credentials, scripts and tasks are the same; its other files may have changed")
 	}
 	cmd.Println("A new commit means its widgets that run code ask again before they run.")
 }
@@ -384,6 +395,10 @@ func removeInstalledPackage(cmd *cobra.Command, opts *options, name string, yes 
 	if on := installedOn(cfg)[name]; len(on) > 0 {
 		return fmt.Errorf("%s is still on %s: take it off first with devmachine packages rm %s --machine <name> (or --workspace <name>), then sync",
 			name, strings.Join(on, ", "), name)
+	}
+	if slices.Contains(cfg.Defaults.Workspace, name) {
+		return fmt.Errorf("%s is in the future workspace defaults, so the next workspace you create would need it: take it out first "+
+			"with devmachine workspaces defaults --rm %s", name, name)
 	}
 	if !yes {
 		ok, err := confirm(cmd.InOrStdin(), cmd.OutOrStdout(), fmt.Sprintf("Delete %s (installed from %s)?", target, origin.URL))

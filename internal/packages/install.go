@@ -1,7 +1,9 @@
 package packages
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -221,6 +223,20 @@ func sweepStale(local string, now time.Time) {
 	}
 }
 
+// Touch marks the temporary folder as in use, right after a person
+// answered: a prompt left open past staleAfter would otherwise let another
+// command's Stage sweep it before Install. It fails when one already has.
+func (s *Staged) Touch(now time.Time) error {
+	if _, err := os.Lstat(s.Dir); errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("the fetched copy of %s was swept away while waiting for your answer (another command clears a fetch older "+
+			"than %s): run the command again", s.Name, staleAfter)
+	}
+	if err := os.Chtimes(s.temp, now, now); err != nil {
+		return fmt.Errorf("marking the fetched copy of %s in use: %w", s.Name, err)
+	}
+	return nil
+}
+
 // Discard removes whatever is left of the temporary folder. It is safe to
 // call more than once, and after Install. It keeps the folder when it holds
 // an old copy that could not be put back.
@@ -310,25 +326,59 @@ func linksStayInside(dir string) error {
 	})
 }
 
-// Changes is what an update adds and removes from what a package brings.
+// Changes is what an update adds, removes and changes in what a package
+// brings. A script or task changes when its bytes do; a credential when
+// anything package.yml says about it does.
 type Changes struct {
-	WidgetsAdded     []string `json:"widgets_added"`
-	WidgetsRemoved   []string `json:"widgets_removed"`
-	CommandsAdded    []string `json:"commands_added"`
-	CommandsRemoved  []string `json:"commands_removed"`
-	ProvidersAdded   []string `json:"providers_added"`
-	ProvidersRemoved []string `json:"providers_removed"`
+	WidgetsAdded       []string `json:"widgets_added"`
+	WidgetsRemoved     []string `json:"widgets_removed"`
+	CommandsAdded      []string `json:"commands_added"`
+	CommandsRemoved    []string `json:"commands_removed"`
+	ProvidersAdded     []string `json:"providers_added"`
+	ProvidersRemoved   []string `json:"providers_removed"`
+	CredentialsAdded   []string `json:"credentials_added"`
+	CredentialsRemoved []string `json:"credentials_removed"`
+	CredentialsChanged []string `json:"credentials_changed"`
+	ScriptsAdded       []string `json:"scripts_added"`
+	ScriptsRemoved     []string `json:"scripts_removed"`
+	ScriptsChanged     []string `json:"scripts_changed"`
+	TasksAdded         []string `json:"tasks_added"`
+	TasksRemoved       []string `json:"tasks_removed"`
+	TasksChanged       []string `json:"tasks_changed"`
 }
 
-// Empty says the update changes none of the package's widgets, commands or
-// providers.
+// Empty says the update changes none of the package's widgets, commands,
+// providers, credentials, scripts or tasks.
 func (c Changes) Empty() bool {
-	return len(c.WidgetsAdded)+len(c.WidgetsRemoved)+len(c.CommandsAdded)+len(c.CommandsRemoved)+
-		len(c.ProvidersAdded)+len(c.ProvidersRemoved) == 0
+	for _, list := range [][]string{c.WidgetsAdded, c.WidgetsRemoved, c.CommandsAdded, c.CommandsRemoved,
+		c.ProvidersAdded, c.ProvidersRemoved, c.CredentialsAdded, c.CredentialsRemoved, c.CredentialsChanged,
+		c.ScriptsAdded, c.ScriptsRemoved, c.ScriptsChanged, c.TasksAdded, c.TasksRemoved, c.TasksChanged} {
+		if len(list) > 0 {
+			return false
+		}
+	}
+	return true
 }
 
-// Compare names what after has that before lacks, and the reverse.
-func Compare(before, after Summary) Changes {
+// Compare names what the package in afterDir brings that the one in
+// beforeDir lacks, the reverse, and what both bring but differs.
+func Compare(beforeDir, afterDir string) (Changes, error) {
+	before, err := Summarize(beforeDir)
+	if err != nil {
+		return Changes{}, err
+	}
+	after, err := Summarize(afterDir)
+	if err != nil {
+		return Changes{}, err
+	}
+	beforeManifest, err := ParseManifest(beforeDir)
+	if err != nil {
+		return Changes{}, err
+	}
+	afterManifest, err := ParseManifest(afterDir)
+	if err != nil {
+		return Changes{}, err
+	}
 	names := func(ws []SummaryWidget) []string {
 		out := make([]string, len(ws))
 		for i, w := range ws {
@@ -340,7 +390,49 @@ func Compare(before, after Summary) Changes {
 	c.WidgetsAdded, c.WidgetsRemoved = difference(names(before.Widgets), names(after.Widgets))
 	c.CommandsAdded, c.CommandsRemoved = difference(before.Commands, after.Commands)
 	c.ProvidersAdded, c.ProvidersRemoved = difference(before.Providers, after.Providers)
-	return c
+	c.CredentialsAdded, c.CredentialsRemoved, c.CredentialsChanged = compareCredentials(beforeManifest.Credentials, afterManifest.Credentials)
+	c.ScriptsAdded, c.ScriptsRemoved = difference(before.Scripts, after.Scripts)
+	c.ScriptsChanged = changedFiles(beforeDir, afterDir, before.Scripts, after.Scripts)
+	c.TasksAdded, c.TasksRemoved = difference(before.Tasks, after.Tasks)
+	c.TasksChanged = changedFiles(beforeDir, afterDir, before.Tasks, after.Tasks)
+	return c, nil
+}
+
+func compareCredentials(before, after []Credential) (added, removed, changed []string) {
+	byName := func(list []Credential) ([]string, map[string]Credential) {
+		names, out := make([]string, len(list)), make(map[string]Credential, len(list))
+		for i, cr := range list {
+			names[i], out[cr.Name] = cr.Name, cr
+		}
+		return names, out
+	}
+	beforeNames, beforeByName := byName(before)
+	afterNames, afterByName := byName(after)
+	added, removed = difference(beforeNames, afterNames)
+	changed = []string{}
+	for _, name := range afterNames {
+		if old, ok := beforeByName[name]; ok && old != afterByName[name] {
+			changed = append(changed, name)
+		}
+	}
+	return added, removed, changed
+}
+
+// changedFiles names the files in both lists whose bytes differ between the
+// two folders. One that cannot be read on either side counts as changed.
+func changedFiles(beforeDir, afterDir string, before, after []string) []string {
+	out := []string{}
+	for _, rel := range after {
+		if !slices.Contains(before, rel) {
+			continue
+		}
+		old, errOld := os.ReadFile(filepath.Join(beforeDir, filepath.FromSlash(rel)))
+		updated, errNew := os.ReadFile(filepath.Join(afterDir, filepath.FromSlash(rel)))
+		if errOld != nil || errNew != nil || !bytes.Equal(old, updated) {
+			out = append(out, rel)
+		}
+	}
+	return out
 }
 
 func difference(before, after []string) (added, removed []string) {

@@ -40,14 +40,27 @@ func ReadOrigin(dir string) (Origin, bool, error) {
 	return o, true, nil
 }
 
-// WriteOrigin records where the package in dir came from.
+// WriteOrigin records where the package in dir came from. It replaces
+// whatever is at that name and never writes through a link: a fetched
+// repository may ship one there pointing at one of its own task files.
 func WriteOrigin(dir string, o Origin) error {
 	body, err := yaml.Marshal(o)
 	if err != nil {
 		return fmt.Errorf("writing the origin of %s: %w", dir, err)
 	}
 	path := filepath.Join(dir, OriginFile)
-	if err := os.WriteFile(path, body, 0o644); err != nil {
+	if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("replacing %s: %w", path, err)
+	}
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	if err != nil {
+		return fmt.Errorf("writing %s: %w", path, err)
+	}
+	if _, err := f.Write(body); err != nil {
+		_ = f.Close()
+		return fmt.Errorf("writing %s: %w", path, err)
+	}
+	if err := f.Close(); err != nil {
 		return fmt.Errorf("writing %s: %w", path, err)
 	}
 	return nil

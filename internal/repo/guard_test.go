@@ -40,6 +40,13 @@ func TestUnsafeSaysNothingAboutACleanTree(t *testing.T) {
 	}
 }
 
+func TestUnsafeCatchesAPackageFetchLeftHalfDone(t *testing.T) {
+	got := Unsafe([]string{"packages/.install-123/.clone/package.yml", "packages/mine/package.yml"})
+	if len(got) != 1 || got[0] != "packages/.install-123/.clone/package.yml" {
+		t.Fatalf("got %#v", got)
+	}
+}
+
 func TestUnsafeCatchesAnEnvFileAnywhere(t *testing.T) {
 	// A package stages /etc/devmachine/<name>/env, and somebody keeps a copy.
 	got := Unsafe([]string{"staging/cloudflare.env"})
