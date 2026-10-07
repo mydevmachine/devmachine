@@ -1,0 +1,53 @@
+internal/commands/widgets_validate.go
+  s_c1c985d7f57ab9::t_e81692f8f84ef8 50
+  s_c1c985d7f57ab9::t_9e9abf41a4d3e8 152,156-158
+  s_c1c985d7f57ab9::t_5d8f9e7ddfc2ff 143
+internal/widgets/catalog.go
+  s_c1c985d7f57ab9::t_ffa064aa70bd57 48-50
+  s_c1c985d7f57ab9::t_38f880f60acf22 120-129
+  s_c1c985d7f57ab9::t_24d1fdc6b3247c 167-168
+  s_c1c985d7f57ab9::t_cdce54db3ae57d 76-77,79-85,88-93,95-96,98-108
+  s_c1c985d7f57ab9::t_695605185bb1ca 15-17,28-33
+  s_c1c985d7f57ab9::t_e1947b13698e00 187-191
+docs/how-it-works/where-a-public-widget-comes-from.md
+  s_c1c985d7f57ab9::t_b87a49260e4f8d 1
+internal/widgets/provider.go
+  s_c1c985d7f57ab9::t_7d77a146e2c409 32-41
+  s_c1c985d7f57ab9::t_38afdeff6bba8f 158-219
+  s_c1c985d7f57ab9::t_8541b4e3394f58 94-97
+  s_c1c985d7f57ab9::t_857d9194750c01 4
+docs/troubleshooting.md
+  s_c1c985d7f57ab9::t_443cbf3dee83bb 2092-2116
+docs/reference/commands.md
+  s_c1c985d7f57ab9::t_73453102e12512 684,692,711-720,741-757,779-786
+internal/commands/widgets.go
+  s_c1c985d7f57ab9::t_629862d50cd47b 72-74
+  s_c1c985d7f57ab9::t_03f960f96f5d69 194-195,197-201,204-217,222,226
+internal/commands/widgets_test.go
+  s_c1c985d7f57ab9::t_8fb9f8eeb8d227 1312-1320
+  s_c1c985d7f57ab9::t_1ffba38c24c2ca 1212-1311
+internal/widgets/provider_test.go
+  s_c1c985d7f57ab9::t_b8baf7731f65f2 199-219
+  s_c1c985d7f57ab9::t_1ffba38c24c2ca 4,172-198
+internal/widgets/catalog_test.go
+  s_c1c985d7f57ab9::t_1ffba38c24c2ca 92,99,104-105,127-159
+  s_c1c985d7f57ab9::t_632ab3f859f96f 160
+docs/index.md
+  s_c1c985d7f57ab9::t_248d2fe7db35c1 147
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d710164ce6128d37a25e587d50b9f4411259038a",
+  "prompts": {},
+  "sessions": {
+    "s_c1c985d7f57ab9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b5256304-4a81-480d-a568-f8cf11d8ddcc",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
