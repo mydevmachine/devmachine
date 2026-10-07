@@ -1,0 +1,37 @@
+internal/widgets/source.go
+  s_c1c985d7f57ab9::t_fe22d3b676af8c 203-207
+internal/commands/widgets_test.go
+  s_c1c985d7f57ab9::t_61a08c7e4d1554 70-121
+internal/widgets/catalog.go
+  s_c1c985d7f57ab9::t_08935e0de00d1c 54,141
+internal/widgets/widget.go
+  s_c1c985d7f57ab9::t_fe22d3b676af8c 44,79,152,162-163,176,187-200,216-222
+internal/commands/widgets.go
+  s_c1c985d7f57ab9::t_08935e0de00d1c 94-96
+docs/reference/commands.md
+  s_c1c985d7f57ab9::t_881854108d0090 702,717-718,728-729
+docs/troubleshooting.md
+  s_c1c985d7f57ab9::t_881854108d0090 1803-1831
+internal/widgets/catalog_test.go
+  s_c1c985d7f57ab9::t_6ff49bbf218d81 99,104-105
+internal/widgets/widget_test.go
+  s_c1c985d7f57ab9::t_61a08c7e4d1554 30-85
+docs/reference/widget-format.md
+  s_c1c985d7f57ab9::t_881854108d0090 58-59,384-386
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "10934c27bc4e141d3439f1bc408e616777c61751",
+  "prompts": {},
+  "sessions": {
+    "s_c1c985d7f57ab9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b5256304-4a81-480d-a568-f8cf11d8ddcc",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
