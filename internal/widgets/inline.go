@@ -21,6 +21,9 @@ func validateInline(w Instance, label, path string, surface Surface, c Contract)
 	if len(w.With) > 0 {
 		at("with", "a widget written in the board has no inputs, so it takes no with")
 	}
+	if w.has("every") {
+		at("every", "a widget written in the board sets how often in source.every, not every")
+	}
 	for _, size := range w.Sizes {
 		if _, ok := c.Presets[size]; !ok {
 			at("sizes", "size %q: the presets are %s", size, strings.Join(presetNames(c), ", "))

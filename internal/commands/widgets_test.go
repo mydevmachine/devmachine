@@ -1693,3 +1693,17 @@ func TestWidgetsValidateWarnsAboutAChoiceTheConfigLacks(t *testing.T) {
 		t.Fatalf("%v\n%s", err, out)
 	}
 }
+
+func TestWidgetsAddKeepsAnotherWidgetsOverrides(t *testing.T) {
+	dir := widgetConfig(t)
+	board := widgets.BoardPath(dir, "home")
+	usage := "  - id: usage\n    type: claude-code/usage\n    title: Claude\n    with: {harness: codex}\n    every: 2m\n" +
+		"    frame: {x: 24, y: 24, w: 320, h: 160}\n    size: medium\n    minimized: false\n    z: 1\n"
+	writeCommandFile(t, board, "format: 1\nsurface: home\nwidgets:\n"+usage)
+	if out, err := execute(t, "--config", dir, "widgets", "add", "devmachine-app/clock"); err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	if got := readCommandFile(t, board); !strings.Contains(got, usage) {
+		t.Fatalf("the overrides were lost:\n%s", got)
+	}
+}

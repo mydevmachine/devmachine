@@ -136,3 +136,12 @@ A board can also hold a widget written in place, with a title, a source
 and a view and no package — a quick `df` on a workspace, say. One that
 runs something waits until you press Allow. See [the widget
 format](../reference/widget-format.md#a-widget-written-in-the-board).
+
+### Changing one copy
+
+The same widget can sit on a board twice and look different: each entry
+may give it its own `title`, its own `every` (how often it runs) and its
+own input values in `with`. In the app, ⋯ → **Edit…** changes them, and
+⋯ → **Choose …** picks from a widget's lists, such as which machines it
+shows. A widget written in the board is edited the same way, and changing
+what it runs asks for your approval again.

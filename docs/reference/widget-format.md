@@ -297,6 +297,8 @@ widgets:
 | `id` | Unique on the board: lower case letters, digits and dashes. |
 | `type` | The widget, `<package>/<widget>`. |
 | `with` | Values for the widget's inputs. Left out when there are none. A choice of many takes a list: `with: {machines: [main, backup]}`; `[]` means all. |
+| `title` | Optional, on an entry with a `type`: the title this copy shows instead of the widget's own. Never empty; take the key off to go back. |
+| `every` | Optional, on an entry with a `type`: how often this copy runs, as a duration (`2m`) or, for any source but a provider, `manual`. Never below what the widget's source allows (`devmachine widgets schema` lists each minimum), and not on a stream. |
 | `frame` | Position and size in points. `x` and `y` are 0 or more; `w` and `h` are at least the smallest preset the widget takes. |
 | `size` | A preset, or `custom` after a free resize. Left out, it is `custom`. |
 | `minimized` | `true` draws a pill with the title instead. |
@@ -306,6 +308,9 @@ A `type` no package provides is not an error: the app keeps the entry and
 shows a placeholder, so a missing package never loses a layout. A widget
 can also be written in place, with no `type` and no package: see below. A
 widget has either a `type` or a `source` and a `view`, never both.
+
+A widget written in the board owns its `title`, and sets how often it runs
+in `source.every`; an `every` next to its `source` is refused.
 
 A key the board does not know, at the top, in a widget or in a `frame`, is
 a mistake, for example `unknown key "minimised" in a widget`. A typo is
@@ -388,7 +393,7 @@ The menu bar item is two boards, both lists drawn in the order they are
 written.
 
 `menubar.yml` is the title in the menu bar: at most 3 widgets, left to
-right, each one line. An entry there has only `id`, `type` and `with`
+right, each one line. An entry there has only `id`, `type`, `title`, `with` and `every`
 (or `title`, `source` and `view` when written in place): no `frame`,
 `size`, `minimized`, `collapsed` or `z`. Only four views draw there:
 `text` (its first line, cut at 24 characters with "…"), `number`
@@ -581,6 +586,9 @@ A package declares providers in its `package.yml`; a widget names one `<package>
 | `from` or `many` on another type | `input "X" is a string: from and many belong to a choice` |
 | a choice input on an engine below 1.5 | `a widget with a choice input needs requires.engine ">= 1.5": an app on engine 1.4 cannot show its choices` |
 | a board's `with` of the wrong shape for a choice | `machines: input "machines" takes a list of names, written [a, b], and main is not one`, `usage: input "harness" takes one name, and [claude, codex] is not one` |
+| an empty `title` on an entry | `usage: title is empty: write one, or take the key off to show the widget's own` |
+| an `every` on an entry that its source does not take | `usage: every 1s is below claude-code/usage's minimum of 5s`, `usage: every "often" is not a duration: …`, `usage: every manual: claude-code/usage reads a provider, which runs on a schedule: …`, `tail: a stream runs while the widget is on screen, so it takes no every` |
+| an `every` on a widget written in the board | `disk: a widget written in the board sets how often in source.every, not every` |
 | template names something undeclared | `template {{inputs.X}} in source.with.Y needs inputs.X` |
 | `source.kind` unknown | `source.kind "X": engine 1.5 knows provider, command, url, prompt, session` |
 | a key of another kind | `source.url is not a field of a command source: it takes …` |

@@ -1832,6 +1832,25 @@ refused.
 **What to do:** Pick again in the app (⋯ → Choose), or run `devmachine
 widgets set <id> --board <area> --set machines=<names>`.
 
+## "every 1s is below X's minimum of 5s"
+
+**What it means:** A board entry's `every` asks the widget to run more
+often than its source allows. The minimum comes from the source: an app
+provider, a package provider's `min_every`, or the source kind (15m for a
+prompt). The message names the widget and its minimum.
+
+**What to do:** Write the minimum or more, or take the key off to use the
+widget's own. On a provider widget, `manual` is refused too: it runs on a
+schedule.
+
+## "a widget written in the board sets how often in source.every, not every"
+
+**What it means:** The entry has its own `source`, so how often it runs
+is `source.every`. An `every` next to it would say the same thing twice.
+
+**What to do:** Change `source.every` and delete the other line. The app
+asks for your approval again when the source changes.
+
 ## "source.target: app/… is the app's own data, so it takes no target"
 
 **What it means:** The widget reads one of the app's own providers, such

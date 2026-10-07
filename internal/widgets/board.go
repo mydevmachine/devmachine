@@ -28,7 +28,7 @@ var (
 
 var (
 	boardFields    = []string{"format", "surface", "widgets"}
-	instanceFields = []string{"id", "type", "title", "with", "source", "view", "sizes", "fits", "frame", "size", "minimized", "collapsed", "z"}
+	instanceFields = []string{"id", "type", "title", "with", "every", "source", "view", "sizes", "fits", "frame", "size", "minimized", "collapsed", "z"}
 	frameFields    = []string{"x", "y", "w", "h"}
 )
 
@@ -47,12 +47,14 @@ type Frame struct {
 }
 
 // Instance is one widget placed on a board: a widget from the catalog named
-// by Type, or one written in place with a Title, a Source and a View.
+// by Type, which may override its Title and Every for this copy, or one
+// written in place with a Title, a Source and a View.
 type Instance struct {
 	ID        string         `yaml:"id" json:"id"`
 	Type      string         `yaml:"type" json:"type"`
 	Title     string         `yaml:"title,omitempty" json:"title,omitempty"`
 	With      map[string]any `yaml:"with" json:"with"`
+	Every     string         `yaml:"every,omitempty" json:"every,omitempty"`
 	Source    *Source        `yaml:"source,omitempty" json:"source,omitempty"`
 	View      *ViewRef       `yaml:"view,omitempty" json:"view,omitempty"`
 	Sizes     []string       `yaml:"sizes,omitempty" json:"sizes,omitempty"`
@@ -246,6 +248,7 @@ func ValidateBoard(b Board, path string, lookup Lookup) []Problem {
 		}
 
 		entry, known := lookup(w.Type)
+		problems = append(problems, overrideProblems(w, label, path, entry, known)...)
 		switch {
 		case !known && layout == LayoutStack:
 			problems = append(problems, stackSizeProblems(w, label, path, presetNames(c), "", true)...)
@@ -363,6 +366,9 @@ func EncodeBoard(b Board) ([]byte, error) {
 			}
 		} else {
 			put(entry, "type", scalarNode(w.Type))
+			if w.Title != "" {
+				put(entry, "title", scalarNode(w.Title))
+			}
 			if len(w.With) > 0 {
 				with := &yaml.Node{Kind: yaml.MappingNode, Style: yaml.FlowStyle}
 				for _, name := range sortedKeys(w.With) {
@@ -376,6 +382,9 @@ func EncodeBoard(b Board) ([]byte, error) {
 					put(with, name, value)
 				}
 				put(entry, "with", with)
+			}
+			if w.Every != "" {
+				put(entry, "every", scalarNode(w.Every))
 			}
 		}
 		switch {

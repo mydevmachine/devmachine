@@ -30,3 +30,16 @@ warning tells you which pick to clean up.
 A name of the wrong shape is different: a single name where the widget
 takes a list, or a list where it takes one name. That is a mistake in the
 file, not a change in your setup, so it is a problem at its line.
+
+## Why only a widget from a package takes title and every
+
+A widget from a package is shared: its `widget.yml` is the same for
+everybody, so a board entry is the only place to say "call this one
+Claude, and check it every two minutes". A widget written in the board
+has no such split: its title and its `source.every` are already in the
+entry, so a second `every` next to them would only leave two answers to
+the same question.
+
+The override may not go below the source's minimum, for the same reason
+the widget itself may not: the minimum protects the machine the source
+runs on, not the widget.
