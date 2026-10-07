@@ -1651,31 +1651,38 @@ program called `df -h /`, which does not exist. Nothing ran.
 **What to do:** Write `run: df` and `args: [-h, /]`. If you need a pipe
 or `&&`, set `shell: true`; then `run` is a shell line.
 
-## "source.run puts {{…}} inside '…'" (or `$'…'`, backticks, `[[ … ]]`, `(( … ))`)
+## "source.run is a shell line, so it cannot hold {{…}}"
 
-**What it means:** With `shell: true` the app gives each value to the
-shell as a separate argument and puts `"$1"` where the template was, so
-the shell never reads the value as code. Inside `'…'` or `$'…'` the shell
-expands nothing, so the widget would show a literal `$1`. Backticks,
-`[[ … ]]`, `(( … ))` and `$(( … ))` read the text again, and a value
-such as `a[$(id)]` would run.
+**What it means:** A value written into a shell line becomes part of the
+code the shell runs, so a value such as `a; rm -rf ~` or `$(id)` would
+run as a command. No way of quoting it is safe in every case, so a shell
+line holds no templates at all.
 
-**What to do:** Write the template bare or inside `"…"`:
-`echo "{{inputs.path}}"`. Use `$(…)` instead of backticks, and `[ … ]`
-instead of `[[ … ]]` or `(( … ))`.
+**What to do:** Read the value from the environment variable the app
+sets, in double quotes: `{{inputs.disk-path}}` becomes
+`"$DM_INPUT_DISK_PATH"`, `{{context.project}}` becomes
+`"$DM_CONTEXT_PROJECT"`. The name is upper case, and any character other
+than A–Z and 0–9 turns into `_`. Do not pass that variable on to `eval`,
+`sh -c`, `ssh <host> …`, `awk` or `xargs`: they run their argument as code.
 
-## "source.run passes {{…}} to eval" (or `let`, `sh -c`), or "has a heredoc"
+## "a shell line takes no source.args"
 
-**What it means:** `eval`, `let`, `sh -c` (and `bash`, `zsh`, `dash`,
-`ksh` with `-c`) run their arguments as shell code, and a heredoc's text
-is read by the shell too. A value placed there runs as a command, so the
-widget is refused.
+**What it means:** With `shell: true`, `run` is the whole line, so there
+is no program for `args` to go to.
 
-**What to do:** Pass the value straight to the program that needs it, as
-an argument: `grep -- {{inputs.word}} file`, not
-`sh -c "grep {{inputs.word}} file"`. The same goes for programs the check
-cannot see into, such as `ssh <host> …`, `awk`, `xargs`, `perl -e` and
-`python -c`: keep templates out of them.
+**What to do:** Write the words in `run`, and read values from
+`$DM_INPUT_<NAME>` or `$DM_CONTEXT_<KEY>`. Or drop `shell: true` and keep
+`run` as the program and `args` as its arguments.
+
+## "source.run cannot hold {{…}}: a value must not pick the program"
+
+**What it means:** Without `shell: true`, `run` is the program that
+starts. If a value could fill it in, whoever sets the value would choose
+what runs.
+
+**What to do:** Name the program in `run` and put the value in `args`:
+`run: du`, `args: [-sh, --, "{{inputs.path}}"]`. The `--` stops a value
+that starts with `-` from being read as an option.
 
 ## "source.run "…" starts with -" or "has ="
 

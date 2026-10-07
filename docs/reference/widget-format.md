@@ -91,20 +91,21 @@ source:
 - `args` are passed to the program one by one; no shell reads them, so a
   space or a `;` in one is just a character. A `run` with spaces is refused:
   put the arguments in `args`, or set `shell: true`, and `run` becomes a
-  shell line. The values never go into the line itself: the app hands them
-  to the shell as separate arguments and puts `"$1"`, `"$2"` … where the
-  templates were, so the shell never reads a value as code. Write a
-  template bare (`echo {{inputs.path}}`) or inside `"…"`.
-- A shell line refuses a template where the shell reads text again as
-  code: inside `'…'` or `$'…'` (no value is expanded there), inside
-  backticks, in a line with a heredoc (`<<`), after `eval`, `let` or
-  `sh -c` (also `bash`, `zsh`, `dash`, `ksh`), and inside `[[ … ]]`,
-  `(( … ))` or `$(( … ))`. The check cannot see inside other programs:
-  `ssh <host> …`, `awk`, `xargs`, `perl -e`, `python -c` or
-  `find -exec sh -c` read an argument as code and undo the protection, so
-  keep templates out of them. For a program that takes options, put `--`
-  before a templated argument (`ls -- {{inputs.path}}`), so a value that
+  shell line.
+- `run` never holds a template: a value must not pick the program, and a
+  value written into a shell line would run as code. Without a shell, put
+  templates in `args`. For a program that takes options, put `--` before
+  a templated argument (`args: [--, "{{inputs.path}}"]`), so a value that
   starts with `-` is not read as an option.
+- A shell line takes no `args`. It reads each value from an environment
+  variable the app sets: `DM_INPUT_` or `DM_CONTEXT_` followed by the name
+  in upper case, with any character other than A–Z and 0–9 turned into
+  `_`. So `inputs.disk-path` is `$DM_INPUT_DISK_PATH`, and
+  `context.project` is `$DM_CONTEXT_PROJECT`. Write it in double quotes:
+  `run: 'du -sh -- "$DM_INPUT_DISK_PATH"'`. The shell never reads the
+  value as code, unless you hand it to a program that does: `eval`,
+  `sh -c`, `ssh <host> …`, `awk`, `xargs`, `perl -e`, `python -c`. That
+  is your own line's code, so keep values out of those.
 - Without a shell, `run` cannot start with `-` or hold `=`: it would read
   as an option or a variable to set, not a program.
 - `target` is `local` (the computer the app runs on, the default),
@@ -158,8 +159,9 @@ the app.
 
 ### Templates
 
-`{{inputs.<name>}}` and `{{context.<key>}}` can go in `run`, `args`,
-target names, `url`, `prompt` and `session`. The input or key has to be
+`{{inputs.<name>}}` and `{{context.<key>}}` can go in `args`, target
+names, `url`, `prompt` and `session`, never in `run` (a shell line reads
+them from `$DM_INPUT_…` and `$DM_CONTEXT_…` instead). The input or key has to be
 declared. `{{item}}` works only inside a list view's `item`.
 
 ## Views
@@ -359,9 +361,9 @@ One unit is 80pt; positions and free resizes snap to 8pt.
 | a key of another kind | `source.url is not a field of a command source: it takes …` |
 | no `run`/`script`, or both | `a command source needs run or script`, `a command source has run or script, not both` |
 | `run` with spaces and no `shell: true` | `source.run "df -h /" has spaces: put each argument in source.args, or set shell: true …` |
-| a template inside `'…'`, `$'…'`, backticks, `[[ … ]]` or `(( … ))` in a `shell: true` line | `source.run puts {{inputs.x}} inside '…', where the shell never expands a value — …`, `… inside backticks, which read the value again as shell code — use $(…) instead` |
-| a template given to `eval`, `let` or `sh -c` | `source.run passes {{inputs.x}} to eval, which runs it as shell code — keep templates out of it` |
-| a template in a line with a heredoc | `source.run has a heredoc (<<), and the shell reads {{inputs.x}} in it as code — pass the value as an argument instead` |
+| a template in a `shell: true` line | `source.run is a shell line, so it cannot hold {{inputs.x}}: read it as "$DM_INPUT_X" instead` |
+| `args` with `shell: true` | `a shell line takes no source.args: write the words in source.run, and read values as $DM_INPUT_<NAME>` |
+| a template in `run` without a shell | `source.run cannot hold {{inputs.x}}: a value must not pick the program — name the program in run, and put the value in source.args` |
 | `run` starting with `-` or holding `=`, no `shell: true` | `source.run "-df" starts with -: …`, `source.run "LANG=C" has =: …` |
 | `script` outside the package, or not runnable | `source.script "X": a package widget names a file inside its package …`, `… is not executable: run chmod +x on it` |
 | `every` missing, unreadable or too short | `a command source needs source.every …`, `source.every 1s is below the command minimum of 5s` |

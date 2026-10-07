@@ -232,12 +232,22 @@ func checkCommand(s Source, scope sourceScope, kind SourceKind, at reporter) {
 	case s.Run != "" && s.Script != "":
 		at("source.script", "a command source has run or script, not both")
 	}
-	program := strings.TrimSpace(template.ReplaceAllString(s.Run, "x"))
+	program := strings.TrimSpace(s.Run)
+	templates := template.FindAllStringSubmatch(s.Run, -1)
 	switch {
 	case s.Shell:
-		for _, problem := range unsafeTemplates(s.Run) {
-			at("source.run", "source.run %s", problem)
+		for _, match := range templates {
+			if name := EnvName(match[1]); name != "" {
+				at("source.run", `source.run is a shell line, so it cannot hold %s: read it as "$%s" instead`, match[0], name)
+			} else {
+				at("source.run", "source.run is a shell line, so it cannot hold %s: read values as $DM_INPUT_<NAME> or $DM_CONTEXT_<KEY> instead", match[0])
+			}
 		}
+		if len(s.Args) > 0 {
+			at("source.args", "a shell line takes no source.args: write the words in source.run, and read values as $DM_INPUT_<NAME>")
+		}
+	case len(templates) > 0:
+		at("source.run", "source.run cannot hold %s: a value must not pick the program — name the program in run, and put the value in source.args", templates[0][0])
 	case strings.ContainsFunc(program, unicode.IsSpace):
 		at("source.run", "source.run %q has spaces: put each argument in source.args, or set shell: true to run it as a shell line", s.Run)
 	case strings.HasPrefix(program, "-"):
@@ -245,7 +255,6 @@ func checkCommand(s Source, scope sourceScope, kind SourceKind, at reporter) {
 	case strings.Contains(program, "="):
 		at("source.run", "source.run %q has =: it reads as a variable to set, not a program — name the program, or set shell: true", s.Run)
 	}
-	checkTemplates(s.Run, "source.run", "source.run", scope, at)
 	for i, arg := range s.Args {
 		checkTemplates(arg, fmt.Sprintf("source.args[%d]", i), "source.args", scope, at)
 	}
@@ -412,6 +421,23 @@ func scriptFileProblem(packageDir, script string) string {
 		return "only its owner can run it: a workspace runs it as its own account, so make it chmod 755"
 	}
 	return ""
+}
+
+var notEnvChar = regexp.MustCompile(`[^A-Z0-9]`)
+
+// EnvName is the environment variable a shell line reads a value from:
+// inputs.disk-path is DM_INPUT_DISK_PATH and context.workspace.name is
+// DM_CONTEXT_WORKSPACE_NAME. It is "" for a reference to anything else.
+func EnvName(ref string) string {
+	scope, key, ok := strings.Cut(strings.TrimSpace(ref), ".")
+	if !ok || key == "" {
+		return ""
+	}
+	prefix := map[string]string{"inputs": "DM_INPUT_", "context": "DM_CONTEXT_"}[scope]
+	if prefix == "" {
+		return ""
+	}
+	return prefix + notEnvChar.ReplaceAllString(strings.ToUpper(key), "_")
 }
 
 func checkTemplates(value, label, line string, scope sourceScope, at reporter) {

@@ -90,14 +90,12 @@ func TestEveryNewSourceLoadsWhenWrittenRight(t *testing.T) {
 		"manual": {"disk", edited(t, diskWidget, "every: 60s", "every: manual")},
 		"stream": {"disk", edited(t, diskWidget,
 			"  every: 60s\n  parse: text\n", "  mode: stream\n  keep: 500\n  parse: lines\n")},
-		"templated run": {"disk", edited(t, diskWidget,
-			"  run: df\n", "  run: \"{{ inputs.machine }}\"\n")},
-		"input in a shell line": {"disk", edited(t, diskWidget,
-			"  run: df\n  args: [-h, /]\n", "  run: \"echo {{inputs.machine}}\"\n  shell: true\n")},
-		"escaped quotes around a template": {"disk", edited(t, diskWidget,
-			"  run: df\n  args: [-h, /]\n", "  run: 'echo \\''{{inputs.machine}}\\'' \"a\" {{inputs.machine}}'\n  shell: true\n")},
 		"assignment in a shell line": {"disk", edited(t, diskWidget,
 			"  run: df\n  args: [-h, /]\n", "  run: LC_ALL=C df -h /\n  shell: true\n")},
+		"value read from the environment in a shell line": {"disk", edited(t, diskWidget,
+			"  run: df\n  args: [-h, /]\n", "  run: 'df -h -- \"$DM_INPUT_MACHINE\"'\n  shell: true\n")},
+		"templates in args": {"disk", edited(t, diskWidget,
+			"args: [-h, /]", `args: ["{{inputs.machine}}", "-- {{ inputs.machine }}"]`)},
 	}
 	for name, tc := range cases {
 		if _, problems := Load(writeWidget(t, t.TempDir(), tc.folder, tc.body)); len(problems) != 0 {
@@ -115,7 +113,12 @@ func TestEachSourceRuleReportsItsOwnProblem(t *testing.T) {
 		{"run and script", "disk", diskWidget, []string{"  run: df\n", "  run: df\n  script: bin/df\n"}, "a command source has run or script, not both"},
 		{"neither run nor script", "disk", diskWidget, []string{"  run: df\n  args: [-h, /]\n", ""}, "a command source needs run or script"},
 		{"run with spaces", "disk", diskWidget, []string{"  run: df\n  args: [-h, /]\n", "  run: df -h /\n"}, `source.run "df -h /" has spaces`},
-		{"input in a run without a shell", "disk", diskWidget, []string{"  run: df\n  args: [-h, /]\n", "  run: \"echo {{inputs.machine}}\"\n"}, `source.run "echo {{inputs.machine}}" has spaces`},
+		{"template in a shell line", "disk", diskWidget, []string{"  run: df\n  args: [-h, /]\n", "  run: \"echo {{inputs.machine}}\"\n  shell: true\n"}, `source.run is a shell line, so it cannot hold {{inputs.machine}}: read it as "$DM_INPUT_MACHINE" instead`},
+		{"context template in a shell line", "disk", diskWidget, []string{"  run: df\n  args: [-h, /]\n", "  run: \"echo '{{ context.project }}'\"\n  shell: true\n"}, `cannot hold {{ context.project }}: read it as "$DM_CONTEXT_PROJECT" instead`},
+		{"item template in a shell line", "disk", diskWidget, []string{"  run: df\n  args: [-h, /]\n", "  run: \"echo {{item.name}}\"\n  shell: true\n"}, "cannot hold {{item.name}}: read values as $DM_INPUT_<NAME> or $DM_CONTEXT_<KEY> instead"},
+		{"args with a shell line", "disk", diskWidget, []string{"  run: df\n", "  run: df\n  shell: true\n"}, "a shell line takes no source.args"},
+		{"template in a run without a shell", "disk", diskWidget, []string{"  run: df\n", "  run: \"{{ inputs.machine }}\"\n"}, "source.run cannot hold {{ inputs.machine }}: a value must not pick the program"},
+		{"template inside a run word", "disk", diskWidget, []string{"  run: df\n", "  run: \"/opt/{{inputs.machine}}/df\"\n"}, "source.run cannot hold {{inputs.machine}}"},
 		{"run with a carriage return", "disk", diskWidget, []string{"  run: df\n  args: [-h, /]\n", "  run: \"df\\r-h\"\n"}, "has spaces"},
 		{"run with a unicode space", "disk", diskWidget, []string{"  run: df\n  args: [-h, /]\n", "  run: \"df\\u2003-h\"\n"}, "has spaces"},
 		{"run with a no-break space", "disk", diskWidget, []string{"  run: df\n  args: [-h, /]\n", "  run: \"df\\u00a0-h\"\n"}, "has spaces"},
@@ -166,73 +169,35 @@ func TestEachSourceRuleReportsItsOwnProblem(t *testing.T) {
 	}
 }
 
-func shellLineWidget(t *testing.T, line string) string {
-	t.Helper()
-	return edited(t, diskWidget, "  run: df\n  args: [-h, /]\n", "  run: >-\n    "+line+"\n  shell: true\n")
-}
-
-func TestATemplateTheShellReadsAgainAsCodeIsRefused(t *testing.T) {
-	cases := []struct{ name, line, want string }{
-		{"single quotes", `echo '{{inputs.machine}}'`, "source.run puts {{inputs.machine}} inside '…', where the shell never expands a value"},
-		{"ansi quotes with an escaped quote", `echo $'a\' {{inputs.machine}}'`, "source.run puts {{inputs.machine}} inside $'…'"},
-		{"backticks", "echo `echo {{inputs.machine}}`", "source.run puts {{inputs.machine}} inside backticks"},
-		{"backticks inside double quotes", "echo \"`echo {{inputs.machine}}`\"", "source.run puts {{inputs.machine}} inside backticks"},
-		{"heredoc", "cat <<EOF {{inputs.machine}}", "source.run has a heredoc (<<), and the shell reads {{inputs.machine}} in it as code"},
-		{"eval", "eval echo {{inputs.machine}}", "source.run passes {{inputs.machine}} to eval"},
-		{"eval after a substitution", "eval $(true) {{inputs.machine}}", "source.run passes {{inputs.machine}} to eval"},
-		{"eval after an assignment", "A=1 eval {{inputs.machine}}", "source.run passes {{inputs.machine}} to eval"},
-		{"sh -c", `sh -c "echo {{inputs.machine}}"`, "source.run passes {{inputs.machine}} to sh -c"},
-		{"bash -lc through sudo", "sudo -u alice /bin/bash -lc {{inputs.machine}}", "source.run passes {{inputs.machine}} to bash -c"},
-		{"sh -c around a substitution", `zsh -c "$(echo {{inputs.machine}})"`, "source.run passes {{inputs.machine}} to zsh -c"},
-		{"test brackets", "[[ {{inputs.machine}} == a ]] && echo y", "source.run puts {{inputs.machine}} inside [[ … ]]"},
-		{"arithmetic", "(( {{inputs.machine}} > 1 )) && echo y", "source.run puts {{inputs.machine}} inside (( … )) or $(( … ))"},
-		{"arithmetic expansion", `echo "$(( ({{inputs.machine}}) + 1 ))"`, "source.run puts {{inputs.machine}} inside (( … )) or $(( … ))"},
-		{"let", "let n={{inputs.machine}}", "source.run passes {{inputs.machine}} to let"},
-		{"single quotes before a comment", "echo a; echo '{{inputs.machine}}' # it's", "inside '…'"},
+func TestEveryTemplateInAShellLineIsReportedOnItsLine(t *testing.T) {
+	body := edited(t, diskWidget, "  run: df\n  args: [-h, /]\n",
+		"  run: \"echo {{inputs.machine}} {{context.project}}\"\n  shell: true\n")
+	_, problems := Load(writeWidget(t, t.TempDir(), "disk", body))
+	want := []string{"$DM_INPUT_MACHINE", "$DM_CONTEXT_PROJECT"}
+	if len(problems) != len(want) {
+		t.Fatalf("want %d problems, got %v", len(want), problems)
 	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			_, problems := Load(writeWidget(t, t.TempDir(), "disk", shellLineWidget(t, tc.line)))
-			if len(problems) != 1 || !strings.Contains(problems[0].Message, tc.want) {
-				t.Fatalf("want one problem containing %q, got %v", tc.want, problems)
-			}
-			if problems[0].Line != 10 {
-				t.Fatalf("want the problem on line 10, got %v", problems[0])
-			}
-		})
-	}
-}
-
-func TestATemplateTheShellOnlyExpandsIsAllowed(t *testing.T) {
-	cases := map[string]string{
-		"bare":                          "echo {{inputs.machine}}",
-		"inside double quotes":          `echo "a {{inputs.machine}}"`,
-		"after an escaped double quote": `echo "a\" {{inputs.machine}}"`,
-		"in a substitution in quotes":   `echo "$(echo "{{inputs.machine}}")"`,
-		"eval only as a word":           "echo eval {{inputs.machine}}",
-		"single brackets":               `if [ "{{inputs.machine}}" = a ]; then echo y; fi`,
-		"after a separator":             "eval true; echo {{inputs.machine}}",
-		"apostrophe in a comment":       "echo {{inputs.machine}} # it's fine",
-		"closed quotes before it":       `echo 'a' "b" {{inputs.machine}}`,
-		"arithmetic before it":          "echo $((1 + 2)) {{inputs.machine}}",
-	}
-	for name, line := range cases {
-		if _, problems := Load(writeWidget(t, t.TempDir(), "disk", shellLineWidget(t, line))); len(problems) != 0 {
-			t.Errorf("%s: %v", name, problems)
+	for i, name := range want {
+		if problems[i].Line != 10 || !strings.Contains(problems[i].Message, name) {
+			t.Errorf("problem %d: want line 10 naming %s, got %v", i, name, problems[i])
 		}
 	}
 }
 
-func TestEveryUnsafeTemplateInAShellLineIsReported(t *testing.T) {
-	line := "echo '{{inputs.machine}}' {{inputs.machine}} \"{{ inputs.machine }}\" `echo {{ inputs.machine}}`"
-	_, problems := Load(writeWidget(t, t.TempDir(), "disk", shellLineWidget(t, line)))
-	want := []string{"puts {{inputs.machine}} inside '…'", "puts {{ inputs.machine}} inside backticks"}
-	if len(problems) != len(want) {
-		t.Fatalf("want %d problems, got %v", len(want), problems)
+func TestEnvNameNamesTheVariableAShellLineReads(t *testing.T) {
+	cases := map[string]string{
+		"inputs.disk-path":       "DM_INPUT_DISK_PATH",
+		"inputs.machine":         "DM_INPUT_MACHINE",
+		" inputs.max_lines ":     "DM_INPUT_MAX_LINES",
+		"context.workspace.name": "DM_CONTEXT_WORKSPACE_NAME",
+		"context.project":        "DM_CONTEXT_PROJECT",
+		"item.name":              "",
+		"inputs":                 "",
+		"inputs.":                "",
 	}
-	for i, w := range want {
-		if problems[i].Line != 10 || !strings.Contains(problems[i].Message, w) {
-			t.Errorf("problem %d: want line 10 with %q, got %v", i, w, problems[i])
+	for ref, want := range cases {
+		if got := EnvName(ref); got != want {
+			t.Errorf("EnvName(%q) = %q, want %q", ref, got, want)
 		}
 	}
 }
