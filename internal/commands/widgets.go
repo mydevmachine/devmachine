@@ -25,6 +25,7 @@ func newWidgetsCmd(opts *options) *cobra.Command {
 	cmd.AddCommand(
 		newWidgetsListCmd(opts),
 		newWidgetsHelpCmd(opts),
+		newWidgetsValidateCmd(opts),
 		newWidgetsSchemaCmd(opts),
 	)
 	return cmd

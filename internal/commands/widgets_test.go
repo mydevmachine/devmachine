@@ -239,3 +239,75 @@ func TestWidgetsListPrintsAbsolutePathsForARelativeConfigFlag(t *testing.T) {
 		}
 	}
 }
+
+func TestWidgetsValidateChecksEachKindOfPath(t *testing.T) {
+	dir := widgetConfig(t)
+	local := packages.LocalDir(dir)
+	writeWidgetPackageAt(t, local, "mine", "machine", map[string]string{"clock": clockWidgetYAML})
+	board := filepath.Join(dir, "boards", "home.yml")
+	writeCommandFile(t, board, "format: 1\nsurface: home\nwidgets:\n  - id: clock\n    type: devmachine-app/clock\n    frame: {x: 24, y: 24, w: 320, h: 160}\n    size: medium\n    minimized: false\n    z: 1\n")
+
+	for _, path := range []string{
+		filepath.Join(local, "mine", "widgets", "clock", "widget.yml"),
+		filepath.Join(local, "mine", "widgets", "clock"),
+		filepath.Join(local, "mine"),
+		board,
+	} {
+		out, err := execute(t, "--config", dir, "widgets", "validate", path)
+		if err != nil {
+			t.Errorf("%s: %v\n%s", path, err, out)
+		}
+		if path != board && !strings.Contains(out, "clock fits home") {
+			t.Errorf("%s: the surfaces it fits are missing from\n%s", path, out)
+		}
+	}
+}
+
+func TestWidgetsValidateWithNoPathChecksBoardsAndYourPackages(t *testing.T) {
+	dir := widgetConfig(t)
+	writeWidgetPackageAt(t, packages.LocalDir(dir), "mine", "machine",
+		map[string]string{"clock": strings.Replace(clockWidgetYAML, "every: 5s", "every: 1s", 1)})
+	writeCommandFile(t, filepath.Join(dir, "boards", "home.yml"), "format: 1\nsurface: home\nwidgets:\n  - id: Clock\n    type: devmachine-app/clock\n    frame: {x: 24, y: 24, w: 320, h: 160}\n    size: medium\n    minimized: false\n    z: 1\n")
+
+	out, err := execute(t, "--config", dir, "--format", "json", "widgets", "validate")
+	if err == nil || !strings.Contains(err.Error(), "2 problem(s)") {
+		t.Fatalf("got %v\n%s", err, out)
+	}
+	var result struct {
+		OK       bool              `json:"ok"`
+		Problems []widgets.Problem `json:"problems"`
+	}
+	if err := json.Unmarshal([]byte(out), &result); err != nil {
+		t.Fatal(err)
+	}
+	if result.OK || len(result.Problems) != 2 {
+		t.Fatalf("got %+v", result)
+	}
+}
+
+func TestWidgetsValidateReportsABoardsKeyAndRuleProblemsTogether(t *testing.T) {
+	dir := widgetConfig(t)
+	board := filepath.Join(dir, "boards", "home.yml")
+	writeCommandFile(t, board, "format: 1\nsurface: home\ncolor: blue\nwidgets:\n  - id: Clock\n    type: devmachine-app/clock\n    frame: {x: 24, y: 24, w: 320, h: 160}\n    z: 1\n")
+
+	out, err := execute(t, "--config", dir, "widgets", "validate", board)
+	if err == nil || !strings.Contains(err.Error(), "2 problem(s)") {
+		t.Fatalf("got %v\n%s", err, out)
+	}
+	for _, want := range []string{`unknown key "color"`, `id "Clock"`} {
+		if !strings.Contains(out, want) {
+			t.Errorf("%q is missing from\n%s", want, out)
+		}
+	}
+}
+
+func TestWidgetsValidateReportsABoardThatIsNotYAMLOnce(t *testing.T) {
+	dir := widgetConfig(t)
+	board := filepath.Join(dir, "boards", "home.yml")
+	writeCommandFile(t, board, "format: 1\nsurface: [home\n")
+
+	out, err := execute(t, "--config", dir, "widgets", "validate", board)
+	if err == nil || !strings.Contains(err.Error(), "1 problem(s)") {
+		t.Fatalf("got %v\n%s", err, out)
+	}
+}

@@ -662,6 +662,7 @@ Detection looks for `~/.claude`, `~/.codex`, `~/.config/opencode`,
 ```text
 devmachine widgets list
 devmachine widgets help <package/widget>
+devmachine widgets validate [path...]
 devmachine widgets schema [--json]
 ```
 
@@ -719,6 +720,15 @@ still exits 0, so one broken widget never hides the rest.
 
 `help` prints one widget's inputs, context, sizes and the areas it fits;
 with `--format json`, the same entry as `list`.
+
+`validate` takes a `widget.yml`, a widget folder, a package folder or a
+board file. With no path it checks every board in `<config>/boards/` and
+every widget in your own packages. For each widget that passes it prints
+the areas it fits (`clock fits home`). It reports every problem at once,
+with file and line, and exits non-zero when there is one. `--format json`
+prints `{"ok": false, "checked": [...], "widgets": [{"path": ..., "name":
+..., "surfaces": [...]}], "problems": [{"path": ..., "line": ...,
+"message": ...}]}`.
 
 `schema` prints the engine contract: areas, providers, views and sizes.
 `--json` prints it as JSON, the same document the app is built against.
