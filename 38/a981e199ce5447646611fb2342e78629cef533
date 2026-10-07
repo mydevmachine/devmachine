@@ -1,0 +1,40 @@
+internal/widgets/board.go
+  s_c1c985d7f57ab9::t_26430fb627f945 31,49-50,54,56-59,69-83,135-139,141,203-204,206,219-222,310-323,325,360-401
+  s_c1c985d7f57ab9::t_91cdd171b0380e 402
+internal/widgets/board_test.go
+  s_c1c985d7f57ab9::t_47e07083bb4467 77
+docs/index.md
+  s_c1c985d7f57ab9::t_acfa37ab54765f 146-148
+internal/widgets/inline_test.go
+  s_c1c985d7f57ab9::t_4b77dd5ba8ad65 1-128
+internal/widgets/inline.go
+  s_c1c985d7f57ab9::t_ed184cf1235c34 1-61
+docs/reference/widget-format.md
+  s_c1c985d7f57ab9::t_acfa37ab54765f 212-213,221-244,365-367
+docs/troubleshooting.md
+  s_c1c985d7f57ab9::t_acfa37ab54765f 1758-1775
+docs/how-it-works/why-an-agent-written-widget-waits.md
+  s_c1c985d7f57ab9::t_6e216dfa081767 1-48
+internal/commands/widgets_test.go
+  s_c1c985d7f57ab9::t_51bc90b6e97c52 705-739
+docs/concepts/widgets.md
+  s_c1c985d7f57ab9::t_acfa37ab54765f 83-87
+docs/how-it-works/widgets-come-from-packages.md
+  s_c1c985d7f57ab9::t_acfa37ab54765f 3-8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "38a981e199ce5447646611fb2342e78629cef533",
+  "prompts": {},
+  "sessions": {
+    "s_c1c985d7f57ab9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b5256304-4a81-480d-a568-f8cf11d8ddcc",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
