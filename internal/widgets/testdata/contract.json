@@ -1,0 +1,171 @@
+{
+  "engine": "1.6",
+  "layouts": ["canvas", "stack", "slot", "tabs"],
+  "unit": 80,
+  "snap": 8,
+  "presets": {"small": [2,2], "medium": [4,2], "large": [4,4], "wide": [8,2], "tall": [2,4]},
+  "stack_row": 40,
+  "stack_entry": {"forbids": ["frame", "z"], "size": "preset | auto", "collapsed": "bool"},
+  "slot_max": 3,
+  "slot_entry": {"forbids": ["frame", "size", "collapsed", "z", "minimized"], "views": ["text", "number", "status", "app.brand"], "text_max": 24, "min_every": "30s"},
+  "tabs_entry": {"forbids": ["frame", "z", "minimized", "collapsed"], "ignores": ["size"]},
+  "input_types": {
+    "string": {"with": "string"},
+    "number": {"with": "number"},
+    "boolean": {"with": "bool"},
+    "choice": {"fields": {
+      "from": {"type": "enum", "required": true, "values": ["harnesses", "machines", "workspaces"]},
+      "many": {"type": "bool", "default": false}},
+      "with": "string, or a list of strings when many"}
+  },
+  "option_sources": {
+    "harnesses": {"values": ["claude", "codex"]},
+    "machines": {"config": "machines"},
+    "workspaces": {"config": "workspaces"}
+  },
+  "entry_overrides": {
+    "title": {"type": "string"},
+    "every": {"type": "every"}
+  },
+  "surfaces": {
+    "home": {"layout": "canvas", "status": "available", "context": {}},
+    "sidebar": {"layout": "stack", "status": "available", "context": {"selected": {"type": "workspace", "presence": "optional"}}},
+    "context-sidebar": {"layout": "stack", "status": "available", "context": {
+      "machine": {"type": "machine", "presence": "always"},
+      "session": {"type": "session", "presence": "always"},
+      "workspace": {"type": "workspace", "presence": "optional"},
+      "path": {"type": "path", "presence": "optional"},
+      "repo": {"type": "repo", "presence": "optional"},
+      "branch": {"type": "string", "presence": "optional"},
+      "harness": {"type": "string", "presence": "optional"}}},
+    "menubar": {"layout": "slot", "status": "available", "context": {}},
+    "menubar-panel": {"layout": "tabs", "status": "available", "context": {}}
+  },
+  "context_types": {
+    "machine": {"name": "string"},
+    "workspace": {"name": "string", "machine": "machine", "user": "string", "path": "path"},
+    "session": {"name": "string", "kind": "string", "harness": "string?"},
+    "repo": {"owner": "string", "name": "string"},
+    "path": {}, "string": {}
+  },
+  "providers": {
+    "app/clock": {"args": {}, "min_every": "5s", "returns": {"time": "string", "date": "string", "host": "string"}},
+    "app/summary": {"args": {}, "min_every": "5s", "returns": {"sessions": "int", "harness_sessions": "int", "workspaces": "int"}},
+    "app/machines": {"args": {"machines": {"type": "list", "required": false}}, "min_every": "5s", "returns": {"list": "machine_stats"}},
+    "app/harness-usage": {"args": {"harness": {"type": "string", "required": true}}, "min_every": "5s", "returns": {"harness": "string", "windows": "list", "error": "string?"}},
+    "app/workspaces": {"args": {}, "min_every": "5s", "returns": {"workspaces": "workspace_sessions"}},
+    "app/session-context": {"args": {}, "min_every": "5s", "context": {"session": "required"}, "returns": {
+      "cwd": "path", "harness": "string?", "plan": "plan?", "prs": "list",
+      "links": "list", "agents": "list", "monitors": "list", "shells": "list"}},
+    "app/shortcuts": {"args": {}, "min_every": "5s", "context": {"session": "required"}, "returns": {"shortcuts": "list"}},
+    "app/publish-port": {"args": {}, "min_every": "5s", "returns": {"available": "bool"}},
+    "app/brand": {"args": {}, "min_every": "5s", "returns": {"mark": "string"}},
+    "app/open-pull-requests": {"args": {}, "min_every": "5s", "returns": {"count": "number"}},
+    "app/pull-requests-panel": {"args": {}, "min_every": "5s", "returns": {"pull_requests": "list", "owners": "list", "error": "string?"}},
+    "app/usage-panel": {"args": {}, "min_every": "5s", "returns": {"harnesses": "list"}}
+  },
+  "package_provider": {
+    "name": "<package>/<command>",
+    "reserved": ["app"],
+    "min_every": "5s",
+    "returns": ["string", "number", "bool", "list", "object"],
+    "optional": "?",
+    "targets": ["machine", "workspace"],
+    "output": "json",
+    "with": "--<key> <value> after the command, keys sorted",
+    "approval": "third-party",
+    "trust": ["official", "local", "third-party"]
+  },
+  "views": {
+    "app.clock": {"accepts": ["app/clock"]},
+    "app.summary": {"accepts": ["app/summary"]},
+    "app.machines": {"accepts": ["app/machines"]},
+    "app.harness-usage": {"accepts": ["app/harness-usage"]},
+    "app.workspaces": {"accepts": ["app/workspaces"], "layouts": ["stack"], "grows": true},
+    "app.shortcuts": {"accepts": ["app/shortcuts"], "layouts": ["stack"], "grows": true},
+    "app.publish-port": {"accepts": ["app/publish-port"], "layouts": ["stack"], "grows": true},
+    "app.monitors": {"accepts": ["app/session-context"], "layouts": ["stack"], "grows": true},
+    "app.shells": {"accepts": ["app/session-context"], "layouts": ["stack"], "grows": true},
+    "app.sub-agents": {"accepts": ["app/session-context"], "layouts": ["stack"], "grows": true},
+    "app.todo": {"accepts": ["app/session-context"], "layouts": ["stack"], "grows": true},
+    "app.pull-requests": {"accepts": ["app/session-context"], "layouts": ["stack"], "grows": true},
+    "app.links": {"accepts": ["app/session-context"], "layouts": ["stack"], "grows": true},
+    "app.brand": {"accepts": ["app/brand"], "layouts": ["slot"]},
+    "app.pull-requests-panel": {"accepts": ["app/pull-requests-panel"], "layouts": ["tabs", "canvas", "stack"]},
+    "app.usage-panel": {"accepts": ["app/usage-panel"], "layouts": ["tabs"]},
+    "text": {"accepts": ["text", "lines", "ansi"], "fields": {
+      "wrap": {"type": "bool", "default": true},
+      "tail": {"type": "int", "min": 1, "max": 2000}}},
+    "number": {"accepts": ["number", "json", "app/open-pull-requests"], "fields": {
+      "value": {"type": "template"},
+      "unit": {"type": "string"},
+      "format": {"type": "enum", "default": "plain", "values": ["plain", "percent", "bytes", "duration"]},
+      "hide_zero": {"type": "bool", "default": false}}},
+    "gauge": {"accepts": ["number", "json"], "fields": {
+      "value": {"type": "template"},
+      "min": {"type": "number", "default": 0},
+      "max": {"type": "number", "default": 100},
+      "unit": {"type": "string"},
+      "warn": {"type": "number"},
+      "crit": {"type": "number"}}},
+    "status": {"accepts": ["status", "number", "json", "text"], "fields": {
+      "value": {"type": "template"},
+      "ok": {"type": "rule"},
+      "warn": {"type": "rule"}}},
+    "list": {"accepts": ["lines", "json"], "fields": {
+      "item": {"type": "object", "fields": {
+        "title": {"type": "template", "default": "{{item}}"},
+        "subtitle": {"type": "template"},
+        "status": {"type": "template"},
+        "link": {"type": "template"}}}}},
+    "sparkline": {"accepts": ["number", "json"], "fields": {
+      "value": {"type": "template"},
+      "unit": {"type": "string"},
+      "max": {"type": "number"}}},
+    "markdown": {"accepts": ["text"]},
+    "web": {"accepts": ["kind:url"], "fields": {
+      "zoom": {"type": "number", "default": 1, "min": 0.5, "max": 2}}},
+    "terminal": {"accepts": ["ansi", "text", "kind:session"], "fields": {
+      "tail": {"type": "int", "min": 1, "max": 2000}}}
+  },
+  "source_kinds": ["provider", "command", "url", "prompt", "session"],
+  "sources": {
+    "provider": {"approval": false, "fields": {
+      "name": {"type": "provider", "required": true},
+      "with": {"type": "args"},
+      "every": {"type": "every", "required": true},
+      "target": {"type": "target"},
+      "timeout": {"type": "duration", "default": "30s", "max": "10m"}}},
+    "command": {"min_every": "5s", "approval": true, "fields": {
+      "run": {"type": "string"},
+      "script": {"type": "path"},
+      "args": {"type": "list"},
+      "shell": {"type": "bool", "default": false},
+      "target": {"type": "target", "default": "local"},
+      "every": {"type": "every"},
+      "timeout": {"type": "duration", "default": "30s", "max": "10m"},
+      "mode": {"type": "enum", "default": "poll", "values": ["poll", "stream"]},
+      "keep": {"type": "int", "default": 200, "min": 1, "max": 2000},
+      "parse": {"type": "enum", "default": "text", "values": ["text", "lines", "number", "json", "ansi"]}}},
+    "url": {"min_every": "5s", "approval": false, "fields": {
+      "url": {"type": "url", "required": true},
+      "every": {"type": "every", "required": true},
+      "timeout": {"type": "duration", "default": "30s", "max": "10m"},
+      "parse": {"type": "enum", "default": "status", "values": ["status", "text", "json"]}}},
+    "prompt": {"min_every": "5m", "approval": true, "fields": {
+      "harness": {"type": "enum", "required": true, "values": ["claude", "codex"]},
+      "permission_mode": {"type": "enum-by-harness", "by_harness": {
+        "claude": ["manual", "dontAsk", "plan", "acceptEdits", "auto", "bypassPermissions"],
+        "codex": ["read-only", "workspace-write", "danger-full-access", "approve-for-me", "dangerously-bypass-approvals-and-sandbox"]},
+        "dangerous": ["bypassPermissions", "danger-full-access", "dangerously-bypass-approvals-and-sandbox"]},
+      "prompt": {"type": "string", "required": true},
+      "target": {"type": "target", "default": "local"},
+      "every": {"type": "every", "default": "manual"},
+      "timeout": {"type": "duration", "default": "5m", "max": "10m"}}},
+    "session": {"min_every": "2s", "approval": true, "fields": {
+      "target": {"type": "target", "default": "local"},
+      "session": {"type": "string", "required": true},
+      "every": {"type": "every", "required": true}}}
+  },
+  "formats": {"widget": 1, "board": 1}
+}

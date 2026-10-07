@@ -8,7 +8,7 @@ import (
 func TestGitIgnoreCoversEverySecretPath(t *testing.T) {
 	got := GitIgnore()
 
-	for _, want := range []string{"keys/", "secrets.json", "cache/", "history.log", "*.env", "state/"} {
+	for _, want := range []string{"keys/", "secrets.json", "cache/", "history.log", "*.env", "state/", "packages/.install-*"} {
 		if !strings.Contains(got, want) {
 			t.Fatalf(".gitignore does not cover %q:\n%s", want, got)
 		}
@@ -36,6 +36,13 @@ func TestUnsafeAllowsThePublicHalfOfAKey(t *testing.T) {
 
 func TestUnsafeSaysNothingAboutACleanTree(t *testing.T) {
 	if got := Unsafe([]string{"config.yml", "packages.lock", ".gitignore"}); len(got) != 0 {
+		t.Fatalf("got %#v", got)
+	}
+}
+
+func TestUnsafeCatchesAPackageFetchLeftHalfDone(t *testing.T) {
+	got := Unsafe([]string{"packages/.install-123/.clone/package.yml", "packages/mine/package.yml"})
+	if len(got) != 1 || got[0] != "packages/.install-123/.clone/package.yml" {
 		t.Fatalf("got %#v", got)
 	}
 }

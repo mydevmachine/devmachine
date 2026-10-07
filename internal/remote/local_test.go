@@ -6,8 +6,11 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"syscall"
 	"testing"
+	"time"
 
 	"github.com/mydevmachine/devmachine/internal/config"
 )
@@ -124,5 +127,81 @@ func TestElevatedNeverUsesSudoOnYourOwnComputer(t *testing.T) {
 	local := &localClient{}
 	if Elevated(local) != Client(local) {
 		t.Fatal("a self machine's client was wrapped")
+	}
+}
+
+func TestLocalClientLeavesAnOrdinaryCommandInDevmachinesProcessGroup(t *testing.T) {
+	out, err := (&localClient{}).Run(context.Background(), "ps -o pgid= -p $$")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.TrimSpace(out); got != strconv.Itoa(syscall.Getpgrp()) {
+		t.Fatalf("an ordinary command ran in process group %s, want %d", got, syscall.Getpgrp())
+	}
+}
+
+func TestLocalClientGivesARunItsOwnProcessGroup(t *testing.T) {
+	out, err := (&localClient{}).Run(OwnProcessGroup(context.Background()), "ps -o pgid= -p $$; echo $$")
+	if err != nil {
+		t.Fatal(err)
+	}
+	fields := strings.Fields(out)
+	if len(fields) != 2 || fields[0] != fields[1] {
+		t.Fatalf("got %q, want the shell to lead its own process group", out)
+	}
+}
+
+func TestLocalClientStopsEveryProcessOfARunWhenItsContextEnds(t *testing.T) {
+	assertRunStopsItsChild(t, "sleep 60")
+}
+
+func TestLocalClientKillsAChildThatIgnoresSIGTERMAfterTheGrace(t *testing.T) {
+	orig := groupGrace
+	groupGrace = 100 * time.Millisecond
+	t.Cleanup(func() { groupGrace = orig })
+	assertRunStopsItsChild(t, "sh -c \"trap '' TERM; exec sleep 60\"")
+}
+
+func TestLocalClientGivesAStoppedRunOneGrace(t *testing.T) {
+	orig := groupGrace
+	groupGrace = time.Second
+	t.Cleanup(func() { groupGrace = orig })
+	start := time.Now()
+	assertRunStopsItsChild(t, "sh -c \"trap '' TERM; exec sleep 60\"")
+	if took := time.Since(start); took > 1700*time.Millisecond {
+		t.Fatalf("stopping took %s, want one grace of %s", took, groupGrace)
+	}
+}
+
+func assertRunStopsItsChild(t *testing.T, child string) {
+	t.Helper()
+	pidFile := filepath.Join(t.TempDir(), "pid")
+	ctx, cancel := context.WithCancel(OwnProcessGroup(context.Background()))
+	done := make(chan error, 1)
+	go func() {
+		done <- (&localClient{}).Stream(ctx, child+" & echo $! > "+pidFile+"; wait", io.Discard, io.Discard)
+	}()
+
+	var pid int
+	for deadline := time.Now().Add(5 * time.Second); pid == 0; time.Sleep(10 * time.Millisecond) {
+		if time.Now().After(deadline) {
+			t.Fatal("the command never started")
+		}
+		body, _ := os.ReadFile(pidFile)
+		pid, _ = strconv.Atoi(strings.TrimSpace(string(body)))
+	}
+	time.Sleep(50 * time.Millisecond)
+	cancel()
+	select {
+	case <-done:
+	case <-time.After(15 * time.Second):
+		t.Fatal("Stream kept going after its context ended")
+	}
+
+	for deadline := time.Now().Add(2 * time.Second); syscall.Kill(pid, 0) == nil; time.Sleep(10 * time.Millisecond) {
+		if time.Now().After(deadline) {
+			_ = syscall.Kill(pid, syscall.SIGKILL)
+			t.Fatalf("process %d the command started outlived it", pid)
+		}
 	}
 }

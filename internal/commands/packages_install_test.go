@@ -1,0 +1,595 @@
+package commands
+
+import (
+	"encoding/json"
+	"errors"
+	"io"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/mydevmachine/devmachine/internal/gittest"
+	"github.com/mydevmachine/devmachine/internal/packages"
+	"github.com/mydevmachine/devmachine/internal/widgets"
+)
+
+const aliceToolsManifest = `format: 1
+name: alice-tools
+scope: machine
+summary: Tools from alice.
+requires: {cli: ">= 0.9.0"}
+entrypoint: bin/alice-tools
+commands: [disk, help]
+providers:
+  disk:
+    returns: {used_percent: number}
+    min_every: 10s
+widgets: widgets
+`
+
+const aliceDiskWidget = `format: 1
+name: disk
+summary: How full the disk is.
+requires: {engine: ">= 1.3"}
+fits: [canvas]
+source: {kind: provider, name: alice-tools/disk, target: {machine: main}, every: 60s}
+view: {kind: gauge, value: "{{json.used_percent}}"}
+sizes: [small]
+default_size: small
+`
+
+func allowFileAddresses(t *testing.T) {
+	t.Helper()
+	orig := parseGitAddress
+	parseGitAddress = func(arg string) (string, string, error) {
+		if rest, ok := strings.CutPrefix(arg, "file://"); ok {
+			address, ref, _ := strings.Cut(rest, "@")
+			return "file://" + address, ref, nil
+		}
+		return orig(arg)
+	}
+	t.Cleanup(func() { parseGitAddress = orig })
+}
+
+func aliceToolsRepo(t *testing.T, name string) *gittest.Repo {
+	t.Helper()
+	r := gittest.New(t)
+	r.Write("package.yml", strings.Replace(aliceToolsManifest, "name: alice-tools", "name: "+name, 1), 0o644)
+	r.Write("tasks/main.yml", "---\n[]\n", 0o644)
+	r.Write("bin/alice-tools", "#!/usr/bin/env python3\n", 0o755)
+	r.Write("widgets/disk/widget.yml", strings.ReplaceAll(aliceDiskWidget, "alice-tools/", name+"/"), 0o644)
+	r.Commit("first")
+	r.Tag("v1")
+	return r
+}
+
+func installConfig(t *testing.T) string {
+	t.Helper()
+	dir := widgetConfig(t)
+	allowFileAddresses(t)
+	return dir
+}
+
+func assertNoInstallDebris(t *testing.T, dir string, name string) {
+	t.Helper()
+	entries, _ := os.ReadDir(packages.LocalDir(dir))
+	for _, e := range entries {
+		if strings.HasPrefix(e.Name(), ".install-") || e.Name() == name {
+			t.Fatalf("left %s in %s", e.Name(), packages.LocalDir(dir))
+		}
+	}
+}
+
+func TestPackagesInstallFetchesValidatesAndRecordsTheSource(t *testing.T) {
+	dir := installConfig(t)
+	r := aliceToolsRepo(t, "alice-tools")
+	out, err := executeWithInput(t, "y\n", "--config", dir, "packages", "install", r.URL()+"@v1")
+	if err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	for _, want := range []string{
+		"alice-tools (machine) — Tools from alice.",
+		"from " + r.URL() + " at v1 (commit " + r.Head()[:12] + ")",
+		"widgets: alice-tools/disk (provider alice-tools/disk, runs code)",
+		"commands: disk, help", "providers: disk", "scripts: bin/alice-tools", "tasks: tasks/main.yml",
+		"Install alice-tools into " + filepath.Join(packages.LocalDir(dir), "alice-tools") + "? [y/N]",
+		"installed alice-tools",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output lacks %q:\n%s", want, out)
+		}
+	}
+	pkg := filepath.Join(packages.LocalDir(dir), "alice-tools")
+	origin, ok, err := packages.ReadOrigin(pkg)
+	if err != nil || !ok || origin.URL != r.URL() || origin.Ref != "v1" || origin.Commit != r.Head() {
+		t.Fatalf("%+v %v %v", origin, ok, err)
+	}
+	if _, err := time.Parse(time.RFC3339, origin.InstalledAt); err != nil {
+		t.Fatalf("installed_at %q: %v", origin.InstalledAt, err)
+	}
+	if _, err := os.Stat(filepath.Join(pkg, ".git")); !os.IsNotExist(err) {
+		t.Fatal("the package kept its .git folder")
+	}
+	assertNoInstallDebris(t, dir, "")
+}
+
+func TestPackagesInstallWithoutYesAsksAndANoChangesNothing(t *testing.T) {
+	dir := installConfig(t)
+	r := aliceToolsRepo(t, "alice-tools")
+	for _, answer := range []string{"n\n", ""} {
+		_, err := executeWithInput(t, answer, "--config", dir, "packages", "install", r.URL())
+		if !errors.Is(err, errDeclined) {
+			t.Fatalf("answer %q: got %v", answer, err)
+		}
+		assertNoInstallDebris(t, dir, "alice-tools")
+	}
+}
+
+func TestPackagesInstallCheckChangesNothing(t *testing.T) {
+	dir := installConfig(t)
+	r := aliceToolsRepo(t, "alice-tools")
+	out, err := execute(t, "--config", dir, "--format", "json", "packages", "install", r.URL(), "--check")
+	if err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	var got struct {
+		Name      string `json:"name"`
+		URL       string `json:"url"`
+		Commit    string `json:"commit"`
+		Installed bool   `json:"installed"`
+		Widgets   []struct {
+			Name     string `json:"name"`
+			RunsCode bool   `json:"runs_code"`
+		} `json:"widgets"`
+	}
+	if err := json.Unmarshal([]byte(out), &got); err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	if got.Name != "alice-tools" || got.Installed || got.Commit != r.Head() || len(got.Widgets) != 1 || !got.Widgets[0].RunsCode {
+		t.Fatalf("got %+v", got)
+	}
+	assertNoInstallDebris(t, dir, "alice-tools")
+}
+
+func TestPackagesInstallJSONNeedsYesOrCheck(t *testing.T) {
+	dir := installConfig(t)
+	r := aliceToolsRepo(t, "alice-tools")
+	_, err := execute(t, "--config", dir, "--format", "json", "packages", "install", r.URL())
+	if err == nil || !strings.Contains(err.Error(), "--format json cannot ask: add --check to see what it brings, or --yes to install") {
+		t.Fatalf("got %v", err)
+	}
+}
+
+func TestPackagesInstallRefuses(t *testing.T) {
+	cases := []struct {
+		name    string
+		repo    func(t *testing.T) string
+		before  func(t *testing.T, dir string)
+		leftOut string
+		want    string
+	}{
+		{"official name", func(t *testing.T) string { return aliceToolsRepo(t, "claude-code").URL() }, nil, "",
+			"claude-code is an official package: a package from a git address cannot take its name"},
+		{"your own package", func(t *testing.T) string { return aliceToolsRepo(t, "mine").URL() },
+			func(t *testing.T, dir string) { writeProviderPackage(t, dir, "mine") }, "",
+			"you already have your own package mine in "},
+		{"invalid package", func(t *testing.T) string {
+			r := aliceToolsRepo(t, "alice-tools")
+			r.Remove("tasks/main.yml")
+			r.Commit("no tasks")
+			return r.URL()
+		}, nil, "alice-tools", "has 1 problem(s)"},
+		{"no package at the top", func(t *testing.T) string {
+			r := aliceToolsRepo(t, "alice-tools")
+			r.Remove("package.yml")
+			r.Commit("no manifest")
+			return r.URL()
+		}, nil, "alice-tools", "has no package.yml at its top"},
+		{"link outside", func(t *testing.T) string {
+			r := aliceToolsRepo(t, "alice-tools")
+			outside := filepath.Join(t.TempDir(), "id_ed25519")
+			writeCommandFile(t, outside, "secret\n")
+			r.Link("files/id", outside)
+			r.Commit("a link")
+			return r.URL()
+		}, nil, "alice-tools", "files/id is a link leading outside the package"},
+		{"a repository that is not there", func(t *testing.T) string { return "file://" + filepath.Join(t.TempDir(), "missing.git") },
+			nil, "alice-tools", "fetching file://"},
+		{"a ref that is not there", func(t *testing.T) string { return aliceToolsRepo(t, "alice-tools").URL() + "@v9" },
+			nil, "alice-tools", "fetching file://"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := installConfig(t)
+			if tc.before != nil {
+				tc.before(t, dir)
+			}
+			out, err := execute(t, "--config", dir, "packages", "install", tc.repo(t), "--yes")
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("want %q, got %v\n%s", tc.want, err, out)
+			}
+			assertNoInstallDebris(t, dir, tc.leftOut)
+		})
+	}
+}
+
+func TestPackagesInstallRefusesAPackageAlreadyInstalled(t *testing.T) {
+	dir := installConfig(t)
+	r := aliceToolsRepo(t, "alice-tools")
+	if out, err := execute(t, "--config", dir, "packages", "install", r.URL(), "--yes"); err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	_, err := execute(t, "--config", dir, "packages", "install", r.URL(), "--yes")
+	if err == nil || !strings.Contains(err.Error(), "alice-tools is already installed from "+r.URL()+": update it with devmachine packages update alice-tools") {
+		t.Fatalf("got %v", err)
+	}
+}
+
+func TestPackagesInstallRefusesAnInstalledPackageWithABrokenSourceFile(t *testing.T) {
+	dir := installConfig(t)
+	r := aliceToolsRepo(t, "alice-tools")
+	if out, err := execute(t, "--config", dir, "packages", "install", r.URL(), "--yes"); err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	writeCommandFile(t, filepath.Join(packages.LocalDir(dir), "alice-tools", packages.OriginFile), "url: [\n")
+	_, err := execute(t, "--config", dir, "packages", "install", r.URL(), "--yes")
+	if err == nil || !strings.Contains(err.Error(), "alice-tools is already installed from a git address") ||
+		!strings.Contains(err.Error(), "update it with devmachine packages update alice-tools") {
+		t.Fatalf("got %v", err)
+	}
+}
+
+func TestPackagesInstallRefusesAnAddressThatIsNeitherHTTPSNorGit(t *testing.T) {
+	dir := widgetConfig(t)
+	for _, arg := range []string{"http://example.com/a.git", "file:///tmp/a", "/tmp/a", "ext::sh -c id"} {
+		_, err := execute(t, "--config", dir, "packages", "install", arg, "--yes")
+		if err == nil || !strings.Contains(err.Error(), "an https:// or git@ address") {
+			t.Errorf("%s: got %v", arg, err)
+		}
+	}
+}
+
+func TestAnInstalledPackagesWidgetIsThirdParty(t *testing.T) {
+	dir := installConfig(t)
+	r := aliceToolsRepo(t, "alice-tools")
+	if out, err := execute(t, "--config", dir, "packages", "install", r.URL(), "--yes"); err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	catalog := listCatalog(t, dir)
+	disk, ok := catalog.Find("alice-tools/disk")
+	if !ok || disk.Trust != widgets.TrustThirdParty || disk.PackageSource == nil || disk.PackageSource.Commit != r.Head() {
+		t.Fatalf("got %+v", disk)
+	}
+	if catalog.Providers["alice-tools/disk"].Trust != widgets.TrustThirdParty {
+		t.Fatalf("got %+v", catalog.Providers)
+	}
+}
+
+func TestPackagesInstallCheckWithYesInstallsNothing(t *testing.T) {
+	dir := installConfig(t)
+	r := aliceToolsRepo(t, "alice-tools")
+	out, err := execute(t, "--config", dir, "packages", "install", r.URL(), "--check", "--yes")
+	if err != nil || strings.Contains(out, "installed alice-tools") {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	assertNoInstallDebris(t, dir, "alice-tools")
+}
+
+func TestPackagesInstallRefusesWhenTheReleaseCannotBeRead(t *testing.T) {
+	dir := installConfig(t)
+	r := aliceToolsRepo(t, "alice-tools")
+	if err := os.MkdirAll(filepath.Join(packages.CacheDir(dir, "v40"), "packages", "alice-tools", packages.FileName), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	_, err := execute(t, "--config", dir, "packages", "install", r.URL(), "--yes")
+	if err == nil || !strings.Contains(err.Error(), "checking whether alice-tools is an official package: ") {
+		t.Fatalf("got %v", err)
+	}
+	assertNoInstallDebris(t, dir, "alice-tools")
+}
+
+func installAliceTools(t *testing.T) (string, *gittest.Repo) {
+	t.Helper()
+	dir := installConfig(t)
+	r := aliceToolsRepo(t, "alice-tools")
+	if out, err := execute(t, "--config", dir, "packages", "install", r.URL(), "--yes"); err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	return dir, r
+}
+
+func originOf(t *testing.T, dir, name string) packages.Origin {
+	t.Helper()
+	origin, _, err := packages.ReadOrigin(filepath.Join(packages.LocalDir(dir), name))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return origin
+}
+
+func TestPackagesUpdateShowsWhatChangedAndAsks(t *testing.T) {
+	dir, r := installAliceTools(t)
+	old := r.Head()
+	r.Write("package.yml", strings.Replace(aliceToolsManifest, "commands: [disk, help]", "commands: [disk, help, status]", 1), 0o644)
+	r.Write("widgets/health/widget.yml", healthWidgetYAML, 0o644)
+	r.Commit("health and status")
+
+	out, err := executeWithInput(t, "y\n", "--config", dir, "packages", "update", "alice-tools")
+	if err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	for _, want := range []string{
+		"commit " + old[:12] + " → " + r.Head()[:12],
+		"widgets added: alice-tools/health", "commands added: status",
+		"Update alice-tools to " + r.Head()[:12] + "? [y/N]", "updated alice-tools",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output lacks %q:\n%s", want, out)
+		}
+	}
+	if got := originOf(t, dir, "alice-tools"); got.Commit != r.Head() || got.URL != r.URL() {
+		t.Fatalf("got %+v", got)
+	}
+}
+
+func TestPackagesUpdateSaysUpToDate(t *testing.T) {
+	dir, r := installAliceTools(t)
+	out, err := execute(t, "--config", dir, "packages", "update", "alice-tools")
+	if err != nil || !strings.Contains(out, "alice-tools is up to date at "+r.Head()[:12]) || strings.Contains(out, "[y/N]") {
+		t.Fatalf("%v\n%s", err, out)
+	}
+}
+
+func TestPackagesUpdateKeepsTheOldCopyWhenTheNewOneIsInvalid(t *testing.T) {
+	dir, r := installAliceTools(t)
+	old := r.Head()
+	r.Remove("tasks/main.yml")
+	r.Commit("no tasks")
+	_, err := execute(t, "--config", dir, "packages", "update", "alice-tools", "--yes")
+	if err == nil || !strings.Contains(err.Error(), "has 1 problem(s)") {
+		t.Fatalf("got %v", err)
+	}
+	if got := originOf(t, dir, "alice-tools"); got.Commit != old {
+		t.Fatalf("the old copy was replaced: %+v", got)
+	}
+	if _, err := os.Stat(filepath.Join(packages.LocalDir(dir), "alice-tools", "tasks", "main.yml")); err != nil {
+		t.Fatal("the old copy lost a file")
+	}
+	assertNoInstallDebris(t, dir, "")
+}
+
+func TestPackagesUpdateRefusesAPackageYouWrote(t *testing.T) {
+	dir := installConfig(t)
+	writeProviderPackage(t, dir, "mine")
+	_, err := execute(t, "--config", dir, "packages", "update", "mine")
+	if err == nil || !strings.Contains(err.Error(), "mine is your own package, not one installed from a git address: there is nothing to fetch it from") {
+		t.Fatalf("got %v", err)
+	}
+}
+
+func TestPackagesUpdateRefusesARenamedPackage(t *testing.T) {
+	dir, r := installAliceTools(t)
+	r.Write("package.yml", strings.Replace(aliceToolsManifest, "name: alice-tools", "name: bob-tools", 1), 0o644)
+	r.Write("widgets/disk/widget.yml", strings.ReplaceAll(aliceDiskWidget, "alice-tools/", "bob-tools/"), 0o644)
+	r.Commit("rename")
+	_, err := execute(t, "--config", dir, "packages", "update", "alice-tools", "--yes")
+	if err == nil || !strings.Contains(err.Error(), "now holds a package named bob-tools, not alice-tools") {
+		t.Fatalf("got %v", err)
+	}
+	if got := originOf(t, dir, "alice-tools"); got.Commit == r.Head() {
+		t.Fatal("the renamed package was installed over the old one")
+	}
+}
+
+func TestPackagesUpdateRefusesAnOfficialName(t *testing.T) {
+	dir, _ := installAliceTools(t)
+	writeWidgetPackageAt(t, filepath.Join(packages.CacheDir(dir, "v40"), "packages"), "alice-tools", "machine",
+		map[string]string{"clock": clockWidgetYAML})
+	_, err := execute(t, "--config", dir, "packages", "update", "alice-tools", "--yes")
+	if err == nil || !strings.Contains(err.Error(), "alice-tools is an official package") {
+		t.Fatalf("got %v", err)
+	}
+}
+
+func TestPackagesRemoveDeletesAnInstalledPackage(t *testing.T) {
+	dir, _ := installAliceTools(t)
+	out, err := execute(t, "--config", dir, "packages", "remove", "alice-tools", "--yes")
+	if err != nil || !strings.Contains(out, "removed alice-tools") {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	if _, err := os.Stat(filepath.Join(packages.LocalDir(dir), "alice-tools")); !os.IsNotExist(err) {
+		t.Fatal("the package is still there")
+	}
+}
+
+func TestPackagesRemoveRefusesYourOwnPackage(t *testing.T) {
+	dir := installConfig(t)
+	writeProviderPackage(t, dir, "mine")
+	_, err := execute(t, "--config", dir, "packages", "remove", "mine", "--yes")
+	if err == nil || !strings.Contains(err.Error(), "mine is your own package") {
+		t.Fatalf("got %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(packages.LocalDir(dir), "mine")); err != nil {
+		t.Fatal("your own package was deleted")
+	}
+}
+
+func TestPackagesRemoveRefusesAPackageStillOnAMachine(t *testing.T) {
+	dir, _ := installAliceTools(t)
+	writeCommandFile(t, filepath.Join(dir, "config.yml"),
+		"machines:\n  - name: main\n    hosts: [203.0.113.10]\n    packages: [alice-tools]\npackages: v40\n")
+	_, err := execute(t, "--config", dir, "packages", "remove", "alice-tools", "--yes")
+	if err == nil || !strings.Contains(err.Error(), "alice-tools is still on machine main: take it off first with devmachine packages rm alice-tools") {
+		t.Fatalf("got %v", err)
+	}
+}
+
+func TestPackagesRemoveAsks(t *testing.T) {
+	dir, _ := installAliceTools(t)
+	_, err := executeWithInput(t, "n\n", "--config", dir, "packages", "remove", "alice-tools")
+	if !errors.Is(err, errDeclined) {
+		t.Fatalf("got %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(packages.LocalDir(dir), "alice-tools")); err != nil {
+		t.Fatal("a declined remove deleted the package")
+	}
+}
+
+func TestPackagesUpdateAndRemoveRefuseANameThatIsNotAPackageName(t *testing.T) {
+	dir := installConfig(t)
+	for _, verb := range []string{"update", "remove"} {
+		for _, name := range []string{"../x", "a/b", ".."} {
+			_, err := execute(t, "--config", dir, "packages", verb, name, "--yes")
+			if err == nil || !strings.Contains(err.Error(), "is not a package name") {
+				t.Errorf("%s %q: got %v", verb, name, err)
+			}
+		}
+	}
+}
+
+func TestPackagesUpdateRefusesARecordedAddressThatInstallWouldRefuse(t *testing.T) {
+	dir, _ := installAliceTools(t)
+	target := filepath.Join(packages.LocalDir(dir), "alice-tools")
+	origin := originOf(t, dir, "alice-tools")
+	origin.URL = "ext::sh -c true"
+	if err := packages.WriteOrigin(target, origin); err != nil {
+		t.Fatal(err)
+	}
+	_, err := execute(t, "--config", dir, "packages", "update", "alice-tools", "--yes")
+	if err == nil || !strings.Contains(err.Error(), "the address recorded in") || !strings.Contains(err.Error(), "https:// or git@") {
+		t.Fatalf("got %v", err)
+	}
+	assertNoInstallDebris(t, dir, "")
+}
+
+func TestPackagesUpdateShowsChangedCredentialsScriptsAndTasks(t *testing.T) {
+	dir, r := installAliceTools(t)
+	r.Write("package.yml", aliceToolsManifest+"credentials:\n  - {name: alice-token, kind: secret, scope: machine, env: ALICE_TOKEN}\n", 0o644)
+	r.Write("bin/alice-tools", "#!/usr/bin/env python3\nprint('new')\n", 0o755)
+	r.Write("tasks/extra.yml", "---\n[]\n", 0o644)
+	r.Commit("token, new script, extra tasks")
+
+	out, err := execute(t, "--config", dir, "packages", "update", "alice-tools", "--check")
+	if err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	for _, want := range []string{"credentials added: alice-token", "scripts changed: bin/alice-tools", "tasks added: tasks/extra.yml"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output lacks %q:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "are the same") {
+		t.Errorf("a changed package reads as unchanged:\n%s", out)
+	}
+}
+
+type sweepingAnswer struct {
+	local string
+	done  bool
+}
+
+func (a *sweepingAnswer) Read(p []byte) (int, error) {
+	if a.done {
+		return 0, io.EOF
+	}
+	a.done = true
+	entries, _ := os.ReadDir(a.local)
+	for _, e := range entries {
+		if strings.HasPrefix(e.Name(), ".install-") {
+			_ = os.RemoveAll(filepath.Join(a.local, e.Name()))
+		}
+	}
+	return copy(p, "y\n"), nil
+}
+
+func TestPackagesInstallSaysSoWhenTheFetchWasSweptDuringThePrompt(t *testing.T) {
+	dir := installConfig(t)
+	r := aliceToolsRepo(t, "alice-tools")
+	cmd := NewRootCmd()
+	out := &strings.Builder{}
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetIn(&sweepingAnswer{local: packages.LocalDir(dir)})
+	cmd.SetArgs([]string{"--config", dir, "packages", "install", r.URL()})
+	err := cmd.Execute()
+	if err == nil || !strings.Contains(err.Error(), "the fetched copy of alice-tools was swept away while waiting for your answer") {
+		t.Fatalf("got %v\n%s", err, out)
+	}
+	assertNoInstallDebris(t, dir, "")
+}
+
+func TestPackagesRemoveRefusesAPackageInTheWorkspaceDefaults(t *testing.T) {
+	dir, _ := installAliceTools(t)
+	writeCommandFile(t, filepath.Join(dir, "config.yml"), "machines: []\ndefaults:\n  workspace: [dev, alice-tools]\npackages: v40\n")
+	_, err := execute(t, "--config", dir, "packages", "remove", "alice-tools", "--yes")
+	if err == nil || !strings.Contains(err.Error(), "alice-tools is in the future workspace defaults") ||
+		!strings.Contains(err.Error(), "devmachine workspaces defaults --rm alice-tools") {
+		t.Fatalf("got %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(packages.LocalDir(dir), "alice-tools")); err != nil {
+		t.Fatal("the package was deleted")
+	}
+}
+
+func TestPrintSummaryAndChangesEscapeControlCharacters(t *testing.T) {
+	cmd := NewRootCmd()
+	out := &strings.Builder{}
+	cmd.SetOut(out)
+	printSummary(cmd, packages.Summary{Name: "alice-tools", Scope: "machine", Summary: "Tools\x1b[2J",
+		Tasks: []string{"tasks/x\r\x1b[2K.yml"}, RoleFiles: []string{"files/evil\u202ecod"}, Credentials: []string{"tok\u009b (secret)"},
+		Widgets: []packages.SummaryWidget{{Name: "alice-tools/x\x1b", Source: "url"}}}, packages.Origin{URL: "https://example.com/a\x1b"})
+	printChanges(cmd, updateReport{Package: "alice-tools", Changes: packages.Changes{TasksAdded: []string{"tasks/\x1b[1A.yml"},
+		RoleFilesChanged: []string{"library/\u2066m.py"}}})
+	if strings.ContainsAny(out.String(), "\x1b\r\u009b\u202e\u2066") {
+		t.Fatalf("printed a control character: %q", out.String())
+	}
+	for _, want := range []string{`Tools\x1b[2J`, `tasks/x\x0d\x1b[2K.yml`, `role files: files/evil\u202ecod`, `tok\x9b (secret)`,
+		`alice-tools/x\x1b (url)`, `example.com/a\x1b`, `tasks added: tasks/\x1b[1A.yml`, `role files changed: library/\u2066m.py`} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("output lacks %q:\n%s", want, out.String())
+		}
+	}
+}
+
+func TestPackagesInstallListsTheRestOfTheRole(t *testing.T) {
+	dir := installConfig(t)
+	r := aliceToolsRepo(t, "alice-tools")
+	r.Write("library/mod.py", "x", 0o644)
+	r.Write("meta/main.yml", "---\n", 0o644)
+	r.Commit("a module")
+	out, err := execute(t, "--config", dir, "packages", "install", r.URL(), "--check")
+	if err != nil || !strings.Contains(out, "role files: library/mod.py, meta/main.yml") {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	out, err = execute(t, "--config", dir, "--format", "json", "packages", "install", r.URL(), "--check")
+	if err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	var report struct {
+		RoleFiles []string `json:"role_files"`
+	}
+	if err := json.Unmarshal([]byte(out), &report); err != nil || strings.Join(report.RoleFiles, ",") != "library/mod.py,meta/main.yml" {
+		t.Fatalf("%v %+v\n%s", err, report, out)
+	}
+}
+
+func TestPackagesUpdateShowsChangedRoleFiles(t *testing.T) {
+	dir, r := installAliceTools(t)
+	r.Write("library/mod.py", "x", 0o644)
+	r.Commit("a module a task already calls")
+
+	out, err := execute(t, "--config", dir, "packages", "update", "alice-tools", "--check")
+	if err != nil || !strings.Contains(out, "role files added: library/mod.py") || strings.Contains(out, "are the same") {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	out, err = execute(t, "--config", dir, "--format", "json", "packages", "update", "alice-tools", "--check")
+	if err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	var report updateReport
+	if err := json.Unmarshal([]byte(out), &report); err != nil || strings.Join(report.Changes.RoleFilesAdded, ",") != "library/mod.py" {
+		t.Fatalf("%v %+v\n%s", err, report, out)
+	}
+}

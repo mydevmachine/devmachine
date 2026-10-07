@@ -71,6 +71,37 @@ type Client interface {
 	Close() error
 }
 
+// ShellOnInput is the whole command sent over SSH when values must not reach
+// the account's login shell. That shell can be fish, where a backslash inside
+// single quotes is an escape and POSIX quoting stops being safe; a fixed
+// command holds no value for it to misread. The program and its quoted words
+// go on stdin, which only /bin/sh reads.
+const ShellOnInput = "/bin/sh -s"
+
+// IsLocal says whether c runs commands on this computer (a self machine)
+// rather than over SSH, where no login shell stands in between.
+func IsLocal(c Client) bool {
+	_, ok := c.(*localClient)
+	return ok
+}
+
+// InputStreamer is a Client that can stream a command's output while it
+// feeds the command's stdin.
+type InputStreamer interface {
+	StreamInput(ctx context.Context, command string, stdin io.Reader, stdout, stderr io.Writer) error
+}
+
+// StreamInput runs command on c with stdin fed from the reader and its output
+// reaching the writers as it arrives. A client that cannot feed stdin while
+// streaming is refused rather than given the input another way.
+func StreamInput(ctx context.Context, c Client, command string, stdin io.Reader, stdout, stderr io.Writer) error {
+	streamer, ok := c.(InputStreamer)
+	if !ok {
+		return fmt.Errorf("this connection (%T) cannot send a program on its input", c)
+	}
+	return streamer.StreamInput(ctx, command, stdin, stdout, stderr)
+}
+
 func tailscaleIPFromStatus(binary, name string) (string, error) {
 	body, err := exec.Command(binary, "status", "--json").Output()
 	if err != nil {
@@ -577,6 +608,11 @@ func (c *sshClient) RunInput(ctx context.Context, command string, stdin io.Reade
 // Collecting the output and printing it at the end makes a long run look stuck
 // when it is not, which is exactly what a provisioning run is.
 func (c *sshClient) Stream(ctx context.Context, command string, stdout, stderr io.Writer) error {
+	return c.StreamInput(ctx, command, nil, stdout, stderr)
+}
+
+// StreamInput is Stream with stdin fed from the reader.
+func (c *sshClient) StreamInput(ctx context.Context, command string, stdin io.Reader, stdout, stderr io.Writer) error {
 	session, err := c.conn.NewSession()
 	if err != nil {
 		return fmt.Errorf("opening a session: %w", err)
@@ -586,6 +622,7 @@ func (c *sshClient) Stream(ctx context.Context, command string, stdout, stderr i
 	stop := c.closeOnCancel(ctx, session)
 	defer stop()
 
+	session.Stdin = stdin
 	session.Stdout = stdout
 	session.Stderr = stderr
 	if err := session.Run(command); err != nil {
@@ -676,11 +713,15 @@ func (c *localClient) Run(ctx context.Context, command string) (string, error) {
 
 // RunInput executes one command with stdin fed from the reader.
 func (c *localClient) RunInput(ctx context.Context, command string, stdin io.Reader) (string, error) {
-	cmd := exec.CommandContext(ctx, "/bin/bash", "-c", command)
+	cmd := localCommand(ctx, command)
 	cmd.Stdin = stdin
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
-	out, err := cmd.Output()
+	var out []byte
+	err := runLocal(ctx, cmd, func() (err error) {
+		out, err = cmd.Output()
+		return err
+	})
 	if err != nil {
 		if reason := strings.TrimSpace(stderr.String()); reason != "" {
 			return string(out), fmt.Errorf("running %q: %w: %s", command, err, reason)
@@ -693,10 +734,16 @@ func (c *localClient) RunInput(ctx context.Context, command string, stdin io.Rea
 // Stream executes one command with its output reaching the writers as it
 // arrives.
 func (c *localClient) Stream(ctx context.Context, command string, stdout, stderr io.Writer) error {
-	cmd := exec.CommandContext(ctx, "/bin/bash", "-c", command)
+	return c.StreamInput(ctx, command, nil, stdout, stderr)
+}
+
+// StreamInput is Stream with stdin fed from the reader.
+func (c *localClient) StreamInput(ctx context.Context, command string, stdin io.Reader, stdout, stderr io.Writer) error {
+	cmd := localCommand(ctx, command)
+	cmd.Stdin = stdin
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
-	if err := cmd.Run(); err != nil {
+	if err := runLocal(ctx, cmd, cmd.Run); err != nil {
 		return fmt.Errorf("running %q: %w", command, err)
 	}
 	return nil
@@ -741,6 +788,10 @@ func (e elevated) Run(ctx context.Context, command string) (string, error) {
 
 func (e elevated) RunInput(ctx context.Context, command string, stdin io.Reader) (string, error) {
 	return e.Client.RunInput(ctx, AsRoot(command), stdin)
+}
+
+func (e elevated) StreamInput(ctx context.Context, command string, stdin io.Reader, stdout, stderr io.Writer) error {
+	return StreamInput(ctx, e.Client, AsRoot(command), stdin, stdout, stderr)
 }
 
 func (e elevated) Stream(ctx context.Context, command string, stdout, stderr io.Writer) error {

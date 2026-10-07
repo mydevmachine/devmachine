@@ -41,12 +41,15 @@ devmachine mosh
 devmachine packages
 devmachine packages add
 devmachine packages help
+devmachine packages install
 devmachine packages list
 devmachine packages new
 devmachine packages outdated
 devmachine packages pin
+devmachine packages remove
 devmachine packages rm
 devmachine packages schema
+devmachine packages update
 devmachine packages validate
 devmachine resolve
 devmachine run
@@ -69,6 +72,15 @@ devmachine tunnel
 devmachine update
 devmachine upload
 devmachine version
+devmachine widgets
+devmachine widgets add
+devmachine widgets help
+devmachine widgets list
+devmachine widgets move
+devmachine widgets remove
+devmachine widgets schema
+devmachine widgets set
+devmachine widgets validate
 devmachine workspaces
 devmachine workspaces defaults
 devmachine workspaces destroy

@@ -16,6 +16,7 @@ type recordingClient struct {
 	errOut   string
 	err      error
 	commands []string
+	inputs   []string
 }
 
 func (c *recordingClient) Run(_ context.Context, command string) (string, error) {
@@ -37,6 +38,15 @@ func (c *recordingClient) Stream(_ context.Context, command string, stdout, stde
 		_, _ = io.WriteString(stderr, c.errOut)
 	}
 	return c.err
+}
+
+func (c *recordingClient) StreamInput(ctx context.Context, command string, stdin io.Reader, stdout, stderr io.Writer) error {
+	body, err := io.ReadAll(stdin)
+	if err != nil {
+		return err
+	}
+	c.inputs = append(c.inputs, string(body))
+	return c.Stream(ctx, command, stdout, stderr)
 }
 
 func (c *recordingClient) Upload(context.Context, string, io.Reader) error { return nil }

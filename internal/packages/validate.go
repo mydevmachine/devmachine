@@ -10,8 +10,10 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/mydevmachine/devmachine/internal/skills"
+	"github.com/mydevmachine/devmachine/internal/widgets"
 )
 
 // Problem is one thing wrong with a package, and where it is.
@@ -36,7 +38,9 @@ func (p Problem) Error() string {
 // somebody has to remember and becomes a validation error.
 var aptModule = regexp.MustCompile(`^\s*(-\s*)?(ansible\.builtin\.)?(apt|apt_key|apt_repository)\s*:`)
 
-var packageName = regexp.MustCompile(`^[a-z][a-z0-9_-]*$`)
+var lowerName = regexp.MustCompile(`^[a-z][a-z0-9_-]*$`)
+
+var returnField = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_-]*$`)
 
 // The kinds a package can declare.
 //
@@ -94,7 +98,7 @@ func Validate(dir string) ([]Problem, error) {
 	switch {
 	case m.Name == "":
 		at("name", "every package needs a `name`")
-	case !packageName.MatchString(m.Name):
+	case !lowerName.MatchString(m.Name):
 		at("name", fmt.Sprintf("name %q: use lower case letters, digits, dashes and underscores", m.Name))
 	case m.Name != filepath.Base(dir):
 		at("name", fmt.Sprintf("name is %q but the directory is %q: a package is found by its directory",
@@ -116,9 +120,11 @@ func Validate(dir string) ([]Problem, error) {
 	problems = append(problems, validatePlatforms(m)...)
 	problems = append(problems, validateBootstrap(dir, m)...)
 	problems = append(problems, validateEntrypoint(dir, m)...)
+	problems = append(problems, validateProviders(m)...)
 	problems = append(problems, validateCredentials(m)...)
 	problems = append(problems, validateVariables(m)...)
 	problems = append(problems, validateSkills(dir, m)...)
+	problems = append(problems, validateWidgets(dir, m)...)
 	problems = append(problems, validateNetwork(dir, m)...)
 
 	for _, point := range sortedKeys(m.Extends) {
@@ -210,31 +216,72 @@ func validateSkills(dir string, m Manifest) []Problem {
 	if raw == "" {
 		return at("skills.path must name a directory inside the package")
 	}
-	if filepath.IsAbs(raw) {
+	root, inside := packageFolder(dir, raw)
+	if !inside {
 		return at(fmt.Sprintf("skills.path %q must stay inside the package", raw))
 	}
-	for _, part := range strings.FieldsFunc(filepath.ToSlash(raw), func(r rune) bool { return r == '/' }) {
-		if part == ".." {
-			return at(fmt.Sprintf("skills.path %q must stay inside the package", raw))
+	if _, err := skills.Discover(root); err != nil {
+		return at(err.Error())
+	}
+	return nil
+}
+
+// lastCLIWithoutWidgets is the newest CLI that reads package.yml without
+// knowing `widgets:`. It ignores the field, so a package that relies on it
+// must refuse that CLI through requires.cli.
+const lastCLIWithoutWidgets = "0.8.1"
+
+func validateWidgets(dir string, m Manifest) []Problem {
+	if m.Widgets == "" {
+		return nil
+	}
+	var problems []Problem
+	at := func(what string) {
+		problems = append(problems, Problem{File: FileName, Line: m.Lines["widgets"], What: what})
+	}
+	constraint, err := ParseConstraint(m.Requires.CLI)
+	if m.Requires.CLI == "" || (err == nil && constraint.Allows(lastCLIWithoutWidgets)) {
+		at(fmt.Sprintf("a package with widgets needs requires.cli above %s, the last CLI that ignores them: "+
+			"write requires: {cli: \">= %s\"}", lastCLIWithoutWidgets, FirstCLIWithWidgets))
+	}
+	root, inside := packageFolder(dir, strings.TrimSpace(m.Widgets))
+	if !inside {
+		at(fmt.Sprintf("widgets %q must stay inside the package", m.Widgets))
+		return problems
+	}
+	owner := WidgetOwner(m)
+	owner.Dir = dir
+	_, widgetProblems := widgets.LoadAll(owner, root)
+	for _, p := range widgetProblems {
+		file, err := filepath.Rel(dir, p.Path)
+		if err != nil {
+			file = p.Path
 		}
+		problems = append(problems, Problem{File: file, Line: p.Line, What: p.Message})
+	}
+	return problems
+}
+
+// packageFolder joins a package-relative folder onto dir, and says whether
+// it stays inside the package as written and after following links.
+func packageFolder(dir, raw string) (string, bool) {
+	if raw == "" || !insidePackage(raw) {
+		return "", false
 	}
 	root := filepath.Join(dir, raw)
 	rel, err := filepath.Rel(dir, root)
 	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		return at(fmt.Sprintf("skills.path %q must stay inside the package", raw))
+		return "", false
 	}
 	resolvedDir, dirErr := filepath.EvalSymlinks(dir)
 	resolvedRoot, rootErr := filepath.EvalSymlinks(root)
 	if dirErr == nil && rootErr == nil {
 		resolvedRel, relErr := filepath.Rel(resolvedDir, resolvedRoot)
 		if relErr != nil || resolvedRel == ".." || strings.HasPrefix(resolvedRel, ".."+string(filepath.Separator)) {
-			return at(fmt.Sprintf("skills.path %q must stay inside the package", raw))
+			return "", false
 		}
 	}
-	if _, err := skills.Discover(root); err != nil {
-		return at(err.Error())
-	}
-	return nil
+	return root, true
 }
 
 // validateEntrypoint checks a package that says it can be called.
@@ -277,6 +324,62 @@ func validateEntrypoint(dir string, m Manifest) []Problem {
 
 	for _, what := range scriptProblems(dir, "entrypoint", m.Entrypoint) {
 		at("entrypoint", what)
+	}
+	return problems
+}
+
+// validateProviders checks the commands a package lets widgets read. The
+// types and the floor are the engine contract's, so a package and the widgets
+// reading it are judged by the same rules.
+func validateProviders(m Manifest) []Problem {
+	if len(m.Providers) == 0 {
+		return nil
+	}
+	rules := widgets.CurrentContract().PackageProvider
+	floor, _ := time.ParseDuration(rules.MinEvery)
+	var problems []Problem
+	at := func(field, format string, args ...any) {
+		line := m.Lines[field]
+		if line == 0 {
+			line = m.Lines["providers"]
+		}
+		problems = append(problems, Problem{File: FileName, Line: line, What: fmt.Sprintf(format, args...)})
+	}
+	if m.Entrypoint == "" {
+		at("providers", "`providers` are commands of an `entrypoint`, and this package declares none")
+		return problems
+	}
+	anything := slices.Contains(m.Commands, AnyCommand)
+	for _, name := range sortedKeys(m.Providers) {
+		p, key := m.Providers[name], "providers."+name
+		switch {
+		case !lowerName.MatchString(name):
+			at(key, "provider %q: use lower case letters, digits, dashes and underscores, starting with a letter", name)
+		case !anything && !slices.Contains(m.Commands, name):
+			at(key, "provider %s is not one of commands: add it to commands, or remove the provider", name)
+		}
+		if len(p.Returns) == 0 {
+			at(key, "provider %s says what it returns: returns: {<field>: <type>}", name)
+		}
+		for _, field := range sortedKeys(p.Returns) {
+			where := key + ".returns." + field
+			if !returnField.MatchString(field) {
+				at(where, "provider %s returns.%s: a field name is letters, digits, dashes and underscores, starting with a letter", name, field)
+			}
+			if kind := strings.TrimSuffix(p.Returns[field], rules.Optional); !slices.Contains(rules.Returns, kind) {
+				at(where, "provider %s returns.%s is %q: the types are %s, each with %s when optional",
+					name, field, p.Returns[field], strings.Join(rules.Returns, ", "), rules.Optional)
+			}
+		}
+		every, err := time.ParseDuration(p.MinEvery)
+		switch {
+		case p.MinEvery == "":
+			at(key, "provider %s needs min_every: how often a widget may run it at most, at least %s", name, rules.MinEvery)
+		case err != nil:
+			at(key+".min_every", "provider %s min_every %q is not a duration: write it like 10s or 1m", name, p.MinEvery)
+		case every < floor:
+			at(key+".min_every", "provider %s min_every %s is below the %s floor", name, p.MinEvery, rules.MinEvery)
+		}
 	}
 	return problems
 }
@@ -507,7 +610,7 @@ func joinInts(values []int) string {
 }
 
 // sortedKeys keeps a message about a map from moving between runs.
-func sortedKeys(m map[string]string) []string {
+func sortedKeys[V any](m map[string]V) []string {
 	out := make([]string, 0, len(m))
 	for k := range m {
 		out = append(out, k)

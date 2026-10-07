@@ -1,0 +1,528 @@
+// Package widgets reads, checks and writes what the app's widget engine draws:
+// the engine contract, widget.yml files shipped in packages, and boards.
+package widgets
+
+import "slices"
+
+// Engine is the version of the contract this CLI implements.
+const Engine = "1.6"
+
+// LastEngineWithoutPackageProviders is the newest engine that cannot run a
+// package provider, so a widget reading one must refuse it.
+const LastEngineWithoutPackageProviders = "1.2"
+
+// LastEngineWithoutChoices is the newest engine whose app cannot show a
+// choice input, so a widget with one must refuse it.
+const LastEngineWithoutChoices = "1.4"
+
+// LastEngineWithoutPermissionModes is the newest engine whose app cannot run
+// a prompt in a permission mode, so a widget with one must refuse it.
+const LastEngineWithoutPermissionModes = "1.5"
+
+// How far the app trusts a package's widgets, from where the package came
+// from: the official release, your own folder, or a git address.
+const (
+	TrustOfficial   = "official"
+	TrustLocal      = "local"
+	TrustThirdParty = "third-party"
+)
+
+// The layouts a surface can have.
+const (
+	LayoutCanvas = "canvas"
+	LayoutStack  = "stack"
+	LayoutSlot   = "slot"
+	LayoutTabs   = "tabs"
+)
+
+// The states of a surface.
+const (
+	StatusAvailable = "available"
+	StatusPlanned   = "planned"
+)
+
+// The presences of a context key on a surface.
+const (
+	PresenceAlways   = "always"
+	PresenceOptional = "optional"
+)
+
+// The values a widget's context key takes.
+const (
+	ContextRequired = "required"
+	ContextOptional = "optional"
+)
+
+// The kinds of source a widget can read.
+const (
+	SourceProvider = "provider"
+	SourceCommand  = "command"
+	SourceURL      = "url"
+	SourcePrompt   = "prompt"
+	SourceSession  = "session"
+)
+
+// The types a source or view field takes, as the contract names them.
+const (
+	FieldString        = "string"
+	FieldBool          = "bool"
+	FieldInt           = "int"
+	FieldNumber        = "number"
+	FieldDuration      = "duration"
+	FieldEvery         = "every"
+	FieldEnum          = "enum"
+	FieldEnumByHarness = "enum-by-harness"
+	FieldList          = "list"
+	FieldArgs          = "args"
+	FieldTarget        = "target"
+	FieldPath          = "path"
+	FieldURL           = "url"
+	FieldTemplate      = "template"
+	FieldRule          = "rule"
+	FieldObject        = "object"
+	FieldProvider      = "provider"
+)
+
+// The ways a command or a url's output is read.
+const (
+	ParseText   = "text"
+	ParseLines  = "lines"
+	ParseNumber = "number"
+	ParseJSON   = "json"
+	ParseANSI   = "ansi"
+	ParseStatus = "status"
+)
+
+// The ways a command runs.
+const (
+	ModePoll   = "poll"
+	ModeStream = "stream"
+)
+
+// EveryManual runs a source only when somebody presses the widget's button.
+const EveryManual = "manual"
+
+// TargetLocal runs a source on the computer the app runs on.
+const TargetLocal = "local"
+
+// AcceptsKind starts an accepts entry that takes any output of one source kind.
+const AcceptsKind = "kind:"
+
+// SizeCustom is the size a board entry has after a free resize.
+const SizeCustom = "custom"
+
+// SizeAuto makes a widget in a sidebar as tall as what it shows. Only a view
+// that grows takes it.
+const SizeAuto = "auto"
+
+// InputChoice is the input type a person picks from a list the app fills
+// from one of the option sources.
+const InputChoice = "choice"
+
+// The option sources a choice input takes its options from.
+const (
+	OptionHarnesses  = "harnesses"
+	OptionMachines   = "machines"
+	OptionWorkspaces = "workspaces"
+)
+
+// ContextKey is one value a surface hands to the widgets on it.
+type ContextKey struct {
+	Type     string `json:"type"`
+	Presence string `json:"presence"`
+}
+
+// Surface is one place in the app that holds widgets.
+type Surface struct {
+	Layout  string                `json:"layout"`
+	Status  string                `json:"status"`
+	Context map[string]ContextKey `json:"context"`
+}
+
+// Arg is one argument a provider takes.
+type Arg struct {
+	Type     string `json:"type"`
+	Required bool   `json:"required"`
+}
+
+// Provider is one data source the app runs. Context names the keys the area
+// must hand it, each required.
+type Provider struct {
+	Args     map[string]Arg    `json:"args"`
+	MinEvery string            `json:"min_every"`
+	Context  map[string]string `json:"context,omitempty"`
+	Returns  map[string]string `json:"returns"`
+}
+
+// Field describes one key a source or a view takes. ByHarness holds the
+// values of an enum-by-harness field for each harness, and Dangerous the
+// values that run without any check.
+type Field struct {
+	Type      string              `json:"type"`
+	Required  bool                `json:"required,omitempty"`
+	Default   any                 `json:"default,omitempty"`
+	Values    []string            `json:"values,omitempty"`
+	ByHarness map[string][]string `json:"by_harness,omitempty"`
+	Dangerous []string            `json:"dangerous,omitempty"`
+	Min       any                 `json:"min,omitempty"`
+	Max       any                 `json:"max,omitempty"`
+	Fields    map[string]Field    `json:"fields,omitempty"`
+}
+
+// SourceKind is one kind of source: how often it may run, whether a widget
+// written in a board waits for the owner's approval before it runs, and the
+// keys it takes besides kind.
+type SourceKind struct {
+	MinEvery string           `json:"min_every,omitempty"`
+	Approval bool             `json:"approval"`
+	Fields   map[string]Field `json:"fields"`
+}
+
+// View is one way the app draws a source's output. Layouts, when set, are
+// the only layouts it is drawn in; Grows means it takes size auto in a stack.
+type View struct {
+	Accepts []string         `json:"accepts"`
+	Fields  map[string]Field `json:"fields,omitempty"`
+	Layouts []string         `json:"layouts,omitempty"`
+	Grows   bool             `json:"grows,omitempty"`
+}
+
+// StackEntry is how a widget sits in a stack: the board keys it must not
+// have, and what its size and collapsed keys take.
+type StackEntry struct {
+	Forbids   []string `json:"forbids"`
+	Size      string   `json:"size"`
+	Collapsed string   `json:"collapsed"`
+}
+
+// SlotEntry is how a widget sits in a slot: the board keys it must not
+// have, the views that draw one line, how much text it shows and how often
+// it runs at most.
+type SlotEntry struct {
+	Forbids  []string `json:"forbids"`
+	Views    []string `json:"views"`
+	TextMax  int      `json:"text_max"`
+	MinEvery string   `json:"min_every"`
+}
+
+// TabsEntry is how a widget sits in tabs: the board keys it must not have,
+// and the ones it may have that mean nothing there.
+type TabsEntry struct {
+	Forbids []string `json:"forbids"`
+	Ignores []string `json:"ignores"`
+}
+
+// InputType is one type an input may declare: the keys it takes besides
+// type, default and summary, and what a board's with holds for it.
+type InputType struct {
+	Fields map[string]Field `json:"fields,omitempty"`
+	With   string           `json:"with"`
+}
+
+// OptionSource is where a choice's options come from: a list in the
+// person's config.yml, or values the contract names.
+type OptionSource struct {
+	Config string   `json:"config,omitempty"`
+	Values []string `json:"values,omitempty"`
+}
+
+// PackageProviderRules is how a package's own command feeds a widget: the
+// name a widget calls it by, what its package.yml may declare, where it runs,
+// what it prints, how a widget's with reaches it, and when its widgets ask.
+type PackageProviderRules struct {
+	Name     string   `json:"name"`
+	Reserved []string `json:"reserved"`
+	MinEvery string   `json:"min_every"`
+	Returns  []string `json:"returns"`
+	Optional string   `json:"optional"`
+	Targets  []string `json:"targets"`
+	Output   string   `json:"output"`
+	With     string   `json:"with"`
+	Approval string   `json:"approval"`
+	Trust    []string `json:"trust"`
+}
+
+// Contract is everything a widget may name, at one engine version.
+type Contract struct {
+	Engine          string                       `json:"engine"`
+	Layouts         []string                     `json:"layouts"`
+	Unit            int                          `json:"unit"`
+	Snap            int                          `json:"snap"`
+	Presets         map[string][2]int            `json:"presets"`
+	StackRow        int                          `json:"stack_row"`
+	StackEntry      StackEntry                   `json:"stack_entry"`
+	SlotMax         int                          `json:"slot_max"`
+	SlotEntry       SlotEntry                    `json:"slot_entry"`
+	TabsEntry       TabsEntry                    `json:"tabs_entry"`
+	InputTypes      map[string]InputType         `json:"input_types"`
+	OptionSources   map[string]OptionSource      `json:"option_sources"`
+	EntryOverrides  map[string]Field             `json:"entry_overrides"`
+	Surfaces        map[string]Surface           `json:"surfaces"`
+	ContextTypes    map[string]map[string]string `json:"context_types"`
+	Providers       map[string]Provider          `json:"providers"`
+	PackageProvider PackageProviderRules         `json:"package_provider"`
+	Views           map[string]View              `json:"views"`
+	SourceKinds     []string                     `json:"source_kinds"`
+	Sources         map[string]SourceKind        `json:"sources"`
+	Formats         map[string]int               `json:"formats"`
+}
+
+// CurrentContract returns engine 1.6, built fresh on every call so no caller
+// can change what another one reads.
+func CurrentContract() Contract {
+	appProvider := func(args map[string]Arg, returns map[string]string) Provider {
+		return Provider{Args: args, MinEvery: "5s", Returns: returns}
+	}
+	sessionProvider := func(returns map[string]string) Provider {
+		p := appProvider(map[string]Arg{}, returns)
+		p.Context = map[string]string{"session": ContextRequired}
+		return p
+	}
+	stackView := func(provider string) View {
+		return View{Accepts: []string{provider}, Layouts: []string{LayoutStack}, Grows: true}
+	}
+	timeout := func(fallback string) Field {
+		return Field{Type: FieldDuration, Default: fallback, Max: "10m"}
+	}
+	target := Field{Type: FieldTarget, Default: TargetLocal}
+	tail := Field{Type: FieldInt, Min: 1, Max: 2000}
+	return Contract{
+		Engine:  Engine,
+		Layouts: []string{LayoutCanvas, LayoutStack, LayoutSlot, LayoutTabs},
+		Unit:    80,
+		Snap:    8,
+		Presets: map[string][2]int{
+			"small": {2, 2}, "medium": {4, 2}, "large": {4, 4}, "wide": {8, 2}, "tall": {2, 4},
+		},
+		StackRow: 40,
+		StackEntry: StackEntry{
+			Forbids: []string{"frame", "z"}, Size: "preset | auto", Collapsed: "bool",
+		},
+		SlotMax: 3,
+		SlotEntry: SlotEntry{
+			Forbids: []string{"frame", "size", "collapsed", "z", "minimized"},
+			Views:   []string{"text", "number", "status", "app.brand"},
+			TextMax: 24, MinEvery: "30s",
+		},
+		TabsEntry: TabsEntry{Forbids: []string{"frame", "z", "minimized", "collapsed"}, Ignores: []string{"size"}},
+		InputTypes: map[string]InputType{
+			"string":  {With: "string"},
+			"number":  {With: "number"},
+			"boolean": {With: "bool"},
+			InputChoice: {Fields: map[string]Field{
+				"from": {Type: FieldEnum, Required: true, Values: []string{OptionHarnesses, OptionMachines, OptionWorkspaces}},
+				"many": {Type: FieldBool, Default: false},
+			}, With: "string, or a list of strings when many"},
+		},
+		OptionSources: map[string]OptionSource{
+			OptionHarnesses:  {Values: []string{"claude", "codex"}},
+			OptionMachines:   {Config: "machines"},
+			OptionWorkspaces: {Config: "workspaces"},
+		},
+		EntryOverrides: map[string]Field{
+			"title": {Type: FieldString},
+			"every": {Type: FieldEvery},
+		},
+		Surfaces: map[string]Surface{
+			"home": {Layout: LayoutCanvas, Status: StatusAvailable, Context: map[string]ContextKey{}},
+			"sidebar": {Layout: LayoutStack, Status: StatusAvailable, Context: map[string]ContextKey{
+				"selected": {Type: "workspace", Presence: PresenceOptional},
+			}},
+			"context-sidebar": {Layout: LayoutStack, Status: StatusAvailable, Context: map[string]ContextKey{
+				"machine":   {Type: "machine", Presence: PresenceAlways},
+				"session":   {Type: "session", Presence: PresenceAlways},
+				"workspace": {Type: "workspace", Presence: PresenceOptional},
+				"path":      {Type: "path", Presence: PresenceOptional},
+				"repo":      {Type: "repo", Presence: PresenceOptional},
+				"branch":    {Type: "string", Presence: PresenceOptional},
+				"harness":   {Type: "string", Presence: PresenceOptional},
+			}},
+			"menubar":       {Layout: LayoutSlot, Status: StatusAvailable, Context: map[string]ContextKey{}},
+			"menubar-panel": {Layout: LayoutTabs, Status: StatusAvailable, Context: map[string]ContextKey{}},
+		},
+		ContextTypes: map[string]map[string]string{
+			"machine":   {"name": "string"},
+			"workspace": {"name": "string", "machine": "machine", "user": "string", "path": "path"},
+			"session":   {"name": "string", "kind": "string", "harness": "string?"},
+			"repo":      {"owner": "string", "name": "string"},
+			"path":      {},
+			"string":    {},
+		},
+		Providers: map[string]Provider{
+			"app/clock": appProvider(map[string]Arg{},
+				map[string]string{"time": "string", "date": "string", "host": "string"}),
+			"app/summary": appProvider(map[string]Arg{},
+				map[string]string{"sessions": "int", "harness_sessions": "int", "workspaces": "int"}),
+			"app/machines": appProvider(map[string]Arg{"machines": {Type: FieldList}},
+				map[string]string{"list": "machine_stats"}),
+			"app/harness-usage": appProvider(map[string]Arg{"harness": {Type: "string", Required: true}},
+				map[string]string{"harness": "string", "windows": "list", "error": "string?"}),
+			"app/workspaces": appProvider(map[string]Arg{},
+				map[string]string{"workspaces": "workspace_sessions"}),
+			"app/session-context": sessionProvider(map[string]string{
+				"cwd": "path", "harness": "string?", "plan": "plan?", "prs": "list",
+				"links": "list", "agents": "list", "monitors": "list", "shells": "list",
+			}),
+			"app/shortcuts":          sessionProvider(map[string]string{"shortcuts": "list"}),
+			"app/publish-port":       appProvider(map[string]Arg{}, map[string]string{"available": "bool"}),
+			"app/brand":              appProvider(map[string]Arg{}, map[string]string{"mark": "string"}),
+			"app/open-pull-requests": appProvider(map[string]Arg{}, map[string]string{"count": "number"}),
+			"app/pull-requests-panel": appProvider(map[string]Arg{},
+				map[string]string{"pull_requests": "list", "owners": "list", "error": "string?"}),
+			"app/usage-panel": appProvider(map[string]Arg{}, map[string]string{"harnesses": "list"}),
+		},
+		PackageProvider: PackageProviderRules{
+			Name:     "<package>/<command>",
+			Reserved: []string{"app"},
+			MinEvery: "5s",
+			Returns:  []string{FieldString, FieldNumber, FieldBool, FieldList, FieldObject},
+			Optional: "?",
+			Targets:  []string{"machine", "workspace"},
+			Output:   ParseJSON,
+			With:     "--<key> <value> after the command, keys sorted",
+			Approval: TrustThirdParty,
+			Trust:    []string{TrustOfficial, TrustLocal, TrustThirdParty},
+		},
+		Views: map[string]View{
+			"app.clock":               {Accepts: []string{"app/clock"}},
+			"app.summary":             {Accepts: []string{"app/summary"}},
+			"app.machines":            {Accepts: []string{"app/machines"}},
+			"app.harness-usage":       {Accepts: []string{"app/harness-usage"}},
+			"app.workspaces":          stackView("app/workspaces"),
+			"app.shortcuts":           stackView("app/shortcuts"),
+			"app.publish-port":        stackView("app/publish-port"),
+			"app.monitors":            stackView("app/session-context"),
+			"app.shells":              stackView("app/session-context"),
+			"app.sub-agents":          stackView("app/session-context"),
+			"app.todo":                stackView("app/session-context"),
+			"app.pull-requests":       stackView("app/session-context"),
+			"app.links":               stackView("app/session-context"),
+			"app.brand":               {Accepts: []string{"app/brand"}, Layouts: []string{LayoutSlot}},
+			"app.pull-requests-panel": {Accepts: []string{"app/pull-requests-panel"}, Layouts: []string{LayoutTabs, LayoutCanvas, LayoutStack}},
+			"app.usage-panel":         {Accepts: []string{"app/usage-panel"}, Layouts: []string{LayoutTabs}},
+			"text": {Accepts: []string{ParseText, ParseLines, ParseANSI}, Fields: map[string]Field{
+				"wrap": {Type: FieldBool, Default: true},
+				"tail": tail,
+			}},
+			"number": {Accepts: []string{ParseNumber, ParseJSON, "app/open-pull-requests"}, Fields: map[string]Field{
+				"value":     {Type: FieldTemplate},
+				"unit":      {Type: FieldString},
+				"format":    {Type: FieldEnum, Values: []string{"plain", "percent", "bytes", "duration"}, Default: "plain"},
+				"hide_zero": {Type: FieldBool, Default: false},
+			}},
+			"gauge": {Accepts: []string{ParseNumber, ParseJSON}, Fields: map[string]Field{
+				"value": {Type: FieldTemplate},
+				"min":   {Type: FieldNumber, Default: 0},
+				"max":   {Type: FieldNumber, Default: 100},
+				"unit":  {Type: FieldString},
+				"warn":  {Type: FieldNumber},
+				"crit":  {Type: FieldNumber},
+			}},
+			"status": {Accepts: []string{ParseStatus, ParseNumber, ParseJSON, ParseText}, Fields: map[string]Field{
+				"value": {Type: FieldTemplate},
+				"ok":    {Type: FieldRule},
+				"warn":  {Type: FieldRule},
+			}},
+			"list": {Accepts: []string{ParseLines, ParseJSON}, Fields: map[string]Field{
+				"item": {Type: FieldObject, Fields: map[string]Field{
+					"title":    {Type: FieldTemplate, Default: "{{item}}"},
+					"subtitle": {Type: FieldTemplate},
+					"status":   {Type: FieldTemplate},
+					"link":     {Type: FieldTemplate},
+				}},
+			}},
+			"sparkline": {Accepts: []string{ParseNumber, ParseJSON}, Fields: map[string]Field{
+				"value": {Type: FieldTemplate},
+				"unit":  {Type: FieldString},
+				"max":   {Type: FieldNumber},
+			}},
+			"markdown": {Accepts: []string{ParseText}},
+			"web": {Accepts: []string{AcceptsKind + SourceURL}, Fields: map[string]Field{
+				"zoom": {Type: FieldNumber, Default: 1, Min: 0.5, Max: 2},
+			}},
+			"terminal": {Accepts: []string{ParseANSI, ParseText, AcceptsKind + SourceSession}, Fields: map[string]Field{
+				"tail": tail,
+			}},
+		},
+		SourceKinds: []string{SourceProvider, SourceCommand, SourceURL, SourcePrompt, SourceSession},
+		Sources: map[string]SourceKind{
+			SourceProvider: {Fields: map[string]Field{
+				"name":    {Type: FieldProvider, Required: true},
+				"with":    {Type: FieldArgs},
+				"every":   {Type: FieldEvery, Required: true},
+				"target":  {Type: FieldTarget},
+				"timeout": timeout("30s"),
+			}},
+			SourceCommand: {MinEvery: "5s", Approval: true, Fields: map[string]Field{
+				"run":     {Type: FieldString},
+				"script":  {Type: FieldPath},
+				"args":    {Type: FieldList},
+				"shell":   {Type: FieldBool, Default: false},
+				"target":  target,
+				"every":   {Type: FieldEvery},
+				"timeout": timeout("30s"),
+				"mode":    {Type: FieldEnum, Values: []string{ModePoll, ModeStream}, Default: ModePoll},
+				"keep":    {Type: FieldInt, Default: 200, Min: 1, Max: 2000},
+				"parse":   {Type: FieldEnum, Values: []string{ParseText, ParseLines, ParseNumber, ParseJSON, ParseANSI}, Default: ParseText},
+			}},
+			SourceURL: {MinEvery: "5s", Fields: map[string]Field{
+				"url":     {Type: FieldURL, Required: true},
+				"every":   {Type: FieldEvery, Required: true},
+				"timeout": timeout("30s"),
+				"parse":   {Type: FieldEnum, Values: []string{ParseStatus, ParseText, ParseJSON}, Default: ParseStatus},
+			}},
+			SourcePrompt: {MinEvery: "5m", Approval: true, Fields: map[string]Field{
+				"harness": {Type: FieldEnum, Values: []string{"claude", "codex"}, Required: true},
+				"permission_mode": {Type: FieldEnumByHarness, ByHarness: map[string][]string{
+					"claude": {"manual", "dontAsk", "plan", "acceptEdits", "auto", "bypassPermissions"},
+					"codex":  {"read-only", "workspace-write", "danger-full-access", "approve-for-me", "dangerously-bypass-approvals-and-sandbox"},
+				}, Dangerous: []string{"bypassPermissions", "danger-full-access", "dangerously-bypass-approvals-and-sandbox"}},
+				"prompt":  {Type: FieldString, Required: true},
+				"target":  target,
+				"every":   {Type: FieldEvery, Default: EveryManual},
+				"timeout": timeout("5m"),
+			}},
+			SourceSession: {MinEvery: "2s", Approval: true, Fields: map[string]Field{
+				"target":  target,
+				"session": {Type: FieldString, Required: true},
+				"every":   {Type: FieldEvery, Required: true},
+			}},
+		},
+		Formats: map[string]int{"widget": 1, "board": 1},
+	}
+}
+
+// Grows says whether a view takes size auto in a stack: it is as tall as
+// what it shows.
+func Grows(view string) bool { return CurrentContract().Views[view].Grows }
+
+// IsOrdered says whether a surface lays its widgets out as a list, where a
+// widget's place is its turn: every layout but the canvas.
+func IsOrdered(surface string) bool {
+	s, ok := CurrentContract().Surfaces[surface]
+	return ok && s.Layout != LayoutCanvas
+}
+
+// DrawnIn says whether a view can be drawn in a layout. A slot draws only
+// its own list of one-line views; elsewhere a view without layouts is drawn
+// anywhere.
+func DrawnIn(view, layout string) bool {
+	c := CurrentContract()
+	if layout == LayoutSlot {
+		return slices.Contains(c.SlotEntry.Views, view)
+	}
+	v := c.Views[view]
+	return len(v.Layouts) == 0 || slices.Contains(v.Layouts, layout)
+}
+
+// SurfaceNames lists every surface the contract has, sorted.
+func SurfaceNames() []string { return surfaceNames(CurrentContract()) }
+
+// OptionSourceNames lists every option source the contract has, sorted.
+func OptionSourceNames() []string { return sortedKeys(CurrentContract().OptionSources) }
+
+// IsDangerousPermissionMode says whether a prompt's permission_mode runs
+// the harness without any check.
+func IsDangerousPermissionMode(mode string) bool {
+	return slices.Contains(CurrentContract().Sources[SourcePrompt].Fields["permission_mode"].Dangerous, mode)
+}

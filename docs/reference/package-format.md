@@ -250,6 +250,24 @@ This does not replace the Ansible role — a package with skills still has
 `tasks/main.yml`, and may also have defaults, handlers, files and
 templates.
 
+### `widgets`
+
+A package can ship widgets for the app:
+
+```yaml
+requires: {cli: ">= 0.9.0"}
+widgets: widgets
+```
+
+The path is relative to the package root and cannot leave it. Each folder
+directly inside it that holds a `widget.yml` is one widget, named
+`<package>/<folder>`. See [the widget format](widget-format.md).
+
+A CLI before 0.9.0 ignores `widgets:`, so a package that uses it needs a
+`requires.cli` that refuses those CLIs, such as `">= 0.9.0"`. A package
+with only widgets is still an Ansible role: its `tasks/main.yml` can be an
+empty list.
+
 ### `kind`, `entrypoint`, `commands`
 
 A package can ship an executable the CLI calls on the machine:
@@ -268,8 +286,44 @@ commands: [zones, list, upsert, delete, help]
 - `kind` is a contract. The only one so far is `dns`, which must accept
   `zones`, `list`, `upsert`, `delete` and `help`.
 
-Nothing calls an entrypoint in this version yet — it is validated now so
-the first real use cannot invent its own shape later.
+`devmachine run --package <name> -- <command>` calls the entrypoint on a
+machine, and refuses a command that is not in `commands`. A widget reads
+the commands listed under `providers`.
+
+### `providers`
+
+A package can let widgets read some of its commands. Each one prints one
+JSON object:
+
+```yaml
+entrypoint: bin/devmachine-app
+commands: [context, stats]
+providers:
+  stats:
+    returns:
+      disk: object
+      load: object
+      errors: list
+      note: string?
+    min_every: 10s
+```
+
+- Each key is a command, and must be one of `commands` (any name, when
+  `commands` is `["*"]`). A widget names it `<package>/<command>`, here
+  `devmachine-app/stats`.
+- `returns` lists the fields of the JSON object: `string`, `number`,
+  `bool`, `list` or `object`, with `?` after the type when the field may be
+  missing. It is required. Written on one line between `{` and `}`, a type
+  with `?` needs quotes: `{note: "string?"}`.
+- `min_every` is how often a widget may run the command at most, at least
+  `5s`. It is required.
+- A package with `providers` needs an `entrypoint`.
+
+The app runs the command through `devmachine run --package <package>
+--machine <m> --no-log -- <command> --<key> <value> …`, one `--<key>
+<value>` pair per key of the widget's `with`, keys sorted. A value that
+starts with `-` still arrives as the value after its `--<key>`; the command
+reads its own arguments. See [the widget format](widget-format.md#package-providers).
 
 ### `network`
 
@@ -353,6 +407,15 @@ bootstrap: bin/bootstrap
 | `bootstrap` outside the package | `bootstrap "X" must stay inside the package` |
 | `bootstrap` missing or not executable | `bootstrap "X" is not in the package`, `bootstrap "X" is not executable: chmod +x it` |
 | `kind` or `commands` with no entrypoint | ``kind` and `commands` describe an `entrypoint`, and this package declares none`` |
+| `widgets` with a `requires.cli` an older CLI meets | `a package with widgets needs requires.cli above 0.8.1, the last CLI that ignores them` |
+| `widgets` outside the package | `widgets "X" must stay inside the package` |
+| `widgets` folder missing or empty | `the widgets folder is not there`, `the widgets folder holds no folder with a widget.yml` |
+| `providers` without an `entrypoint` | `` `providers` are commands of an `entrypoint`, and this package declares none `` |
+| a provider that is not a command | `provider stats is not one of commands: add it to commands, or remove the provider` |
+| a `returns` type it does not know | `provider stats returns.errors is "array": the types are string, number, bool, list, object, each with ? when optional` |
+| `returns` missing or empty | `provider stats says what it returns: returns: {<field>: <type>}` |
+| `min_every` missing, unreadable or below 5s | `provider stats min_every 2s is below the 5s floor` |
+| a widget is wrong | the widget's own message, at `widgets/<name>/widget.yml` and its line; see [the widget format](widget-format.md#the-rules-and-what-each-one-says) |
 
 `devmachine packages validate` reports every problem at once, not just
 the first.

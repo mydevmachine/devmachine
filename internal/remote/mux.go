@@ -9,6 +9,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/mydevmachine/devmachine/internal/config"
@@ -127,6 +129,11 @@ func (c *muxClient) Stream(ctx context.Context, command string, stdout, stderr i
 	return c.exec(ctx, command, nil, stdout, stderr)
 }
 
+// StreamInput is Stream with stdin fed from the reader.
+func (c *muxClient) StreamInput(ctx context.Context, command string, stdin io.Reader, stdout, stderr io.Writer) error {
+	return c.exec(ctx, command, stdin, stdout, stderr)
+}
+
 func (c *muxClient) Upload(context.Context, string, io.Reader) error {
 	return errors.New("uploading a directory needs the programmatic SSH client: the multiplexed client only runs commands")
 }
@@ -135,13 +142,15 @@ func (c *muxClient) Close() error { return nil }
 
 // exec runs command over ssh, trying each resolved address in turn.
 //
-// OpenSSH's own ssh distinguishes the two failure shapes this needs: exit
-// 255 is ssh's code for "never reached the machine" (bad address, refused
-// connection, failed handshake), so that address is dropped in favour of the
-// next one — unless ssh refused the host key: that is the answer, and trying
-// another address would hide it. Any other exit status is the remote command's own, and is
-// returned the same way sshClient.Run returns one: the error wraps it, and
-// stdout still holds whatever the command printed before it failed.
+// ssh exits 255 when it never reached the machine (bad address, refused
+// connection, failed handshake), but also when the remote command itself
+// exits 255 or dies by a signal. Only the first may go to the next address,
+// so an address is dropped only when nothing came back on stdout and stderr
+// holds nothing but ssh's own lines saying it did not connect — unless ssh
+// refused the host key: that is the answer, and trying another address would
+// hide it. Any other failure is the remote command's own, and is returned the
+// same way sshClient.Run returns one: the error wraps it, and stdout still
+// holds whatever the command printed before it failed.
 func (c *muxClient) exec(ctx context.Context, command string, stdin io.Reader, stdout, stderr io.Writer) error {
 	var failures []string
 	var sent countingReader
@@ -191,8 +200,10 @@ func (c *muxClient) exec(ctx context.Context, command string, stdin io.Reader, s
 				return fmt.Errorf("machine %q at %s: the connection dropped after part of the output arrived, so it is not asked again of another address: %s",
 					c.machine, address, strings.TrimSpace(errBuf.String()))
 			}
-			failures = append(failures, fmt.Sprintf("%s (%s)", address, strings.TrimSpace(errBuf.String())))
-			continue
+			if connectFailed(errBuf.String()) {
+				failures = append(failures, fmt.Sprintf("%s (%s)", address, strings.TrimSpace(errBuf.String())))
+				continue
+			}
 		}
 		if reason := strings.TrimSpace(errBuf.String()); reason != "" && stderr == nil {
 			return fmt.Errorf("running %q: %w: %s", command, runErr, reason)
@@ -200,6 +211,41 @@ func (c *muxClient) exec(ctx context.Context, command string, stdin io.Reader, s
 		return fmt.Errorf("running %q: %w", command, runErr)
 	}
 	return fmt.Errorf("machine %q: no address answered: %s", c.machine, strings.Join(failures, "; "))
+}
+
+// preSessionLines are the whole lines ssh writes when it never reached a
+// session on an address, so the command cannot have run there. Whole lines,
+// not words: "Connection reset by peer" also ends a session that ran, and a
+// command's own stderr can say "Connection refused".
+var preSessionLines = []*regexp.Regexp{
+	regexp.MustCompile(`^ssh: connect to host \S+ port \d+: .+$`),
+	regexp.MustCompile(`^ssh: Could not resolve hostname \S+: .+$`),
+	regexp.MustCompile(`^kex_exchange_identification: .+$`),
+	regexp.MustCompile(`^Connection (closed|reset) by \S+ port \d+$`),
+	regexp.MustCompile(`^(\S+@\S+: )?Permission denied \([a-z,-]+\)\.$`),
+	regexp.MustCompile(`^Received disconnect from \S+ port \d+:\d+: .+$`),
+	regexp.MustCompile(`^Disconnected from \S+ port \d+$`),
+}
+
+// sshNotice is a line ssh writes before a session that says nothing failed.
+var sshNotice = regexp.MustCompile(`^Warning: Permanently added .+$`)
+
+// connectFailed says whether ssh's stderr holds only its own lines from
+// before a session, at least one of them a failure. Any other line came from
+// the command, or from a session that started, and the command may have run.
+func connectFailed(stderr string) bool {
+	failed := false
+	for _, line := range strings.Split(stderr, "\n") {
+		line = strings.TrimSpace(line)
+		switch {
+		case line == "" || sshNotice.MatchString(line):
+		case slices.ContainsFunc(preSessionLines, func(re *regexp.Regexp) bool { return re.MatchString(line) }):
+			failed = true
+		default:
+			return false
+		}
+	}
+	return failed
 }
 
 // countingReader lets exec tell a connection that failed before reading any

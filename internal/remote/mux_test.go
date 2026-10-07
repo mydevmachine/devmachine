@@ -212,7 +212,7 @@ func TestDialMuxKeepsUsingTheLocalClientForASelfMachine(t *testing.T) {
 func fakeUnreachableSSH(t *testing.T) string {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "ssh")
-	if err := os.WriteFile(path, []byte("#!/bin/sh\nexit 255\n"), 0o700); err != nil {
+	if err := os.WriteFile(path, []byte("#!/bin/sh\necho 'ssh: connect to host 203.0.113.10 port 22: Connection refused' >&2\nexit 255\n"), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	return path
@@ -475,5 +475,107 @@ func TestMuxClientDoesNotRetryAnotherAddressAfterReceivingPartOfTheOutput(t *tes
 	}
 	if n := strings.Count(string(body), "x"); n != 1 {
 		t.Fatalf("ssh ran %d times, want 1: a half-received output must not be appended to by the next address", n)
+	}
+}
+
+func countingSSH(t *testing.T, body string) (string, string) {
+	t.Helper()
+	calls := filepath.Join(t.TempDir(), "calls")
+	fakeSSH := filepath.Join(t.TempDir(), "ssh")
+	script := "#!/bin/sh\necho x >> " + calls + "\n" + body + "\n"
+	if err := os.WriteFile(fakeSSH, []byte(script), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	origLookPath := lookPath
+	lookPath = func(string) (string, error) { return fakeSSH, nil }
+	t.Cleanup(func() { lookPath = origLookPath })
+	return fakeSSH, calls
+}
+
+func sshRuns(t *testing.T, calls string) int {
+	t.Helper()
+	body, err := os.ReadFile(calls)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return strings.Count(string(body), "x")
+}
+
+func TestMuxClientTriesTheNextAddressWhenOneDoesNotConnect(t *testing.T) {
+	for _, reason := range []string{
+		"ssh: connect to host 203.0.113.10 port 22: Connection refused",
+		"ssh: connect to host 203.0.113.10 port 22: Operation timed out",
+		"ssh: Could not resolve hostname main.example.com: nodename nor servname provided",
+		"Connection closed by 203.0.113.10 port 22",
+		"Connection reset by 203.0.113.10 port 22",
+		"kex_exchange_identification: read: Connection reset by peer",
+		"alice@203.0.113.10: Permission denied (publickey).",
+		"Warning: Permanently added '203.0.113.10' (ED25519) to the list of known hosts.\nalice@203.0.113.10: Permission denied (publickey,password).",
+	} {
+		fakeCacheDir(t)
+		m := muxTestMachine(t)
+		m.Hosts = append(m.Hosts, config.Host{Address: "203.0.113.11"})
+		_, calls := countingSSH(t, "printf '%s\\n' '"+strings.ReplaceAll(reason, "\n", "' '")+"' >&2\nexit 255")
+
+		client, _, err := DialMux(context.Background(), m, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = client.Run(context.Background(), "true")
+		if err == nil || !strings.Contains(err.Error(), "no address answered") {
+			t.Errorf("%s: got %v", reason, err)
+		}
+		if n := sshRuns(t, calls); n != 2 {
+			t.Errorf("%s: ssh ran %d times, want 2", reason, n)
+		}
+	}
+}
+
+func TestMuxClientReturnsARemoteExit255AsTheCommandsOwn(t *testing.T) {
+	fakeCacheDir(t)
+	m := muxTestMachine(t)
+	m.Hosts = append(m.Hosts, config.Host{Address: "203.0.113.11"})
+	_, calls := countingSSH(t, "echo 'the check failed' >&2\nexit 255")
+
+	client, _, err := DialMux(context.Background(), m, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = client.Stream(context.Background(), "exit 255", io.Discard, io.Discard)
+	var exitErr *exec.ExitError
+	if !errors.As(err, &exitErr) || exitErr.ExitCode() != 255 {
+		t.Fatalf("got %v, want the command's exit status 255", err)
+	}
+	if n := sshRuns(t, calls); n != 1 {
+		t.Fatalf("ssh ran %d times, want 1: the command ran, and must not run again on another address", n)
+	}
+}
+
+func TestMuxClientDoesNotRetryWhatTheCommandOrALostSessionSaid(t *testing.T) {
+	for _, said := range []string{
+		"Read from remote host 203.0.113.10: Connection reset by peer",
+		"Connection refused",
+		"curl: (7) Failed to connect to example.com port 443: Connection refused",
+		"Connection to 203.0.113.10 closed by remote host.",
+		"client_loop: send disconnect: Broken pipe",
+		"the check failed\nssh: connect to host 203.0.113.12 port 22: Connection refused",
+	} {
+		fakeCacheDir(t)
+		m := muxTestMachine(t)
+		m.Hosts = append(m.Hosts, config.Host{Address: "203.0.113.11"})
+		_, calls := countingSSH(t, "printf '%s\\n' '"+strings.ReplaceAll(said, "\n", "' '")+"' >&2\nexit 255")
+
+		client, _, err := DialMux(context.Background(), m, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = client.Stream(context.Background(), "check", io.Discard, io.Discard)
+		var exitErr *exec.ExitError
+		if !errors.As(err, &exitErr) || exitErr.ExitCode() != 255 {
+			t.Errorf("%q: got %v, want the command's exit status 255", said, err)
+		}
+		if n := sshRuns(t, calls); n != 1 {
+			t.Errorf("%q: ssh ran %d times, want 1", said, n)
+		}
 	}
 }

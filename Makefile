@@ -1,7 +1,7 @@
 BINARY := devmachine
 VERSION ?= dev
 
-.PHONY: accept accept-shell build surface settings test test-vps test-vps-sudo cover vps-up vps-down fmt lint docs run
+.PHONY: accept accept-shell build surface settings widget-format test test-vps test-vps-sudo cover vps-up vps-down fmt lint docs run
 
 accept:
 	scripts/accept/run.sh
@@ -62,6 +62,11 @@ PACKAGES ?= $(HOME)/dev/packages
 
 settings:
 	go run ./cmd/settings $(PACKAGES)/packages > docs/reference/settings.md
+
+# The tables in the widget format page come from the engine contract, for the
+# same reason as SURFACE.txt. A test fails when they are out of date.
+widget-format:
+	go run ./cmd/widgetformat
 
 # Every link resolves, and every page is reachable from the index.
 docs:

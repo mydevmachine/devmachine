@@ -51,9 +51,9 @@ so the first `sync` installs them; `--no-essentials` leaves it with none. Only a
 release that has `essentials` gets it — an older one starts empty and says so. On a Mac,
 where `essentials` does not run, the machine starts with `base`, `devmachine-app` and the
 package manager package instead, and `setup` says so; with `--no-essentials`, with the package
-manager package alone. If the proof step fails, nothing is locked down and
-the error says where to look. See [setting up a server for the first
-time](../how-it-works/trust-bootstrap.md) for why the order matters.
+manager package alone. If the proof step fails, nothing is locked down and the error says where
+to look. See [setting up a server for the first time](../how-it-works/trust-bootstrap.md) for
+why the order matters.
 
 Works on **Debian, Ubuntu, Arch Linux and macOS**. Before it changes anything it
 asks the machine what it runs (`uname -s`, then `ID` in `/etc/os-release`,
@@ -705,6 +705,233 @@ it there. Claude, Antigravity and Cline get a link to it:
 Detection looks for `~/.claude`, `~/.codex`, `~/.config/opencode`,
 `~/.pi`, `~/.gemini/antigravity-cli`, `~/.kimi-code` and `~/.cline`.
 
+## widgets
+
+```text
+devmachine widgets list [--board home|sidebar|context-sidebar|menubar|menubar-panel]
+devmachine widgets help <package/widget>
+devmachine widgets validate [path...]
+devmachine widgets schema [--json]
+devmachine widgets add <package/widget> [--board home|sidebar|context-sidebar|menubar|menubar-panel]
+    [--id x] [--set name=value]... [--size s] [--at x,y | --after id | --before id]
+devmachine widgets remove <id> [--board home|sidebar|context-sidebar|menubar|menubar-panel]
+devmachine widgets move <id> (--after id | --before id) --board sidebar|context-sidebar|menubar|menubar-panel
+devmachine widgets set <id> --board home|sidebar|context-sidebar|menubar|menubar-panel
+    [--title t] [--every d] [--set name=value]...
+```
+
+The widgets the app draws, and the boards they sit on. Local only: these
+commands never connect to a machine. See [Widgets](../concepts/widgets.md)
+and [the widget format](widget-format.md).
+
+`list` reads the pinned packages release and your own packages. With
+nothing pinned, or no `config.yml` yet, it reads the latest release; when
+that cannot be found it fails, with nothing on stdout. `--format json`
+prints:
+
+```json
+{
+  "engine": "1.6",
+  "packages_release": "v40",
+  "widgets": [
+    {
+      "name": "claude-code/usage",
+      "package": "claude-code",
+      "widget": "usage",
+      "origin": "release",
+      "trust": "official",
+      "version": "v40",
+      "path": "/Users/alice/.config/devmachine/cache/packages/v40/packages/claude-code/widgets/usage",
+      "summary": "Coding-harness usage windows.",
+      "requires_engine": ">= 1.0",
+      "fits": ["canvas", "stack", "slot"],
+      "context": {},
+      "inputs": {"harness": {"type": "string", "default": "claude", "summary": "Which harness."}},
+      "source": {"kind": "provider", "name": "app/harness-usage", "with": {"harness": "{{inputs.harness}}"}, "every": "60s"},
+      "view": {"kind": "app.harness-usage"},
+      "sizes": ["small", "medium", "wide"],
+      "default_size": "medium",
+      "places": ["home"],
+      "single": false,
+      "surfaces": ["context-sidebar", "home", "sidebar"],
+      "available": true,
+      "unavailable_reason": ""
+    }
+  ],
+  "providers": {
+    "devmachine-app/stats": {
+      "package": "devmachine-app",
+      "command": "stats",
+      "scope": "machine",
+      "trust": "official",
+      "returns": {"disk": "object", "load": "object", "errors": "list"},
+      "min_every": "10s"
+    },
+    "alice-tools/disk": {
+      "package": "alice-tools",
+      "command": "disk",
+      "scope": "machine",
+      "trust": "third-party",
+      "package_source": {"url": "https://example.com/alice/tools.git", "ref": "v1", "commit": "0123abc"},
+      "returns": {"used": "number"},
+      "min_every": "30s"
+    }
+  },
+  "problems": [
+    {"path": "/Users/alice/.config/devmachine/packages/mine/widgets/bad/widget.yml", "message": "view.kind \"gauge\" needs engine 1.1"}
+  ]
+}
+```
+
+`origin` is `release` or `local`; `version` is the release tag, or `""`
+for your own package. `surfaces` are the areas the widget fits, planned
+ones included: the area's layout is in `fits`, the widget's view is
+drawn there (in the menu bar, only `text`, `number`, `status` and
+`app.brand`), and the area gives every context key the widget requires.
+`single` is `true` when a board holds
+the widget at most once. `available` is `false` when the widget
+needs its package added and synced; `unavailable_reason` then names the
+command to run (see [why widgets come from
+packages](../how-it-works/widgets-come-from-packages.md)). A widget with a
+problem is left out of `widgets` and listed in `problems`, and the command
+still exits 0, so one broken widget never hides the rest. A `package.yml`
+that cannot be read is a problem too: its widgets are left out, and when it
+is one of your own packages the release package of the same name is not
+used in its place.
+
+`trust` says how far the app trusts the widget: `official` for the
+pinned release, `local` for a package you wrote in `<config>/packages/`,
+and `third-party` for a package installed with `packages install`. A
+third-party widget that runs something — a `command`, `prompt`, `session`
+or package provider — waits for your approval in the app, like a widget
+written in a board (see [where a public widget comes
+from](../how-it-works/where-a-public-widget-comes-from.md)). A third-party
+widget also has `package_source`: `{"url", "ref", "commit"}`, where its
+package was fetched from. When its `.devmachine-source.yml` cannot be
+read, the widget is still third-party but has no `package_source`, and
+`problems` says why. A widget that reads a package provider has
+`provider`: that provider's `returns` and `min_every`. `providers` lists
+every package provider a widget may read, by `<package>/<command>`, with
+its package's `scope` and `trust` — a widget written in a board names one
+of these. A third-party provider has `package_source` too, the same as its
+widgets. The app puts that commit in what you approve for a board widget
+that reads it, so when `packages update` brings new code the widget asks
+again.
+
+In the text listing, a third-party widget says `(third-party from <url>)`
+in place of its origin.
+
+`--board <area>` keeps only the widgets whose `surfaces` include that
+area — what the app's gallery offers when you press "Add widget" there.
+`problems` are kept as they are.
+
+`help` prints one widget's inputs, context, sizes and the areas it fits,
+and `once per board` for a single widget; with `--format json`, the same entry as `list`. `widgets help <widget>`
+describes a widget; `--help` shows how to use a command.
+
+`validate` takes a `widget.yml`, a widget folder, a package folder or a
+board file. With no path it checks every board in `<config>/boards/` and
+every widget in your own packages. For each widget that passes it prints
+its full name and the areas it fits (`mine/clock fits home`); a widget
+folder that sits in no package's widgets folder prints its name alone
+(`clock fits home`). It reports every problem at once, with file and line,
+and exits non-zero when there is one. `--format json` prints `{"ok":
+false, "checked": [...], "widgets": [{"path": ..., "name": ...,
+"surfaces": [...]}], "problems": [{"path": ..., "line": ..., "message":
+...}], "warnings": [...]}`, with `name` written the same way and each
+warning shaped like a problem.
+
+A widget written in a board that names a machine or a workspace
+`config.yml` does not have is a problem. A widget written in a board that
+reads a package provider is checked too: the package exists and declares
+it, and `every` is not below its `min_every`. With no release in the cache,
+a missing package is not reported, since it may be one the release has.
+`widgets add`, `move` and `remove` skip that check, so removing a package
+never locks a board; they still refuse a provider name that is not
+`<package>/<command>` in lower case letters, digits, dashes and
+underscores. A package widget that names one
+by its literal name is only a warning (`warning: …` lines, and
+`"warnings"` in `--format json`), because a published widget is written
+for many configurations. A name that holds a template, such as
+`{{inputs.machine}}`, is not checked. `widgets add`, `move` and `remove`
+never refuse a name, so removing a machine does not lock a board.
+
+`schema` prints the engine contract: areas, providers, views and sizes.
+`--json` prints it as JSON, the same document the app is built against.
+
+`add` places a widget on a board and writes `<config>/boards/<board>.yml`.
+The id defaults to the widget's name, made unique (`usage`, `usage-2`).
+`--set` gives an input a value, converted to the input's type. For a
+choice of many, `--set machines=main,backup` writes a list, and
+`--set machines=` an empty one, which means all. A name your
+`config.yml` lacks is a `warning:` on stderr (and in `"warnings"` with
+`--format json`); the widget is still added. The widget must fit the area
+(`devmachine widgets list --board <area>` shows which do), and a widget
+marked `single` is refused when the board already has it.
+
+On Home (the default), `--size` is a preset the widget takes, default its
+`default_size`. `--at x,y` is the top-left corner in points, snapped to
+8pt; the widget goes exactly there, even on top of another, because
+widgets may overlap on Home. Without it the widget takes the first free
+spot, scanning rows of 8pt from 24,24 across a band 1280pt wide and
+keeping 8pt from every other widget. `--after` and `--before` are refused.
+
+In the sidebar or the context sidebar, the widget goes at the end of the
+list, or right after `--after <id>`, or right before `--before <id>` (one
+of the two at most). `--size` is a preset or `auto`; without it the widget
+gets `auto` when its view grows with its content and its `default_size`
+otherwise. `--at` is refused. When the board file is missing, the CLI
+starts from the board the app draws by default, so the workspace list and
+the Context tab's sections stay. The default boards are listed in [the
+widget format](widget-format.md#a-board-in-a-sidebar).
+
+In the menu bar (`--board menubar`) and its popover (`--board
+menubar-panel`), the widget goes in the list the same way, with
+`--after` or `--before`. Neither takes `--size` or `--at`. The menu bar
+holds 3 widgets, so a 4th is refused, and only a widget whose view draws
+one line fits it. A missing board starts from the default, so "❯_", the
+pull request count and the two tabs stay. See [the widget
+format](widget-format.md#a-board-in-the-menu-bar).
+
+`remove` takes the widget with that id off the board. On a missing
+sidebar or menu bar board it starts from the default board, so
+`widgets remove publish-port --board context-sidebar` drops that one
+section and keeps the rest.
+
+`move` changes a widget's turn in a list (a sidebar, the menu bar or its
+popover): right after `--after <id>` or right before `--before <id>`
+(exactly one). `--board` is required, and Home is refused: a widget there
+has a place, not a turn. A missing board is read as the default board. A
+move that leaves the order as it was does not rewrite the file. An empty
+`--after ""` or `--before ""` is refused, on `add` as on `move`.
+
+`set` changes one widget on a board and leaves every other entry as it
+was. `--title` is the title this copy shows and `--every` how often it
+runs (`2m`, or `manual` for any source but a provider); `--title ""` and
+`--every ""` take the override off, so the widget's own comes back.
+`--every` is refused below what the widget's source allows and on a
+stream, with the same words as `widgets validate`. `--set` gives an input
+a value as on `add`, `name=a,b` for a choice of many. A widget written in
+the board takes `--title` only: to change what it runs, edit its `source`
+in the board file, and the app asks for your approval again. `--board`
+is required; a missing sidebar or menu bar board is read as its default
+board, and a missing Home board is an error. It prints `changed <id> on
+the <board> board: <what>`, then any `warning:` about a choice your
+`config.yml` lacks. A `set` that changes nothing prints the same line but
+does not touch the file, so its comments stay.
+
+All four re-read the board first and write it in one step (a temporary file,
+then a rename). A board with a problem is refused and left as it is; so is
+a board that changed while the command ran. Comments in a board are lost
+when the CLI rewrites it. `--format json` prints
+`{"board", "path", "widget", "warnings"}` for `add` (`warnings` only when
+there are some; for a widget in a list, which is a sidebar, the menu bar
+or its popover, `frame`, `minimized` and `z` are zero and mean nothing,
+and in the menu bar and its popover `size` is `""`; `collapsed` appears
+when true), `{"board", "path", "removed"}` for `remove`,
+`{"board", "path", "moved", "order"}` for `move`, `order` being every id
+after the move, and `{"board", "path", "widget", "warnings"}` for `set`.
+
 ## aliases
 
 ```
@@ -869,12 +1096,13 @@ needs mosh on both sides. Both check `<config>/known_hosts` first.
 ## run
 
 ```
-devmachine run "<command>" [--workspace w]
-devmachine run --package <name> [--workspace w] -- <command> [args...]
+devmachine run "<command>" [--workspace w] [--no-log]
+devmachine run --argv [--workspace w] [--no-log] -- <program> [args...]
+devmachine run --package <name> [--workspace w] [--no-log] -- <command> [args...]
+devmachine run --package <name> --script <path> [--workspace w] [--no-log] [-- args...]
 ```
 
-Runs one command on a machine and prints its output; exits with the same
-code. Its standard output goes to yours and its standard error to yours,
+Runs one command on a machine and prints its output. Its standard output goes to yours and its standard error to yours,
 as they arrive, so a program can parse stdout (`run --package
 devmachine-app -- stats` prints JSON there) while a warning or the
 reason a command failed still reaches the person, before the error.
@@ -883,7 +1111,53 @@ reason a command failed still reaches the person, before the error.
 after `--` goes to the package; `commands:` in its manifest can limit
 what it accepts. With `--workspace`, it runs as that workspace's own
 account, for a command that needs that account's own files or logins.
+Each word after `--` reaches the entrypoint as it is, an empty one too:
+over SSH the command is `/bin/sh -s` and the words go on its input, so
+the account's login shell never reads them.
 See [packages](../concepts/packages.md).
+
+`--argv` runs a program with its arguments exactly as given: each word
+after `--` is quoted before it reaches the machine's shell, so a space,
+a `;` or a `$(…)` in one is just a character. It is how the app runs a
+widget's command; use it whenever the words come from somewhere else.
+Over SSH the command is always `/bin/sh -s`, and the words go on its
+input, so the account's login shell — even fish, which reads quotes
+differently — never sees them. On your own computer (`self: true`) bash
+runs the quoted words directly.
+
+`--script <path>`, with `--package`, runs one file of the installed
+package instead of its entrypoint — the copy `sync` put on the machine,
+as the same account, with the package's credential loaded first, the
+way the entrypoint runs. The path is relative to the package's
+`package.yml` and must stay inside the package. `commands:` limits only
+the entrypoint, not a script. Arguments for the script follow `--`;
+like `--argv`, over SSH they go on the input of `/bin/sh -s`, so the
+account's login shell never reads them.
+
+`--no-log` leaves the run out of [the command log](#the-command-log).
+The app uses it for widgets that run every few seconds.
+
+`run` never sends your input to the command: it reads end-of-file.
+
+**Exit code.** `run` exits with the command's own code: 0 when it
+worked, the same non-zero code when it ran and failed. A command that
+ran and failed already said why on its own stderr, so `run` adds no
+`error:` line under it. When the command
+never ran — no such machine or workspace, no connection, a changed host
+key, a package that is not installed, a command `commands:` does not
+allow — it exits **255**, the code `ssh` uses for the same thing. So 255
+has three meanings: the command never ran, the command itself exited
+255, or it was stopped (see below). Only the first and the last print
+an `error:` line, and that line says which. A
+mistake in how `run` was called — an unknown flag, a missing `--`, a
+`--script` path outside the package — exits 1 before anything connects.
+
+**Stopping.** SIGINT (Ctrl-C) or SIGTERM ends `run` and the ssh or shell
+it started, and it exits 255. On your own computer (`self: true`) the
+command runs in a process group of its own, and everything it started
+gets SIGTERM, then SIGKILL five seconds later if it is still there. On a
+machine reached over SSH, a command that ignores its closed connection,
+such as an idle `tail -f`, ends the next time it writes.
 
 `run` keeps its SSH connection open for five minutes and reuses it, so a
 script calling it every few seconds skips the handshake each time.
@@ -1289,6 +1563,9 @@ written through, so a link in its place cannot redirect the write.
 devmachine packages list
 devmachine packages add <name> [--machine m | --workspace w] [--check] [--yes]
 devmachine packages rm  <name> [--machine m | --workspace w] [--check] [--yes]
+devmachine packages install <git-address>[@<ref>] [--check] [--yes]
+devmachine packages update <name> [--check] [--yes]
+devmachine packages remove <name> [--yes]
 devmachine packages new <name> [--scope machine|workspace] [--into <dir>]
 devmachine packages validate <dir>
 devmachine packages schema [--json]
@@ -1370,6 +1647,90 @@ start with. With no network to find it, it fails and says so.
 `--machine` or `--workspace`; with one configured machine, that is the
 target. Comments in `config.yml` survive.
 
+`install` brings in a package somebody published in a git repository:
+`https://example.com/alice/tools.git`, or `git@example.com:alice/tools.git`
+to use your SSH key. `@<ref>` picks a tag, a branch or a commit; without
+it, the default branch. Only `https://` and `git@` addresses are accepted.
+The repository holds one package, with `package.yml` at its top.
+
+It fetches that one commit (needs `git`), checks it the way `packages
+validate` does, and refuses:
+
+- a name the pinned release already has — your package would replace the
+  official one everywhere;
+- a name you already have in `<config>/packages/`;
+- a link that leads outside the package;
+- a file name, summary, command, provider, credential or needed package
+  holding a character that moves or hides text in a terminal (a control
+  character such as ESC, or a Unicode bidirectional mark or override),
+  or a file name that is not UTF-8;
+- a package that does not validate (every problem is listed).
+
+Then it shows what the package brings — its widgets and which of them run
+code, the commands of its entrypoint, its providers, every executable file,
+every task file (`tasks/`, `handlers/`), every other file of the role that
+decides what those tasks do (`meta/`, `library/`, `module_utils/`,
+`*_plugins/`, `templates/`, `files/`, `vars/`, `defaults/`) and the
+credentials it asks for — and asks before writing
+`<config>/packages/<name>/`. `--yes` does not ask; `--check` shows and
+writes nothing. It records where the package came from in
+`<config>/packages/<name>/.devmachine-source.yml`:
+
+```yaml
+url: https://example.com/alice/tools.git
+ref: v1
+commit: 0123456789abcdef0123456789abcdef01234567
+installed_at: "2026-10-07T12:00:00Z"
+```
+
+That file is what makes it third-party: its widgets that run code ask
+before they run (see [where a public widget comes
+from](../how-it-works/where-a-public-widget-comes-from.md)). Installing
+touches no machine: `packages add <name> --machine <m>` and `sync` do,
+and its tasks then run as root there, like any package's.
+
+`--format json` needs `--check` or `--yes`, since it cannot ask, and
+prints `{"name", "scope", "summary", "needs", "widgets": [{"name",
+"source", "runs_code"}], "commands", "providers", "scripts", "tasks",
+"role_files", "credentials", "url", "ref", "commit", "path", "installed"}`.
+
+`update` fetches the address and ref recorded in
+`.devmachine-source.yml` again, checking the address as `install` does.
+When the commit did not move it says so and changes nothing. Otherwise it
+shows the old and new commit; the widgets, commands and providers added
+or removed; and the credentials, scripts, tasks and role files added,
+removed or changed (a script, task or role file changed when its bytes
+did, a credential when
+anything `package.yml` says about it did), and asks before replacing the folder (`--yes`,
+`--check` as for `install`). A new commit changes what the app approved,
+so the package's widgets that run code ask again. It refuses a package
+you wrote yourself, a repository that now holds a package of another
+name, and a name the pinned release now has. A fetch or a check that
+fails leaves the old copy as it was: the new one is fetched and checked
+in a folder beside it, and only then swapped in. `--format json` prints
+`{"package", "path", "url", "ref", "previous_commit", "commit",
+"changes": {"widgets_added", "widgets_removed", "commands_added",
+"commands_removed", "providers_added", "providers_removed",
+"credentials_added", "credentials_removed", "credentials_changed",
+"scripts_added", "scripts_removed", "scripts_changed", "tasks_added",
+"tasks_removed", "tasks_changed", "role_files_added",
+"role_files_removed", "role_files_changed"}, "updated"}`, each an array
+of names.
+A Ctrl-C in the middle of the swap can leave the folder missing, with
+both copies kept under `<config>/packages/.install-…/`: see
+[troubleshooting](../troubleshooting.md#a-package-is-gone-after-a-ctrl-c-during-packages-update).
+
+`remove` deletes `<config>/packages/<name>/` for a package installed with
+`install`, after asking. It never deletes a package you wrote, and it
+refuses one still added to a machine or a workspace: take it off with
+`rm` and `sync` first, or the next sync would find it missing. It also
+refuses one listed in the future workspace defaults: take it out with
+`workspaces defaults --rm <name>` first, or the next workspace would
+find it missing. Not to be
+confused with `rm`, which takes a package off a machine or a workspace
+and deletes nothing. `--format json` prints `{"package", "path",
+"removed"}`.
+
 `new` writes a package that already passes `validate`; refuses to
 overwrite one that exists. `validate` reports every problem at once, with
 file and line. `schema` prints the `package.yml` format this binary
@@ -1418,7 +1779,11 @@ One tag beyond package names: `credentials`, which only copies shared
 logins — run after `devmachine login` instead of a full sync.
 
 `--check` never writes the lock file. Only your own packages (in
-`<config>/packages/`) are checked before the run. Every package's
+`<config>/packages/`) are checked before the run. A package installed
+with `packages install` whose name the pinned release now has too stops
+the sync before it connects, since your copy would replace the official
+one ([troubleshooting](../troubleshooting.md#x-is-installed-from--and-packages-release-vn-has-an-official-x)).
+Every package's
 `platforms` is checked against the machine's system before the machine is
 changed — from what was last read, then again from what `sync` reads as it
 connects — and a package for another system stops the sync, naming both
@@ -1557,6 +1922,9 @@ devmachine help [command] [--json]
 
 UTC time, target, success or failure, then the quoted command. See
 [configuration](../concepts/configuration.md#the-command-log).
+
+`run --no-log` adds nothing: it is for a program that polls, such as a
+widget, whose runs would bury everything else.
 
 **`setup`, `machines add` and `login` are not logged** — the first two
 handle a root password, and `login` runs a command you watch yourself.

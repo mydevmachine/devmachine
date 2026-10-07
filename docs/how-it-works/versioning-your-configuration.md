@@ -18,6 +18,7 @@ its own.
 | `history.log` | what was run, against which host | **never** |
 | `*.env` | anything a package staged | **never** |
 | `state/` | what each machine was last seen to run | no: it is read again on the next sync |
+| `packages/.install-*` | a package being fetched from a git address | **never**: a fetch a Ctrl-C cut short is swept after an hour |
 
 `config.yml` holds hostnames and usernames, which is exactly why the
 remote must be private — and why the command says so out loud rather
@@ -57,7 +58,7 @@ warning nobody reads — refusing before the commit is the only version
 that matters.
 
 The check is a closed list of paths — `keys/`, `secrets.json`, `cache/`,
-`history.log`, `*.env` — not a scan for things that look like a token,
+`history.log`, `*.env`, `packages/.install-*` — not a scan for things that look like a token,
 because the CLI wrote every one of these paths itself: nothing else
 lands in the configuration directory.
 

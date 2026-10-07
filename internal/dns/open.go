@@ -5,6 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
+	"path"
+	"path/filepath"
+	"strings"
 
 	"github.com/mydevmachine/devmachine/internal/packages"
 	"github.com/mydevmachine/devmachine/internal/provision"
@@ -24,13 +28,7 @@ const ProviderManual = "manual"
 func buildExternal(found packages.Found, base string, client remote.Client) (*External, error) {
 	m := found.Manifest
 
-	var credential string
-	for _, c := range m.Credentials {
-		if c.Kind == packages.KindSecret {
-			credential = c.Name
-			break
-		}
-	}
+	credential := secretCredential(m)
 	if credential == "" && m.Kind == KindDNS {
 		return nil, fmt.Errorf(
 			"the %s package declares no credential, so there is nothing to source before it runs", m.Name)
@@ -38,6 +36,47 @@ func buildExternal(found packages.Found, base string, client remote.Client) (*Ex
 
 	entrypoint := provision.RolePath(base, found.Source, m.Name, m.Entrypoint)
 	return NewExternal(m.Name, client, entrypoint, credential, m.Commands), nil
+}
+
+// secretCredential is the first secret the package declares, the one sourced
+// before its entrypoint or a script of it runs; "" when it declares none.
+func secretCredential(m packages.Manifest) string {
+	for _, c := range m.Credentials {
+		if c.Kind == packages.KindSecret {
+			return c.Name
+		}
+	}
+	return ""
+}
+
+// CheckScriptPath cleans a --script path, refusing one that leaves the
+// package: empty, absolute, or climbing out with "..".
+func CheckScriptPath(rel string) (string, error) {
+	clean := path.Clean(rel)
+	if rel == "" || path.IsAbs(rel) || clean == "." || clean == ".." || strings.HasPrefix(clean, "../") {
+		return "", fmt.Errorf("--script %q names a file inside the package, relative to its package.yml", rel)
+	}
+	return clean, nil
+}
+
+// Script builds a call to one file of an installed package, such as a
+// widget's script: the same copy on the machine, the same account and the
+// same credential as the entrypoint, without the entrypoint's command list,
+// which limits only the entrypoint.
+func Script(dir, machine, workspace, base, name, rel string, client remote.Client) (*External, error) {
+	clean, err := CheckScriptPath(rel)
+	if err != nil {
+		return nil, err
+	}
+	found, err := lookupInstalled(dir, machine, workspace, name)
+	if err != nil {
+		return nil, err
+	}
+	if info, err := os.Stat(filepath.Join(found.Manifest.Path, filepath.FromSlash(clean))); err != nil || info.IsDir() {
+		return nil, fmt.Errorf("%s has no file %s", name, clean)
+	}
+	file := provision.RolePath(base, found.Source, name, clean)
+	return NewExternal(name, client, file, secretCredential(found.Manifest), nil), nil
 }
 
 // Installed builds every package of kind: dns that the lock says is on this

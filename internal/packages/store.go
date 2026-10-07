@@ -143,7 +143,7 @@ func (s *Store) GetRelease(name string) (Found, error) {
 	path := filepath.Join(s.releaseDir, name)
 	if _, err := os.Stat(ManifestPath(path)); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return Found{}, fmt.Errorf("package release %s has no package named %q", s.version, name)
+			return Found{}, &NotInReleaseError{Version: s.version, Name: name}
 		}
 		return Found{}, err
 	}
@@ -154,10 +154,39 @@ func (s *Store) GetRelease(name string) (Found, error) {
 	return Found{Manifest: m, Source: SourceRelease}, nil
 }
 
-// All lists every package, counting an overridden name once.
+// NotInReleaseError says the pinned release has no package of that name.
+type NotInReleaseError struct {
+	Version string
+	Name    string
+}
+
+func (e *NotInReleaseError) Error() string {
+	return fmt.Sprintf("package release %s has no package named %q", e.Version, e.Name)
+}
+
+// All lists every package, counting an overridden name once. It refuses the
+// whole listing when one manifest cannot be read.
 func (s *Store) All() ([]Found, error) {
+	found, broken := s.Scan()
+	if len(broken) > 0 {
+		return nil, broken[0].Err
+	}
+	return found, nil
+}
+
+// Broken is a package, or a packages folder, that could not be read.
+type Broken struct {
+	Path string
+	Err  error
+}
+
+// Scan is All that keeps going: every package that reads, and every one that
+// does not. A broken package still claims its name, so a broken package of
+// yours never falls back to the release's copy without a word.
+func (s *Store) Scan() ([]Found, []Broken) {
 	seen := map[string]bool{}
 	var out []Found
+	var broken []Broken
 
 	for _, candidate := range s.sources() {
 		if candidate.dir == "" {
@@ -168,7 +197,8 @@ func (s *Store) All() ([]Found, error) {
 			continue
 		}
 		if err != nil {
-			return nil, err
+			broken = append(broken, Broken{Path: candidate.dir, Err: err})
+			continue
 		}
 		for _, entry := range entries {
 			if !entry.IsDir() || seen[entry.Name()] {
@@ -178,15 +208,16 @@ func (s *Store) All() ([]Found, error) {
 			if _, err := os.Stat(ManifestPath(path)); err != nil {
 				continue
 			}
+			seen[entry.Name()] = true
 			m, err := ParseManifest(path)
 			if err != nil {
-				return nil, err
+				broken = append(broken, Broken{Path: ManifestPath(path), Err: err})
+				continue
 			}
-			seen[entry.Name()] = true
 			out = append(out, Found{Manifest: m, Source: candidate.source})
 		}
 	}
 
 	slices.SortFunc(out, func(a, b Found) int { return strings.Compare(a.Manifest.Name, b.Manifest.Name) })
-	return out, nil
+	return out, broken
 }

@@ -144,6 +144,9 @@ func prepareSync(ctx context.Context, opts *options) (preparedSync, error) {
 	if err := validateLocalPackages(plan); err != nil {
 		return preparedSync{}, err
 	}
+	if err := refuseShadowedOfficial(plan, store); err != nil {
+		return preparedSync{}, err
+	}
 	if err := refuseForeignPackages(plan, machine.Name, knownPlatform(dir, machine)); err != nil {
 		return preparedSync{}, err
 	}
@@ -201,6 +204,47 @@ func (p preparedSync) apply(ctx context.Context, opts *options, check bool, tags
 		}
 	}
 	return result, nil
+}
+
+// refuseShadowedOfficial stops a sync when a package installed from a git
+// address has a name the pinned release gained since it was installed: your
+// copy of a name always wins, so it would take the official one's place on
+// the machine without a word. Neither copy is picked for you.
+func refuseShadowedOfficial(plan packages.MachinePlan, store *packages.Store) error {
+	if store.Version() == "" {
+		return nil
+	}
+	seen := map[string]bool{}
+	for _, resolved := range append([]packages.Resolved{plan.OnMachine}, plan.Workspaces...) {
+		for _, found := range resolved.Ordered {
+			if found.Source != packages.SourceLocal || seen[found.Manifest.Path] {
+				continue
+			}
+			seen[found.Manifest.Path] = true
+			from := "a git address"
+			origin, installed, err := packages.ReadOrigin(found.Manifest.Path)
+			switch {
+			case err == nil && !installed:
+				continue
+			case err == nil:
+				from = origin.URL
+			}
+			name := found.Manifest.Name
+			_, err = store.GetRelease(name)
+			var notInRelease *packages.NotInReleaseError
+			switch {
+			case errors.As(err, &notInRelease):
+				continue
+			case err != nil:
+				return fmt.Errorf("checking whether %s is an official package: %w", name, err)
+			}
+			return fmt.Errorf("%s is installed from %s, and packages release %s has an official %s: your copy would replace it "+
+				"on %s. Take yours off with devmachine packages rm %s --machine <name> (or --workspace <name>) and delete it with "+
+				"devmachine packages remove %s, or pin an earlier release with devmachine packages pin <release>",
+				name, from, store.Version(), name, plan.Machine.Name, name, name)
+		}
+	}
+	return nil
 }
 
 // validateLocalPackages checks the operator's own recipes before anything is

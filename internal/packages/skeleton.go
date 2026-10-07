@@ -41,9 +41,11 @@ var schemaFields = []SchemaField{
 	{"credentials", false, "What its tool cannot work without, and how each one is obtained."},
 	{"requires_files", false, "Files that have to be on the machine before it runs."},
 	{"skills", false, "A package-relative directory whose direct children are Agent Skills."},
+	{"widgets", false, "A package-relative folder whose direct children holding a widget.yml are widgets for the app."},
 	{"kind", false, `The contract an entrypoint answers. The only one so far is "dns".`},
 	{"entrypoint", false, "An executable in the package the CLI can call on the machine."},
 	{"commands", false, `What the entrypoint accepts: a list, or ["*"] for anything.`},
+	{"providers", false, "Commands of the entrypoint a widget may read, as <command>: {returns: {<field>: <type>}, min_every: <duration>}."},
 	{"network", false, "A private network this machine package answers for: prefix, resolve, and optionally join and self_name."},
 	{"bootstrap", false, "A POSIX sh script in a machine package that prepares the machine for Ansible, such as a Mac package manager. Path inside the package, executable."},
 }
@@ -147,7 +149,7 @@ if __name__ == "__main__":
 // package starts, never how one is edited. kind is empty for an ordinary
 // package, or "dns" for one that already answers the DNS provider contract.
 func WriteSkeleton(dir, name, scope, kind string) error {
-	if !packageName.MatchString(name) {
+	if !lowerName.MatchString(name) {
 		return fmt.Errorf("name %q: use lower case letters, digits, dashes and underscores", name)
 	}
 	if scope != ScopeMachine && scope != ScopeWorkspace {
