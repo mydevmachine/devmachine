@@ -162,6 +162,17 @@ func TestLocalClientKillsAChildThatIgnoresSIGTERMAfterTheGrace(t *testing.T) {
 	assertRunStopsItsChild(t, "sh -c \"trap '' TERM; exec sleep 60\"")
 }
 
+func TestLocalClientGivesAStoppedRunOneGrace(t *testing.T) {
+	orig := groupGrace
+	groupGrace = time.Second
+	t.Cleanup(func() { groupGrace = orig })
+	start := time.Now()
+	assertRunStopsItsChild(t, "sh -c \"trap '' TERM; exec sleep 60\"")
+	if took := time.Since(start); took > 1700*time.Millisecond {
+		t.Fatalf("stopping took %s, want one grace of %s", took, groupGrace)
+	}
+}
+
 func assertRunStopsItsChild(t *testing.T, child string) {
 	t.Helper()
 	pidFile := filepath.Join(t.TempDir(), "pid")

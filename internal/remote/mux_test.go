@@ -507,11 +507,15 @@ func TestMuxClientTriesTheNextAddressWhenOneDoesNotConnect(t *testing.T) {
 		"ssh: connect to host 203.0.113.10 port 22: Operation timed out",
 		"ssh: Could not resolve hostname main.example.com: nodename nor servname provided",
 		"Connection closed by 203.0.113.10 port 22",
+		"Connection reset by 203.0.113.10 port 22",
+		"kex_exchange_identification: read: Connection reset by peer",
+		"alice@203.0.113.10: Permission denied (publickey).",
+		"Warning: Permanently added '203.0.113.10' (ED25519) to the list of known hosts.\nalice@203.0.113.10: Permission denied (publickey,password).",
 	} {
 		fakeCacheDir(t)
 		m := muxTestMachine(t)
 		m.Hosts = append(m.Hosts, config.Host{Address: "203.0.113.11"})
-		_, calls := countingSSH(t, "echo '"+reason+"' >&2\nexit 255")
+		_, calls := countingSSH(t, "printf '%s\\n' '"+strings.ReplaceAll(reason, "\n", "' '")+"' >&2\nexit 255")
 
 		client, _, err := DialMux(context.Background(), m, "")
 		if err != nil {
@@ -544,5 +548,34 @@ func TestMuxClientReturnsARemoteExit255AsTheCommandsOwn(t *testing.T) {
 	}
 	if n := sshRuns(t, calls); n != 1 {
 		t.Fatalf("ssh ran %d times, want 1: the command ran, and must not run again on another address", n)
+	}
+}
+
+func TestMuxClientDoesNotRetryWhatTheCommandOrALostSessionSaid(t *testing.T) {
+	for _, said := range []string{
+		"Read from remote host 203.0.113.10: Connection reset by peer",
+		"Connection refused",
+		"curl: (7) Failed to connect to example.com port 443: Connection refused",
+		"Connection to 203.0.113.10 closed by remote host.",
+		"client_loop: send disconnect: Broken pipe",
+		"the check failed\nssh: connect to host 203.0.113.12 port 22: Connection refused",
+	} {
+		fakeCacheDir(t)
+		m := muxTestMachine(t)
+		m.Hosts = append(m.Hosts, config.Host{Address: "203.0.113.11"})
+		_, calls := countingSSH(t, "printf '%s\\n' '"+strings.ReplaceAll(said, "\n", "' '")+"' >&2\nexit 255")
+
+		client, _, err := DialMux(context.Background(), m, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = client.Stream(context.Background(), "check", io.Discard, io.Discard)
+		var exitErr *exec.ExitError
+		if !errors.As(err, &exitErr) || exitErr.ExitCode() != 255 {
+			t.Errorf("%q: got %v, want the command's exit status 255", said, err)
+		}
+		if n := sshRuns(t, calls); n != 1 {
+			t.Errorf("%q: ssh ran %d times, want 1", said, n)
+		}
 	}
 }

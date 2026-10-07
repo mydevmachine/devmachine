@@ -53,15 +53,23 @@ func signalGroup(pgid int, sig syscall.Signal) error {
 }
 
 // runLocal runs cmd and, when ctx ended it, waits for what is left of the
-// command's own group — a child that outlived bash — and kills it after the
+// command's own group — a child that outlived bash — and kills it when the
+// grace that began with the SIGTERM is over, so WaitDelay and this share one
 // grace. Polling is safe: a group id is not reused while one member is alive.
 func runLocal(ctx context.Context, cmd *exec.Cmd, run func() error) error {
+	if !wantsOwnGroup(ctx) {
+		return run()
+	}
+	ended := make(chan time.Time, 1)
+	stopWatching := context.AfterFunc(ctx, func() { ended <- time.Now() })
+	defer stopWatching()
+
 	err := run()
-	if !wantsOwnGroup(ctx) || ctx.Err() == nil || cmd.Process == nil {
+	if ctx.Err() == nil || cmd.Process == nil {
 		return err
 	}
 	pgid := cmd.Process.Pid
-	deadline := time.Now().Add(groupGrace)
+	deadline := (<-ended).Add(groupGrace)
 	for syscall.Kill(-pgid, 0) == nil {
 		if time.Now().After(deadline) {
 			_ = syscall.Kill(-pgid, syscall.SIGKILL)

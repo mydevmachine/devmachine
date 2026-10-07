@@ -9,6 +9,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/mydevmachine/devmachine/internal/config"
@@ -138,8 +140,8 @@ func (c *muxClient) Close() error { return nil }
 // ssh exits 255 when it never reached the machine (bad address, refused
 // connection, failed handshake), but also when the remote command itself
 // exits 255 or dies by a signal. Only the first may go to the next address,
-// so an address is dropped only when nothing came back and ssh's own
-// message says it did not connect — unless ssh refused the host key: that is
+// so an address is dropped only when nothing came back on stdout and stderr
+// holds nothing but ssh's own lines saying it did not connect — unless ssh refused the host key: that is
 // the answer, and trying another address would hide it. Any other failure is
 // the remote command's own, and is returned the same way sshClient.Run
 // returns one: the error wraps it, and stdout still holds whatever the
@@ -206,31 +208,39 @@ func (c *muxClient) exec(ctx context.Context, command string, stdin io.Reader, s
 	return fmt.Errorf("machine %q: no address answered: %s", c.machine, strings.Join(failures, "; "))
 }
 
-// connectFailures are what ssh says when it never reached a login on an
-// address, so the command cannot have run there.
-var connectFailures = []string{
-	"ssh: connect to host",
-	"Could not resolve hostname",
-	"Connection refused",
-	"Connection timed out",
-	"Operation timed out",
-	"No route to host",
-	"Network is unreachable",
-	"Host is down",
-	"Connection closed by",
-	"Connection reset by",
-	"kex_exchange_identification",
-	"Permission denied (",
-	"Too many authentication failures",
+// preSessionLines are the whole lines ssh writes when it never reached a
+// session on an address, so the command cannot have run there. Whole lines,
+// not words: "Connection reset by peer" also ends a session that ran, and a
+// command's own stderr can say "Connection refused".
+var preSessionLines = []*regexp.Regexp{
+	regexp.MustCompile(`^ssh: connect to host \S+ port \d+: .+$`),
+	regexp.MustCompile(`^ssh: Could not resolve hostname \S+: .+$`),
+	regexp.MustCompile(`^kex_exchange_identification: .+$`),
+	regexp.MustCompile(`^Connection (closed|reset) by \S+ port \d+$`),
+	regexp.MustCompile(`^(\S+@\S+: )?Permission denied \([a-z,-]+\)\.$`),
+	regexp.MustCompile(`^Received disconnect from \S+ port \d+:\d+: .+$`),
+	regexp.MustCompile(`^Disconnected from \S+ port \d+$`),
 }
 
+// sshNotice is a line ssh writes before a session that says nothing failed.
+var sshNotice = regexp.MustCompile(`^Warning: Permanently added .+$`)
+
+// connectFailed says whether ssh's stderr holds only its own lines from
+// before a session, at least one of them a failure. Any other line came from
+// the command, or from a session that started, and the command may have run.
 func connectFailed(stderr string) bool {
-	for _, failure := range connectFailures {
-		if strings.Contains(stderr, failure) {
-			return true
+	failed := false
+	for _, line := range strings.Split(stderr, "\n") {
+		line = strings.TrimSpace(line)
+		switch {
+		case line == "" || sshNotice.MatchString(line):
+		case slices.ContainsFunc(preSessionLines, func(re *regexp.Regexp) bool { return re.MatchString(line) }):
+			failed = true
+		default:
+			return false
 		}
 	}
-	return false
+	return failed
 }
 
 // countingReader lets exec tell a connection that failed before reading any
