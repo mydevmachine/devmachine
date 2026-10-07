@@ -163,7 +163,7 @@ func listCatalog(t *testing.T, dir string) widgets.Catalog {
 
 func TestWidgetsListReadsThePinnedRelease(t *testing.T) {
 	catalog := listCatalog(t, widgetConfig(t))
-	if catalog.Engine != "1.2" || catalog.PackagesRelease != "v40" || len(catalog.Problems) != 0 {
+	if catalog.Engine != "1.3" || catalog.PackagesRelease != "v40" || len(catalog.Problems) != 0 {
 		t.Fatalf("got %+v", catalog)
 	}
 	var names []string

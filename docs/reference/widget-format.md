@@ -70,7 +70,11 @@ is a mistake, for example `source.url is not a field of a command source`.
 
 Data the app already has: the clock, your sessions, your machines, harness
 usage. `name`, `with` (the provider's arguments) and `every` (at least the
-provider's minimum). It works without adding its package.
+provider's minimum). It works without adding its package. An app provider
+(`app/…`) takes no `target` and no `timeout`: it is the app's own data.
+
+A provider can also be a package's own command, written
+`<package>/<command>` — see [package providers](#package-providers) below.
 
 ### `command`
 
@@ -324,7 +328,7 @@ and a `context-sidebar.yml` with, in this order, `shortcuts`,
 
 <!-- generated from the engine contract by `make widget-format`: start -->
 
-Engine **1.2**. Widget format 1, board format 1.
+Engine **1.3**. Widget format 1, board format 1.
 
 ### Sizes
 
@@ -372,11 +376,15 @@ One preset row in a sidebar is 40pt high, and a widget there is as wide as the p
 | `app/summary` | none | none | 5s | `harness_sessions` int, `sessions` int, `workspaces` int |
 | `app/workspaces` | none | none | 5s | `workspaces` workspace_sessions |
 
+### Package providers
+
+A package declares providers in its `package.yml`; a widget names one `<package>/<command>`. `app/…` is the app's own. It runs on a machine or a workspace, never on your computer, and its answer is one JSON object, read like `parse: json`. Each `with` key becomes `--<key> <value> after the command, keys sorted`. Its `min_every` is at least 5s, and `returns` types are string, number, bool, list, object, with `?` for an optional field. Its widgets wait for approval when the package is third-party.
+
 ### Source kinds
 
 | Kind | Minimum `every` | Waits for approval in a board | Fields besides `kind` |
 | --- | --- | --- | --- |
-| `provider` | the provider's | no | `every` duration, required; `name` provider, required; `with` args |
+| `provider` | the provider's | no | `every` every, required; `name` provider, required; `target` target; `timeout` duration, default `30s`, max 10m; `with` args |
 | `command` | 5s | yes | `args` list; `every` every; `keep` int, default `200`, min 1, max 2000; `mode` enum, poll/stream, default `poll`; `parse` enum, text/lines/number/json/ansi, default `text`; `run` string; `script` path; `shell` bool, default `false`; `target` target, default `local`; `timeout` duration, default `30s`, max 10m |
 | `url` | 5s | no | `every` every, required; `parse` enum, status/text/json, default `status`; `timeout` duration, default `30s`, max 10m; `url` url, required |
 | `prompt` | 15m | yes | `every` every, default `manual`; `harness` enum, required, claude/codex; `prompt` string, required; `target` target, default `local`; `timeout` duration, default `5m`, max 10m |
@@ -418,7 +426,7 @@ One preset row in a sidebar is 40pt high, and a widget there is as wide as the p
 | `format` is not 1 | `format 2, and this CLI reads widget format 1` |
 | `requires.engine` missing | `every widget needs requires.engine, for example ">= 1.0"` |
 | `requires.engine` unreadable | `requires.engine "X": write it as ">= 1.0", "> 1.0" or "= 1.0"` |
-| a newer engine is required | ``requires engine >= 1.3, and this CLI implements engine 1.2: update with `devmachine update` `` |
+| a newer engine is required | ``requires engine >= 1.4, and this CLI implements engine 1.3: update with `devmachine update` `` |
 | an unknown top-level field | `unknown field "X"` |
 | `name` malformed or not the folder | `name is "X" but the folder is "Y": a widget is found by its folder` |
 | `summary` missing | `every widget needs a one-line summary` |
@@ -433,7 +441,7 @@ One preset row in a sidebar is 40pt high, and a widget there is as wide as the p
 | `context` value other than required/optional | `context key "X" is "Y": write required or optional` |
 | input type unknown, or default of the wrong type | `input "X" has type "Y"`, `input "X" is a string, and its default 3 is not` |
 | template names something undeclared | `template {{inputs.X}} in source.with.Y needs inputs.X` |
-| `source.kind` unknown | `source.kind "X": engine 1.2 knows provider, command, url, prompt, session` |
+| `source.kind` unknown | `source.kind "X": engine 1.3 knows provider, command, url, prompt, session` |
 | a key of another kind | `source.url is not a field of a command source: it takes …` |
 | no `run`/`script`, or both | `a command source needs run or script`, `a command source has run or script, not both` |
 | `run` with spaces and no `shell: true` | `source.run "df -h /" has spaces: put each argument in source.args, or set shell: true …` |
@@ -450,8 +458,9 @@ One preset row in a sidebar is 40pt high, and a widget there is as wide as the p
 | `parse`, `mode` or `harness` unknown | `source.parse "yaml": a command source takes text, lines, number, json, ansi` |
 | `url` not a full address | `source.url "X": write a full address starting with https:// or http://` |
 | view does not draw the source | `view.kind "gauge" takes number, json, and this command source gives text` |
-| `source.name` unknown | `source.name "X" is not a provider engine 1.2 knows` |
+| `source.name` unknown | `source.name "X" is not a provider engine 1.3 knows` |
 | `source.with` wrong | `source.with.X is not an argument of P`, `source.with.X is required by P` |
+| an app provider with target or timeout | `source.target: app/clock is the app's own data, so it takes no target` |
 | `source.every` missing, unreadable or too short | `source.every 1s is below the P minimum of 5s` |
 | `view.kind` unknown, or draws another provider | `view.kind "app.clock" draws app/clock, not P` |
 | a view key that view does not take | `view.colour is not a field of the gauge view: it takes kind, …` |

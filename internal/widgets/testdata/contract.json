@@ -1,5 +1,5 @@
 {
-  "engine": "1.2",
+  "engine": "1.3",
   "layouts": ["canvas", "stack", "slot"],
   "unit": 80,
   "snap": 8,
@@ -36,6 +36,18 @@
       "links": "list", "agents": "list", "monitors": "list", "shells": "list"}},
     "app/shortcuts": {"args": {}, "min_every": "5s", "context": {"session": "required"}, "returns": {"shortcuts": "list"}},
     "app/publish-port": {"args": {}, "min_every": "5s", "returns": {"available": "bool"}}
+  },
+  "package_provider": {
+    "name": "<package>/<command>",
+    "reserved": ["app"],
+    "min_every": "5s",
+    "returns": ["string", "number", "bool", "list", "object"],
+    "optional": "?",
+    "targets": ["machine", "workspace"],
+    "output": "json",
+    "with": "--<key> <value> after the command, keys sorted",
+    "approval": "third-party",
+    "trust": ["official", "local", "third-party"]
   },
   "views": {
     "app.clock": {"accepts": ["app/clock"]},
@@ -90,7 +102,9 @@
     "provider": {"approval": false, "fields": {
       "name": {"type": "provider", "required": true},
       "with": {"type": "args"},
-      "every": {"type": "duration", "required": true}}},
+      "every": {"type": "every", "required": true},
+      "target": {"type": "target"},
+      "timeout": {"type": "duration", "default": "30s", "max": "10m"}}},
     "command": {"min_every": "5s", "approval": true, "fields": {
       "run": {"type": "string"},
       "script": {"type": "path"},

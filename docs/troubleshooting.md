@@ -1752,12 +1752,22 @@ a `command` source with no `parse`), and a rule uses `<`, `<=`, `>` or
 output is a number, say so: `parse: number` on a `command` source, or
 leave `parse` out on a `url` source to compare its status code.
 
-## "requires engine >= 1.3, and this CLI implements engine 1.2"
+## "requires engine >= 1.4, and this CLI implements engine 1.3"
 
 **What it means:** The widget says it needs a newer engine than this CLI
 has. Nothing else in it was checked.
 
 **What to do:** `devmachine update`.
+
+## "source.target: app/… is the app's own data, so it takes no target"
+
+**What it means:** The widget reads one of the app's own providers, such
+as `app/clock`. The app has that data itself, so there is nothing to run on
+a machine and no time limit to set.
+
+**What to do:** Remove `source.target` and `source.timeout`. To read data
+from a machine, use a package provider (`<package>/<command>`) or a
+`command` source.
 
 ## "a package with widgets needs requires.cli above 0.8.1"
 

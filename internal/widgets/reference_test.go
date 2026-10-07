@@ -32,6 +32,9 @@ func TestReferenceTablesNameEveryProviderAndView(t *testing.T) {
 		"| `app.todo` | `app/session-context` | stack; grows with its content | none |",
 		"| `text` | `text`, `lines`, `ansi` | any layout |",
 		"| `sidebar` | stack | available |",
+		"### Package providers",
+		"`<package>/<command>`",
+		"| `provider` | the provider's | no | `every` every, required; `name` provider, required; `target` target; `timeout` duration, default `30s`, max 10m; `with` args |",
 	} {
 		if !strings.Contains(tables, want) {
 			t.Errorf("tables lack %s", want)

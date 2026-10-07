@@ -38,7 +38,8 @@ type Source struct {
 }
 
 // MarshalJSON prints a provider source in the shape engine 1.0 printed, with
-// with and every always there, so an app built for 1.0 reads it unchanged.
+// with and every always there, so an app built for 1.0 reads it unchanged;
+// a package provider's target and timeout follow only when set.
 func (s Source) MarshalJSON() ([]byte, error) {
 	if s.Kind == SourceProvider {
 		with := s.With
@@ -46,11 +47,13 @@ func (s Source) MarshalJSON() ([]byte, error) {
 			with = map[string]string{}
 		}
 		return json.Marshal(struct {
-			Kind  string            `json:"kind"`
-			Name  string            `json:"name"`
-			With  map[string]string `json:"with"`
-			Every string            `json:"every"`
-		}{s.Kind, s.Name, with, s.Every})
+			Kind    string            `json:"kind"`
+			Name    string            `json:"name"`
+			With    map[string]string `json:"with"`
+			Every   string            `json:"every"`
+			Target  Target            `json:"target,omitzero"`
+			Timeout string            `json:"timeout,omitempty"`
+		}{s.Kind, s.Name, with, s.Every, s.Target, s.Timeout})
 	}
 	type plain Source
 	return json.Marshal(plain(s))
@@ -199,6 +202,12 @@ func checkProvider(s Source, scope sourceScope, c Contract, at reporter) {
 		at("source.name", "source.name %q is not a provider engine %s knows: %s",
 			s.Name, Engine, strings.Join(providerNames(c), ", "))
 		return
+	}
+	if !s.Target.IsZero() || s.Target.problem != "" {
+		at("source.target", "source.target: %s is the app's own data, so it takes no target", s.Name)
+	}
+	if s.Timeout != "" {
+		at("source.timeout", "source.timeout: %s is the app's own data, so it takes no timeout", s.Name)
 	}
 	for _, key := range sortedKeys(provider.Context) {
 		switch {

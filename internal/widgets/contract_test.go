@@ -106,3 +106,29 @@ func TestOnlyViewsThatGrowTakeSizeAuto(t *testing.T) {
 		t.Fatal("Grows is wrong")
 	}
 }
+
+func TestThePackageProviderRulesAreTheSpecs(t *testing.T) {
+	pp := CurrentContract().PackageProvider
+	if pp.Name != "<package>/<command>" || !slices.Equal(pp.Reserved, []string{"app"}) || pp.MinEvery != "5s" {
+		t.Fatalf("got %+v", pp)
+	}
+	if !slices.Equal(pp.Returns, []string{"string", "number", "bool", "list", "object"}) || pp.Optional != "?" {
+		t.Fatalf("returns %v optional %q", pp.Returns, pp.Optional)
+	}
+	if !slices.Equal(pp.Targets, []string{"machine", "workspace"}) || pp.Output != ParseJSON || pp.Approval != TrustThirdParty {
+		t.Fatalf("got %+v", pp)
+	}
+	if !slices.Equal(pp.Trust, []string{TrustOfficial, TrustLocal, TrustThirdParty}) {
+		t.Fatalf("trust %v", pp.Trust)
+	}
+}
+
+func TestAProviderSourceTakesATargetAndATimeout(t *testing.T) {
+	fields := CurrentContract().Sources[SourceProvider].Fields
+	if fields["target"].Type != FieldTarget || fields["target"].Default != nil {
+		t.Fatalf("target %+v", fields["target"])
+	}
+	if fields["timeout"].Default != "30s" || fields["timeout"].Max != "10m" || fields["every"].Type != FieldEvery {
+		t.Fatalf("timeout %+v every %+v", fields["timeout"], fields["every"])
+	}
+}

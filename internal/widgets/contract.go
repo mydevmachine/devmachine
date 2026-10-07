@@ -3,7 +3,19 @@
 package widgets
 
 // Engine is the version of the contract this CLI implements.
-const Engine = "1.2"
+const Engine = "1.3"
+
+// LastEngineWithoutPackageProviders is the newest engine that cannot run a
+// package provider, so a widget reading one must refuse it.
+const LastEngineWithoutPackageProviders = "1.2"
+
+// How far the app trusts a package's widgets, from where the package came
+// from: the official release, your own folder, or a git address.
+const (
+	TrustOfficial   = "official"
+	TrustLocal      = "local"
+	TrustThirdParty = "third-party"
+)
 
 // The layouts a surface can have.
 const (
@@ -156,25 +168,42 @@ type StackEntry struct {
 	Collapsed string   `json:"collapsed"`
 }
 
-// Contract is everything a widget may name, at one engine version.
-type Contract struct {
-	Engine       string                       `json:"engine"`
-	Layouts      []string                     `json:"layouts"`
-	Unit         int                          `json:"unit"`
-	Snap         int                          `json:"snap"`
-	Presets      map[string][2]int            `json:"presets"`
-	StackRow     int                          `json:"stack_row"`
-	StackEntry   StackEntry                   `json:"stack_entry"`
-	Surfaces     map[string]Surface           `json:"surfaces"`
-	ContextTypes map[string]map[string]string `json:"context_types"`
-	Providers    map[string]Provider          `json:"providers"`
-	Views        map[string]View              `json:"views"`
-	SourceKinds  []string                     `json:"source_kinds"`
-	Sources      map[string]SourceKind        `json:"sources"`
-	Formats      map[string]int               `json:"formats"`
+// PackageProviderRules is how a package's own command feeds a widget: the
+// name a widget calls it by, what its package.yml may declare, where it runs,
+// what it prints, how a widget's with reaches it, and when its widgets ask.
+type PackageProviderRules struct {
+	Name     string   `json:"name"`
+	Reserved []string `json:"reserved"`
+	MinEvery string   `json:"min_every"`
+	Returns  []string `json:"returns"`
+	Optional string   `json:"optional"`
+	Targets  []string `json:"targets"`
+	Output   string   `json:"output"`
+	With     string   `json:"with"`
+	Approval string   `json:"approval"`
+	Trust    []string `json:"trust"`
 }
 
-// CurrentContract returns engine 1.2, built fresh on every call so no caller
+// Contract is everything a widget may name, at one engine version.
+type Contract struct {
+	Engine          string                       `json:"engine"`
+	Layouts         []string                     `json:"layouts"`
+	Unit            int                          `json:"unit"`
+	Snap            int                          `json:"snap"`
+	Presets         map[string][2]int            `json:"presets"`
+	StackRow        int                          `json:"stack_row"`
+	StackEntry      StackEntry                   `json:"stack_entry"`
+	Surfaces        map[string]Surface           `json:"surfaces"`
+	ContextTypes    map[string]map[string]string `json:"context_types"`
+	Providers       map[string]Provider          `json:"providers"`
+	PackageProvider PackageProviderRules         `json:"package_provider"`
+	Views           map[string]View              `json:"views"`
+	SourceKinds     []string                     `json:"source_kinds"`
+	Sources         map[string]SourceKind        `json:"sources"`
+	Formats         map[string]int               `json:"formats"`
+}
+
+// CurrentContract returns engine 1.3, built fresh on every call so no caller
 // can change what another one reads.
 func CurrentContract() Contract {
 	appProvider := func(args map[string]Arg, returns map[string]string) Provider {
@@ -246,6 +275,18 @@ func CurrentContract() Contract {
 			"app/shortcuts":    sessionProvider(map[string]string{"shortcuts": "list"}),
 			"app/publish-port": appProvider(map[string]Arg{}, map[string]string{"available": "bool"}),
 		},
+		PackageProvider: PackageProviderRules{
+			Name:     "<package>/<command>",
+			Reserved: []string{"app"},
+			MinEvery: "5s",
+			Returns:  []string{FieldString, FieldNumber, FieldBool, FieldList, FieldObject},
+			Optional: "?",
+			Targets:  []string{"machine", "workspace"},
+			Output:   ParseJSON,
+			With:     "--<key> <value> after the command, keys sorted",
+			Approval: TrustThirdParty,
+			Trust:    []string{TrustOfficial, TrustLocal, TrustThirdParty},
+		},
 		Views: map[string]View{
 			"app.clock":         {Accepts: []string{"app/clock"}},
 			"app.summary":       {Accepts: []string{"app/summary"}},
@@ -306,9 +347,11 @@ func CurrentContract() Contract {
 		SourceKinds: []string{SourceProvider, SourceCommand, SourceURL, SourcePrompt, SourceSession},
 		Sources: map[string]SourceKind{
 			SourceProvider: {Fields: map[string]Field{
-				"name":  {Type: FieldProvider, Required: true},
-				"with":  {Type: FieldArgs},
-				"every": {Type: FieldDuration, Required: true},
+				"name":    {Type: FieldProvider, Required: true},
+				"with":    {Type: FieldArgs},
+				"every":   {Type: FieldEvery, Required: true},
+				"target":  {Type: FieldTarget},
+				"timeout": timeout("30s"),
 			}},
 			SourceCommand: {MinEvery: "5s", Approval: true, Fields: map[string]Field{
 				"run":     {Type: FieldString},

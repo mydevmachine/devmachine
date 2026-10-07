@@ -1,6 +1,7 @@
 package widgets
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -294,5 +295,39 @@ func TestATargetRoundTripsThroughJSON(t *testing.T) {
 		if back != target {
 			t.Errorf("%s came back as %+v", body, back)
 		}
+	}
+}
+
+func TestAnAppProviderTakesNoTargetOrTimeout(t *testing.T) {
+	cases := map[string]struct{ edit, want string }{
+		"target":  {"  every: 60s\n", "  every: 60s\n  target: {machine: main}\n"},
+		"timeout": {"  every: 60s\n", "  every: 60s\n  timeout: 20s\n"},
+	}
+	for name, tc := range cases {
+		body := edited(t, usageWidget, tc.edit, tc.want)
+		_, problems := Load(writeWidget(t, t.TempDir(), "usage", body))
+		want := "source." + name + ": app/harness-usage is the app's own data, so it takes no " + name
+		if len(problems) != 1 || problems[0].Message != want {
+			t.Errorf("%s: want %q, got %v", name, want, problems)
+		}
+	}
+}
+
+func TestAProviderSourcePrintsItsTargetOnlyWhenItHasOne(t *testing.T) {
+	plain, err := json.Marshal(Source{Kind: SourceProvider, Name: "app/clock", Every: "5s"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(plain) != `{"kind":"provider","name":"app/clock","with":{},"every":"5s"}` {
+		t.Fatalf("got %s", plain)
+	}
+	full, err := json.Marshal(Source{Kind: SourceProvider, Name: "devmachine-app/stats", Every: "60s",
+		Target: Target{Machine: "main"}, Timeout: "20s"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `{"kind":"provider","name":"devmachine-app/stats","with":{},"every":"60s","target":{"machine":"main"},"timeout":"20s"}`
+	if string(full) != want {
+		t.Fatalf("got %s", full)
 	}
 }

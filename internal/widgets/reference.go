@@ -84,6 +84,16 @@ func ReferenceTables() string {
 			p.MinEvery, strings.Join(returns, ", "))
 	}
 	line("")
+	pp := c.PackageProvider
+	line("### Package providers")
+	line("")
+	line("A package declares providers in its `package.yml`; a widget names one `%s`. `%s/…` is the app's own. "+
+		"It runs on a %s, never on your computer, and its answer is one JSON object, read like `parse: %s`. "+
+		"Each `with` key becomes `%s`. Its `min_every` is at least %s, and `returns` types are %s, with `%s` for an optional field. "+
+		"Its widgets wait for approval when the package is %s.",
+		pp.Name, strings.Join(pp.Reserved, "/…`, `"), strings.Join(pp.Targets, " or a "), pp.Output, pp.With,
+		pp.MinEvery, strings.Join(pp.Returns, ", "), pp.Optional, pp.Approval)
+	line("")
 	line("### Source kinds")
 	line("")
 	line("| Kind | Minimum `every` | Waits for approval in a board | Fields besides `kind` |")
