@@ -1,0 +1,38 @@
+internal/commands/widgets_set_test.go
+  s_c1c985d7f57ab9::t_d123113ee50227 1-183
+docs/how-it-works/choosing-and-editing-a-widget.md
+  s_c1c985d7f57ab9::t_f0df3085f5e59f 49-58
+  s_c1c985d7f57ab9::t_3b4bed6550e087 21-23
+SURFACE.txt
+  s_c1c985d7f57ab9::t_98bf08daca6964 81
+internal/widgets/options.go
+  s_c1c985d7f57ab9::t_0e09dc5da9b0c9 50-52
+internal/commands/widgets_set.go
+  s_c1c985d7f57ab9::t_d123113ee50227 1-142
+docs/reference/commands.md
+  s_c1c985d7f57ab9::t_f0df3085f5e59f 671-672,860-874,880-884
+internal/widgets/stack.go
+  s_c1c985d7f57ab9::t_0e09dc5da9b0c9 152-160
+docs/troubleshooting.md
+  s_c1c985d7f57ab9::t_f0df3085f5e59f 1854-1871
+internal/commands/widgets.go
+  s_c1c985d7f57ab9::t_0e09dc5da9b0c9 36
+internal/widgets/options_test.go
+  s_c1c985d7f57ab9::t_0e09dc5da9b0c9 43-49
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "09df10c29e0792cc2db17cdb9b7cf142e1c81094",
+  "prompts": {},
+  "sessions": {
+    "s_c1c985d7f57ab9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b5256304-4a81-480d-a568-f8cf11d8ddcc",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
