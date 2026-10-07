@@ -262,3 +262,16 @@ func TestMachinesAddWithNoConfigurationRecordsTheAccountsThatKeepPasswordLogin(t
 		t.Fatalf("got:\n%s", body)
 	}
 }
+
+func TestSetupWithNoAccountKeptLeavesTheFileAsItWroteIt(t *testing.T) {
+	dir := t.TempDir()
+	stubBootstrap(t, bootstrapStubs{keyWorks: true})
+	if _, err := runSetupIn(t, dir, answers("main", "203.0.113.10", "root", "22", "", "1", ""),
+		setupOptions{noAliases: true}); err != nil {
+		t.Fatal(err)
+	}
+	body := readConfigFile(t, dir)
+	if strings.Contains(body, "password_login_keep") || !strings.Contains(body, "\n      key: ") {
+		t.Fatalf("got:\n%s", body)
+	}
+}
