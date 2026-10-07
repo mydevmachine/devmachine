@@ -230,6 +230,10 @@ _accept_lock_base() {
       rm -rf "$accept_lock"
       continue
     fi
+    if [ -z "$accept_holder" ] && [ -n "$(find "$accept_lock" -maxdepth 0 -mmin +1 2>/dev/null)" ]; then
+      rm -rf "$accept_lock"
+      continue
+    fi
     accept_waited=$((accept_waited + 1))
     if [ "$accept_waited" -gt 600 ]; then
       echo "the acceptance base VM is locked by process $accept_holder" >&2
