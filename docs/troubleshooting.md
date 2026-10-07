@@ -2196,3 +2196,36 @@ it is not on your PATH.
 Every problem is listed with its file and line. Nothing was written.
 
 **What to do:** Tell the package's author; each line says what to fix.
+
+## "… appeared while X was being fetched: nothing was written"
+
+**What it means:** `packages install` checked that `<config>/packages/X/`
+did not exist, fetched the package, and found the folder there when it
+went to move it in: another command or you made it in the meantime.
+Install never writes over a folder, so it stopped.
+
+**What to do:** Look at what is in `<config>/packages/X/`. If it is a
+copy you do not want, delete it and install again.
+
+## "checking whether X is an official package: …"
+
+**What it means:** Before installing, the CLI reads the pinned packages
+release to make sure X is not one of its names, and that read failed for
+a reason other than "no package named X" — a damaged download in
+`<config>/cache/`, for instance. Not knowing, it refuses rather than risk
+replacing an official package.
+
+**What to do:** Fix what the rest of the message names. For a damaged
+cache, delete `<config>/cache/packages/<release>/` and run the command
+again; it downloads the release afresh.
+
+## "… putting the old copy back failed: …; it is in …"
+
+**What it means:** An update moved the old copy of a package aside, could
+not move the new one in, and then could not move the old one back. Both
+moves are renames inside the same folder, so this means the disk or its
+permissions changed under the command. The old copy is not deleted: it
+stays at the path the message names, and the next fetch never sweeps it.
+
+**What to do:** Fix the disk or the permissions, then move that folder
+back to `<config>/packages/X/` yourself.

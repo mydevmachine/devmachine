@@ -143,7 +143,7 @@ func (s *Store) GetRelease(name string) (Found, error) {
 	path := filepath.Join(s.releaseDir, name)
 	if _, err := os.Stat(ManifestPath(path)); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return Found{}, fmt.Errorf("package release %s has no package named %q", s.version, name)
+			return Found{}, &NotInReleaseError{Version: s.version, Name: name}
 		}
 		return Found{}, err
 	}
@@ -152,6 +152,16 @@ func (s *Store) GetRelease(name string) (Found, error) {
 		return Found{}, err
 	}
 	return Found{Manifest: m, Source: SourceRelease}, nil
+}
+
+// NotInReleaseError says the pinned release has no package of that name.
+type NotInReleaseError struct {
+	Version string
+	Name    string
+}
+
+func (e *NotInReleaseError) Error() string {
+	return fmt.Sprintf("package release %s has no package named %q", e.Version, e.Name)
 }
 
 // All lists every package, counting an overridden name once. It refuses the

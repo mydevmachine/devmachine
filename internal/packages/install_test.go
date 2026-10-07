@@ -198,7 +198,7 @@ func TestInstallReplacesTheOldCopy(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	path, err := second.Install(configDir, time.Now())
+	path, err := second.Replace(configDir, time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -208,5 +208,171 @@ func TestInstallReplacesTheOldCopy(t *testing.T) {
 	}
 	if debris := installDebris(t, configDir); len(debris) != 0 {
 		t.Fatalf("left %v", debris)
+	}
+}
+
+func TestStageChecksLinksBeforeReadingPackageYML(t *testing.T) {
+	r := aliceToolsRepo(t)
+	outside := filepath.Join(t.TempDir(), "package.yml")
+	if err := os.WriteFile(outside, []byte("not: [yaml\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	r.Remove("package.yml")
+	r.Link("package.yml", outside)
+	r.Commit("package.yml leads outside")
+	configDir := t.TempDir()
+	_, err := Stage(context.Background(), configDir, r.URL(), "")
+	if err == nil || !strings.Contains(err.Error(), "package.yml is a link leading outside the package") {
+		t.Fatalf("got %v", err)
+	}
+	if debris := installDebris(t, configDir); len(debris) != 0 {
+		t.Fatalf("left %v", debris)
+	}
+}
+
+func TestStageRefusesARelativeLinkLeadingOutside(t *testing.T) {
+	r := aliceToolsRepo(t)
+	r.Link("files/id", "../../../../secret")
+	r.Commit("a relative link")
+	configDir := t.TempDir()
+	write(t, filepath.Join(configDir, "secret"), "secret\n")
+	_, err := Stage(context.Background(), configDir, r.URL(), "")
+	if err == nil || !strings.Contains(err.Error(), "files/id is a link leading outside the package") {
+		t.Fatalf("got %v", err)
+	}
+}
+
+func TestStageRefusesALinkChainThatLeavesThePackage(t *testing.T) {
+	r := aliceToolsRepo(t)
+	outside := filepath.Join(t.TempDir(), "id_ed25519")
+	if err := os.WriteFile(outside, []byte("secret\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	r.Link("files/a", "b")
+	r.Link("files/b", outside)
+	r.Commit("a chain")
+	_, err := Stage(context.Background(), t.TempDir(), r.URL(), "")
+	if err == nil || !strings.Contains(err.Error(), "is a link leading outside the package") {
+		t.Fatalf("got %v", err)
+	}
+}
+
+func namedRepo(t *testing.T, name string) *gittest.Repo {
+	t.Helper()
+	r := gittest.New(t)
+	r.Write("package.yml", "format: 1\nname: "+name+"\nscope: machine\nsummary: A package.\n", 0o644)
+	r.Write("tasks/main.yml", "---\n[]\n", 0o644)
+	r.Commit("first")
+	return r
+}
+
+func TestReplaceWorksForAPackageNamedLikeAWorkingFolder(t *testing.T) {
+	for _, name := range []string{"previous", "clone"} {
+		r := namedRepo(t, name)
+		configDir := t.TempDir()
+		first, err := Stage(context.Background(), configDir, r.URL(), "")
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if _, err := first.Install(configDir, time.Now()); err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		first.Discard()
+		r.Write("tasks/main.yml", "---\n- debug: {msg: hi}\n", 0o644)
+		r.Commit("second")
+		second, err := Stage(context.Background(), configDir, r.URL(), "")
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		path, err := second.Replace(configDir, time.Now())
+		second.Discard()
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if origin, _, _ := ReadOrigin(path); origin.Commit != r.Head() {
+			t.Fatalf("%s: got %+v", name, origin)
+		}
+	}
+}
+
+func TestInstallRefusesWhenTheFolderAppearedSinceStage(t *testing.T) {
+	r := aliceToolsRepo(t)
+	configDir := t.TempDir()
+	staged, err := Stage(context.Background(), configDir, r.URL(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer staged.Discard()
+	write(t, filepath.Join(LocalDir(configDir), "alice-tools", FileName), "format: 1\nname: alice-tools\n")
+	if _, err := staged.Install(configDir, time.Now()); err == nil || !strings.Contains(err.Error(), "appeared while alice-tools was being fetched") {
+		t.Fatalf("got %v", err)
+	}
+	if got := readFile(t, filepath.Join(LocalDir(configDir), "alice-tools", FileName)); got != "format: 1\nname: alice-tools\n" {
+		t.Fatalf("your package changed: %q", got)
+	}
+}
+
+func TestReplaceKeepsTheOldCopyWhenPuttingItBackFails(t *testing.T) {
+	r := aliceToolsRepo(t)
+	configDir := t.TempDir()
+	first, err := Stage(context.Background(), configDir, r.URL(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := first.Install(configDir, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	first.Discard()
+	r.Remove("widgets/health/widget.yml")
+	r.Commit("drop health")
+	second, err := Stage(context.Background(), configDir, r.URL(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	orig := rename
+	calls := 0
+	rename = func(from, to string) error {
+		calls++
+		if calls > 1 {
+			return errors.New("disk full")
+		}
+		return orig(from, to)
+	}
+	t.Cleanup(func() { rename = orig })
+	_, err = second.Replace(configDir, time.Now())
+	second.Discard()
+	if err == nil || !strings.Contains(err.Error(), "putting the old copy back failed") {
+		t.Fatalf("got %v", err)
+	}
+	kept := filepath.Join(second.temp, ".previous")
+	if !strings.Contains(err.Error(), kept) {
+		t.Fatalf("the error does not say where the old copy is: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(kept, "widgets", "health", "widget.yml")); err != nil {
+		t.Fatal("the old copy was deleted")
+	}
+	sweepStale(LocalDir(configDir), time.Now().Add(2*staleAfter))
+	if _, err := os.Stat(kept); err != nil {
+		t.Fatal("the sweep deleted the old copy")
+	}
+}
+
+func TestStageSweepsStaleFetchFolders(t *testing.T) {
+	configDir := t.TempDir()
+	local := LocalDir(configDir)
+	stale := filepath.Join(local, ".install-stale")
+	fresh := filepath.Join(local, ".install-fresh")
+	write(t, filepath.Join(stale, ".clone", "x"), "x")
+	write(t, filepath.Join(fresh, ".clone", "x"), "x")
+	old := time.Now().Add(-2 * staleAfter)
+	if err := os.Chtimes(stale, old, old); err != nil {
+		t.Fatal(err)
+	}
+	_, _ = Stage(context.Background(), configDir, "file://"+filepath.Join(t.TempDir(), "missing"), "")
+	if _, err := os.Stat(stale); !os.IsNotExist(err) {
+		t.Fatal("the stale folder is still there")
+	}
+	if _, err := os.Stat(fresh); err != nil {
+		t.Fatal("a folder another command may be using was deleted")
 	}
 }

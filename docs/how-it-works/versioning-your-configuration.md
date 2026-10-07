@@ -18,6 +18,7 @@ its own.
 | `history.log` | what was run, against which host | **never** |
 | `*.env` | anything a package staged | **never** |
 | `state/` | what each machine was last seen to run | no: it is read again on the next sync |
+| `packages/.install-*` | a package being fetched from a git address | no: a fetch a Ctrl-C cut short is swept after an hour |
 
 `config.yml` holds hostnames and usernames, which is exactly why the
 remote must be private — and why the command says so out loud rather

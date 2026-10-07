@@ -173,11 +173,16 @@ func refuseCollision(ctx context.Context, dir string, cfg config.Config, name st
 	if err != nil {
 		return err
 	}
-	if _, err := store.GetRelease(name); err == nil {
-		return fmt.Errorf("%s is an official package: a package from a git address cannot take its name, because it would replace "+
-			"the official one everywhere. Ask its author to rename it", name)
+	_, err = store.GetRelease(name)
+	var notInRelease *packages.NotInReleaseError
+	switch {
+	case errors.As(err, &notInRelease):
+		return nil
+	case err != nil:
+		return fmt.Errorf("checking whether %s is an official package: %w", name, err)
 	}
-	return nil
+	return fmt.Errorf("%s is an official package: a package from a git address cannot take its name, because it would replace "+
+		"the official one everywhere. Ask its author to rename it", name)
 }
 
 // absConfigDir is the configuration folder as an absolute path, so a path

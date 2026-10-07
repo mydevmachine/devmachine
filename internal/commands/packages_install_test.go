@@ -265,3 +265,26 @@ func TestAnInstalledPackagesWidgetIsThirdParty(t *testing.T) {
 		t.Fatalf("got %+v", catalog.Providers)
 	}
 }
+
+func TestPackagesInstallCheckWithYesInstallsNothing(t *testing.T) {
+	dir := installConfig(t)
+	r := aliceToolsRepo(t, "alice-tools")
+	out, err := execute(t, "--config", dir, "packages", "install", r.URL(), "--check", "--yes")
+	if err != nil || strings.Contains(out, "installed alice-tools") {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	assertNoInstallDebris(t, dir, "alice-tools")
+}
+
+func TestPackagesInstallRefusesWhenTheReleaseCannotBeRead(t *testing.T) {
+	dir := installConfig(t)
+	r := aliceToolsRepo(t, "alice-tools")
+	if err := os.MkdirAll(filepath.Join(packages.CacheDir(dir, "v40"), "packages", "alice-tools", packages.FileName), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	_, err := execute(t, "--config", dir, "packages", "install", r.URL(), "--yes")
+	if err == nil || !strings.Contains(err.Error(), "checking whether alice-tools is an official package: ") {
+		t.Fatalf("got %v", err)
+	}
+	assertNoInstallDebris(t, dir, "alice-tools")
+}

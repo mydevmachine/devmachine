@@ -114,10 +114,23 @@ type Staged struct {
 	Summary Summary
 
 	temp string
+	keep bool
 }
 
-// Stage fetches address at ref and checks what came: one package at the top
-// of the repository, links that stay inside it, a name, and a package.yml
+// tempPrefix starts every folder Stage fetches into. A dot keeps it out of
+// ValidName, so it never collides with a package.
+const tempPrefix = ".install-"
+
+// staleAfter is how old a fetch folder must be before Stage sweeps it as
+// left behind by an interrupted command; a younger one may be another
+// command's fetch in progress.
+const staleAfter = time.Hour
+
+// rename is the seam a test replaces to make a move fail.
+var rename = os.Rename
+
+// Stage fetches address at ref and checks what came: links that stay inside
+// it, one package at the top of the repository, a name, and a package.yml
 // that validates. The temporary folder sits inside your packages folder so
 // Install is one rename; its name starts with a dot and holds no package.yml
 // at its top, so nothing reads it as a package.
@@ -130,7 +143,8 @@ func Stage(ctx context.Context, configDir, address, ref string) (*Staged, error)
 	if err := os.MkdirAll(local, 0o755); err != nil {
 		return nil, fmt.Errorf("making %s: %w", local, err)
 	}
-	temp, err := os.MkdirTemp(local, ".install-")
+	sweepStale(local, time.Now())
+	temp, err := os.MkdirTemp(local, tempPrefix)
 	if err != nil {
 		return nil, fmt.Errorf("making a folder to fetch into: %w", err)
 	}
@@ -140,9 +154,14 @@ func Stage(ctx context.Context, configDir, address, ref string) (*Staged, error)
 		return nil, err
 	}
 
-	clone := filepath.Join(temp, "clone")
+	clone := filepath.Join(temp, ".clone")
 	commit, err := Clone(ctx, address, ref, clone)
 	if err != nil {
+		return fail(err)
+	}
+	// Before anything reads a file: package.yml itself may be a link to
+	// /dev/zero, a pipe or a file on this computer.
+	if err := linksStayInside(clone); err != nil {
 		return fail(err)
 	}
 	if _, err := os.Stat(ManifestPath(clone)); err != nil {
@@ -178,40 +197,87 @@ func Stage(ctx context.Context, configDir, address, ref string) (*Staged, error)
 	return staged, nil
 }
 
+// sweepStale removes fetch folders an interrupted command left behind. It
+// keeps one holding an old copy that could not be put back.
+func sweepStale(local string, now time.Time) {
+	entries, err := os.ReadDir(local)
+	if err != nil {
+		return
+	}
+	for _, e := range entries {
+		if !e.IsDir() || !strings.HasPrefix(e.Name(), tempPrefix) {
+			continue
+		}
+		info, err := e.Info()
+		if err != nil || now.Sub(info.ModTime()) < staleAfter {
+			continue
+		}
+		path := filepath.Join(local, e.Name())
+		if _, err := os.Lstat(filepath.Join(path, ".previous")); err == nil {
+			continue
+		}
+		_ = os.RemoveAll(path)
+	}
+}
+
 // Discard removes whatever is left of the temporary folder. It is safe to
-// call more than once, and after Install.
+// call more than once, and after Install. It keeps the folder when it holds
+// an old copy that could not be put back.
 func (s *Staged) Discard() {
-	if s.temp != "" {
+	if s.temp != "" && !s.keep {
 		_ = os.RemoveAll(s.temp)
 	}
 }
 
-// Install records the origin and moves the package into your packages,
-// replacing the copy there for an update. The old copy is put back when the
-// move fails, so a failed update never leaves you with neither.
+// Install records the origin and moves the package into your packages. It
+// refuses when a folder of that name appeared there since Stage.
 func (s *Staged) Install(configDir string, now time.Time) (string, error) {
-	s.Origin.InstalledAt = now.UTC().Format(time.RFC3339)
-	if err := WriteOrigin(s.Dir, s.Origin); err != nil {
+	target := filepath.Join(LocalDir(configDir), s.Name)
+	if _, err := os.Lstat(target); err == nil {
+		return "", fmt.Errorf("%s appeared while %s was being fetched: nothing was written", target, s.Name)
+	}
+	if err := s.writeOrigin(now); err != nil {
+		return "", err
+	}
+	if err := rename(s.Dir, target); err != nil {
+		return "", fmt.Errorf("moving %s into %s: %w", s.Name, target, err)
+	}
+	return target, nil
+}
+
+// Replace records the origin and swaps the package in for the copy in your
+// packages. The old copy is put back when the move fails, so a failed update
+// never leaves you with neither; when even that fails, it stays where it was
+// moved and the error says where.
+func (s *Staged) Replace(configDir string, now time.Time) (string, error) {
+	if err := s.writeOrigin(now); err != nil {
 		return "", err
 	}
 	target := filepath.Join(LocalDir(configDir), s.Name)
-	previous := filepath.Join(s.temp, "previous")
+	previous := filepath.Join(s.temp, ".previous")
 	hadPrevious := false
 	if _, err := os.Lstat(target); err == nil {
-		if err := os.Rename(target, previous); err != nil {
+		if err := rename(target, previous); err != nil {
 			return "", fmt.Errorf("moving the old %s aside: %w", s.Name, err)
 		}
 		hadPrevious = true
 	}
-	if err := os.Rename(s.Dir, target); err != nil {
+	if err := rename(s.Dir, target); err != nil {
 		if hadPrevious {
-			if restoreErr := os.Rename(previous, target); restoreErr != nil {
-				return "", fmt.Errorf("moving %s into %s: %w (and putting the old copy back failed: %v)", s.Name, target, err, restoreErr)
+			if restoreErr := rename(previous, target); restoreErr != nil {
+				s.keep = true
+				return "", fmt.Errorf("moving %s into %s: %w (and putting the old copy back failed: %v; it is in %s)",
+					s.Name, target, err, restoreErr, previous)
 			}
 		}
 		return "", fmt.Errorf("moving %s into %s: %w", s.Name, target, err)
 	}
 	return target, nil
+}
+
+func (s *Staged) writeOrigin(now time.Time) error {
+	s.Origin.InstalledAt = now.UTC().Format(time.RFC3339)
+	return WriteOrigin(s.Dir, s.Origin)
 }
 
 // linksStayInside refuses a link that leads out of the package: sync would
