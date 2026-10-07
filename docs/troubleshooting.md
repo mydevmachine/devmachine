@@ -2047,7 +2047,8 @@ menubar`; to hide a widget, remove it.
 so only the `text`, `number`, `status` and `app.brand` views work there.
 A widget written for engine 1.0 may list `slot` in its `fits` with
 another view, such as `app.clock`; it is still a good widget, it just
-does not fit the menu bar.
+does not fit the menu bar. A widget with no `view.kind` at all gets "a
+widget with no view cannot be drawn in the menu bar" instead.
 
 **What to do:** Put it on Home, a sidebar or the popover
 (`devmachine widgets help <name>` lists where it fits), or write a widget

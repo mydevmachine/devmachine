@@ -39,15 +39,14 @@ func validateInline(w Instance, label, path string, surface Surface, c Contract)
 	if len(sizes) == 0 {
 		sizes = presetNames(c)
 	}
-	switch surface.Layout {
-	case LayoutStack:
+	switch {
+	case surface.Layout == LayoutStack:
 		view := ""
 		if w.View != nil {
 			view = w.View.Kind
 		}
 		problems = append(problems, stackSizeProblems(w, label, path, sizes, view, Grows(view))...)
-	case LayoutSlot, LayoutTabs:
-	default:
+	case surface.Layout != LayoutSlot && surface.Layout != LayoutTabs:
 		if _, preset := c.Presets[w.Size]; preset && !slices.Contains(sizes, w.Size) {
 			at("size", "size %s is not one of its sizes: %s", w.Size, strings.Join(sizes, ", "))
 		}
@@ -62,7 +61,7 @@ func validateInline(w Instance, label, path string, surface Surface, c Contract)
 	}
 	if view, ok := c.Views[w.View.Kind]; ok && surface.Layout != "" && !DrawnIn(w.View.Kind, surface.Layout) {
 		if surface.Layout == LayoutSlot {
-			at("view", "the %s view cannot be drawn in the menu bar", w.View.Kind)
+			at("view", "%s", MenubarViewProblem(w.View.Kind))
 		} else {
 			at("view", "the %s view is drawn only in %s, and this board's area is laid out as %s",
 				w.View.Kind, strings.Join(view.Layouts, ", "), surface.Layout)

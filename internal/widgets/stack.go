@@ -57,8 +57,8 @@ func fitProblems(w Instance, label, path, name string, surface Surface, entry En
 		at("type", "%s does not fit the %s area: its fits has no %s", w.Type, name, surface.Layout)
 		return problems
 	}
-	if !DrawnIn(entry.View.Kind, surface.Layout) && surface.Layout == LayoutSlot {
-		at("type", "the %s view cannot be drawn in the menu bar", entry.View.Kind)
+	if surface.Layout == LayoutSlot && !DrawnIn(entry.View.Kind, surface.Layout) {
+		at("type", "%s", MenubarViewProblem(entry.View.Kind))
 		return problems
 	}
 	for _, key := range sortedKeys(entry.Context) {

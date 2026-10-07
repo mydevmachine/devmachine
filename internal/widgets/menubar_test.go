@@ -2,6 +2,7 @@ package widgets
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -154,6 +155,61 @@ func TestEachMenubarRuleReportsItsLine(t *testing.T) {
 func TestAnUnknownTypeInTheMenubarIsKept(t *testing.T) {
 	body := "format: 1\nsurface: menubar\nwidgets:\n  - id: gone\n    type: mine/gone\n"
 	if problems := menubarProblemsOf(t, "menubar", body); len(problems) != 0 {
+		t.Fatalf("got %v", problems)
+	}
+}
+
+func TestTheMenubarCountIsReportedOnceForFiveWidgets(t *testing.T) {
+	body := "format: 1\nsurface: menubar\nwidgets:\n"
+	for _, id := range []string{"a", "b", "c", "d", "e"} {
+		body += "  - id: " + id + "\n    type: devmachine-app/brand\n"
+	}
+	count := 0
+	for _, p := range menubarProblemsOf(t, "menubar", body) {
+		if strings.HasPrefix(p.Message, "the menubar holds 3 widgets") {
+			count++
+		}
+	}
+	if count != 1 {
+		t.Fatalf("the 3-widget message appeared %d times", count)
+	}
+}
+
+func TestAnInlineTabKeepsItsSizeOnEncode(t *testing.T) {
+	body := `format: 1
+surface: menubar-panel
+widgets:
+  - id: notes
+    title: Notes
+    source: {kind: command, run: uptime, every: 60s}
+    view: {kind: text}
+    size: large
+`
+	path := filepath.Join(t.TempDir(), "menubar-panel.yml")
+	b, problems := ParseBoard(path, []byte(body))
+	if len(problems) != 0 {
+		t.Fatal(problems)
+	}
+	encoded, err := EncodeBoard(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(encoded) != body {
+		t.Fatalf("got\n%s\nwant\n%s", encoded, body)
+	}
+}
+
+func TestAMenubarWidgetWithNoViewKindNamesNoEmptyView(t *testing.T) {
+	lookup := func(name string) (Entry, bool) {
+		if name == "mine/blank" {
+			return Entry{Name: name, Fits: []string{LayoutSlot}, Sizes: []string{"small"}}, true
+		}
+		return menubarLookup(name)
+	}
+	path := filepath.Join(t.TempDir(), "menubar.yml")
+	b, _ := ParseBoard(path, []byte("format: 1\nsurface: menubar\nwidgets:\n  - id: blank\n    type: mine/blank\n"))
+	problems := ValidateBoard(b, path, lookup)
+	if len(problems) != 1 || problems[0].Message != "blank: a widget with no view cannot be drawn in the menu bar" {
 		t.Fatalf("got %v", problems)
 	}
 }

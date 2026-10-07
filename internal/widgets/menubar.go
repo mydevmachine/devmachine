@@ -1,7 +1,16 @@
 package widgets
 
-// slotEntryProblems are the keys a widget in the menu bar must not have: it
-// is one line of text, and its place is its position in the list.
+import "fmt"
+
+// MenubarViewProblem says why a view kind cannot be drawn in the menu bar,
+// naming the view only when there is one.
+func MenubarViewProblem(kind string) string {
+	if kind == "" {
+		return "a widget with no view cannot be drawn in the menu bar"
+	}
+	return fmt.Sprintf("the %s view cannot be drawn in the menu bar", kind)
+}
+
 func slotEntryProblems(w Instance, label, path string) []Problem {
 	var problems []Problem
 	at := entryReporter(&problems, w, label, path)
@@ -21,8 +30,6 @@ func slotEntryProblems(w Instance, label, path string) []Problem {
 	return problems
 }
 
-// tabsEntryProblems are the keys a tab in the menu bar popover must not
-// have: its place is its turn, and a tab is shown or taken off, never folded.
 func tabsEntryProblems(w Instance, label, path string) []Problem {
 	var problems []Problem
 	at := entryReporter(&problems, w, label, path)

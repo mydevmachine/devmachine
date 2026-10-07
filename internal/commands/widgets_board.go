@@ -64,7 +64,7 @@ func newWidgetsAddCmd(opts *options) *cobra.Command {
 			case layout == widgets.LayoutTabs && size != "":
 				return errors.New("a tab fills the menu bar popover, so it takes no --size")
 			case layout == widgets.LayoutSlot && slices.Contains(entry.Fits, layout) && !widgets.DrawnIn(entry.View.Kind, layout):
-				return fmt.Errorf("%s does not fit the %s area: the %s view cannot be drawn in the menu bar", entry.Name, board, entry.View.Kind)
+				return fmt.Errorf("%s does not fit the %s area: %s", entry.Name, board, widgets.MenubarViewProblem(entry.View.Kind))
 			case !slices.Contains(entry.Surfaces, board):
 				return fmt.Errorf("%s does not fit the %s area: it fits %s", entry.Name, board, strings.Join(entry.Surfaces, ", "))
 			}

@@ -369,20 +369,19 @@ func EncodeBoard(b Board) ([]byte, error) {
 				put(entry, "with", with)
 			}
 		}
-		switch layout {
-		case LayoutStack:
+		switch {
+		case layout == LayoutStack:
 			if w.Size != "" {
 				put(entry, "size", scalarNode(w.Size))
 			}
 			if w.Collapsed {
 				put(entry, "collapsed", boolNode(true))
 			}
-		case LayoutTabs:
+		case layout == LayoutTabs:
 			if w.Size != "" {
 				put(entry, "size", scalarNode(w.Size))
 			}
-		case LayoutSlot:
-		default:
+		case layout != LayoutSlot:
 			frame := &yaml.Node{Kind: yaml.MappingNode, Style: yaml.FlowStyle}
 			put(frame, "x", intNode(w.Frame.X))
 			put(frame, "y", intNode(w.Frame.Y))
