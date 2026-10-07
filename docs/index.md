@@ -37,6 +37,7 @@ list](guides/index.md).
 
 - [Your first devmachine, explained](guides/your-first-devmachine.md)
 - [Try it on your own computer first](guides/a-local-vm-with-lima.md)
+- [An old Mac as a machine](guides/an-old-mac-as-a-machine.md)
 - [Express site with TLS](guides/express-site-with-tls.md)
 - [Docker site on 8080](guides/docker-site-on-8080.md)
 - [Next.js app at your own domain](guides/nextjs-site-with-tls.md)

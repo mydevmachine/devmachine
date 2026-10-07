@@ -17,6 +17,8 @@ session. Only a reboot stops it.
   commands done slowly, with what each one asks and does.
 - [Try it on your own computer first](a-local-vm-with-lima.md) — a local
   virtual machine with Lima, used exactly like a VPS.
+- [An old Mac as a machine](an-old-mac-as-a-machine.md) — an old Mac mini
+  or MacBook, Intel or Apple Silicon, set up for your workspaces.
 
 ## Workspaces
 
