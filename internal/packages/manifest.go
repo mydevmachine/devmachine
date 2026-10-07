@@ -139,7 +139,10 @@ type Manifest struct {
 	Credentials   []Credential        `yaml:"credentials"`
 	RequiresFiles []string            `yaml:"requires_files"`
 	Skills        *SkillContribution  `yaml:"skills"`
-	Network       *Network            `yaml:"network"`
+	// Widgets is a package-relative folder whose direct children holding a
+	// widget.yml are widgets for the app.
+	Widgets string   `yaml:"widgets"`
+	Network *Network `yaml:"network"`
 
 	// Kind, Entrypoint and Commands make a package callable: the contract it
 	// answers, the executable to call on the machine, and what that executable
@@ -202,4 +205,16 @@ func topLevelLines(root *yaml.Node) map[string]int {
 		lines[pairs[i].Value] = pairs[i].Line
 	}
 	return lines
+}
+
+// FirstCLIWithWidgets is the first CLI version that reads `widgets:`.
+const FirstCLIWithWidgets = "0.9.0"
+
+// WidgetsDir is the folder a package's widgets live in, and false when the
+// package declares none.
+func WidgetsDir(m Manifest) (string, bool) {
+	if m.Widgets == "" {
+		return "", false
+	}
+	return filepath.Join(m.Path, m.Widgets), true
 }

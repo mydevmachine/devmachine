@@ -210,6 +210,24 @@ This does not replace the Ansible role — a package with skills still has
 `tasks/main.yml`, and may also have defaults, handlers, files and
 templates.
 
+### `widgets`
+
+A package can ship widgets for the app:
+
+```yaml
+requires: {cli: ">= 0.9.0"}
+widgets: widgets
+```
+
+The path is relative to the package root and cannot leave it. Each folder
+directly inside it that holds a `widget.yml` is one widget, named
+`<package>/<folder>`. See [the widget format](widget-format.md).
+
+A CLI before 0.9.0 ignores `widgets:`, so a package that uses it needs a
+`requires.cli` that refuses those CLIs, such as `">= 0.9.0"`. A package
+with only widgets is still an Ansible role: its `tasks/main.yml` can be an
+empty list.
+
 ### `kind`, `entrypoint`, `commands`
 
 A package can ship an executable the CLI calls on the machine:
@@ -313,6 +331,10 @@ bootstrap: bin/bootstrap
 | `bootstrap` outside the package | `bootstrap "X" must stay inside the package` |
 | `bootstrap` missing or not executable | `bootstrap "X" is not in the package`, `bootstrap "X" is not executable: chmod +x it` |
 | `kind` or `commands` with no entrypoint | ``kind` and `commands` describe an `entrypoint`, and this package declares none`` |
+| `widgets` with a `requires.cli` an older CLI meets | `a package with widgets needs requires.cli above 0.8.1, the last CLI that ignores them` |
+| `widgets` outside the package | `widgets "X" must stay inside the package` |
+| `widgets` folder missing or empty | `the widgets folder is not there`, `the widgets folder holds no folder with a widget.yml` |
+| a widget is wrong | the widget's own message, at `widgets/<name>/widget.yml` and its line; see [the widget format](widget-format.md#the-rules-and-what-each-one-says) |
 
 `devmachine packages validate` reports every problem at once, not just
 the first.

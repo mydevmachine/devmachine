@@ -1625,3 +1625,11 @@ own, use what `devmachine widgets schema` lists.
 has. Nothing else in it was checked.
 
 **What to do:** `devmachine update`.
+
+## "a package with widgets needs requires.cli above 0.8.1"
+
+**What it means:** The package has `widgets:`, but its `requires.cli` lets
+a CLI older than 0.9.0 use it. That CLI ignores `widgets:` without a word,
+so the widgets would never be checked or listed.
+
+**What to do:** Add `requires: {cli: ">= 0.9.0"}` to `package.yml`.

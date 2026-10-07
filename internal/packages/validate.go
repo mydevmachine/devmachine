@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/mydevmachine/devmachine/internal/skills"
+	"github.com/mydevmachine/devmachine/internal/widgets"
 )
 
 // Problem is one thing wrong with a package, and where it is.
@@ -118,6 +119,7 @@ func Validate(dir string) ([]Problem, error) {
 	problems = append(problems, validateEntrypoint(dir, m)...)
 	problems = append(problems, validateCredentials(m)...)
 	problems = append(problems, validateSkills(dir, m)...)
+	problems = append(problems, validateWidgets(dir, m)...)
 	problems = append(problems, validateNetwork(dir, m)...)
 
 	for _, point := range sortedKeys(m.Extends) {
@@ -209,31 +211,70 @@ func validateSkills(dir string, m Manifest) []Problem {
 	if raw == "" {
 		return at("skills.path must name a directory inside the package")
 	}
-	if filepath.IsAbs(raw) {
+	root, inside := packageFolder(dir, raw)
+	if !inside {
 		return at(fmt.Sprintf("skills.path %q must stay inside the package", raw))
 	}
-	for _, part := range strings.FieldsFunc(filepath.ToSlash(raw), func(r rune) bool { return r == '/' }) {
-		if part == ".." {
-			return at(fmt.Sprintf("skills.path %q must stay inside the package", raw))
+	if _, err := skills.Discover(root); err != nil {
+		return at(err.Error())
+	}
+	return nil
+}
+
+// lastCLIWithoutWidgets is the newest CLI that reads package.yml without
+// knowing `widgets:`. It ignores the field, so a package that relies on it
+// must refuse that CLI through requires.cli.
+const lastCLIWithoutWidgets = "0.8.1"
+
+func validateWidgets(dir string, m Manifest) []Problem {
+	if m.Widgets == "" {
+		return nil
+	}
+	var problems []Problem
+	at := func(what string) {
+		problems = append(problems, Problem{File: FileName, Line: m.Lines["widgets"], What: what})
+	}
+	constraint, err := ParseConstraint(m.Requires.CLI)
+	if m.Requires.CLI == "" || (err == nil && constraint.Allows(lastCLIWithoutWidgets)) {
+		at(fmt.Sprintf("a package with widgets needs requires.cli above %s, the last CLI that ignores them: "+
+			"write requires: {cli: \">= %s\"}", lastCLIWithoutWidgets, FirstCLIWithWidgets))
+	}
+	root, inside := packageFolder(dir, strings.TrimSpace(m.Widgets))
+	if !inside {
+		at(fmt.Sprintf("widgets %q must stay inside the package", m.Widgets))
+		return problems
+	}
+	_, widgetProblems := widgets.LoadAll(root)
+	for _, p := range widgetProblems {
+		file, err := filepath.Rel(dir, p.Path)
+		if err != nil {
+			file = p.Path
 		}
+		problems = append(problems, Problem{File: file, Line: p.Line, What: p.Message})
+	}
+	return problems
+}
+
+// packageFolder joins a package-relative folder onto dir, and says whether
+// it stays inside the package as written and after following links.
+func packageFolder(dir, raw string) (string, bool) {
+	if raw == "" || !insidePackage(raw) {
+		return "", false
 	}
 	root := filepath.Join(dir, raw)
 	rel, err := filepath.Rel(dir, root)
 	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		return at(fmt.Sprintf("skills.path %q must stay inside the package", raw))
+		return "", false
 	}
 	resolvedDir, dirErr := filepath.EvalSymlinks(dir)
 	resolvedRoot, rootErr := filepath.EvalSymlinks(root)
 	if dirErr == nil && rootErr == nil {
 		resolvedRel, relErr := filepath.Rel(resolvedDir, resolvedRoot)
 		if relErr != nil || resolvedRel == ".." || strings.HasPrefix(resolvedRel, ".."+string(filepath.Separator)) {
-			return at(fmt.Sprintf("skills.path %q must stay inside the package", raw))
+			return "", false
 		}
 	}
-	if _, err := skills.Discover(root); err != nil {
-		return at(err.Error())
-	}
-	return nil
+	return root, true
 }
 
 // validateEntrypoint checks a package that says it can be called.
