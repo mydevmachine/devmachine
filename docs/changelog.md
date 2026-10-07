@@ -8,6 +8,31 @@ page](https://github.com/mydevmachine/devmachine/releases).
 
 To get the latest version, see [Upgrade](upgrade.md).
 
+## v0.8.2 — 2026-10-07
+
+### Added
+
+- `setup` and `machines add` ask before they turn SSH password login off,
+  and can keep it for the accounts you name. `--keep-password-login a,b`
+  answers without a terminal.
+- `machines password-login <machine>` shows which accounts can log in with
+  a password, and changes it later with `--off`, `--keep a,b` or `--on`.
+  See [Password login](how-it-works/password-login.md).
+- `machines list`, `machines show` and `config show` report each machine's
+  known system as `platform` in JSON.
+- With packages v39, `docker` (colima, one VM per workspace), `tailscale`,
+  `claude-remote-control`, `caddy`, `firewall`, `ssh_hardening` and
+  `hostinger` run on a Mac too.
+
+### Fixed
+
+- `workspaces new` leaves out a package the machine's system cannot run,
+  and says so. `packages add` and `workspaces edit --add` refuse one before
+  anything is written, instead of failing later in `sync`.
+- `expose`, `login` and the Caddy reload in `sync` find tools that Homebrew
+  or MacPorts installed on a Mac, and `login tailscale` finds the CLI inside
+  the Tailscale app.
+
 ## v0.8.1 — 2026-10-06
 
 ### Added
