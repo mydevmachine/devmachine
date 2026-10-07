@@ -311,3 +311,37 @@ func TestWidgetsValidateReportsABoardThatIsNotYAMLOnce(t *testing.T) {
 		t.Fatalf("got %v\n%s", err, out)
 	}
 }
+
+func TestWidgetsListKeepsGoingPastABrokenPackageManifest(t *testing.T) {
+	dir := widgetConfig(t)
+	writeCommandFile(t, filepath.Join(packages.LocalDir(dir), "mine", "package.yml"), "format: [\n")
+
+	catalog := listCatalog(t, dir)
+	if len(catalog.Widgets) != 2 || len(catalog.Problems) != 1 || catalog.Problems[0].Path != filepath.Join(packages.LocalDir(dir), "mine", "package.yml") {
+		t.Fatalf("got %+v", catalog)
+	}
+}
+
+func TestWidgetsListNeverFallsBackFromABrokenLocalPackage(t *testing.T) {
+	dir := widgetConfig(t)
+	writeCommandFile(t, filepath.Join(packages.LocalDir(dir), "claude-code", "package.yml"), "format: [\n")
+
+	catalog := listCatalog(t, dir)
+	if _, ok := catalog.Find("claude-code/usage"); ok || len(catalog.Problems) != 1 {
+		t.Fatalf("got %+v", catalog)
+	}
+}
+
+func TestWidgetsHelpLeavesOutAMissingDefault(t *testing.T) {
+	dir := widgetConfig(t)
+	writeWidgetPackageAt(t, packages.LocalDir(dir), "mine", "machine",
+		map[string]string{"usage": strings.Replace(usageWidgetYAML, "harness: {type: string, default: claude, summary: Which harness.}", "harness: {type: string, summary: Which harness.}", 1)})
+
+	out, err := execute(t, "--config", dir, "widgets", "help", "mine/usage")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "input harness (string): Which harness.") || strings.Contains(out, "<nil>") {
+		t.Fatalf("got\n%s", out)
+	}
+}

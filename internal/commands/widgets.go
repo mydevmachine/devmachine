@@ -20,7 +20,8 @@ func newWidgetsCmd(opts *options) *cobra.Command {
 		Use:   "widgets",
 		Short: "The widgets the app can draw, and the boards they sit on",
 		Long: "Widgets come from packages: a release's and your own. Boards live " +
-			"in <config>/boards/. Local only: these commands never connect to a machine.",
+			"in <config>/boards/. Local only: these commands never connect to a machine.\n\n" +
+			"`widgets help <package/widget>` describes a widget; `--help` shows how to use a command.",
 	}
 	cmd.AddCommand(
 		newWidgetsListCmd(opts),
@@ -88,7 +89,11 @@ func newWidgetsHelpCmd(opts *options) *cobra.Command {
 			cmd.Printf("fits: %s\n", strings.Join(e.Surfaces, ", "))
 			for _, name := range sortedNames(e.Inputs) {
 				in := e.Inputs[name]
-				cmd.Printf("input %s (%s, default %v): %s\n", name, in.Type, in.Default, in.Summary)
+				detail := in.Type
+				if in.Default != nil {
+					detail += fmt.Sprintf(", default %v", in.Default)
+				}
+				cmd.Printf("input %s (%s): %s\n", name, detail, in.Summary)
 			}
 			for _, key := range sortedNames(e.Context) {
 				cmd.Printf("context %s: %s\n", key, e.Context[key])
@@ -156,10 +161,7 @@ func loadConfigOrEmpty(dir string) (config.Config, error) {
 }
 
 func catalogFrom(dir string, cfg config.Config, store *packages.Store) (widgets.Catalog, error) {
-	all, err := store.All()
-	if err != nil {
-		return widgets.Catalog{}, fmt.Errorf("listing packages: %w", err)
-	}
+	all, broken := store.Scan()
 	lock, err := packages.LoadLock(dir)
 	if err != nil {
 		return widgets.Catalog{}, err
@@ -176,7 +178,13 @@ func catalogFrom(dir string, cfg config.Config, store *packages.Store) (widgets.
 		}
 		pkgs = append(pkgs, pkg)
 	}
-	return widgets.Resolve(store.Version(), pkgs, installedState(cfg, lock)), nil
+	catalog := widgets.Resolve(store.Version(), pkgs, installedState(cfg, lock))
+	manifestProblems := make([]widgets.ListProblem, 0, len(broken))
+	for _, b := range broken {
+		manifestProblems = append(manifestProblems, widgets.ListProblem{Path: b.Path, Message: b.Err.Error()})
+	}
+	catalog.Problems = append(manifestProblems, catalog.Problems...)
+	return catalog, nil
 }
 
 func installedState(cfg config.Config, lock packages.Lock) func(string) widgets.Installed {

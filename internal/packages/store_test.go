@@ -210,3 +210,26 @@ func TestOpenCachedNeverFetchesAReleaseThatIsNotThere(t *testing.T) {
 		t.Fatalf("got %#v", all)
 	}
 }
+
+func TestStoreScanReportsABrokenManifestAndSkipsItsName(t *testing.T) {
+	configDir := t.TempDir()
+	writePackageAt(t, filepath.Join(LocalDir(configDir), "caddy"), "format: [\n")
+	writePackageAt(t, filepath.Join(CacheDir(configDir, "v1"), "packages", "caddy"), "format: 1\nname: caddy\nscope: machine\nsummary: b\n")
+	writePackageAt(t, filepath.Join(CacheDir(configDir, "v1"), "packages", "git"), "format: 1\nname: git\nscope: machine\nsummary: c\n")
+	markCached(t, configDir, "v1")
+
+	store, err := Open(context.Background(), configDir, "v1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	found, broken := store.Scan()
+	if len(found) != 1 || found[0].Manifest.Name != "git" {
+		t.Fatalf("got %#v", found)
+	}
+	if len(broken) != 1 || broken[0].Path != ManifestPath(filepath.Join(LocalDir(configDir), "caddy")) || broken[0].Err == nil {
+		t.Fatalf("got %#v", broken)
+	}
+	if _, err := store.All(); err == nil {
+		t.Fatal("All should still refuse a broken manifest")
+	}
+}

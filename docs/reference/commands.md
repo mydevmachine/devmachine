@@ -716,10 +716,14 @@ needs its package added and synced; `unavailable_reason` then names the
 command to run (see [why widgets come from
 packages](../how-it-works/widgets-come-from-packages.md)). A widget with a
 problem is left out of `widgets` and listed in `problems`, and the command
-still exits 0, so one broken widget never hides the rest.
+still exits 0, so one broken widget never hides the rest. A `package.yml`
+that cannot be read is a problem too: its widgets are left out, and when it
+is one of your own packages the release package of the same name is not
+used in its place.
 
 `help` prints one widget's inputs, context, sizes and the areas it fits;
-with `--format json`, the same entry as `list`.
+with `--format json`, the same entry as `list`. `widgets help <widget>`
+describes a widget; `--help` shows how to use a command.
 
 `validate` takes a `widget.yml`, a widget folder, a package folder or a
 board file. With no path it checks every board in `<config>/boards/` and
