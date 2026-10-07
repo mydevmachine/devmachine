@@ -1,0 +1,33 @@
+internal/commands/packages_install_test.go
+  s_c1c985d7f57ab9::t_ceee561e7c466e 535-595
+docs/how-it-works/where-a-public-widget-comes-from.md
+  s_c1c985d7f57ab9::t_de27d90f9d5ebe 45-47,51-59
+internal/commands/packages_install.go
+  s_c1c985d7f57ab9::t_bb11db6be98deb 133-135,149,151,156-169,226,344-345,357,359,362
+internal/packages/install_test.go
+  s_c1c985d7f57ab9::t_9e9a849f1710f4 489-499,502-505,507-508,510-523,525-537,541-632
+  s_c1c985d7f57ab9::t_e15fda72c0be34 538
+  s_c1c985d7f57ab9::t_9b3f0ca43e6412 500-501,506,509,524,539-540
+docs/troubleshooting.md
+  s_c1c985d7f57ab9::t_18df0548880035 2198-2212
+docs/reference/commands.md
+  s_c1c985d7f57ab9::t_de27d90f9d5ebe 758-760,1575-1577,1582-1585,1606,1612-1614,1627-1629
+internal/packages/install.go
+  s_c1c985d7f57ab9::t_7592e65559600f 14,21-23,34,54,77-79,81-82,95-178,277,281-282,284,288-290,385-392,431,449-451,455,459-460,503-504
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "92580f37d1eacbeefbc294b8d57150d7d9ad7ca1",
+  "prompts": {},
+  "sessions": {
+    "s_c1c985d7f57ab9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b5256304-4a81-480d-a568-f8cf11d8ddcc",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
