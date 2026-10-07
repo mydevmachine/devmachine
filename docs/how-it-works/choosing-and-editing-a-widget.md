@@ -18,8 +18,14 @@ of many, such as `with: {machines: [main, backup]}`. An empty list means
 all of them, so a widget you never touched follows your configuration as
 it grows.
 
-A choice of many reaches `{{inputs.x}}` and `$DM_INPUT_X` as its names
-joined with commas, so `[main, backup]` arrives as `main,backup`.
+The app, not the CLI, builds the value a widget reads. A choice of many
+reaches `{{inputs.x}}` and `$DM_INPUT_X` as its names joined with commas,
+so `[main, backup]` arrives as `main,backup`. A comma is the separator, so
+a name with a comma in it would read as two names. The CLI does not allow
+one in a machine name, and `--set name=a,b` always splits at commas. It
+does not check a workspace name, so keep commas out of those. What an
+empty list (all of them) arrives as is the app's choice, so a widget
+should not depend on it.
 
 ## Why a name the configuration lacks is only a warning
 
