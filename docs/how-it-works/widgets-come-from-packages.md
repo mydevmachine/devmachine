@@ -27,10 +27,11 @@ The app already has that data; adding a package to a machine would install
 nothing it needs. A `url` widget is available at once too: it reads a web
 page, and nothing on a machine is involved.
 
-A `command`, `prompt` or `session` widget runs something its package installs on a machine. It is
-available only when that package is added to a machine or workspace **and**
-a sync has applied it. Until then `widgets list` shows it with
-`available: false` and the command that fixes it:
+A `command`, `prompt` or `session` widget runs something its package
+installs on a machine. It is available only when that package is added to a
+machine or workspace **and** a sync has applied it. Until then
+`widgets list` shows it with `available: false` and the command that fixes
+it:
 
 ```
 add the package: devmachine packages add github-prs --machine <name>

@@ -35,6 +35,7 @@ type ListItem struct {
 
 var (
 	jsonReference = regexp.MustCompile(`^json(\.[A-Za-z0-9_-]+)+$`)
+	sizeRule      = regexp.MustCompile(`^[<>]`)
 	statusRule    = regexp.MustCompile(`^(?:(?:<=|>=|<|>|==|!=)\s*-?\d+(?:\.\d+)?|(?:==|!=)\s*"[^"]*")$`)
 )
 
@@ -110,8 +111,13 @@ func checkViewFields(v ViewRef, itemNode *yaml.Node, view View, s Source, output
 		if !takes || f.Type != FieldRule || rules[name] == nil {
 			continue
 		}
-		if text, isText := rules[name].(string); !isText || !statusRule.MatchString(strings.TrimSpace(text)) {
+		text, isText := rules[name].(string)
+		text = strings.TrimSpace(text)
+		switch {
+		case !isText || !statusRule.MatchString(text):
 			at("view."+name, `view.%s %v is not a rule: write it like "< 300" or '== "ok"'`, name, rules[name])
+		case output == ParseText && sizeRule.MatchString(text):
+			at("view."+name, "view.%s %q compares by size, and this %s source gives text: use == or !=", name, text, s.Kind)
 		}
 	}
 

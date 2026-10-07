@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode"
 
 	"gopkg.in/yaml.v3"
 )
@@ -231,7 +232,7 @@ func checkCommand(s Source, scope sourceScope, kind SourceKind, at reporter) {
 	case s.Run != "" && s.Script != "":
 		at("source.script", "a command source has run or script, not both")
 	}
-	if words := strings.TrimSpace(template.ReplaceAllString(s.Run, "x")); !s.Shell && strings.ContainsAny(words, " \t\n") {
+	if words := strings.TrimSpace(template.ReplaceAllString(s.Run, "x")); !s.Shell && strings.ContainsFunc(words, unicode.IsSpace) {
 		at("source.run", "source.run %q has spaces: put each argument in source.args, or set shell: true to run it as a shell line", s.Run)
 	}
 	checkTemplates(s.Run, "source.run", "source.run", scope, at)

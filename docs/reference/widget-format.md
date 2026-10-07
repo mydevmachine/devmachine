@@ -169,8 +169,9 @@ outputs each view takes; a view that cannot draw the source is refused.
 `value: "{{json.disk.used}}"`. Without `parse: json`, `value` is refused.
 
 **Status rules.** `ok` and `warn` compare the value: `"< 300"`, `">= 99.5"`,
-`'== "up"'`, `'!= "down"'`. Text compares only with `==` and `!=`. The
-first rule that holds picks the colour; none holding means failing.
+`'== "up"'`, `'!= "down"'`. Text compares only with `==` and `!=`, so a
+source that gives text cannot use `<`, `<=`, `>` or `>=`. The first rule
+that holds picks the colour; none holding means failing.
 
 **List items.** Each line, or each element of a JSON array, is one item.
 `{{item}}` is the whole item; `{{item.name}}` reads a field of a JSON
@@ -359,7 +360,11 @@ One unit is 80pt; positions and free resizes snap to 8pt.
 | a view key that view does not take | `view.colour is not a field of the gauge view: it takes kind, …` |
 | JSON without `value`, or `value` without JSON | `view.value picks what to show out of the JSON …`, `view.value only applies when source.parse is json` |
 | a number field that is not a number or out of range | `view.warn is high, and it has to be a number`, `view.zoom 3 is above 2` |
+| `gauge` `max` not above `min` | `view.max 0 must be above view.min 0` |
+| `tail` out of 1–2000 | `view.tail 5000 is outside 1 to 2000 lines` |
+| `format` unknown | `view.format "hex": the number view takes plain, percent, bytes, duration` |
 | a status rule that does not read | `view.ok fine is not a rule: write it like "< 300" or '== "ok"'` |
+| a status rule comparing text by size | `view.ok "< 300" compares by size, and this url source gives text: use == or !=` |
 | `{{item.x}}` on lines, or an unknown item key | `template {{item.name}} in view.item.title reads a field, and only JSON items have fields` |
 | `web` with `source.parse` | `the web view loads the page itself: remove source.parse` |
 | a board widget with no `title`, `source` or `view` | `disk: a widget written in the board needs a title` |

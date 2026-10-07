@@ -1695,6 +1695,16 @@ many values, and the view shows one. It needs to be told which.
 **What to do:** Rewrite the rule in one of those shapes. Quote the whole
 rule in YAML when it holds a quote: `ok: '== "up"'`.
 
+## "view.ok … compares by size, and this … source gives text"
+
+**What it means:** The status view's source gives text (`parse: text`, or
+a `command` source with no `parse`), and a rule uses `<`, `<=`, `>` or
+`>=`. Text has no size to compare, so the rule could never hold.
+
+**What to do:** Compare with `==` or `!=`, like `ok: '== "up"'`. If the
+output is a number, say so: `parse: number` on a `command` source, or
+leave `parse` out on a `url` source to compare its status code.
+
 ## "requires engine >= 1.2, and this CLI implements engine 1.1"
 
 **What it means:** The widget says it needs a newer engine than this CLI

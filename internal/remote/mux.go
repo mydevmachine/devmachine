@@ -141,11 +141,11 @@ func (c *muxClient) Close() error { return nil }
 // connection, failed handshake), but also when the remote command itself
 // exits 255 or dies by a signal. Only the first may go to the next address,
 // so an address is dropped only when nothing came back on stdout and stderr
-// holds nothing but ssh's own lines saying it did not connect — unless ssh refused the host key: that is
-// the answer, and trying another address would hide it. Any other failure is
-// the remote command's own, and is returned the same way sshClient.Run
-// returns one: the error wraps it, and stdout still holds whatever the
-// command printed before it failed.
+// holds nothing but ssh's own lines saying it did not connect — unless ssh
+// refused the host key: that is the answer, and trying another address would
+// hide it. Any other failure is the remote command's own, and is returned the
+// same way sshClient.Run returns one: the error wraps it, and stdout still
+// holds whatever the command printed before it failed.
 func (c *muxClient) exec(ctx context.Context, command string, stdin io.Reader, stdout, stderr io.Writer) error {
 	var failures []string
 	var sent countingReader

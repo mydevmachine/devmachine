@@ -74,6 +74,9 @@ func TestEveryViewLoadsWhenWrittenRight(t *testing.T) {
 		"status text": {"health", edited(t, statusWidget,
 			"  every: 30s\n", "  every: 30s\n  parse: text\n",
 			`ok: "< 300", warn: "< 500"`, `ok: '== "up"'`)},
+		"status text by number": {"health", edited(t, statusWidget,
+			"  every: 30s\n", "  every: 30s\n  parse: text\n",
+			`ok: "< 300", warn: "< 500"`, `ok: "== 200", warn: "!= 0"`)},
 	}
 	for name, tc := range cases {
 		if _, problems := Load(writeWidget(t, t.TempDir(), tc.folder, tc.body)); len(problems) != 0 {
@@ -97,6 +100,7 @@ func TestEachViewRuleReportsItsOwnProblem(t *testing.T) {
 		{"format unknown", "load", gaugeWidget, []string{gaugeView, "view: {kind: number, value: \"{{json.used}}\", format: hex}\n"}, `view.format "hex": the number view takes plain, percent, bytes, duration`},
 		{"status rule unreadable", "health", statusWidget, []string{`ok: "< 300"`, `ok: "fine"`}, "view.ok fine is not a rule"},
 		{"status compares text by size", "health", statusWidget, []string{`ok: "< 300"`, `ok: '< "up"'`}, `view.ok < "up" is not a rule`},
+		{"status compares a text output by size", "health", statusWidget, []string{"  every: 30s\n", "  every: 30s\n  parse: text\n", `ok: "< 300", warn: "< 500"`, `ok: "< 300"`}, `view.ok "< 300" compares by size, and this url source gives text: use == or !=`},
 		{"web with a parse", "health", statusWidget, []string{"  every: 30s\n", "  every: 30s\n  parse: text\n", `view: {kind: status, ok: "< 300", warn: "< 500"}`, "view: {kind: web}"}, "the web view loads the page itself: remove source.parse"},
 		{"zoom too large", "health", statusWidget, []string{`view: {kind: status, ok: "< 300", warn: "< 500"}`, "view: {kind: web, zoom: 3}"}, "view.zoom 3 is above 2"},
 		{"item field on lines", "branches", branchesWidget, []string{`title: "{{item}}"`, `title: "{{item.name}}"`}, "only JSON items have fields"},

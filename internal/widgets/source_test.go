@@ -92,6 +92,8 @@ func TestEveryNewSourceLoadsWhenWrittenRight(t *testing.T) {
 			"  every: 60s\n  parse: text\n", "  mode: stream\n  keep: 500\n  parse: lines\n")},
 		"templated run": {"disk", edited(t, diskWidget,
 			"  run: df\n", "  run: \"{{ inputs.machine }}\"\n")},
+		"input in a shell line": {"disk", edited(t, diskWidget,
+			"  run: df\n  args: [-h, /]\n", "  run: \"echo {{inputs.machine}}\"\n  shell: true\n")},
 	}
 	for name, tc := range cases {
 		if _, problems := Load(writeWidget(t, t.TempDir(), tc.folder, tc.body)); len(problems) != 0 {
@@ -109,6 +111,10 @@ func TestEachSourceRuleReportsItsOwnProblem(t *testing.T) {
 		{"run and script", "disk", diskWidget, []string{"  run: df\n", "  run: df\n  script: bin/df\n"}, "a command source has run or script, not both"},
 		{"neither run nor script", "disk", diskWidget, []string{"  run: df\n  args: [-h, /]\n", ""}, "a command source needs run or script"},
 		{"run with spaces", "disk", diskWidget, []string{"  run: df\n  args: [-h, /]\n", "  run: df -h /\n"}, `source.run "df -h /" has spaces`},
+		{"input in a run without a shell", "disk", diskWidget, []string{"  run: df\n  args: [-h, /]\n", "  run: \"echo {{inputs.machine}}\"\n"}, `source.run "echo {{inputs.machine}}" has spaces`},
+		{"run with a carriage return", "disk", diskWidget, []string{"  run: df\n  args: [-h, /]\n", "  run: \"df\\r-h\"\n"}, "has spaces"},
+		{"run with a unicode space", "disk", diskWidget, []string{"  run: df\n  args: [-h, /]\n", "  run: \"df\\u2003-h\"\n"}, "has spaces"},
+		{"run with a no-break space", "disk", diskWidget, []string{"  run: df\n  args: [-h, /]\n", "  run: \"df\\u00a0-h\"\n"}, "has spaces"},
 		{"every below the minimum", "disk", diskWidget, []string{"every: 60s", "every: 1s"}, "source.every 1s is below the command minimum of 5s"},
 		{"every missing on a poll", "disk", diskWidget, []string{"  every: 60s\n", ""}, "a command source needs source.every"},
 		{"every unreadable", "disk", diskWidget, []string{"every: 60s", "every: often"}, `source.every "often" is neither a duration nor manual`},
