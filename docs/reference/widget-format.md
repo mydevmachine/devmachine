@@ -415,7 +415,7 @@ One preset row in a sidebar is 40pt high, and a widget there is as wide as the p
 
 ### Package providers
 
-A package declares providers in its `package.yml`; a widget names one `<package>/<command>`. `app/…` is the app's own. It runs on a machine or a workspace, never on your computer, and its answer is one JSON object, read like `parse: json`. Each `with` key becomes `--<key> <value> after the command, keys sorted`. Its `min_every` is at least 5s, and `returns` types are string, number, bool, list, object, with `?` for an optional field. Its widgets wait for approval when the package is third-party.
+A package declares providers in its `package.yml`; a widget names one `<package>/<command>`. `app/…` is the app's own. It runs on a machine or a workspace, never on your computer, and its answer is one JSON object, read like `parse: json`. Each `with` key becomes `--<key> <value>` after the command, keys sorted. Its `min_every` is at least 5s, and `returns` types are string, number, bool, list, object, with `?` for an optional field. Its widgets wait for approval when the package is third-party.
 
 ### Source kinds
 

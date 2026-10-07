@@ -29,15 +29,12 @@ type Owner struct {
 	Providers map[string]PackageProvider
 }
 
-var (
-	withKey = regexp.MustCompile(`^[a-z][a-z0-9_-]*$`)
-	// providerPart mirrors the package-name and provider-name rules of
-	// package.yml, which this package cannot import.
-	providerPart = regexp.MustCompile(`^[a-z][a-z0-9_-]*$`)
-)
+// lowerName is the shape of a `with` key, and mirrors the package-name and
+// provider-name rules of package.yml, which this package cannot import.
+var lowerName = regexp.MustCompile(`^[a-z][a-z0-9_-]*$`)
 
 func wellFormedProvider(pkg, command string) bool {
-	return providerPart.MatchString(pkg) && providerPart.MatchString(command)
+	return lowerName.MatchString(pkg) && lowerName.MatchString(command)
 }
 
 // SplitProviderName cuts a package provider's name, <package>/<command>. ok
@@ -114,7 +111,7 @@ func checkPackageProvider(s Source, pkg, command string, scope sourceScope, c Co
 		checkTarget(s.Target, scope, at)
 	}
 	for _, key := range sortedKeys(s.With) {
-		if !withKey.MatchString(key) {
+		if !lowerName.MatchString(key) {
 			at("source.with", "source.with.%s: %s gets it as --%s, so write the key in lower case letters, digits, dashes and underscores, starting with a letter",
 				key, s.Name, key)
 		}

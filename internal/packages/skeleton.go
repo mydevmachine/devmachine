@@ -149,7 +149,7 @@ if __name__ == "__main__":
 // package starts, never how one is edited. kind is empty for an ordinary
 // package, or "dns" for one that already answers the DNS provider contract.
 func WriteSkeleton(dir, name, scope, kind string) error {
-	if !packageName.MatchString(name) {
+	if !lowerName.MatchString(name) {
 		return fmt.Errorf("name %q: use lower case letters, digits, dashes and underscores", name)
 	}
 	if scope != ScopeMachine && scope != ScopeWorkspace {

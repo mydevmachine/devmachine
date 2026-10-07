@@ -14,7 +14,7 @@ var (
 
 // ValidName says whether name can be a package's name, which is also its
 // folder: it never leads anywhere else.
-func ValidName(name string) bool { return packageName.MatchString(name) }
+func ValidName(name string) bool { return lowerName.MatchString(name) }
 
 // ParseGitAddress splits <address>[@<ref>]. Only an https:// address or a
 // git@host:path one is accepted: anything else is a local path or a transport

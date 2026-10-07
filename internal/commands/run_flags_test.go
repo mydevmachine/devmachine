@@ -280,8 +280,8 @@ func TestRunPackageWithMachinePassesWidgetArgumentsAsWords(t *testing.T) {
 	if len(inputs) != 1 || !strings.HasSuffix(inputs[0], want) {
 		t.Fatalf("sent %q, want it to end in %q", inputs, want)
 	}
-	if body, err := os.ReadFile(filepath.Join(dir, history.FileName)); err == nil && strings.TrimSpace(string(body)) != "" {
-		t.Fatalf("--no-log logged %q", body)
+	if _, err := os.Stat(filepath.Join(dir, history.FileName)); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("a --no-log run reached the command log: %v", err)
 	}
 }
 

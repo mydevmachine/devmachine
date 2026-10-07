@@ -38,12 +38,9 @@ func (p Problem) Error() string {
 // somebody has to remember and becomes a validation error.
 var aptModule = regexp.MustCompile(`^\s*(-\s*)?(ansible\.builtin\.)?(apt|apt_key|apt_repository)\s*:`)
 
-var packageName = regexp.MustCompile(`^[a-z][a-z0-9_-]*$`)
+var lowerName = regexp.MustCompile(`^[a-z][a-z0-9_-]*$`)
 
-var (
-	providerName = regexp.MustCompile(`^[a-z][a-z0-9_-]*$`)
-	returnField  = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_-]*$`)
-)
+var returnField = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_-]*$`)
 
 // The kinds a package can declare.
 //
@@ -101,7 +98,7 @@ func Validate(dir string) ([]Problem, error) {
 	switch {
 	case m.Name == "":
 		at("name", "every package needs a `name`")
-	case !packageName.MatchString(m.Name):
+	case !lowerName.MatchString(m.Name):
 		at("name", fmt.Sprintf("name %q: use lower case letters, digits, dashes and underscores", m.Name))
 	case m.Name != filepath.Base(dir):
 		at("name", fmt.Sprintf("name is %q but the directory is %q: a package is found by its directory",
@@ -355,7 +352,7 @@ func validateProviders(m Manifest) []Problem {
 	for _, name := range sortedKeys(m.Providers) {
 		p, key := m.Providers[name], "providers."+name
 		switch {
-		case !providerName.MatchString(name):
+		case !lowerName.MatchString(name):
 			at(key, "provider %q: use lower case letters, digits, dashes and underscores, starting with a letter", name)
 		case !anything && !slices.Contains(m.Commands, name):
 			at(key, "provider %s is not one of commands: add it to commands, or remove the provider", name)
