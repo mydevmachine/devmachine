@@ -121,7 +121,7 @@ func TestEachRuleReportsItsOwnProblem(t *testing.T) {
 		{"places unknown", "usage", "places: [home]", "places: [desk]", `places "desk": the surfaces are`},
 		{"context key unknown", "usage", "context: {}", "context: {colour: required}", `context key "colour" is not given by any surface`},
 		{"context value unknown", "usage", "context: {}", "context: {repo: maybe}", `context key "repo" is "maybe": write required or optional`},
-		{"input type unknown", "usage", "type: string", "type: date", `input "harness" has type "date"`},
+		{"input type unknown", "usage", "type: string", "type: date", `input "harness" has type "date": the types are string, number, boolean, choice`},
 		{"input default of the wrong type", "usage", "default: claude", "default: 3", `input "harness" is a string, and its default 3 is not`},
 		{"template names an unknown input", "usage", "{{inputs.harness}}", "{{inputs.agent}}", "needs inputs.agent"},
 		{"template names an undeclared context key", "usage", "{{inputs.harness}}", "{{context.repo}}", "needs context.repo to be declared"},

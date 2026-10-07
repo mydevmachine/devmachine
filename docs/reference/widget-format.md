@@ -50,7 +50,7 @@ places: [home]
 | `requires.engine` | yes | The engine versions the widget works with, as `">= 1.0"`, `"> 1.0"` or `"= 1.0"`. |
 | `fits` | yes | The layouts it can be drawn in: `canvas`, `stack`, `slot` (the menu bar), `tabs` (the menu bar popover). |
 | `context` | no | The context keys it reads, each `required` or `optional`. A widget sees only the keys it declares. |
-| `inputs` | no | Values a person sets on each copy: `type` (`string`, `number` or `boolean`), `default`, `summary`. |
+| `inputs` | no | Values a person sets on each copy: `type` (`string`, `number`, `boolean` or `choice`), `default`, `summary`. A choice also takes `from` and `many`: see [Choice inputs](#choice-inputs). |
 | `source` | yes | Where the data comes from: `kind` and the fields of that kind. See [Sources](#sources). |
 | `view` | yes | How it is drawn: `kind` and that view's fields. See [Views](#views). |
 | `sizes` | yes | The presets it takes. |
@@ -60,6 +60,29 @@ places: [home]
 
 A value in `source.with` can hold `{{inputs.<name>}}` or
 `{{context.<key>}}`. The input or key it names has to be declared.
+
+### Choice inputs
+
+A `choice` input is picked from a list the app fills from live data, so
+the app can offer a checklist or a picker on any widget without knowing
+the widget:
+
+```yaml
+inputs:
+  machines: {type: choice, from: machines, many: true, summary: Which machines; none shows all.}
+```
+
+- `from` says where the options come from: `machines` (the machines in
+  `config.yml`), `workspaces` (the workspaces in `config.yml`) or
+  `harnesses` (the coding harnesses that report usage: `claude`, `codex`).
+- `many: true` makes the value a list of names; left out, or `[]`, it
+  means all of them. Without `many` the value is one name; left out, it
+  means the first option.
+- A template sees a list joined with commas (`main,backup`), and so does
+  `$DM_INPUT_<NAME>` in a shell line. An `app/…` provider gets the list
+  itself.
+- A widget with a choice input needs `requires.engine: ">= 1.5"`: an
+  older app cannot show the choices.
 
 ## Sources
 
@@ -551,7 +574,12 @@ A package declares providers in its `package.yml`; a widget names one `<package>
 | a provider's context not declared | `source.name app/session-context needs context.session: declare context: {session: required}` |
 | `context` key no surface gives | `context key "X" is not given by any surface` |
 | `context` value other than required/optional | `context key "X" is "Y": write required or optional` |
-| input type unknown, or default of the wrong type | `input "X" has type "Y"`, `input "X" is a string, and its default 3 is not` |
+| input type unknown, or default of the wrong type | `input "X" has type "Y": the types are string, number, boolean, choice`, `input "X" is a string, and its default 3 is not` |
+| a choice without `from`, or an unknown one | `input "X" is a choice, and needs from: one of harnesses, machines, workspaces`, `input "X" takes its options from "Y", which is not a source: the sources are harnesses, machines, workspaces` |
+| `many` neither true nor false | `input "X": many is maybe: write true or false` |
+| a choice's default of the wrong shape | `input "X" is a list of choices, and its default main is not: write [a, b], or [] for all`, `input "X" is one choice, and its default [main] is not a name` |
+| `from` or `many` on another type | `input "X" is a string: from and many belong to a choice` |
+| a choice input on an engine below 1.5 | `a widget with a choice input needs requires.engine ">= 1.5": an app on engine 1.4 cannot show its choices` |
 | template names something undeclared | `template {{inputs.X}} in source.with.Y needs inputs.X` |
 | `source.kind` unknown | `source.kind "X": engine 1.5 knows provider, command, url, prompt, session` |
 | a key of another kind | `source.url is not a field of a command source: it takes …` |

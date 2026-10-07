@@ -94,6 +94,51 @@ default_size: large
 places: [context-sidebar]
 `
 
+const machinesChoiceWidgetYAML = `format: 1
+name: machines
+summary: Each machine, online or not.
+requires: {engine: ">= 1.5"}
+fits: [canvas, stack]
+inputs:
+  machines: {type: choice, from: machines, many: true, summary: Which machines; none shows all.}
+source:
+  kind: provider
+  name: app/machines
+  with: {machines: "{{inputs.machines}}"}
+  every: 90s
+view: {kind: app.machines}
+sizes: [medium, large]
+default_size: large
+`
+
+// choiceConfig is release v40, the machine main, and your own package mine
+// with a machines widget whose input is a choice of many machines.
+func choiceConfig(t *testing.T) string {
+	t.Helper()
+	dir := configWith(t, "machines:\n  - name: main\n    hosts: [203.0.113.10]\npackages: v40\n")
+	widgetRelease(t, dir)
+	writeWidgetPackageAt(t, packages.LocalDir(dir), "mine", "machine", map[string]string{"machines": machinesChoiceWidgetYAML})
+	forbidDial(t)
+	return dir
+}
+
+func TestWidgetsHelpDescribesAChoice(t *testing.T) {
+	dir := choiceConfig(t)
+	out, err := execute(t, "--config", dir, "widgets", "help", "mine/machines")
+	if err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	if !strings.Contains(out, "input machines (choice of machines, many, default all): Which machines; none shows all.\n") {
+		t.Fatalf("got\n%s", out)
+	}
+	one := strings.Replace(machinesChoiceWidgetYAML, "from: machines, many: true,", "from: harnesses,", 1)
+	writeWidgetPackageAt(t, packages.LocalDir(dir), "mine", "machine", map[string]string{"machines": one})
+	out, err = execute(t, "--config", dir, "widgets", "help", "mine/machines")
+	if err != nil || !strings.Contains(out, "input machines (choice of harnesses, default the first): ") {
+		t.Fatalf("%v\n%s", err, out)
+	}
+}
+
 // stackConfig is widgetConfig plus the app's workspaces and todo widgets in
 // release v40, for the boards of the two sidebars.
 func stackConfig(t *testing.T) string {

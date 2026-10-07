@@ -11,6 +11,10 @@ const Engine = "1.5"
 // package provider, so a widget reading one must refuse it.
 const LastEngineWithoutPackageProviders = "1.2"
 
+// LastEngineWithoutChoices is the newest engine whose app cannot show a
+// choice input, so a widget with one must refuse it.
+const LastEngineWithoutChoices = "1.4"
+
 // How far the app trusts a package's widgets, from where the package came
 // from: the official release, your own folder, or a git address.
 const (

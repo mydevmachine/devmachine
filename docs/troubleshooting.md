@@ -1759,6 +1759,24 @@ has. Nothing else in it was checked.
 
 **What to do:** `devmachine update`.
 
+## "input X is a choice, and needs from"
+
+**What it means:** A `choice` input is picked from a list, and `from`
+says which list: `machines`, `workspaces` or `harnesses`. Without it, or
+with another name, the app has nothing to offer.
+
+**What to do:** Add `from: machines` (or one of the other two). Add
+`many: true` when the person may pick more than one.
+
+## "a widget with a choice input needs requires.engine \">= 1.5\""
+
+**What it means:** An app on engine 1.4 or older has no chooser, so it
+could not show the input at all. The widget's `requires.engine` still
+lets such an app read it.
+
+**What to do:** Write `requires: {engine: ">= 1.5"}`. An older CLI then
+says "update" instead of hiding the widget for a reason nobody can read.
+
 ## "source.target: app/… is the app's own data, so it takes no target"
 
 **What it means:** The widget reads one of the app's own providers, such

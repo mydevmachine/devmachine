@@ -18,11 +18,43 @@ const FileName = "widget.yml"
 // WidgetFormat is the widget.yml format this CLI reads.
 const WidgetFormat = 1
 
-// Input is a value a person sets on one instance of a widget.
+// Input is a value a person sets on one instance of a widget. A choice
+// takes its options From one of the contract's option sources; Many makes
+// its value a list of them.
 type Input struct {
 	Type    string `yaml:"type" json:"type"`
 	Default any    `yaml:"default" json:"default"`
 	Summary string `yaml:"summary" json:"summary"`
+	From    string `yaml:"from,omitempty" json:"from,omitempty"`
+	Many    bool   `yaml:"many,omitempty" json:"many,omitempty"`
+
+	manyProblem string
+	choiceKeys  bool
+}
+
+// UnmarshalYAML reads an input, keeping a many that is neither true nor
+// false for Validate to report at its line instead of failing the file.
+func (in *Input) UnmarshalYAML(node *yaml.Node) error {
+	var raw struct {
+		Type    string `yaml:"type"`
+		Default any    `yaml:"default"`
+		Summary string `yaml:"summary"`
+		From    string `yaml:"from"`
+		Many    any    `yaml:"many"`
+	}
+	if err := node.Decode(&raw); err != nil {
+		return fmt.Errorf("reading an input: %w", err)
+	}
+	*in = Input{Type: raw.Type, Default: raw.Default, Summary: raw.Summary, From: raw.From,
+		choiceKeys: raw.From != "" || raw.Many != nil}
+	switch many := raw.Many.(type) {
+	case nil:
+	case bool:
+		in.Many = many
+	default:
+		in.manyProblem = fmt.Sprintf("many is %v: write true or false", many)
+	}
+	return nil
 }
 
 // Widget is what widget.yml holds.
@@ -71,9 +103,6 @@ var (
 	template   = regexp.MustCompile(`\{\{\s*([^}]*?)\s*\}\}`)
 	reference  = regexp.MustCompile(`^(inputs|context)\.([a-z][a-z0-9_-]*)$`)
 )
-
-// inputTypes are the value types an input may declare.
-var inputTypes = []string{"string", "number", "boolean"}
 
 var widgetFields = []string{
 	"format", "name", "summary", "requires", "fits", "context", "inputs",
@@ -200,15 +229,11 @@ func Validate(w Widget, path string, root *yaml.Node) []Problem {
 	}
 
 	for _, name := range sortedKeys(w.Inputs) {
-		input := w.Inputs[name]
-		if !inputName.MatchString(name) {
-			at("inputs", "input %q: use lower case letters, digits and underscores, starting with a letter", name)
-		}
-		if !slices.Contains(inputTypes, input.Type) {
-			at("inputs", "input %q has type %q: the types are %s", name, input.Type, strings.Join(inputTypes, ", "))
-		} else if input.Default != nil && !valueFits(input.Type, input.Default) {
-			at("inputs", "input %q is a %s, and its default %v is not", name, input.Type, input.Default)
-		}
+		checkInput(name, w.Inputs[name], c, func(format string, args ...any) { at("inputs."+name, format, args...) })
+	}
+	if needsChoiceEngine(w) {
+		at("requires.engine", `a widget with a choice input needs requires.engine ">= 1.5": an app on engine %s cannot show its choices`,
+			LastEngineWithoutChoices)
 	}
 
 	scope := sourceScope{inputs: w.Inputs, context: w.Context, packageDir: w.Owner.Dir,

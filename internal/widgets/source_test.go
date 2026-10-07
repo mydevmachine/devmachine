@@ -206,8 +206,8 @@ func TestTwoInputsCannotShareAnEnvironmentVariable(t *testing.T) {
 	body := edited(t, diskWidget, "  machine: {type: string, summary: Which machine.}\n",
 		"  machine: {type: string, summary: Which machine.}\n  a-b: {type: string}\n  a_b: {type: string}\n")
 	_, problems := Load(writeWidget(t, t.TempDir(), "disk", body))
-	if len(problems) != 1 || !strings.Contains(problems[0].Message, `input "a-b": use lower case letters, digits and underscores`) || problems[0].Line != 6 {
-		t.Fatalf("want one name problem about a-b on the inputs line, got %v", problems)
+	if len(problems) != 1 || !strings.Contains(problems[0].Message, `input "a-b": use lower case letters, digits and underscores`) || problems[0].Line != 8 {
+		t.Fatalf("want one name problem about a-b on its own line, got %v", problems)
 	}
 }
 

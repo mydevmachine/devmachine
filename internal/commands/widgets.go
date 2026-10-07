@@ -117,11 +117,7 @@ func newWidgetsHelpCmd(opts *options) *cobra.Command {
 			}
 			for _, name := range sortedNames(e.Inputs) {
 				in := e.Inputs[name]
-				detail := in.Type
-				if in.Default != nil {
-					detail += fmt.Sprintf(", default %v", in.Default)
-				}
-				cmd.Printf("input %s (%s): %s\n", name, detail, in.Summary)
+				cmd.Printf("input %s (%s): %s\n", name, inputDetail(in), in.Summary)
 			}
 			for _, key := range sortedNames(e.Context) {
 				cmd.Printf("context %s: %s\n", key, e.Context[key])
@@ -132,6 +128,29 @@ func newWidgetsHelpCmd(opts *options) *cobra.Command {
 			return nil
 		},
 	}
+}
+
+// inputDetail is how help names an input's type and default: a choice says
+// where its options come from, and a missing default says what it means.
+func inputDetail(in widgets.Input) string {
+	detail := in.Type
+	if in.Type == widgets.InputChoice {
+		detail = "choice of " + in.From
+		if in.Many {
+			detail += ", many"
+		}
+	}
+	list, isList := in.Default.([]any)
+	emptyList := isList && len(list) == 0
+	switch {
+	case in.Default != nil && !emptyList:
+		detail += fmt.Sprintf(", default %v", in.Default)
+	case in.Type == widgets.InputChoice && in.Many:
+		detail += ", default all"
+	case in.Type == widgets.InputChoice:
+		detail += ", default the first"
+	}
+	return detail
 }
 
 func newWidgetsSchemaCmd(opts *options) *cobra.Command {
