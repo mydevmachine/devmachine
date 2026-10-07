@@ -1,7 +1,8 @@
 # Getting started
 
-devmachine sets up a VPS for you to code on. Each project or client gets its
-own account on the server, called a workspace, with its own tools and logins.
+devmachine sets up a machine for you to code on: a VPS you rent, or a Linux
+box or Mac you already have. Each project or client gets its own account on
+the machine, called a workspace, with its own tools and logins.
 
 You need a machine running Debian, Ubuntu, Arch Linux or macOS that you
 reach over SSH as root, or as an admin login with passwordless sudo, and a
