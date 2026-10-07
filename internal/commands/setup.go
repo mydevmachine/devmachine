@@ -277,8 +277,10 @@ func runSetup(ctx context.Context, dir string, in io.Reader, out io.Writer, opts
 	if err != nil {
 		return err
 	}
-	if err := config.SetMachinePasswordLoginKeep(dir, m.Name, keep); err != nil {
-		return err
+	if len(keep) > 0 || len(m.PasswordLoginKeep) > 0 {
+		if err := config.SetMachinePasswordLoginKeep(dir, m.Name, keep); err != nil {
+			return err
+		}
 	}
 	if err := offerSSHAliases(r, out, dir, opts.noAliases, opts.yes); err != nil {
 		return err
