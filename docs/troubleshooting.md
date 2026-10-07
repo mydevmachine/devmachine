@@ -1675,3 +1675,17 @@ wrong: `devmachine update` moves the pin, and `devmachine update
 --no-machines` does it without touching a machine. The line shows at most
 once a day; `DEVMACHINE_NO_UPDATE_HINT=1` turns it off. See
 [Updating](how-it-works/updating.md#why-the-cli-tells-you-a-newer-packages-release-is-out).
+
+## "… is required", "… is not a field of this list" or "a number, got the string …"
+
+**What it means:** A setting does not fit the type its package declares for
+it, for example `workspace.repos[0]: "url" is required`. The text before the
+colon is the setting, and `[0]` is its first entry. The command that wrote it
+refused it, or `sync` stopped before reaching the machine, so nothing on the
+machine changed.
+
+**What to do:** Fix the value with `--set`, or in `config.yml` if the setting
+was written by hand. `devmachine --format json packages list` shows each
+variable's type, and [the settings reference](reference/settings.md) names the
+fields a list's entries take. A field the list does not take is usually a typo
+of one it does: the message lists the ones it accepts.

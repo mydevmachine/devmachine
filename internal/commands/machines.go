@@ -305,6 +305,9 @@ func runMachineEdit(cmd *cobra.Command, opts *options, name string, e machineEdi
 	if err := edited.Validate(); err != nil {
 		return err
 	}
+	if err := refuseMistypedSettings(dir, cfg.Packages, settings, e.set); err != nil {
+		return err
+	}
 
 	if e.check {
 		for _, line := range changes {

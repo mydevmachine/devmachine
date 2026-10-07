@@ -37,7 +37,7 @@ var schemaFields = []SchemaField{
 	{"needs", false, "Packages that have to run before this one. It is the only thing that decides order."},
 	{"provides", false, "Places other packages may write into, as <place>: <absolute path on the machine>."},
 	{"extends", false, "Contributions to another package's place, as <package>.<place>: <path inside this package>."},
-	{"variables", false, "Values this package reads, each with a summary and a default."},
+	{"variables", false, `Values this package reads, each with a summary, a default and optionally a type: "string", "boolean", "number", "list" or "map". A list of mappings describes its entries with items.fields.`},
 	{"credentials", false, "What its tool cannot work without, and how each one is obtained."},
 	{"requires_files", false, "Files that have to be on the machine before it runs."},
 	{"skills", false, "A package-relative directory whose direct children are Agent Skills."},
