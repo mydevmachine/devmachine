@@ -224,6 +224,31 @@ target, and shows the answer as Markdown. `every` is `manual` unless you
 set one, at least `15m`: every run costs tokens. `timeout` is `5m` by
 default. Only one run of a widget happens at a time.
 
+`permission_mode` sets what the harness may do while it answers, such as
+search the web or change files, in the harness's own words. Leave it out
+and the harness runs as it does by default.
+
+```yaml
+source:
+  kind: prompt
+  harness: claude
+  permission_mode: auto
+  prompt: Search the web for this week's Go release notes and summarise them.
+```
+
+| Harness | `permission_mode` | The app runs it as |
+| --- | --- | --- |
+| `claude` | `manual`, `dontAsk`, `plan`, `acceptEdits`, `auto`, `bypassPermissions` | `claude -p --permission-mode <value> -- <prompt>` |
+| `codex` | `read-only`, `workspace-write`, `danger-full-access` | `codex exec … --sandbox <value> -- <prompt>` |
+| `codex` | `approve-for-me`, `dangerously-bypass-approvals-and-sandbox` | `codex exec … --<value> -- <prompt>` |
+
+`bypassPermissions`, `danger-full-access` and
+`dangerously-bypass-approvals-and-sandbox` run without any check. A widget
+with one of them runs only when you press refresh: its `every` must be
+`manual`, which is the default for a prompt, and so must a board entry's
+`every`. A widget with `permission_mode` needs `requires.engine: ">= 1.6"`.
+See [a prompt widget's permission mode](../how-it-works/a-prompt-widgets-permission-mode.md).
+
 ### `session`
 
 ```yaml
@@ -605,6 +630,9 @@ A package declares providers in its `package.yml`; a widget names one `<package>
 | `keep` without a stream, or out of 1–2000 | `source.keep only applies to mode: stream` |
 | `target` malformed | `source.target "X": write local, {machine: <name>} or {workspace: <name>}` |
 | `parse`, `mode` or `harness` unknown | `source.parse "yaml": a command source takes text, lines, number, json, ansi` |
+| a `permission_mode` its harness does not have | `source.permission_mode "yolo": a claude prompt takes manual, dontAsk, plan, acceptEdits, auto, bypassPermissions` |
+| a mode with no checks on a timer | `permission_mode bypassPermissions runs without any check, so it runs only when you press refresh: write every: manual` |
+| `permission_mode` with an engine that allows 1.5 | `a widget with source.permission_mode needs requires.engine ">= 1.6": an app on engine 1.5 cannot run its prompt in that mode` |
 | `url` not a full address | `source.url "X": write a full address starting with https:// or http://` |
 | view does not draw the source | `view.kind "gauge" takes number, json, and this command source gives text` |
 | `source.name` unknown | `source.name "X" is not a provider engine 1.6 knows` |

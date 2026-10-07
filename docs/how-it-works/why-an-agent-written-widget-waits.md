@@ -25,10 +25,10 @@ until you say yes.
 
 The card shows what will run, where and how often. What you approve is
 that exact source: its kind, the command or script and its arguments, the
-target, the harness and prompt, the session. The app keeps a fingerprint
-of it (a SHA-256 of the source written in a fixed order). Change any of
-those — even one argument — and the fingerprint changes, so the widget
-asks again. Moving or resizing the widget changes nothing that runs, and
+target, the harness, its permission mode and prompt, the session. The app
+keeps a fingerprint of it (a SHA-256 of the source written in a fixed
+order). Change any of those — even one argument — and the fingerprint
+changes, so the widget asks again. Moving or resizing the widget changes nothing that runs, and
 does not ask.
 
 ## Where the answer is kept

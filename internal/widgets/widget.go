@@ -235,6 +235,10 @@ func Validate(w Widget, path string, root *yaml.Node) []Problem {
 		at("requires.engine", `a widget with a choice input needs requires.engine ">= 1.5": an app on engine %s cannot show its choices`,
 			LastEngineWithoutChoices)
 	}
+	if needsPermissionModeEngine(w) {
+		at("requires.engine", `a widget with source.permission_mode needs requires.engine ">= 1.6": an app on engine %s cannot run its prompt in that mode`,
+			LastEngineWithoutPermissionModes)
+	}
 
 	scope := sourceScope{inputs: w.Inputs, context: w.Context, packageDir: w.Owner.Dir,
 		owner: w.Owner.Name, providers: w.Owner.scope()}

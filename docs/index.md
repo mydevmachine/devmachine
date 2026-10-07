@@ -155,6 +155,9 @@ these when something behaves in a way that surprises you.
 - [Choosing and editing a widget](how-it-works/choosing-and-editing-a-widget.md)
   — where a widget's choices come from, and why a machine you removed
   never locks a board.
+- [A prompt widget's permission mode](how-it-works/a-prompt-widgets-permission-mode.md)
+  — why the modes are the harness's own names, and why a mode with no
+  checks never runs on a timer.
 - [Updating](how-it-works/updating.md) — why `update` stops before your
   machines, hands over to the new CLI, and goes through Homebrew when
   Homebrew installed it.

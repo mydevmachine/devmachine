@@ -18,23 +18,24 @@ import (
 // Source is where a widget's data comes from. Which fields count depends on
 // Kind; the contract's sources table lists them.
 type Source struct {
-	Kind    string            `yaml:"kind" json:"kind"`
-	Name    string            `yaml:"name,omitempty" json:"name,omitempty"`
-	With    map[string]string `yaml:"with,omitempty" json:"with,omitempty"`
-	Every   string            `yaml:"every,omitempty" json:"every,omitempty"`
-	Run     string            `yaml:"run,omitempty" json:"run,omitempty"`
-	Script  string            `yaml:"script,omitempty" json:"script,omitempty"`
-	Args    []string          `yaml:"args,omitempty" json:"args,omitempty"`
-	Shell   bool              `yaml:"shell,omitempty" json:"shell,omitempty"`
-	Target  Target            `yaml:"target,omitempty" json:"target,omitzero"`
-	Timeout string            `yaml:"timeout,omitempty" json:"timeout,omitempty"`
-	Mode    string            `yaml:"mode,omitempty" json:"mode,omitempty"`
-	Keep    int               `yaml:"keep,omitempty" json:"keep,omitempty"`
-	Parse   string            `yaml:"parse,omitempty" json:"parse,omitempty"`
-	URL     string            `yaml:"url,omitempty" json:"url,omitempty"`
-	Harness string            `yaml:"harness,omitempty" json:"harness,omitempty"`
-	Prompt  string            `yaml:"prompt,omitempty" json:"prompt,omitempty"`
-	Session string            `yaml:"session,omitempty" json:"session,omitempty"`
+	Kind           string            `yaml:"kind" json:"kind"`
+	Name           string            `yaml:"name,omitempty" json:"name,omitempty"`
+	With           map[string]string `yaml:"with,omitempty" json:"with,omitempty"`
+	Every          string            `yaml:"every,omitempty" json:"every,omitempty"`
+	Run            string            `yaml:"run,omitempty" json:"run,omitempty"`
+	Script         string            `yaml:"script,omitempty" json:"script,omitempty"`
+	Args           []string          `yaml:"args,omitempty" json:"args,omitempty"`
+	Shell          bool              `yaml:"shell,omitempty" json:"shell,omitempty"`
+	Target         Target            `yaml:"target,omitempty" json:"target,omitzero"`
+	Timeout        string            `yaml:"timeout,omitempty" json:"timeout,omitempty"`
+	Mode           string            `yaml:"mode,omitempty" json:"mode,omitempty"`
+	Keep           int               `yaml:"keep,omitempty" json:"keep,omitempty"`
+	Parse          string            `yaml:"parse,omitempty" json:"parse,omitempty"`
+	URL            string            `yaml:"url,omitempty" json:"url,omitempty"`
+	Harness        string            `yaml:"harness,omitempty" json:"harness,omitempty"`
+	PermissionMode string            `yaml:"permission_mode,omitempty" json:"permission_mode,omitempty"`
+	Prompt         string            `yaml:"prompt,omitempty" json:"prompt,omitempty"`
+	Session        string            `yaml:"session,omitempty" json:"session,omitempty"`
 }
 
 // MarshalJSON prints a provider source in the shape engine 1.0 printed, with
@@ -331,6 +332,7 @@ func checkPrompt(s Source, scope sourceScope, kind SourceKind, at reporter) {
 		at("source", "a prompt source needs source.harness: %s", strings.Join(kind.Fields["harness"].Values, " or "))
 	}
 	checkEnum(s, "harness", s.Harness, kind, at)
+	checkPermissionMode(s, kind, at)
 	if strings.TrimSpace(s.Prompt) == "" {
 		at("source", "a prompt source needs source.prompt: the text sent to the harness")
 	}
@@ -338,6 +340,38 @@ func checkPrompt(s Source, scope sourceScope, kind SourceKind, at reporter) {
 	checkTarget(s.Target, scope, at)
 	checkEvery(s, kind, false, at)
 	checkTimeout(s, kind, at)
+}
+
+func checkPermissionMode(s Source, kind SourceKind, at reporter) {
+	modes, known := kind.Fields["permission_mode"].ByHarness[s.Harness]
+	switch {
+	case s.PermissionMode == "" || !known:
+	case !slices.Contains(modes, s.PermissionMode):
+		at("source.permission_mode", "source.permission_mode %q: a %s prompt takes %s", s.PermissionMode, s.Harness, strings.Join(modes, ", "))
+	default:
+		if problem := promptEveryProblem(s, s.Every); problem != "" {
+			at("source.permission_mode", "%s", problem)
+		}
+	}
+}
+
+// promptEveryProblem says why a prompt cannot run every `every`, or "": a
+// permission mode that runs without any check runs only when somebody
+// presses refresh. An every that is not a duration is reported elsewhere.
+func promptEveryProblem(s Source, every string) string {
+	if s.Kind != SourcePrompt || !IsDangerousPermissionMode(s.PermissionMode) {
+		return ""
+	}
+	if _, err := time.ParseDuration(every); err != nil {
+		return ""
+	}
+	return fmt.Sprintf("permission_mode %s runs without any check, so it runs only when you press refresh: write every: manual", s.PermissionMode)
+}
+
+func needsPermissionModeEngine(w Widget) bool {
+	constraint, err := parseEngineConstraint(w.Requires.Engine)
+	return err == nil && constraint.allows(LastEngineWithoutPermissionModes) &&
+		w.Source.Kind == SourcePrompt && w.Source.PermissionMode != ""
 }
 
 func checkSession(s Source, scope sourceScope, kind SourceKind, at reporter) {

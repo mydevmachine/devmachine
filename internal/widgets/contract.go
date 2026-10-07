@@ -15,6 +15,10 @@ const LastEngineWithoutPackageProviders = "1.2"
 // choice input, so a widget with one must refuse it.
 const LastEngineWithoutChoices = "1.4"
 
+// LastEngineWithoutPermissionModes is the newest engine whose app cannot run
+// a prompt in a permission mode, so a widget with one must refuse it.
+const LastEngineWithoutPermissionModes = "1.5"
+
 // How far the app trusts a package's widgets, from where the package came
 // from: the official release, your own folder, or a git address.
 const (

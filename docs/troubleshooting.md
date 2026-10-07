@@ -1759,6 +1759,38 @@ has. Nothing else in it was checked.
 
 **What to do:** `devmachine update`.
 
+## "source.permission_mode X: a claude prompt takes …"
+
+**What it means:** Each harness has its own names for what it may do, and
+`permission_mode` takes only those of the widget's `harness`. A Codex
+name on a Claude prompt, or the other way round, is refused, and so is a
+template: the mode is what you approve, so it cannot change when the
+widget runs.
+
+**What to do:** Pick a name from the list in the message, or take the key
+off to run the harness as it does by default. If your harness has a mode
+the list lacks, `devmachine update`: a CLI release adds new modes.
+
+## "permission_mode X runs without any check, so it runs only when you press refresh"
+
+**What it means:** `bypassPermissions` (Claude), `danger-full-access` and
+`dangerously-bypass-approvals-and-sandbox` (Codex) let the harness change
+files and run commands without asking. Such a widget never runs on a
+timer, so its `every` must be `manual`. A board entry's `every` and
+`widgets set --every` follow the same rule.
+
+**What to do:** Write `every: manual` (or leave `every` out of a prompt
+source: `manual` is its default), and press the widget's refresh button
+when you want an answer. To run it on a timer, pick a mode with checks.
+
+## "a widget with source.permission_mode needs requires.engine \">= 1.6\""
+
+**What it means:** An app on engine 1.5 does not know `permission_mode`
+and would refuse the widget with no hint why.
+
+**What to do:** Write `requires: {engine: ">= 1.6"}`. An app that is too
+old then says it needs an update.
+
 ## "input X is a choice, and needs from"
 
 **What it means:** A `choice` input is picked from a list, and `from`
