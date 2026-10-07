@@ -91,6 +91,9 @@ func newWidgetsHelpCmd(opts *options) *cobra.Command {
 			cmd.Printf("%s — %s\n", e.Name, e.Summary)
 			cmd.Printf("sizes: %s (default %s)\n", strings.Join(e.Sizes, ", "), e.DefaultSize)
 			cmd.Printf("fits: %s\n", strings.Join(e.Surfaces, ", "))
+			if e.Single {
+				cmd.Println("once per board")
+			}
 			for _, name := range sortedNames(e.Inputs) {
 				in := e.Inputs[name]
 				detail := in.Type

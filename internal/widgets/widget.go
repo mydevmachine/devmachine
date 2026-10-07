@@ -41,6 +41,7 @@ type Widget struct {
 	Sizes       []string          `yaml:"sizes"`
 	DefaultSize string            `yaml:"default_size"`
 	Places      []string          `yaml:"places"`
+	Single      bool              `yaml:"single"`
 
 	// Dir is the folder the widget was read from.
 	Dir string `yaml:"-"`
@@ -75,7 +76,7 @@ var inputTypes = []string{"string", "number", "boolean"}
 
 var widgetFields = []string{
 	"format", "name", "summary", "requires", "fits", "context", "inputs",
-	"source", "view", "sizes", "default_size", "places",
+	"source", "view", "sizes", "default_size", "places", "single",
 }
 
 // Load reads and checks the widget in dir, outside any package.
@@ -148,6 +149,7 @@ func Validate(w Widget, path string, root *yaml.Node) []Problem {
 		at("summary", "every widget needs a one-line summary: it is what `widgets list` prints")
 	}
 
+	fitsStart := len(problems)
 	if len(w.Fits) == 0 {
 		at("fits", "fits names the layouts the widget can be drawn in: %s", strings.Join(c.Layouts, ", "))
 	}
@@ -156,6 +158,8 @@ func Validate(w Widget, path string, root *yaml.Node) []Problem {
 			at("fits", "fits %q: the layouts are %s", layout, strings.Join(c.Layouts, ", "))
 		}
 	}
+
+	fitsBroken := len(problems) > fitsStart
 
 	if len(w.Sizes) == 0 {
 		at("sizes", "sizes names the presets the widget accepts: %s", strings.Join(presetNames(c), ", "))
@@ -169,12 +173,7 @@ func Validate(w Widget, path string, root *yaml.Node) []Problem {
 		at("default_size", "default_size %q is not one of sizes", w.DefaultSize)
 	}
 
-	for _, surface := range w.Places {
-		if _, ok := c.Surfaces[surface]; !ok {
-			at("places", "places %q: the surfaces are %s", surface, strings.Join(surfaceNames(c), ", "))
-		}
-	}
-
+	contextStart := len(problems)
 	known := contextKeys(c)
 	for _, key := range sortedKeys(w.Context) {
 		if !slices.Contains(known, key) {
@@ -182,6 +181,20 @@ func Validate(w Widget, path string, root *yaml.Node) []Problem {
 		}
 		if value := w.Context[key]; value != ContextRequired && value != ContextOptional {
 			at("context", "context key %q is %q: write required or optional", key, value)
+		}
+	}
+
+	// Which areas a widget fits follows from its fits and context, so when
+	// either is broken the places rule would only repeat that problem.
+	shapeKnown := !fitsBroken && len(problems) == contextStart
+	fitting := Surfaces(w)
+	for _, surface := range w.Places {
+		_, known := c.Surfaces[surface]
+		switch {
+		case !known:
+			at("places", "places %q: the surfaces are %s", surface, strings.Join(surfaceNames(c), ", "))
+		case shapeKnown && !slices.Contains(fitting, surface):
+			at("places", "places %q: the widget does not fit that area, so the app would never place it there", surface)
 		}
 	}
 
@@ -200,6 +213,13 @@ func Validate(w Widget, path string, root *yaml.Node) []Problem {
 	scope := sourceScope{inputs: w.Inputs, context: w.Context, packageDir: w.PackageDir}
 	checkSource(w.Source, field(mapping(root), "source"), scope, c, at)
 	checkView(w.View, field(mapping(root), "view"), w.Source, scope, c, at)
+	if view, ok := c.Views[w.View.Kind]; ok && len(view.Layouts) > 0 {
+		for _, layout := range w.Fits {
+			if slices.Contains(c.Layouts, layout) && !slices.Contains(view.Layouts, layout) {
+				at("fits", "fits %s, and the %s view is drawn only in %s", layout, w.View.Kind, strings.Join(view.Layouts, ", "))
+			}
+		}
+	}
 	return problems
 }
 

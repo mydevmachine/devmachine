@@ -27,6 +27,62 @@ default_size: medium
 places: [home]
 `
 
+const todoWidget = `format: 1
+name: todo
+summary: The plan of the selected session.
+requires: {engine: ">= 1.2"}
+fits: [stack]
+context: {session: required}
+source: {kind: provider, name: app/session-context, every: 5s}
+view: {kind: app.todo}
+sizes: [medium, large]
+default_size: large
+single: false
+places: [context-sidebar]
+`
+
+func TestAStackWidgetFitsTheContextSidebarOnly(t *testing.T) {
+	w, problems := Load(writeWidget(t, t.TempDir(), "todo", todoWidget))
+	if len(problems) != 0 {
+		t.Fatal(problems)
+	}
+	if got := Surfaces(w); !slices.Equal(got, []string{"context-sidebar"}) {
+		t.Fatalf("got %v", got)
+	}
+}
+
+func TestEachStackWidgetRuleReportsItsOwnProblem(t *testing.T) {
+	cases := []struct{ name, from, to, want string }{
+		{"provider context not declared", "context: {session: required}", "context: {}",
+			"source.name app/session-context needs context.session: declare context: {session: required}"},
+		{"provider context only optional", "context: {session: required}", "context: {session: optional}",
+			"source.name app/session-context needs context.session: declare context: {session: required}"},
+		{"fits a layout the view is not drawn in", "fits: [stack]", "fits: [canvas, stack]",
+			"fits canvas, and the app.todo view is drawn only in stack"},
+		{"places an area it does not fit", "places: [context-sidebar]", "places: [sidebar]",
+			`places "sidebar": the widget does not fit that area, so the app would never place it there`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if !strings.Contains(todoWidget, tc.from) {
+				t.Fatalf("fixture has no %q", tc.from)
+			}
+			body := strings.Replace(todoWidget, tc.from, tc.to, 1)
+			_, problems := Load(writeWidget(t, t.TempDir(), "todo", body))
+			if len(problems) != 1 || !strings.Contains(problems[0].Message, tc.want) {
+				t.Fatalf("want one problem containing %q, got %v", tc.want, problems)
+			}
+		})
+	}
+}
+
+func TestSingleIsRead(t *testing.T) {
+	w, problems := Load(writeWidget(t, t.TempDir(), "todo", strings.Replace(todoWidget, "single: false", "single: true", 1)))
+	if len(problems) != 0 || !w.Single {
+		t.Fatalf("got %v %+v", problems, w)
+	}
+}
+
 func writeWidget(t *testing.T, parent, name, body string) string {
 	t.Helper()
 	dir := filepath.Join(parent, name)

@@ -1800,6 +1800,35 @@ your own packages, run `devmachine widgets validate` with no path.
 **What to do:** Pick a widget that fits Home, or, for your own widget, add
 `canvas` to `fits`.
 
+## "source.name app/session-context needs context.session"
+
+**What it means:** The provider reads the session that is selected in the
+app, so it only works in the context sidebar, which hands every widget
+there that session. A widget only sees the context keys it declares.
+
+**What to do:** Add `context: {session: required}` to the `widget.yml`.
+The widget then fits only the context sidebar, which is right: there is
+no session to read anywhere else.
+
+## "the X view is drawn only in stack"
+
+**What it means:** The view is one of the app's sidebar views
+(`app.workspaces`, `app.todo` and the others). They are lists, drawn as
+tall as their content, so they have no shape on Home's canvas.
+
+**What to do:** Write `fits: [stack]`.
+
+## "places "X": the widget does not fit that area"
+
+**What it means:** `places` asks the app to add the widget to an area
+once. The widget cannot sit there: its `fits` lacks the area's layout, or
+it requires a context key the area does not give (`session`, for example,
+only the context sidebar gives). The app would skip it without a word.
+
+**What to do:** Remove the area from `places`, or change `fits` or
+`context` so the widget fits it. `devmachine widgets validate` lists the
+areas it fits.
+
 ## "X is not available yet: add the package"
 
 **What it means:** The widget reads something its package installs, and

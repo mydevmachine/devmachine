@@ -55,7 +55,8 @@ places: [home]
 | `view` | yes | How it is drawn: `kind` and that view's fields. See [Views](#views). |
 | `sizes` | yes | The presets it takes. |
 | `default_size` | yes | The preset a new copy gets. One of `sizes`. |
-| `places` | no | Surfaces the app adds it to once, the first time it is available. Removing it from there is final. |
+| `places` | no | Surfaces the app adds it to once, the first time it is available. Each must be an area the widget fits. Removing it from there is final. |
+| `single` | no | `true`: a board holds it at most once. The app's workspace list is one. |
 
 A value in `source.with` can hold `{{inputs.<name>}}` or
 `{{context.<key>}}`. The input or key it names has to be declared.
@@ -380,6 +381,9 @@ One preset row in a sidebar is 40pt high, and a widget there is as wide as the p
 | `sizes` empty or unknown | `size "X": the presets are small, medium, tall, large, wide` |
 | `default_size` not in `sizes` | `default_size "X" is not one of sizes` |
 | `places` unknown | `places "X": the surfaces are context-sidebar, home, sidebar` |
+| `places` names an area it does not fit | `places "sidebar": the widget does not fit that area, so the app would never place it there` |
+| `fits` names a layout its view is not drawn in | `fits canvas, and the app.todo view is drawn only in stack` |
+| a provider's context not declared | `source.name app/session-context needs context.session: declare context: {session: required}` |
 | `context` key no surface gives | `context key "X" is not given by any surface` |
 | `context` value other than required/optional | `context key "X" is "Y": write required or optional` |
 | input type unknown, or default of the wrong type | `input "X" has type "Y"`, `input "X" is a string, and its default 3 is not` |

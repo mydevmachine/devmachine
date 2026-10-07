@@ -200,6 +200,11 @@ func checkProvider(s Source, scope sourceScope, c Contract, at reporter) {
 			s.Name, Engine, strings.Join(providerNames(c), ", "))
 		return
 	}
+	for _, key := range sortedKeys(provider.Context) {
+		if !scope.inline && scope.context[key] != ContextRequired {
+			at("source.name", "source.name %s needs context.%s: declare context: {%s: required}", s.Name, key, key)
+		}
+	}
 	for _, arg := range sortedKeys(s.With) {
 		if _, ok := provider.Args[arg]; !ok {
 			at("source.with", "source.with.%s is not an argument of %s", arg, s.Name)

@@ -51,6 +51,7 @@ type Entry struct {
 	Sizes             []string          `json:"sizes"`
 	DefaultSize       string            `json:"default_size"`
 	Places            []string          `json:"places"`
+	Single            bool              `json:"single"`
 	Surfaces          []string          `json:"surfaces"`
 	Available         bool              `json:"available"`
 	UnavailableReason string            `json:"unavailable_reason"`
@@ -137,6 +138,7 @@ func entryFor(w Widget, pkg PackageWidgets, state Installed) Entry {
 		Sizes:             w.Sizes,
 		DefaultSize:       w.DefaultSize,
 		Places:            w.Places,
+		Single:            w.Single,
 		Surfaces:          Surfaces(w),
 		Available:         available,
 		UnavailableReason: reason,

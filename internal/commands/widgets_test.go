@@ -67,6 +67,58 @@ sizes: [small]
 default_size: small
 `
 
+const workspacesWidgetYAML = `format: 1
+name: workspaces
+summary: Your machines and workspaces with their sessions.
+requires: {engine: ">= 1.2"}
+fits: [stack]
+context: {}
+source: {kind: provider, name: app/workspaces, every: 5s}
+view: {kind: app.workspaces}
+sizes: [medium, large]
+default_size: large
+single: true
+places: [sidebar]
+`
+
+const todoWidgetYAML = `format: 1
+name: todo
+summary: The plan of the selected session.
+requires: {engine: ">= 1.2"}
+fits: [stack]
+context: {session: required}
+source: {kind: provider, name: app/session-context, every: 5s}
+view: {kind: app.todo}
+sizes: [medium, large]
+default_size: large
+places: [context-sidebar]
+`
+
+// stackConfig is widgetConfig plus the app's workspaces and todo widgets in
+// release v40, for the boards of the two sidebars.
+func stackConfig(t *testing.T) string {
+	t.Helper()
+	dir := widgetConfig(t)
+	app := filepath.Join(packages.CacheDir(dir, "v40"), "packages", "devmachine-app", "widgets")
+	writeCommandFile(t, filepath.Join(app, "workspaces", "widget.yml"), workspacesWidgetYAML)
+	writeCommandFile(t, filepath.Join(app, "todo", "widget.yml"), todoWidgetYAML)
+	return dir
+}
+
+func TestWidgetsListAndHelpSayASingleWidget(t *testing.T) {
+	dir := stackConfig(t)
+	catalog := listCatalog(t, dir)
+	workspaces, ok := catalog.Find("devmachine-app/workspaces")
+	todo, _ := catalog.Find("devmachine-app/todo")
+	if !ok || !workspaces.Single || todo.Single || !reflect.DeepEqual(workspaces.Surfaces, []string{"context-sidebar", "sidebar"}) {
+		t.Fatalf("got %+v", catalog.Widgets)
+	}
+	out, err := execute(t, "--config", dir, "widgets", "help", "devmachine-app/workspaces")
+	if err != nil || !strings.Contains(out, "once per board\n") {
+		t.Fatalf("%v\n%s", err, out)
+	}
+}
+
 func writeWidgetPackageAt(t *testing.T, parent, pkg, scope string, widgetFiles map[string]string) {
 	t.Helper()
 	dir := filepath.Join(parent, pkg)

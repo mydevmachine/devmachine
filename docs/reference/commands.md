@@ -699,6 +699,7 @@ prints:
       "sizes": ["small", "medium", "wide"],
       "default_size": "medium",
       "places": ["home"],
+      "single": false,
       "surfaces": ["context-sidebar", "home", "sidebar"],
       "available": true,
       "unavailable_reason": ""
@@ -713,7 +714,8 @@ prints:
 `origin` is `release` or `local`; `version` is the release tag, or `""`
 for your own package. `surfaces` are the areas the widget fits, planned
 ones included: the area's layout is in `fits` and the area gives every
-context key the widget requires. `available` is `false` when the widget
+context key the widget requires. `single` is `true` when a board holds
+the widget at most once. `available` is `false` when the widget
 needs its package added and synced; `unavailable_reason` then names the
 command to run (see [why widgets come from
 packages](../how-it-works/widgets-come-from-packages.md)). A widget with a
@@ -723,8 +725,8 @@ that cannot be read is a problem too: its widgets are left out, and when it
 is one of your own packages the release package of the same name is not
 used in its place.
 
-`help` prints one widget's inputs, context, sizes and the areas it fits;
-with `--format json`, the same entry as `list`. `widgets help <widget>`
+`help` prints one widget's inputs, context, sizes and the areas it fits,
+and `once per board` for a single widget; with `--format json`, the same entry as `list`. `widgets help <widget>`
 describes a widget; `--help` shows how to use a command.
 
 `validate` takes a `widget.yml`, a widget folder, a package folder or a

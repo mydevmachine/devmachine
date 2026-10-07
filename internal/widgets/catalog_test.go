@@ -96,13 +96,13 @@ func TestCatalogJSONHasTheAgreedShape(t *testing.T) {
 	}
 	entry := got["widgets"].([]any)[0].(map[string]any)
 	for _, key := range []string{"name", "package", "widget", "origin", "version", "path", "summary", "requires_engine",
-		"fits", "context", "inputs", "source", "view", "sizes", "default_size", "places", "surfaces", "available", "unavailable_reason", "package_path"} {
+		"fits", "context", "inputs", "source", "view", "sizes", "default_size", "places", "single", "surfaces", "available", "unavailable_reason", "package_path"} {
 		if _, ok := entry[key]; !ok {
 			t.Errorf("widget entry is missing %q", key)
 		}
 	}
-	if len(entry) != 20 {
-		t.Errorf("widget entry has %d keys, want 20: %v", len(entry), entry)
+	if len(entry) != 21 {
+		t.Errorf("widget entry has %d keys, want 21: %v", len(entry), entry)
 	}
 	source := entry["source"].(map[string]any)
 	if source["every"] != "60s" || source["with"].(map[string]any)["harness"] != "{{inputs.harness}}" {
