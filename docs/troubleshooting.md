@@ -1659,11 +1659,15 @@ run as a command. No way of quoting it is safe in every case, so a shell
 line holds no templates at all.
 
 **What to do:** Read the value from the environment variable the app
-sets, in double quotes: `{{inputs.disk-path}}` becomes
-`"$DM_INPUT_DISK_PATH"`, `{{context.project}}` becomes
-`"$DM_CONTEXT_PROJECT"`. The name is upper case, and any character other
-than A–Z and 0–9 turns into `_`. Do not pass that variable on to `eval`,
-`sh -c`, `ssh <host> …`, `awk` or `xargs`: they run their argument as code.
+sets, in double quotes: `{{inputs.max_lines}}` becomes
+`"$DM_INPUT_MAX_LINES"`, `{{context.workspace}}` becomes
+`"$DM_CONTEXT_WORKSPACE"` (the workspace's name). The name is upper case,
+and any character other than A–Z and 0–9 turns into `_`. Do not pass that
+variable on to `eval`, `sh -c`, `ssh <host> …`, `awk` or `xargs`: they run
+their argument as code. Bash arithmetic does too — `$(( ))`, `(( ))`,
+`let`, `[[ … -gt … ]]`, `declare -i` run a value such as `a[$(id)]` — and
+`/bin/sh` on a Mac is bash. Check a number with `case` or `[ … ]` first:
+`case $DM_INPUT_MAX_LINES in ''|*[!0-9]*) exit 1;; esac`.
 
 ## "a shell line takes no source.args"
 

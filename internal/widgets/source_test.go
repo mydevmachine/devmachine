@@ -114,7 +114,7 @@ func TestEachSourceRuleReportsItsOwnProblem(t *testing.T) {
 		{"neither run nor script", "disk", diskWidget, []string{"  run: df\n  args: [-h, /]\n", ""}, "a command source needs run or script"},
 		{"run with spaces", "disk", diskWidget, []string{"  run: df\n  args: [-h, /]\n", "  run: df -h /\n"}, `source.run "df -h /" has spaces`},
 		{"template in a shell line", "disk", diskWidget, []string{"  run: df\n  args: [-h, /]\n", "  run: \"echo {{inputs.machine}}\"\n  shell: true\n"}, `source.run is a shell line, so it cannot hold {{inputs.machine}}: read it as "$DM_INPUT_MACHINE" instead`},
-		{"context template in a shell line", "disk", diskWidget, []string{"  run: df\n  args: [-h, /]\n", "  run: \"echo '{{ context.project }}'\"\n  shell: true\n"}, `cannot hold {{ context.project }}: read it as "$DM_CONTEXT_PROJECT" instead`},
+		{"context template in a shell line", "disk", diskWidget, []string{"  run: df\n  args: [-h, /]\n", "  run: \"echo '{{ context.workspace }}'\"\n  shell: true\n"}, `cannot hold {{ context.workspace }}: read it as "$DM_CONTEXT_WORKSPACE" instead`},
 		{"item template in a shell line", "disk", diskWidget, []string{"  run: df\n  args: [-h, /]\n", "  run: \"echo {{item.name}}\"\n  shell: true\n"}, "cannot hold {{item.name}}: read values as $DM_INPUT_<NAME> or $DM_CONTEXT_<KEY> instead"},
 		{"args with a shell line", "disk", diskWidget, []string{"  run: df\n", "  run: df\n  shell: true\n"}, "a shell line takes no source.args"},
 		{"template in a run without a shell", "disk", diskWidget, []string{"  run: df\n", "  run: \"{{ inputs.machine }}\"\n"}, "source.run cannot hold {{ inputs.machine }}: a value must not pick the program"},
@@ -171,9 +171,9 @@ func TestEachSourceRuleReportsItsOwnProblem(t *testing.T) {
 
 func TestEveryTemplateInAShellLineIsReportedOnItsLine(t *testing.T) {
 	body := edited(t, diskWidget, "  run: df\n  args: [-h, /]\n",
-		"  run: \"echo {{inputs.machine}} {{context.project}}\"\n  shell: true\n")
+		"  run: \"echo {{inputs.machine}} {{context.workspace}}\"\n  shell: true\n")
 	_, problems := Load(writeWidget(t, t.TempDir(), "disk", body))
-	want := []string{"$DM_INPUT_MACHINE", "$DM_CONTEXT_PROJECT"}
+	want := []string{"$DM_INPUT_MACHINE", "$DM_CONTEXT_WORKSPACE"}
 	if len(problems) != len(want) {
 		t.Fatalf("want %d problems, got %v", len(want), problems)
 	}
@@ -186,14 +186,13 @@ func TestEveryTemplateInAShellLineIsReportedOnItsLine(t *testing.T) {
 
 func TestEnvNameNamesTheVariableAShellLineReads(t *testing.T) {
 	cases := map[string]string{
-		"inputs.disk-path":       "DM_INPUT_DISK_PATH",
-		"inputs.machine":         "DM_INPUT_MACHINE",
-		" inputs.max_lines ":     "DM_INPUT_MAX_LINES",
-		"context.workspace.name": "DM_CONTEXT_WORKSPACE_NAME",
-		"context.project":        "DM_CONTEXT_PROJECT",
-		"item.name":              "",
-		"inputs":                 "",
-		"inputs.":                "",
+		"inputs.machine":     "DM_INPUT_MACHINE",
+		" inputs.max_lines ": "DM_INPUT_MAX_LINES",
+		"context.workspace":  "DM_CONTEXT_WORKSPACE",
+		"context.repo":       "DM_CONTEXT_REPO",
+		"item.name":          "",
+		"inputs":             "",
+		"inputs.":            "",
 	}
 	for ref, want := range cases {
 		if got := EnvName(ref); got != want {

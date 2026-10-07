@@ -426,8 +426,8 @@ func scriptFileProblem(packageDir, script string) string {
 var notEnvChar = regexp.MustCompile(`[^A-Z0-9]`)
 
 // EnvName is the environment variable a shell line reads a value from:
-// inputs.disk-path is DM_INPUT_DISK_PATH and context.workspace.name is
-// DM_CONTEXT_WORKSPACE_NAME. It is "" for a reference to anything else.
+// inputs.max_lines is DM_INPUT_MAX_LINES and context.workspace is
+// DM_CONTEXT_WORKSPACE. It is "" for a reference to anything else.
 func EnvName(ref string) string {
 	scope, key, ok := strings.Cut(strings.TrimSpace(ref), ".")
 	if !ok || key == "" {

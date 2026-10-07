@@ -100,19 +100,29 @@ source:
 - A shell line takes no `args`. It reads each value from an environment
   variable the app sets: `DM_INPUT_` or `DM_CONTEXT_` followed by the name
   in upper case, with any character other than A–Z and 0–9 turned into
-  `_`. So `inputs.disk-path` is `$DM_INPUT_DISK_PATH`, and
-  `context.project` is `$DM_CONTEXT_PROJECT`. An input name holds only
+  `_`. So `inputs.max_lines` is `$DM_INPUT_MAX_LINES`, and
+  `context.workspace` is `$DM_CONTEXT_WORKSPACE`. An input name holds only
   lower case letters, digits and `_`, so no two inputs share a variable.
   Write it in double quotes:
-  `run: 'du -sh -- "$DM_INPUT_DISK_PATH"'`. The shell never reads the
-  value as code, unless you hand it to a program that does: `eval`,
-  `sh -c`, `ssh <host> …`, `awk`, `xargs`, `perl -e`, `python -c`. That
-  is your own line's code, so keep values out of those.
+  `run: 'tail -n "$DM_INPUT_MAX_LINES" /var/log/syslog'`. The shell never
+  reads the value as code, unless you hand it to a program that does:
+  `eval`, `sh -c`, `ssh <host> …`, `awk`, `xargs`, `perl -e`,
+  `python -c` — or bash arithmetic: `$(( ))`, `(( ))`, `let`,
+  `[[ … -gt … ]]` and `declare -i` run a value such as `a[$(id)]` as a
+  command. That is your own line's code, so keep values out of those.
+  `/bin/sh` on a Mac is bash, so the arithmetic rule applies there too:
+  check that a value is a number with `case` or `[ … ]` first, as in
+  `case $DM_INPUT_MAX_LINES in ''|*[!0-9]*) exit 1;; esac`.
+- A context key's variable holds text: a `machine`, `workspace` or
+  `session` key holds its name, a `repo` key holds `owner/name`, and a
+  `path` or `string` key holds the value itself.
 - Without a shell, `run` cannot start with `-` or hold `=`: it would read
   as an option or a variable to set, not a program.
 - `target` is `local` (the computer the app runs on, the default),
   `{machine: <name>}` or `{workspace: <name>}`. A machine or a workspace is
-  reached through `devmachine run`; the app never opens its own SSH.
+  reached through `devmachine run --no-log`; the app never opens its own
+  SSH. Widget runs always use `--no-log`: their values would otherwise
+  land in [the command log](commands.md#the-command-log).
 - `every` is how often: a duration of at least `5s`, or `manual` for a ▶
   button. `timeout` is `30s` unless you say otherwise, at most `10m`.
 - `parse` says how the output is read: `text`, `lines`, `number`, `json`
