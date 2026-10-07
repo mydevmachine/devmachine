@@ -47,6 +47,9 @@ func BoardOptionWarnings(b Board, path string, lookup Lookup, names TargetNames)
 }
 
 func missingOption(source, value string, c Contract, names TargetNames) string {
+	if value == "" {
+		return ""
+	}
 	switch source {
 	case OptionMachines:
 		if !slices.Contains(names.Machines, value) {

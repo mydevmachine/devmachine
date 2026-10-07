@@ -40,3 +40,10 @@ func TestBoardOptionWarningsPointAtTheWithLine(t *testing.T) {
 		t.Fatalf("got %+v", got)
 	}
 }
+
+func TestOptionWarningsSkipAnEmptyName(t *testing.T) {
+	usage, _ := choiceLookup("mine/usage")
+	if got := OptionWarnings("usage", usage, map[string]any{"harness": ""}, TargetNames{}); len(got) != 0 {
+		t.Fatalf("got %v", got)
+	}
+}

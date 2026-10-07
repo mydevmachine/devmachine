@@ -18,6 +18,9 @@ of many, such as `with: {machines: [main, backup]}`. An empty list means
 all of them, so a widget you never touched follows your configuration as
 it grows.
 
+A choice of many reaches `{{inputs.x}}` and `$DM_INPUT_X` as its names
+joined with commas, so `[main, backup]` arrives as `main,backup`.
+
 ## Why a name the configuration lacks is only a warning
 
 Machines come and go. If removing `backup` from `config.yml` made every
@@ -43,3 +46,13 @@ the same question.
 The override may not go below the source's minimum, for the same reason
 the widget itself may not: the minimum protects the machine the source
 runs on, not the widget.
+
+## Why widgets set leaves a written widget's source alone
+
+A widget written in a board runs what its `source` says only after you
+press Allow, and the app asks again whenever that source changes. A
+command that rewrites the source from flags would make that change easy
+to make without looking at it, so `widgets set` changes a written
+widget's title only. Its source is changed in the board file, where you
+see the whole of it, or in the app's editor, which shows it and asks
+again.

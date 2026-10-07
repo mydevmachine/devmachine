@@ -1851,6 +1851,24 @@ is `source.every`. An `every` next to it would say the same thing twice.
 **What to do:** Change `source.every` and delete the other line. The app
 asks for your approval again when the source changes.
 
+## "X is written in the board: change its source in the board file"
+
+**What it means:** `widgets set --every` or `--set` was given for a
+widget that has its own `source` in the board. Those change what it
+runs, which the app asks you to approve, so the CLI does not change them
+from flags. A widget written in the board has no inputs either.
+
+**What to do:** Edit `source` in the board file and run `devmachine
+widgets validate` on it, or use ⋯ → Edit… in the app. `--title` alone
+still works.
+
+## "nothing to change: give --title, --every or --set"
+
+**What it means:** `widgets set` was run with only an id and a board.
+
+**What to do:** Say what to change, for example `devmachine widgets set
+usage --board home --every 2m`.
+
 ## "source.target: app/… is the app's own data, so it takes no target"
 
 **What it means:** The widget reads one of the app's own providers, such

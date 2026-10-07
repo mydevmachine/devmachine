@@ -149,6 +149,15 @@ func (b Board) IDOfType(widgetType string) (string, bool) {
 	return "", false
 }
 
+// Entry is the instance with this id, to change in place.
+func (b *Board) Entry(id string) (*Instance, error) {
+	i, err := b.index(id)
+	if err != nil {
+		return nil, err
+	}
+	return &b.Widgets[i], nil
+}
+
 func (b Board) index(id string) (int, error) {
 	for i, w := range b.Widgets {
 		if w.ID == id {
