@@ -8,6 +8,23 @@ page](https://github.com/mydevmachine/devmachine/releases).
 
 To get the latest version, see [Upgrade](upgrade.md).
 
+## App v0.1.22 — 2026-10-07
+
+### Added
+
+- Adding a machine asks what happens to SSH password login once the key
+  works: off for every account, off except the accounts you pick, or left
+  as it is.
+- Settings → Machines → ⋯ → SSH password login shows which accounts can
+  still log in with a password, and changes it.
+
+### Changed
+
+- A new workspace on a machine that has never synced shows one card that
+  asks for the first sync, instead of two cards.
+- The app calls a workspace an account on its machine, not a Linux account,
+  and picks the packages that fit a machine by its real system.
+
 ## v0.8.2 — 2026-10-07
 
 ### Added
