@@ -1619,7 +1619,7 @@ under `problems`; the other widgets still work.
 **What to do:** For a published widget, run `devmachine update`. For your
 own, use what `devmachine widgets schema` lists.
 
-## "requires engine >= 1.1, and this CLI implements engine 1.0"
+## "requires engine >= 1.2, and this CLI implements engine 1.1"
 
 **What it means:** The widget says it needs a newer engine than this CLI
 has. Nothing else in it was checked.

@@ -3,7 +3,7 @@
 package widgets
 
 // Engine is the version of the contract this CLI implements.
-const Engine = "1.0"
+const Engine = "1.1"
 
 // The layouts a surface can have.
 const (
@@ -30,8 +30,59 @@ const (
 	ContextOptional = "optional"
 )
 
-// SourceProvider is the only source kind engine 1.0 knows.
-const SourceProvider = "provider"
+// The kinds of source a widget can read.
+const (
+	SourceProvider = "provider"
+	SourceCommand  = "command"
+	SourceURL      = "url"
+	SourcePrompt   = "prompt"
+	SourceSession  = "session"
+)
+
+// The types a source or view field takes, as the contract names them.
+const (
+	FieldString   = "string"
+	FieldBool     = "bool"
+	FieldInt      = "int"
+	FieldNumber   = "number"
+	FieldDuration = "duration"
+	FieldEvery    = "every"
+	FieldEnum     = "enum"
+	FieldList     = "list"
+	FieldArgs     = "args"
+	FieldTarget   = "target"
+	FieldPath     = "path"
+	FieldURL      = "url"
+	FieldTemplate = "template"
+	FieldRule     = "rule"
+	FieldObject   = "object"
+	FieldProvider = "provider"
+)
+
+// The ways a command or a url's output is read.
+const (
+	ParseText   = "text"
+	ParseLines  = "lines"
+	ParseNumber = "number"
+	ParseJSON   = "json"
+	ParseANSI   = "ansi"
+	ParseStatus = "status"
+)
+
+// The ways a command runs.
+const (
+	ModePoll   = "poll"
+	ModeStream = "stream"
+)
+
+// EveryManual runs a source only when somebody presses the widget's button.
+const EveryManual = "manual"
+
+// TargetLocal runs a source on the computer the app runs on.
+const TargetLocal = "local"
+
+// AcceptsKind starts an accepts entry that takes any output of one source kind.
+const AcceptsKind = "kind:"
 
 // SizeCustom is the size a board entry has after a free resize.
 const SizeCustom = "custom"
@@ -62,9 +113,30 @@ type Provider struct {
 	Returns  map[string]string `json:"returns"`
 }
 
-// View is one way the app draws a provider's output.
+// Field describes one key a source or a view takes.
+type Field struct {
+	Type     string           `json:"type"`
+	Required bool             `json:"required,omitempty"`
+	Default  any              `json:"default,omitempty"`
+	Values   []string         `json:"values,omitempty"`
+	Min      any              `json:"min,omitempty"`
+	Max      any              `json:"max,omitempty"`
+	Fields   map[string]Field `json:"fields,omitempty"`
+}
+
+// SourceKind is one kind of source: how often it may run, whether a widget
+// written in a board waits for the owner's approval before it runs, and the
+// keys it takes besides kind.
+type SourceKind struct {
+	MinEvery string           `json:"min_every,omitempty"`
+	Approval bool             `json:"approval"`
+	Fields   map[string]Field `json:"fields"`
+}
+
+// View is one way the app draws a source's output.
 type View struct {
-	Accepts []string `json:"accepts"`
+	Accepts []string         `json:"accepts"`
+	Fields  map[string]Field `json:"fields,omitempty"`
 }
 
 // Contract is everything a widget may name, at one engine version.
@@ -79,15 +151,21 @@ type Contract struct {
 	Providers    map[string]Provider          `json:"providers"`
 	Views        map[string]View              `json:"views"`
 	SourceKinds  []string                     `json:"source_kinds"`
+	Sources      map[string]SourceKind        `json:"sources"`
 	Formats      map[string]int               `json:"formats"`
 }
 
-// CurrentContract returns engine 1.0, built fresh on every call so no caller
+// CurrentContract returns engine 1.1, built fresh on every call so no caller
 // can change what another one reads.
 func CurrentContract() Contract {
 	appProvider := func(args map[string]Arg, returns map[string]string) Provider {
 		return Provider{Args: args, MinEvery: "5s", Returns: returns}
 	}
+	timeout := func(fallback string) Field {
+		return Field{Type: FieldDuration, Default: fallback, Max: "10m"}
+	}
+	target := Field{Type: FieldTarget, Default: TargetLocal}
+	tail := Field{Type: FieldInt, Min: 1, Max: 2000}
 	return Contract{
 		Engine:  Engine,
 		Layouts: []string{LayoutCanvas, LayoutStack, LayoutSlot},
@@ -134,8 +212,87 @@ func CurrentContract() Contract {
 			"app.summary":       {Accepts: []string{"app/summary"}},
 			"app.machines":      {Accepts: []string{"app/machines"}},
 			"app.harness-usage": {Accepts: []string{"app/harness-usage"}},
+			"text": {Accepts: []string{ParseText, ParseLines, ParseANSI}, Fields: map[string]Field{
+				"wrap": {Type: FieldBool, Default: true},
+				"tail": tail,
+			}},
+			"number": {Accepts: []string{ParseNumber, ParseJSON}, Fields: map[string]Field{
+				"value":  {Type: FieldTemplate},
+				"unit":   {Type: FieldString},
+				"format": {Type: FieldEnum, Values: []string{"plain", "percent", "bytes", "duration"}, Default: "plain"},
+			}},
+			"gauge": {Accepts: []string{ParseNumber, ParseJSON}, Fields: map[string]Field{
+				"value": {Type: FieldTemplate},
+				"min":   {Type: FieldNumber, Default: 0},
+				"max":   {Type: FieldNumber, Default: 100},
+				"unit":  {Type: FieldString},
+				"warn":  {Type: FieldNumber},
+				"crit":  {Type: FieldNumber},
+			}},
+			"status": {Accepts: []string{ParseStatus, ParseNumber, ParseJSON, ParseText}, Fields: map[string]Field{
+				"value": {Type: FieldTemplate},
+				"ok":    {Type: FieldRule},
+				"warn":  {Type: FieldRule},
+			}},
+			"list": {Accepts: []string{ParseLines, ParseJSON}, Fields: map[string]Field{
+				"item": {Type: FieldObject, Fields: map[string]Field{
+					"title":    {Type: FieldTemplate, Default: "{{item}}"},
+					"subtitle": {Type: FieldTemplate},
+					"status":   {Type: FieldTemplate},
+					"link":     {Type: FieldTemplate},
+				}},
+			}},
+			"sparkline": {Accepts: []string{ParseNumber, ParseJSON}, Fields: map[string]Field{
+				"value": {Type: FieldTemplate},
+				"unit":  {Type: FieldString},
+				"max":   {Type: FieldNumber},
+			}},
+			"markdown": {Accepts: []string{ParseText}},
+			"web": {Accepts: []string{AcceptsKind + SourceURL}, Fields: map[string]Field{
+				"zoom": {Type: FieldNumber, Default: 1, Min: 0.5, Max: 2},
+			}},
+			"terminal": {Accepts: []string{ParseANSI, ParseText, AcceptsKind + SourceSession}, Fields: map[string]Field{
+				"tail": tail,
+			}},
 		},
-		SourceKinds: []string{SourceProvider},
-		Formats:     map[string]int{"widget": 1, "board": 1},
+		SourceKinds: []string{SourceProvider, SourceCommand, SourceURL, SourcePrompt, SourceSession},
+		Sources: map[string]SourceKind{
+			SourceProvider: {Fields: map[string]Field{
+				"name":  {Type: FieldProvider, Required: true},
+				"with":  {Type: FieldArgs},
+				"every": {Type: FieldDuration, Required: true},
+			}},
+			SourceCommand: {MinEvery: "5s", Approval: true, Fields: map[string]Field{
+				"run":     {Type: FieldString},
+				"script":  {Type: FieldPath},
+				"args":    {Type: FieldList},
+				"shell":   {Type: FieldBool, Default: false},
+				"target":  target,
+				"every":   {Type: FieldEvery},
+				"timeout": timeout("30s"),
+				"mode":    {Type: FieldEnum, Values: []string{ModePoll, ModeStream}, Default: ModePoll},
+				"keep":    {Type: FieldInt, Default: 200, Min: 1, Max: 2000},
+				"parse":   {Type: FieldEnum, Values: []string{ParseText, ParseLines, ParseNumber, ParseJSON, ParseANSI}, Default: ParseText},
+			}},
+			SourceURL: {MinEvery: "5s", Fields: map[string]Field{
+				"url":     {Type: FieldURL, Required: true},
+				"every":   {Type: FieldEvery, Required: true},
+				"timeout": timeout("30s"),
+				"parse":   {Type: FieldEnum, Values: []string{ParseStatus, ParseText, ParseJSON}, Default: ParseStatus},
+			}},
+			SourcePrompt: {MinEvery: "15m", Approval: true, Fields: map[string]Field{
+				"harness": {Type: FieldEnum, Values: []string{"claude", "codex"}, Required: true},
+				"prompt":  {Type: FieldString, Required: true},
+				"target":  target,
+				"every":   {Type: FieldEvery, Default: EveryManual},
+				"timeout": timeout("5m"),
+			}},
+			SourceSession: {MinEvery: "2s", Approval: true, Fields: map[string]Field{
+				"target":  target,
+				"session": {Type: FieldString, Required: true},
+				"every":   {Type: FieldEvery, Required: true},
+			}},
+		},
+		Formats: map[string]int{"widget": 1, "board": 1},
 	}
 }

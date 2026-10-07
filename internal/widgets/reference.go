@@ -77,14 +77,64 @@ func ReferenceTables() string {
 		line("| `%s` | %s | %s | %s |", name, orNone(strings.Join(args, "; ")), p.MinEvery, strings.Join(returns, ", "))
 	}
 	line("")
+	line("### Source kinds")
+	line("")
+	line("| Kind | Minimum `every` | Waits for approval in a board | Fields besides `kind` |")
+	line("| --- | --- | --- | --- |")
+	for _, name := range c.SourceKinds {
+		kind := c.Sources[name]
+		minimum := kind.MinEvery
+		if minimum == "" {
+			minimum = "the provider's"
+		}
+		approval := "no"
+		if kind.Approval {
+			approval = "yes"
+		}
+		line("| `%s` | %s | %s | %s |", name, minimum, approval, describeFields(kind.Fields))
+	}
+	line("")
 	line("### Views")
 	line("")
-	line("| View | Draws |")
-	line("| --- | --- |")
+	line("| View | Draws | Fields besides `kind` |")
+	line("| --- | --- | --- |")
 	for _, name := range viewNames(c) {
-		line("| `%s` | `%s` |", name, strings.Join(c.Views[name].Accepts, "`, `"))
+		view := c.Views[name]
+		line("| `%s` | `%s` | %s |", name, strings.Join(view.Accepts, "`, `"), orNone(describeFields(view.Fields)))
 	}
 	return b.String()
+}
+
+func describeFields(fields map[string]Field) string {
+	parts := make([]string, 0, len(fields))
+	for _, name := range sortedKeys(fields) {
+		parts = append(parts, describeField(name, fields[name]))
+	}
+	return strings.Join(parts, "; ")
+}
+
+func describeField(name string, f Field) string {
+	details := []string{f.Type}
+	if f.Required {
+		details = append(details, "required")
+	}
+	if len(f.Values) > 0 {
+		details = append(details, strings.Join(f.Values, "/"))
+	}
+	if f.Default != nil {
+		details = append(details, fmt.Sprintf("default `%v`", f.Default))
+	}
+	if f.Min != nil {
+		details = append(details, fmt.Sprintf("min %v", f.Min))
+	}
+	if f.Max != nil {
+		details = append(details, fmt.Sprintf("max %v", f.Max))
+	}
+	text := fmt.Sprintf("`%s` %s", name, strings.Join(details, ", "))
+	if len(f.Fields) > 0 {
+		text += " (" + describeFields(f.Fields) + ")"
+	}
+	return text
 }
 
 func orNone(s string) string {

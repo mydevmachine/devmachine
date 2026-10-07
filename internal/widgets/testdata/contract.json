@@ -1,5 +1,5 @@
 {
-  "engine": "1.0",
+  "engine": "1.1",
   "layouts": ["canvas", "stack", "slot"],
   "unit": 80,
   "snap": 8,
@@ -33,8 +33,73 @@
     "app.clock": {"accepts": ["app/clock"]},
     "app.summary": {"accepts": ["app/summary"]},
     "app.machines": {"accepts": ["app/machines"]},
-    "app.harness-usage": {"accepts": ["app/harness-usage"]}
+    "app.harness-usage": {"accepts": ["app/harness-usage"]},
+    "text": {"accepts": ["text", "lines", "ansi"], "fields": {
+      "wrap": {"type": "bool", "default": true},
+      "tail": {"type": "int", "min": 1, "max": 2000}}},
+    "number": {"accepts": ["number", "json"], "fields": {
+      "value": {"type": "template"},
+      "unit": {"type": "string"},
+      "format": {"type": "enum", "default": "plain", "values": ["plain", "percent", "bytes", "duration"]}}},
+    "gauge": {"accepts": ["number", "json"], "fields": {
+      "value": {"type": "template"},
+      "min": {"type": "number", "default": 0},
+      "max": {"type": "number", "default": 100},
+      "unit": {"type": "string"},
+      "warn": {"type": "number"},
+      "crit": {"type": "number"}}},
+    "status": {"accepts": ["status", "number", "json", "text"], "fields": {
+      "value": {"type": "template"},
+      "ok": {"type": "rule"},
+      "warn": {"type": "rule"}}},
+    "list": {"accepts": ["lines", "json"], "fields": {
+      "item": {"type": "object", "fields": {
+        "title": {"type": "template", "default": "{{item}}"},
+        "subtitle": {"type": "template"},
+        "status": {"type": "template"},
+        "link": {"type": "template"}}}}},
+    "sparkline": {"accepts": ["number", "json"], "fields": {
+      "value": {"type": "template"},
+      "unit": {"type": "string"},
+      "max": {"type": "number"}}},
+    "markdown": {"accepts": ["text"]},
+    "web": {"accepts": ["kind:url"], "fields": {
+      "zoom": {"type": "number", "default": 1, "min": 0.5, "max": 2}}},
+    "terminal": {"accepts": ["ansi", "text", "kind:session"], "fields": {
+      "tail": {"type": "int", "min": 1, "max": 2000}}}
   },
-  "source_kinds": ["provider"],
+  "source_kinds": ["provider", "command", "url", "prompt", "session"],
+  "sources": {
+    "provider": {"approval": false, "fields": {
+      "name": {"type": "provider", "required": true},
+      "with": {"type": "args"},
+      "every": {"type": "duration", "required": true}}},
+    "command": {"min_every": "5s", "approval": true, "fields": {
+      "run": {"type": "string"},
+      "script": {"type": "path"},
+      "args": {"type": "list"},
+      "shell": {"type": "bool", "default": false},
+      "target": {"type": "target", "default": "local"},
+      "every": {"type": "every"},
+      "timeout": {"type": "duration", "default": "30s", "max": "10m"},
+      "mode": {"type": "enum", "default": "poll", "values": ["poll", "stream"]},
+      "keep": {"type": "int", "default": 200, "min": 1, "max": 2000},
+      "parse": {"type": "enum", "default": "text", "values": ["text", "lines", "number", "json", "ansi"]}}},
+    "url": {"min_every": "5s", "approval": false, "fields": {
+      "url": {"type": "url", "required": true},
+      "every": {"type": "every", "required": true},
+      "timeout": {"type": "duration", "default": "30s", "max": "10m"},
+      "parse": {"type": "enum", "default": "status", "values": ["status", "text", "json"]}}},
+    "prompt": {"min_every": "15m", "approval": true, "fields": {
+      "harness": {"type": "enum", "required": true, "values": ["claude", "codex"]},
+      "prompt": {"type": "string", "required": true},
+      "target": {"type": "target", "default": "local"},
+      "every": {"type": "every", "default": "manual"},
+      "timeout": {"type": "duration", "default": "5m", "max": "10m"}}},
+    "session": {"min_every": "2s", "approval": true, "fields": {
+      "target": {"type": "target", "default": "local"},
+      "session": {"type": "string", "required": true},
+      "every": {"type": "every", "required": true}}}
+  },
   "formats": {"widget": 1, "board": 1}
 }

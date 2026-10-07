@@ -24,7 +24,10 @@ func TestTheWidgetFormatPageMatchesTheContract(t *testing.T) {
 
 func TestReferenceTablesNameEveryProviderAndView(t *testing.T) {
 	tables := ReferenceTables()
-	for _, want := range []string{"`app/harness-usage`", "`app.clock`", "`context-sidebar`", "| `wide` | 8×2 | 640×160 |"} {
+	for _, want := range []string{
+		"`app/harness-usage`", "`app.clock`", "`context-sidebar`", "| `wide` | 8×2 | 640×160 |",
+		"### Source kinds", "| `command` | 5s | yes |", "`kind:url`", "`timeout` duration, default `30s`, max 10m",
+	} {
 		if !strings.Contains(tables, want) {
 			t.Errorf("tables lack %s", want)
 		}

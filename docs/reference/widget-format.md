@@ -105,7 +105,7 @@ When the app or the CLI rewrites a board, comments in it are lost.
 
 <!-- generated from the engine contract by `make widget-format`: start -->
 
-Engine **1.0**. Widget format 1, board format 1.
+Engine **1.1**. Widget format 1, board format 1.
 
 ### Sizes
 
@@ -147,14 +147,33 @@ One unit is 80pt; positions and free resizes snap to 8pt.
 | `app/machines` | none | 5s | `list` machine_stats |
 | `app/summary` | none | 5s | `harness_sessions` int, `sessions` int, `workspaces` int |
 
+### Source kinds
+
+| Kind | Minimum `every` | Waits for approval in a board | Fields besides `kind` |
+| --- | --- | --- | --- |
+| `provider` | the provider's | no | `every` duration, required; `name` provider, required; `with` args |
+| `command` | 5s | yes | `args` list; `every` every; `keep` int, default `200`, min 1, max 2000; `mode` enum, poll/stream, default `poll`; `parse` enum, text/lines/number/json/ansi, default `text`; `run` string; `script` path; `shell` bool, default `false`; `target` target, default `local`; `timeout` duration, default `30s`, max 10m |
+| `url` | 5s | no | `every` every, required; `parse` enum, status/text/json, default `status`; `timeout` duration, default `30s`, max 10m; `url` url, required |
+| `prompt` | 15m | yes | `every` every, default `manual`; `harness` enum, required, claude/codex; `prompt` string, required; `target` target, default `local`; `timeout` duration, default `5m`, max 10m |
+| `session` | 2s | yes | `every` every, required; `session` string, required; `target` target, default `local` |
+
 ### Views
 
-| View | Draws |
-| --- | --- |
-| `app.clock` | `app/clock` |
-| `app.harness-usage` | `app/harness-usage` |
-| `app.machines` | `app/machines` |
-| `app.summary` | `app/summary` |
+| View | Draws | Fields besides `kind` |
+| --- | --- | --- |
+| `app.clock` | `app/clock` | none |
+| `app.harness-usage` | `app/harness-usage` | none |
+| `app.machines` | `app/machines` | none |
+| `app.summary` | `app/summary` | none |
+| `gauge` | `number`, `json` | `crit` number; `max` number, default `100`; `min` number, default `0`; `unit` string; `value` template; `warn` number |
+| `list` | `lines`, `json` | `item` object (`link` template; `status` template; `subtitle` template; `title` template, default `{{item}}`) |
+| `markdown` | `text` | none |
+| `number` | `number`, `json` | `format` enum, plain/percent/bytes/duration, default `plain`; `unit` string; `value` template |
+| `sparkline` | `number`, `json` | `max` number; `unit` string; `value` template |
+| `status` | `status`, `number`, `json`, `text` | `ok` rule; `value` template; `warn` rule |
+| `terminal` | `ansi`, `text`, `kind:session` | `tail` int, min 1, max 2000 |
+| `text` | `text`, `lines`, `ansi` | `tail` int, min 1, max 2000; `wrap` bool, default `true` |
+| `web` | `kind:url` | `zoom` number, default `1`, min 0.5, max 2 |
 
 <!-- generated from the engine contract by `make widget-format`: end -->
 
