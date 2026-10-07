@@ -38,16 +38,28 @@ func newWidgetsCmd(opts *options) *cobra.Command {
 }
 
 func newWidgetsListCmd(opts *options) *cobra.Command {
-	return &cobra.Command{
+	var board string
+	c := &cobra.Command{
 		Use:   "list",
 		Short: "List every widget the pinned release and your own packages offer",
 		Long: "A widget with a problem is left out and listed under problems; the " +
-			"command still succeeds, so one broken widget never hides the rest.",
+			"command still succeeds, so one broken widget never hides the rest. " +
+			"--board keeps only the widgets that fit that area.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if board != "" {
+				if err := checkBoardSurface(board); err != nil {
+					return err
+				}
+			}
 			catalog, _, err := loadCatalog(cmd.Context(), opts)
 			if err != nil {
 				return err
+			}
+			if board != "" {
+				catalog.Widgets = slices.DeleteFunc(catalog.Widgets, func(e widgets.Entry) bool {
+					return !slices.Contains(e.Surfaces, board)
+				})
 			}
 			if opts.format == formatJSON {
 				return writeJSON(cmd.OutOrStdout(), catalog)
@@ -70,6 +82,8 @@ func newWidgetsListCmd(opts *options) *cobra.Command {
 			return nil
 		},
 	}
+	c.Flags().StringVar(&board, "board", "", "keep only the widgets that fit this area: home, sidebar or context-sidebar")
+	return c
 }
 
 func newWidgetsHelpCmd(opts *options) *cobra.Command {

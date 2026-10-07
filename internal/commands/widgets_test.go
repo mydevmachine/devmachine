@@ -1087,3 +1087,34 @@ func TestWidgetsRemoveOnAMissingStackUsesTheDefaultBoard(t *testing.T) {
 		t.Fatalf("%v %+v", err, b.Widgets)
 	}
 }
+
+func TestWidgetsListBoardKeepsWhatFitsThatArea(t *testing.T) {
+	dir := stackConfig(t)
+	names := func(board string) string {
+		out, err := execute(t, "--config", dir, "--format", "json", "widgets", "list", "--board", board)
+		if err != nil {
+			t.Fatalf("%v\n%s", err, out)
+		}
+		var catalog widgets.Catalog
+		if err := json.Unmarshal([]byte(out), &catalog); err != nil {
+			t.Fatal(err)
+		}
+		var got []string
+		for _, e := range catalog.Widgets {
+			got = append(got, e.Name)
+		}
+		return strings.Join(got, ",")
+	}
+	if got := names("sidebar"); got != "claude-code/usage,devmachine-app/workspaces" {
+		t.Errorf("sidebar: %s", got)
+	}
+	if got := names("context-sidebar"); got != "claude-code/usage,devmachine-app/todo,devmachine-app/workspaces" {
+		t.Errorf("context-sidebar: %s", got)
+	}
+	if got := names("home"); got != "claude-code/usage,devmachine-app/clock" {
+		t.Errorf("home: %s", got)
+	}
+	if _, err := execute(t, "--config", dir, "widgets", "list", "--board", "desk"); err == nil || !strings.Contains(err.Error(), "there is no desk area") {
+		t.Fatalf("got %v", err)
+	}
+}

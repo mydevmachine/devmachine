@@ -660,7 +660,7 @@ Detection looks for `~/.claude`, `~/.codex`, `~/.config/opencode`,
 ## widgets
 
 ```text
-devmachine widgets list
+devmachine widgets list [--board home|sidebar|context-sidebar]
 devmachine widgets help <package/widget>
 devmachine widgets validate [path...]
 devmachine widgets schema [--json]
@@ -725,6 +725,10 @@ still exits 0, so one broken widget never hides the rest. A `package.yml`
 that cannot be read is a problem too: its widgets are left out, and when it
 is one of your own packages the release package of the same name is not
 used in its place.
+
+`--board <area>` keeps only the widgets whose `surfaces` include that
+area — what the app's gallery offers when you press "Add widget" there.
+`problems` are kept as they are.
 
 `help` prints one widget's inputs, context, sizes and the areas it fits,
 and `once per board` for a single widget; with `--format json`, the same entry as `list`. `widgets help <widget>`
