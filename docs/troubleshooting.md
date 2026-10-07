@@ -2322,6 +2322,22 @@ the version you had, move `.install-…/.previous` back to
 instead; it was already checked and records its new commit. Then delete
 the `.install-…` folder.
 
+## "X is installed from …, and packages release vN has an official X"
+
+**What it means:** `sync` found a package installed from a git address
+whose name the pinned release now has too: a `packages pin` brought a
+release that added it after you installed yours. A package in your own
+folder always wins over the release's, so your copy would replace the
+official one on the machine without a word. `sync` stops before it
+connects instead of picking one, since the two share a name, not an
+author.
+
+**What to do:** To use the official one, take the third-party one off
+with `devmachine packages rm X --machine <name>` (or `--workspace
+<name>`), delete it with `devmachine packages remove X`, then add the
+official one back and sync. To keep the third-party one for now, pin the
+release you had before with `devmachine packages pin <release>`.
+
 ## "… now holds a package named Y, not X"
 
 **What it means:** The repository X was installed from now holds a

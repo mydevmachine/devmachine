@@ -443,3 +443,43 @@ func TestSyncWithTagsLocksOnlyWhatRan(t *testing.T) {
 		t.Fatalf("alice's lock is %#v, want claude-code", got)
 	}
 }
+
+func configWithAnInstalledPackage(t *testing.T) string {
+	t.Helper()
+	dir := configWith(t, "machines:\n  - name: main\n    hosts: [203.0.113.10]\n    packages: [base, alice-tools]\npackages: v40\n")
+	widgetRelease(t, dir)
+	writeLocalPackage(t, dir, "base", packages.ScopeMachine)
+	writeLocalPackage(t, dir, "alice-tools", packages.ScopeMachine)
+	if err := packages.WriteOrigin(filepath.Join(packages.LocalDir(dir), "alice-tools"),
+		packages.Origin{URL: "https://example.com/alice/tools.git", Commit: "0123abc"}); err != nil {
+		t.Fatal(err)
+	}
+	return dir
+}
+
+func TestSyncRefusesAnInstalledPackageThatTheReleaseNowHas(t *testing.T) {
+	stub := stubSync(t)
+	dir := configWithAnInstalledPackage(t)
+	writeWidgetPackageAt(t, filepath.Join(packages.CacheDir(dir, "v40"), "packages"), "alice-tools", "machine", nil)
+
+	_, err := execute(t, "--config", dir, "sync", "--yes")
+	if err == nil || !strings.Contains(err.Error(),
+		"alice-tools is installed from https://example.com/alice/tools.git, and packages release v40 has an official alice-tools") {
+		t.Fatalf("got %v", err)
+	}
+	if stub.called {
+		t.Fatal("it reached the machine anyway")
+	}
+}
+
+func TestSyncTakesAnInstalledPackageTheReleaseDoesNotHave(t *testing.T) {
+	stub := stubSync(t)
+	dir := configWithAnInstalledPackage(t)
+
+	if out, err := execute(t, "--config", dir, "sync", "--yes"); err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	if !stub.called {
+		t.Fatal("it never reached the machine")
+	}
+}

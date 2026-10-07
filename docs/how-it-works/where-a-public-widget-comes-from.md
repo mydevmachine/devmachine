@@ -66,6 +66,16 @@ matters**: `packages add <name> --machine <m>` and `sync` run its Ansible
 tasks there as root, like every package's. The widget approval does not
 cover that. Read its tasks before you add it; `install` lists them.
 
+## When the release gains the same name later
+
+`install` checks the name against the release pinned at that moment. A
+later `packages pin` can bring a release that has a package of the same
+name. Your copy would then win on every sync and replace the official
+one without a word, so `sync` refuses instead, before it connects. It
+does not pick one for you: the two packages share a name, not an
+author. Take the third-party one off (`packages rm`, then `packages
+remove`), or pin an earlier release.
+
 ## Why there is no signature
 
 Nothing checks who wrote a third-party package. A signature would say who

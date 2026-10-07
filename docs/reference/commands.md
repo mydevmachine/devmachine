@@ -1690,7 +1690,11 @@ One tag beyond package names: `credentials`, which only copies shared
 logins — run after `devmachine login` instead of a full sync.
 
 `--check` never writes the lock file. Only your own packages (in
-`<config>/packages/`) are checked before the run. Every package's
+`<config>/packages/`) are checked before the run. A package installed
+with `packages install` whose name the pinned release now has too stops
+the sync before it connects, since your copy would replace the official
+one ([troubleshooting](../troubleshooting.md#x-is-installed-from--and-packages-release-vn-has-an-official-x)).
+Every package's
 `platforms` is checked against the machine's system before the machine is
 changed — from what was last read, then again from what `sync` reads as it
 connects — and a package for another system stops the sync, naming both
