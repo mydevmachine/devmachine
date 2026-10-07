@@ -202,6 +202,26 @@ func TestEnvNameNamesTheVariableAShellLineReads(t *testing.T) {
 	}
 }
 
+func TestTwoInputsCannotShareAnEnvironmentVariable(t *testing.T) {
+	body := edited(t, diskWidget, "  machine: {type: string, summary: Which machine.}\n",
+		"  machine: {type: string, summary: Which machine.}\n  a-b: {type: string}\n  a_b: {type: string}\n")
+	_, problems := Load(writeWidget(t, t.TempDir(), "disk", body))
+	if len(problems) != 1 || !strings.Contains(problems[0].Message, `input "a-b": use lower case letters, digits and underscores`) || problems[0].Line != 6 {
+		t.Fatalf("want one name problem about a-b on the inputs line, got %v", problems)
+	}
+}
+
+func TestEveryContextKeyHasItsOwnEnvironmentVariable(t *testing.T) {
+	seen := map[string]string{}
+	for _, key := range contextKeys(CurrentContract()) {
+		name := EnvName("context." + key)
+		if other, ok := seen[name]; ok {
+			t.Errorf("context keys %s and %s both become %s", other, key, name)
+		}
+		seen[name] = key
+	}
+}
+
 func writeScriptPackage(t *testing.T, mode os.FileMode) (string, string) {
 	t.Helper()
 	pkgDir := t.TempDir()

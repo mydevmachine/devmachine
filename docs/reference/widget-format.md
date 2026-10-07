@@ -101,7 +101,9 @@ source:
   variable the app sets: `DM_INPUT_` or `DM_CONTEXT_` followed by the name
   in upper case, with any character other than A–Z and 0–9 turned into
   `_`. So `inputs.disk-path` is `$DM_INPUT_DISK_PATH`, and
-  `context.project` is `$DM_CONTEXT_PROJECT`. Write it in double quotes:
+  `context.project` is `$DM_CONTEXT_PROJECT`. An input name holds only
+  lower case letters, digits and `_`, so no two inputs share a variable.
+  Write it in double quotes:
   `run: 'du -sh -- "$DM_INPUT_DISK_PATH"'`. The shell never reads the
   value as code, unless you hand it to a program that does: `eval`,
   `sh -c`, `ssh <host> …`, `awk`, `xargs`, `perl -e`, `python -c`. That
