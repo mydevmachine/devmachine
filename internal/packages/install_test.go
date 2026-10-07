@@ -486,3 +486,147 @@ func TestTouchKeepsAStagedFolderFromTheSweep(t *testing.T) {
 		t.Fatalf("got %v", err)
 	}
 }
+
+func TestStageRefusesControlCharacters(t *testing.T) {
+	manifest := func(from, to string) func(r *gittest.Repo) {
+		return func(r *gittest.Repo) {
+			r.Write("package.yml", strings.Replace(aliceToolsManifest, from, to, 1), 0o644)
+		}
+	}
+	cases := map[string]func(r *gittest.Repo){
+		"escape in a task name":        func(r *gittest.Repo) { r.Write("tasks/x\r\x1b[2K.yml", "---\n[]\n", 0o644) },
+		"escape in a file name":        func(r *gittest.Repo) { r.Write("templates/a\x1b[1A", "x", 0o644) },
+		"escape in a script path":      func(r *gittest.Repo) { r.Write("bin/run\x1b[2J", "#!/bin/sh\n", 0o755) },
+		"bidi override in a file name": func(r *gittest.Repo) { r.Write("files/evil\u202ecod.yml", "x", 0o644) },
+		"bidi isolate in a file name":  func(r *gittest.Repo) { r.Write("files/evil\u2066x", "x", 0o644) },
+		"delete in a file name":        func(r *gittest.Repo) { r.Write("files/a\x7fb", "x", 0o644) },
+		"C1 control in a file name":    func(r *gittest.Repo) { r.Write("files/a\u009bb", "x", 0o644) },
+		"escape in the summary":        manifest("summary: Tools from alice.", `summary: "Tools\e[2J from alice."`),
+		"newline in the summary":       manifest("summary: Tools from alice.", `summary: "Tools\nfrom alice."`),
+		"bidi override in the summary": manifest("summary: Tools from alice.", `summary: "Tools \u202efrom alice."`),
+		"escape in a command name":     manifest("commands: [disk, help]", `commands: [disk, "help\e[1A"]`),
+		"escape in a credential name":  manifest("{name: alice-token,", `{name: "alice-token\e[2K",`),
+		"bidi isolate in a credential": manifest("{name: alice-token,", `{name: "alice-token\u2069",`),
+		"escape in a provider name":    manifest("providers:\n  disk:", "providers:\n  \"disk\\e[1A\":"),
+		"escape in a needed package":   manifest("needs: [base]", `needs: ["base\e[2K"]`),
+		"escape in a widget folder":    func(r *gittest.Repo) { r.Write("widgets/x\x1b[2K/widget.yml", aliceHealthWidget, 0o644) },
+	}
+	for name, change := range cases {
+		r := aliceToolsRepo(t)
+		change(r)
+		r.Commit("change")
+		configDir := t.TempDir()
+		_, err := Stage(context.Background(), configDir, r.URL(), "")
+		if err == nil || !strings.Contains(err.Error(), "a character that moves or hides text in a terminal") {
+			t.Errorf("%s: got %v", name, err)
+			continue
+		}
+		if strings.ContainsAny(err.Error(), "\x1b\r\x7f\u009b\u202e\u2066\u2069") {
+			t.Errorf("%s: the error itself holds the character: %q", name, err)
+		}
+		if debris := installDebris(t, configDir); len(debris) != 0 {
+			t.Errorf("%s: left %v", name, debris)
+		}
+	}
+}
+
+func TestEscapeControl(t *testing.T) {
+	for in, want := range map[string]string{
+		"plain text, ünïcode": "plain text, ünïcode",
+		"a\x1b[2Jb":           `a\x1b[2Jb`,
+		"a\r\nb\tc":           `a\x0d\x0ab\x09c`,
+		"a\x7fb\u009bc":       `a\x7fb\x9bc`,
+		"evil\u202ecod":       `evil\u202ecod`,
+		"x\u2066y\u2069":      `x\u2066y\u2069`,
+	} {
+		if got := EscapeControl(in); got != want {
+			t.Errorf("%q: got %q, want %q", in, got, want)
+		}
+	}
+}
+
+func TestSummaryListsTheRestOfTheRole(t *testing.T) {
+	dir := comparePackage(t, aliceToolsManifest, map[string]string{
+		"tasks/main.yml": "---\n[]\n", "handlers/main.yml": "---\n[]\n", "meta/main.yml": "---\n",
+		"library/mod.py": "x", "module_utils/u.py": "x", "filter_plugins/f.py": "x", "lookup_plugins/l.py": "x",
+		"templates/a.j2": "x", "files/a": "x", "vars/main.yml": "x", "defaults/main.yml": "x",
+		"widgets/disk/widget.yml": aliceDiskWidget, "README.md": "x",
+	}, nil)
+	s, err := Summarize(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"defaults/main.yml", "files/a", "filter_plugins/f.py", "library/mod.py", "lookup_plugins/l.py",
+		"meta/main.yml", "module_utils/u.py", "templates/a.j2", "vars/main.yml"}
+	if !slices.Equal(s.RoleFiles, want) {
+		t.Fatalf("got %q, want %q", s.RoleFiles, want)
+	}
+	if !slices.Equal(s.Tasks, []string{"handlers/main.yml", "tasks/main.yml"}) {
+		t.Fatalf("got %q", s.Tasks)
+	}
+}
+
+func TestCompareNamesChangedRoleFiles(t *testing.T) {
+	before := comparePackage(t, aliceToolsManifest, map[string]string{
+		"tasks/main.yml": "---\n[]\n", "library/mod.py": "old", "templates/old.j2": "x", "vars/main.yml": "same",
+	}, nil)
+	after := comparePackage(t, aliceToolsManifest, map[string]string{
+		"tasks/main.yml": "---\n[]\n", "library/mod.py": "new", "meta/main.yml": "dependencies: [x]", "vars/main.yml": "same",
+	}, nil)
+	got, err := Compare(before, after)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(got.RoleFilesAdded, []string{"meta/main.yml"}) || !slices.Equal(got.RoleFilesRemoved, []string{"templates/old.j2"}) ||
+		!slices.Equal(got.RoleFilesChanged, []string{"library/mod.py"}) {
+		t.Fatalf("got %+v", got)
+	}
+	if got.Empty() {
+		t.Fatal("a changed module reads as unchanged")
+	}
+}
+
+func TestReplaceLeavesNoOldCopyAndTheSweepTellsAFinishedSwapFromAFailedOne(t *testing.T) {
+	r := aliceToolsRepo(t)
+	configDir := t.TempDir()
+	first, err := Stage(context.Background(), configDir, r.URL(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := first.Install(configDir, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	first.Discard()
+	r.Write("tasks/main.yml", "---\n- debug: {msg: hi}\n", 0o644)
+	r.Commit("second")
+	second, err := Stage(context.Background(), configDir, r.URL(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := second.Replace(configDir, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Lstat(filepath.Join(second.temp, ".previous")); !os.IsNotExist(err) {
+		t.Fatal("the old copy is still beside the new one after a swap that worked")
+	}
+	second.Discard()
+
+	local := LocalDir(configDir)
+	finished := filepath.Join(local, ".install-finished")
+	failed := filepath.Join(local, ".install-failed")
+	write(t, filepath.Join(finished, ".replaced", "package.yml"), "x")
+	write(t, filepath.Join(failed, ".previous", "package.yml"), "x")
+	old := time.Now().Add(-2 * staleAfter)
+	for _, dir := range []string{finished, failed} {
+		if err := os.Chtimes(dir, old, old); err != nil {
+			t.Fatal(err)
+		}
+	}
+	sweepStale(local, time.Now())
+	if _, err := os.Stat(finished); !os.IsNotExist(err) {
+		t.Fatal("the sweep kept what a finished swap left")
+	}
+	if _, err := os.Stat(failed); err != nil {
+		t.Fatal("the sweep deleted an old copy that could not be put back")
+	}
+}

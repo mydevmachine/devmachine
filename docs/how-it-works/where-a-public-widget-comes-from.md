@@ -42,10 +42,21 @@ wrote the package.
 `packages install` fetches one commit, checks it, and shows you what it
 brings before writing anything: its widgets and which run code, the
 commands of its entrypoint, its providers, every executable file, every
-task file and the credentials it asks for. It refuses:
+task file, every other file of the role that decides what those tasks do
+(`meta/`, `library/`, `templates/`, `vars/` and the like) and the
+credentials it asks for. It refuses:
 
 - a name the pinned release has, because a package of yours always wins
   over the release's and would replace it on every machine;
+- a name you already have in `<config>/packages/`, your own or one
+  installed before (`packages update` is how a package from a git
+  address changes);
+- a file name or a line of what it brings holding a character that moves
+  or hides text in a terminal, such as ESC or a Unicode bidirectional
+  override: such a name could erase the lines above the prompt, the
+  "runs as root" warning included, and you would answer a question you
+  cannot read. The prompt also prints any such character as an escape,
+  in case one gets past;
 - a link that leads outside the package, which would copy a file from your
   computer to your machines;
 - a package that does not validate.

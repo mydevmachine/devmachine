@@ -2195,6 +2195,21 @@ computer, for instance — to every machine the package is added to.
 **What to do:** Do not install it. Tell its author: a package holds its
 own files.
 
+## "the package at … has a character that moves or hides text in a terminal in …"
+
+**What it means:** A file name in the repository, or the package's
+summary, a command, a provider, a credential or a package it needs, holds
+a control character (ESC, a carriage return, DEL and the like) or a
+Unicode bidirectional override. Printed as it is, such a name can move
+the cursor and erase the lines above it — the list of tasks, or the
+warning that they run as root — so the prompt would show less than the
+package brings. The message prints the name with the character written
+as an escape, such as `\x1b` or `\u202e`. Nothing was written.
+
+**What to do:** Do not install it. Tell its author which name it is: a
+package names its files and what it brings in plain text. A
+repository that does this on purpose is not one to trust with root.
+
 ## "fetching …: …"
 
 **What it means:** `git` could not fetch that address or ref. Its own

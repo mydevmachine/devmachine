@@ -532,3 +532,64 @@ func TestPackagesRemoveRefusesAPackageInTheWorkspaceDefaults(t *testing.T) {
 		t.Fatal("the package was deleted")
 	}
 }
+
+func TestPrintSummaryAndChangesEscapeControlCharacters(t *testing.T) {
+	cmd := NewRootCmd()
+	out := &strings.Builder{}
+	cmd.SetOut(out)
+	printSummary(cmd, packages.Summary{Name: "alice-tools", Scope: "machine", Summary: "Tools\x1b[2J",
+		Tasks: []string{"tasks/x\r\x1b[2K.yml"}, RoleFiles: []string{"files/evil\u202ecod"}, Credentials: []string{"tok\u009b (secret)"},
+		Widgets: []packages.SummaryWidget{{Name: "alice-tools/x\x1b", Source: "url"}}}, packages.Origin{URL: "https://example.com/a\x1b"})
+	printChanges(cmd, updateReport{Package: "alice-tools", Changes: packages.Changes{TasksAdded: []string{"tasks/\x1b[1A.yml"},
+		RoleFilesChanged: []string{"library/\u2066m.py"}}})
+	if strings.ContainsAny(out.String(), "\x1b\r\u009b\u202e\u2066") {
+		t.Fatalf("printed a control character: %q", out.String())
+	}
+	for _, want := range []string{`Tools\x1b[2J`, `tasks/x\x0d\x1b[2K.yml`, `role files: files/evil\u202ecod`, `tok\x9b (secret)`,
+		`alice-tools/x\x1b (url)`, `example.com/a\x1b`, `tasks added: tasks/\x1b[1A.yml`, `role files changed: library/\u2066m.py`} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("output lacks %q:\n%s", want, out.String())
+		}
+	}
+}
+
+func TestPackagesInstallListsTheRestOfTheRole(t *testing.T) {
+	dir := installConfig(t)
+	r := aliceToolsRepo(t, "alice-tools")
+	r.Write("library/mod.py", "x", 0o644)
+	r.Write("meta/main.yml", "---\n", 0o644)
+	r.Commit("a module")
+	out, err := execute(t, "--config", dir, "packages", "install", r.URL(), "--check")
+	if err != nil || !strings.Contains(out, "role files: library/mod.py, meta/main.yml") {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	out, err = execute(t, "--config", dir, "--format", "json", "packages", "install", r.URL(), "--check")
+	if err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	var report struct {
+		RoleFiles []string `json:"role_files"`
+	}
+	if err := json.Unmarshal([]byte(out), &report); err != nil || strings.Join(report.RoleFiles, ",") != "library/mod.py,meta/main.yml" {
+		t.Fatalf("%v %+v\n%s", err, report, out)
+	}
+}
+
+func TestPackagesUpdateShowsChangedRoleFiles(t *testing.T) {
+	dir, r := installAliceTools(t)
+	r.Write("library/mod.py", "x", 0o644)
+	r.Commit("a module a task already calls")
+
+	out, err := execute(t, "--config", dir, "packages", "update", "alice-tools", "--check")
+	if err != nil || !strings.Contains(out, "role files added: library/mod.py") || strings.Contains(out, "are the same") {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	out, err = execute(t, "--config", dir, "--format", "json", "packages", "update", "alice-tools", "--check")
+	if err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	var report updateReport
+	if err := json.Unmarshal([]byte(out), &report); err != nil || strings.Join(report.Changes.RoleFilesAdded, ",") != "library/mod.py" {
+		t.Fatalf("%v %+v\n%s", err, report, out)
+	}
+}

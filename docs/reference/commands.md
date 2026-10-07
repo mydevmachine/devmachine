@@ -755,7 +755,9 @@ or package provider — waits for your approval in the app, like a widget
 written in a board (see [where a public widget comes
 from](../how-it-works/where-a-public-widget-comes-from.md)). A third-party
 widget also has `package_source`: `{"url", "ref", "commit"}`, where its
-package was fetched from. A widget that reads a package provider has
+package was fetched from. When its `.devmachine-source.yml` cannot be
+read, the widget is still third-party but has no `package_source`, and
+`problems` says why. A widget that reads a package provider has
 `provider`: that provider's `returns` and `min_every`. `providers` lists
 every package provider a widget may read, by `<package>/<command>`, with
 its package's `scope` and `trust` — a widget written in a board names one
@@ -1570,11 +1572,17 @@ validate` does, and refuses:
   official one everywhere;
 - a name you already have in `<config>/packages/`;
 - a link that leads outside the package;
+- a file name, summary, command, provider, credential or needed package
+  holding a character that moves or hides text in a terminal (a control
+  character such as ESC, or a Unicode bidirectional override);
 - a package that does not validate (every problem is listed).
 
 Then it shows what the package brings — its widgets and which of them run
 code, the commands of its entrypoint, its providers, every executable file,
-every task file and the credentials it asks for — and asks before writing
+every task file (`tasks/`, `handlers/`), every other file of the role that
+decides what those tasks do (`meta/`, `library/`, `module_utils/`,
+`*_plugins/`, `templates/`, `files/`, `vars/`, `defaults/`) and the
+credentials it asks for — and asks before writing
 `<config>/packages/<name>/`. `--yes` does not ask; `--check` shows and
 writes nothing. It records where the package came from in
 `<config>/packages/<name>/.devmachine-source.yml`:
@@ -1595,14 +1603,15 @@ and its tasks then run as root there, like any package's.
 `--format json` needs `--check` or `--yes`, since it cannot ask, and
 prints `{"name", "scope", "summary", "needs", "widgets": [{"name",
 "source", "runs_code"}], "commands", "providers", "scripts", "tasks",
-"credentials", "url", "ref", "commit", "path", "installed"}`.
+"role_files", "credentials", "url", "ref", "commit", "path", "installed"}`.
 
 `update` fetches the address and ref recorded in
 `.devmachine-source.yml` again, checking the address as `install` does.
 When the commit did not move it says so and changes nothing. Otherwise it
 shows the old and new commit; the widgets, commands and providers added
-or removed; and the credentials, scripts and tasks added, removed or
-changed (a script or task changed when its bytes did, a credential when
+or removed; and the credentials, scripts, tasks and role files added,
+removed or changed (a script, task or role file changed when its bytes
+did, a credential when
 anything `package.yml` says about it did), and asks before replacing the folder (`--yes`,
 `--check` as for `install`). A new commit changes what the app approved,
 so the package's widgets that run code ask again. It refuses a package
@@ -1615,7 +1624,9 @@ in a folder beside it, and only then swapped in. `--format json` prints
 "commands_removed", "providers_added", "providers_removed",
 "credentials_added", "credentials_removed", "credentials_changed",
 "scripts_added", "scripts_removed", "scripts_changed", "tasks_added",
-"tasks_removed", "tasks_changed"}, "updated"}`, each an array of names.
+"tasks_removed", "tasks_changed", "role_files_added",
+"role_files_removed", "role_files_changed"}, "updated"}`, each an array
+of names.
 A Ctrl-C in the middle of the swap can leave the folder missing, with
 both copies kept under `<config>/packages/.install-…/`: see
 [troubleshooting](../troubleshooting.md#a-package-is-gone-after-a-ctrl-c-during-packages-update).

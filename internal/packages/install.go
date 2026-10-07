@@ -11,15 +11,16 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/mydevmachine/devmachine/internal/widgets"
 )
 
 // Summary is what a package brings, as `packages install` shows it before
 // asking: its widgets and whether each runs code, the commands its
-// entrypoint answers, every executable file, every task file, and the
-// credentials it asks for. Its tasks run as root on every machine it is
-// added to, so nothing here is left out.
+// entrypoint answers, every executable file, every task file, every other
+// file of the Ansible role, and the credentials it asks for. Its tasks run
+// as root on every machine it is added to, so nothing here is left out.
 type Summary struct {
 	Name        string          `json:"name"`
 	Scope       string          `json:"scope"`
@@ -30,6 +31,7 @@ type Summary struct {
 	Providers   []string        `json:"providers"`
 	Scripts     []string        `json:"scripts"`
 	Tasks       []string        `json:"tasks"`
+	RoleFiles   []string        `json:"role_files"`
 	Credentials []string        `json:"credentials"`
 }
 
@@ -49,7 +51,7 @@ func Summarize(dir string) (Summary, error) {
 	}
 	s := Summary{Name: m.Name, Scope: m.Scope, Summary: strings.TrimSpace(m.Summary), Needs: nonNil(m.Needs),
 		Widgets: []SummaryWidget{}, Commands: nonNil(m.Commands), Providers: sortedKeys(m.Providers),
-		Scripts: []string{}, Tasks: []string{}, Credentials: []string{}}
+		Scripts: []string{}, Tasks: []string{}, RoleFiles: []string{}, Credentials: []string{}}
 	if root, ok := WidgetsDir(m); ok {
 		found, _ := widgets.LoadAll(WidgetOwner(m), root)
 		for _, w := range found {
@@ -72,8 +74,12 @@ func Summarize(dir string) (Summary, error) {
 			return err
 		}
 		rel = filepath.ToSlash(rel)
-		if first, _, _ := strings.Cut(rel, "/"); first == "tasks" || first == "handlers" {
+		switch first, _, inFolder := strings.Cut(rel, "/"); {
+		case !inFolder:
+		case first == "tasks" || first == "handlers":
 			s.Tasks = append(s.Tasks, rel)
+		case roleFolder(first):
+			s.RoleFiles = append(s.RoleFiles, rel)
 		}
 		if info, err := entry.Info(); err == nil && entry.Type().IsRegular() && info.Mode()&0o111 != 0 {
 			s.Scripts = append(s.Scripts, rel)
@@ -84,6 +90,90 @@ func Summarize(dir string) (Summary, error) {
 		return Summary{}, fmt.Errorf("reading what %s brings: %w", dir, err)
 	}
 	return s, nil
+}
+
+// roleFolder says whether a top folder of an Ansible role holds something
+// that decides what its tasks do as root, other than tasks/ and handlers/.
+func roleFolder(name string) bool {
+	switch name {
+	case "meta", "library", "module_utils", "templates", "files", "vars", "defaults":
+		return true
+	}
+	return strings.HasSuffix(name, "_plugins")
+}
+
+// hidesText says whether a rune can move the cursor, erase a line or
+// reorder what follows it in a terminal: C0 and C1 controls, DEL, and the
+// Unicode bidirectional overrides and isolates.
+func hidesText(r rune) bool {
+	return unicode.IsControl(r) || (r >= '\u202a' && r <= '\u202e') || (r >= '\u2066' && r <= '\u2069')
+}
+
+// EscapeControl writes every rune that could move or hide text in a
+// terminal as an escape, such as \x1b or \u202e, and leaves the rest.
+func EscapeControl(s string) string {
+	if !strings.ContainsFunc(s, hidesText) {
+		return s
+	}
+	var b strings.Builder
+	for _, r := range s {
+		switch {
+		case !hidesText(r):
+			b.WriteRune(r)
+		case r < 0x100:
+			fmt.Fprintf(&b, `\x%02x`, r)
+		default:
+			fmt.Fprintf(&b, `\u%04x`, r)
+		}
+	}
+	return b.String()
+}
+
+// refuseHiddenText refuses a package whose file names or summary hold a rune
+// that moves or hides text in a terminal: the prompt before installing is
+// the only decision about tasks that run as root, and such a name could
+// erase the lines above it.
+func refuseHiddenText(where, dir string, s Summary) error {
+	refuse := func(what, value string) error {
+		return fmt.Errorf("the package at %s has a character that moves or hides text in a terminal in %s \"%s\": "+
+			"a package from a git address names its files and what it brings in plain text, so the prompt shows them as they are",
+			where, what, EscapeControl(value))
+	}
+	err := filepath.WalkDir(dir, func(path string, _ fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(dir, path)
+		if err != nil {
+			return err
+		}
+		if strings.ContainsFunc(rel, hidesText) {
+			return refuse("the file name", filepath.ToSlash(rel))
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	type field struct {
+		what   string
+		values []string
+	}
+	fields := []field{
+		{"its summary", []string{s.Summary}}, {"its scope", []string{s.Scope}}, {"needs", s.Needs},
+		{"a command", s.Commands}, {"a provider", s.Providers}, {"a credential", s.Credentials},
+	}
+	for _, w := range s.Widgets {
+		fields = append(fields, field{"a widget", []string{w.Name, w.Source}})
+	}
+	for _, f := range fields {
+		for _, v := range f.values {
+			if strings.ContainsFunc(v, hidesText) {
+				return refuse(f.what, v)
+			}
+		}
+	}
+	return nil
 }
 
 func nonNil(list []string) []string {
@@ -184,16 +274,19 @@ func Stage(ctx context.Context, configDir, address, ref string) (*Staged, error)
 	if err := linksStayInside(dir); err != nil {
 		return fail(err)
 	}
+	summary, err := Summarize(dir)
+	if err != nil {
+		return fail(err)
+	}
+	if err := refuseHiddenText(where, dir, summary); err != nil {
+		return fail(err)
+	}
 	problems, err := Validate(dir)
 	if err != nil {
 		return fail(err)
 	}
 	if len(problems) > 0 {
 		return fail(&InvalidPackageError{Where: where, Problems: problems})
-	}
-	summary, err := Summarize(dir)
-	if err != nil {
-		return fail(err)
 	}
 	staged.Dir, staged.Name, staged.Summary = dir, m.Name, summary
 	staged.Origin = Origin{URL: address, Ref: ref, Commit: commit}
@@ -289,6 +382,14 @@ func (s *Staged) Replace(configDir string, now time.Time) (string, error) {
 		}
 		return "", fmt.Errorf("moving %s into %s: %w", s.Name, target, err)
 	}
+	if hadPrevious {
+		// Renamed before the delete, so an interrupt halfway through never
+		// leaves a .previous that sweepStale would keep for ever.
+		replaced := filepath.Join(s.temp, ".replaced")
+		if err := os.Rename(previous, replaced); err == nil {
+			_ = os.RemoveAll(replaced)
+		}
+	}
 	return target, nil
 }
 
@@ -327,7 +428,7 @@ func linksStayInside(dir string) error {
 }
 
 // Changes is what an update adds, removes and changes in what a package
-// brings. A script or task changes when its bytes do; a credential when
+// brings. A script, task or role file changes when its bytes do; a credential when
 // anything package.yml says about it does.
 type Changes struct {
 	WidgetsAdded       []string `json:"widgets_added"`
@@ -345,14 +446,18 @@ type Changes struct {
 	TasksAdded         []string `json:"tasks_added"`
 	TasksRemoved       []string `json:"tasks_removed"`
 	TasksChanged       []string `json:"tasks_changed"`
+	RoleFilesAdded     []string `json:"role_files_added"`
+	RoleFilesRemoved   []string `json:"role_files_removed"`
+	RoleFilesChanged   []string `json:"role_files_changed"`
 }
 
 // Empty says the update changes none of the package's widgets, commands,
-// providers, credentials, scripts or tasks.
+// providers, credentials, scripts, tasks or other role files.
 func (c Changes) Empty() bool {
 	for _, list := range [][]string{c.WidgetsAdded, c.WidgetsRemoved, c.CommandsAdded, c.CommandsRemoved,
 		c.ProvidersAdded, c.ProvidersRemoved, c.CredentialsAdded, c.CredentialsRemoved, c.CredentialsChanged,
-		c.ScriptsAdded, c.ScriptsRemoved, c.ScriptsChanged, c.TasksAdded, c.TasksRemoved, c.TasksChanged} {
+		c.ScriptsAdded, c.ScriptsRemoved, c.ScriptsChanged, c.TasksAdded, c.TasksRemoved, c.TasksChanged,
+		c.RoleFilesAdded, c.RoleFilesRemoved, c.RoleFilesChanged} {
 		if len(list) > 0 {
 			return false
 		}
@@ -395,6 +500,8 @@ func Compare(beforeDir, afterDir string) (Changes, error) {
 	c.ScriptsChanged = changedFiles(beforeDir, afterDir, before.Scripts, after.Scripts)
 	c.TasksAdded, c.TasksRemoved = difference(before.Tasks, after.Tasks)
 	c.TasksChanged = changedFiles(beforeDir, afterDir, before.Tasks, after.Tasks)
+	c.RoleFilesAdded, c.RoleFilesRemoved = difference(before.RoleFiles, after.RoleFiles)
+	c.RoleFilesChanged = changedFiles(beforeDir, afterDir, before.RoleFiles, after.RoleFiles)
 	return c, nil
 }
 

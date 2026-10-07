@@ -130,8 +130,9 @@ func printSummary(cmd *cobra.Command, s packages.Summary, origin packages.Origin
 	if at == "" {
 		at = "its default branch"
 	}
-	cmd.Printf("%s (%s) — %s\n", s.Name, s.Scope, s.Summary)
-	cmd.Printf("from %s at %s (commit %s)\n", origin.URL, at, shortCommit(origin.Commit))
+	esc := packages.EscapeControl
+	cmd.Printf("%s (%s) — %s\n", esc(s.Name), esc(s.Scope), esc(s.Summary))
+	cmd.Printf("from %s at %s (commit %s)\n", esc(origin.URL), esc(at), esc(shortCommit(origin.Commit)))
 	widgetLines := make([]string, 0, len(s.Widgets))
 	for _, w := range s.Widgets {
 		detail := w.Source
@@ -145,13 +146,25 @@ func printSummary(cmd *cobra.Command, s packages.Summary, origin packages.Origin
 		items []string
 	}{
 		{"needs", s.Needs}, {"widgets", widgetLines}, {"commands", s.Commands}, {"providers", s.Providers},
-		{"scripts", s.Scripts}, {"tasks", s.Tasks}, {"credentials", s.Credentials},
+		{"scripts", s.Scripts}, {"tasks", s.Tasks}, {"role files", s.RoleFiles}, {"credentials", s.Credentials},
 	} {
-		if len(row.items) > 0 {
-			cmd.Printf("%s: %s\n", row.label, strings.Join(row.items, ", "))
-		}
+		printRow(cmd, row.label, row.items)
 	}
 	cmd.Println("Its tasks run as root on every machine you add it to; its widgets that run code ask before they run.")
+}
+
+// printRow prints a labelled list, escaping what could move or hide text
+// in a terminal: Stage already refuses it, and this is the second guard on
+// the only prompt before tasks that run as root.
+func printRow(cmd *cobra.Command, label string, items []string) {
+	if len(items) == 0 {
+		return
+	}
+	escaped := make([]string, len(items))
+	for i, item := range items {
+		escaped[i] = packages.EscapeControl(item)
+	}
+	cmd.Printf("%s: %s\n", label, strings.Join(escaped, ", "))
 }
 
 func shortCommit(commit string) string {
@@ -210,7 +223,7 @@ func newPackagesUpdateCmd(opts *options) *cobra.Command {
 		Short: "Fetch a package installed from a git address again",
 		Long: "Fetches the address and ref recorded when it was installed, says what changed — the " +
 			"commit; the widgets, commands and providers added or removed; and the credentials, " +
-			"scripts and tasks added, removed or changed — and asks before replacing it. A new " +
+			"scripts, tasks and other role files added, removed or changed — and asks before replacing it. A new " +
 			"commit means its widgets that run code ask again.",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -328,7 +341,8 @@ func updatePackage(cmd *cobra.Command, opts *options, name string, check, yes bo
 }
 
 func printChanges(cmd *cobra.Command, r updateReport) {
-	cmd.Printf("%s: commit %s → %s\n", r.Package, shortCommit(r.PreviousCommit), shortCommit(r.Commit))
+	cmd.Printf("%s: commit %s → %s\n", packages.EscapeControl(r.Package), packages.EscapeControl(shortCommit(r.PreviousCommit)),
+		packages.EscapeControl(shortCommit(r.Commit)))
 	c := r.Changes
 	for _, row := range []struct {
 		label string
@@ -340,13 +354,12 @@ func printChanges(cmd *cobra.Command, r updateReport) {
 		{"credentials added", c.CredentialsAdded}, {"credentials removed", c.CredentialsRemoved}, {"credentials changed", c.CredentialsChanged},
 		{"scripts added", c.ScriptsAdded}, {"scripts removed", c.ScriptsRemoved}, {"scripts changed", c.ScriptsChanged},
 		{"tasks added", c.TasksAdded}, {"tasks removed", c.TasksRemoved}, {"tasks changed", c.TasksChanged},
+		{"role files added", c.RoleFilesAdded}, {"role files removed", c.RoleFilesRemoved}, {"role files changed", c.RoleFilesChanged},
 	} {
-		if len(row.items) > 0 {
-			cmd.Printf("%s: %s\n", row.label, strings.Join(row.items, ", "))
-		}
+		printRow(cmd, row.label, row.items)
 	}
 	if c.Empty() {
-		cmd.Println("its widgets, commands, providers, credentials, scripts and tasks are the same; its other files may have changed")
+		cmd.Println("its widgets, commands, providers, credentials, scripts, tasks and role files are the same; its other files may have changed")
 	}
 	cmd.Println("A new commit means its widgets that run code ask again before they run.")
 }
