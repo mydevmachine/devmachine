@@ -44,7 +44,7 @@ func TestResolveLeavesABrokenWidgetOutAndListsItsProblem(t *testing.T) {
 	if len(catalog.Widgets) != 1 || len(catalog.Problems) != 1 {
 		t.Fatalf("got %+v", catalog)
 	}
-	if !strings.Contains(catalog.Problems[0].Message, `view.kind "gauge" needs engine 1.1`) {
+	if !strings.Contains(catalog.Problems[0].Message, `view.kind "gauge" draws number, json, not app/harness-usage`) {
 		t.Fatalf("got %+v", catalog.Problems)
 	}
 }
@@ -96,13 +96,13 @@ func TestCatalogJSONHasTheAgreedShape(t *testing.T) {
 	}
 	entry := got["widgets"].([]any)[0].(map[string]any)
 	for _, key := range []string{"name", "package", "widget", "origin", "version", "path", "summary", "requires_engine",
-		"fits", "context", "inputs", "source", "view", "sizes", "default_size", "places", "surfaces", "available", "unavailable_reason"} {
+		"fits", "context", "inputs", "source", "view", "sizes", "default_size", "places", "surfaces", "available", "unavailable_reason", "package_path"} {
 		if _, ok := entry[key]; !ok {
 			t.Errorf("widget entry is missing %q", key)
 		}
 	}
-	if len(entry) != 19 {
-		t.Errorf("widget entry has %d keys, want 19: %v", len(entry), entry)
+	if len(entry) != 20 {
+		t.Errorf("widget entry has %d keys, want 20: %v", len(entry), entry)
 	}
 	source := entry["source"].(map[string]any)
 	if source["every"] != "60s" || source["with"].(map[string]any)["harness"] != "{{inputs.harness}}" {
@@ -110,5 +110,17 @@ func TestCatalogJSONHasTheAgreedShape(t *testing.T) {
 	}
 	if got["problems"] == nil {
 		t.Error("problems must be [] when there are none, never null")
+	}
+}
+
+func TestAURLWidgetIsAvailableWithoutItsPackage(t *testing.T) {
+	pkg := PackageWidgets{Package: "mine", Scope: "machine"}
+	urlWidget := Widget{Source: Source{Kind: SourceURL}}
+	if ok, reason := Availability(urlWidget, pkg, Installed{}); !ok || reason != "" {
+		t.Fatalf("got %v %q", ok, reason)
+	}
+	commandWidget := Widget{Source: Source{Kind: SourceCommand}}
+	if ok, reason := Availability(commandWidget, pkg, Installed{}); ok || !strings.Contains(reason, "devmachine packages add mine --machine") {
+		t.Fatalf("got %v %q", ok, reason)
 	}
 }

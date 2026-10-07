@@ -128,7 +128,7 @@ func validateTarget(path string, lookup widgets.Lookup) ([]widgetFit, []widgets.
 		if !ok {
 			return nil, []widgets.Problem{{Path: manifest, Message: fmt.Sprintf("package %s declares no `widgets:` folder", m.Name)}}, nil
 		}
-		valid, problems := widgets.LoadAll(root)
+		valid, problems := widgets.LoadAll(m.Path, root)
 		return fitsOf(m.Name, valid), problems, nil
 	}
 	return nil, nil, fmt.Errorf("%s is neither a widget, a package nor a board", path)
@@ -155,11 +155,12 @@ func boardProblems(path string, lookup widgets.Lookup) (widgets.Board, []byte, [
 }
 
 func loadOne(dir string) ([]widgetFit, []widgets.Problem, error) {
-	w, problems := widgets.Load(dir)
+	pkg, pkgDir := packageOf(dir)
+	w, problems := widgets.LoadIn(pkgDir, dir)
 	if len(problems) > 0 {
 		return nil, problems, nil
 	}
-	return fitsOf(packageOf(dir), []widgets.Widget{w}), nil, nil
+	return fitsOf(pkg, []widgets.Widget{w}), nil, nil
 }
 
 func fitsOf(pkg string, valid []widgets.Widget) []widgetFit {
@@ -174,27 +175,27 @@ func fitsOf(pkg string, valid []widgets.Widget) []widgetFit {
 	return fits
 }
 
-// packageOf is the name of the package whose widgets folder holds the widget
-// folder dir, or "" when no package claims it.
-func packageOf(dir string) string {
+// packageOf is the name and folder of the package whose widgets folder holds
+// the widget folder dir, or "" and "" when no package claims it.
+func packageOf(dir string) (string, string) {
 	abs, err := filepath.Abs(dir)
 	if err != nil {
-		return ""
+		return "", ""
 	}
 	folder := filepath.Dir(abs)
 	for at := folder; ; at = filepath.Dir(at) {
 		if fileExists(packages.ManifestPath(at)) {
 			m, err := packages.ParseManifest(at)
 			if err != nil {
-				return ""
+				return "", ""
 			}
 			if root, ok := packages.WidgetsDir(m); ok && filepath.Clean(root) == folder {
-				return m.Name
+				return m.Name, at
 			}
-			return ""
+			return "", ""
 		}
 		if filepath.Dir(at) == at {
-			return ""
+			return "", ""
 		}
 	}
 }

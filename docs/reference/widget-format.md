@@ -51,7 +51,7 @@ places: [home]
 | `fits` | yes | The layouts it can be drawn in: `canvas`, `stack`, `slot`. |
 | `context` | no | The context keys it reads, each `required` or `optional`. A widget sees only the keys it declares. |
 | `inputs` | no | Values a person sets on each copy: `type` (`string`, `number` or `boolean`), `default`, `summary`. |
-| `source` | yes | Where the data comes from: `kind`, `name`, `with` (the provider's arguments) and `every` (how often, a duration like `60s`). |
+| `source` | yes | Where the data comes from: `kind` and the fields of that kind. See [Sources](#sources). |
 | `view` | yes | How it is drawn: `kind`. |
 | `sizes` | yes | The presets it takes. |
 | `default_size` | yes | The preset a new copy gets. One of `sizes`. |
@@ -59,6 +59,93 @@ places: [home]
 
 A value in `source.with` can hold `{{inputs.<name>}}` or
 `{{context.<key>}}`. The input or key it names has to be declared.
+
+## Sources
+
+`source.kind` picks one of five kinds. A key that belongs to another kind
+is a mistake, for example `source.url is not a field of a command source`.
+
+### `provider`
+
+Data the app already has: the clock, your sessions, your machines, harness
+usage. `name`, `with` (the provider's arguments) and `every` (at least the
+provider's minimum). It works without adding its package.
+
+### `command`
+
+```yaml
+source:
+  kind: command
+  run: df
+  args: [-h, /]
+  target: {machine: "{{inputs.machine}}"}
+  every: 60s
+  parse: text
+```
+
+- `run` is one program, or `script` is a file: one of the two. In a
+  package widget `script` is relative to `package.yml` and must stay in the
+  package, and every account must be able to run it (`chmod 755`): on a
+  workspace it runs as that workspace's account. In a widget written in a
+  board it is an absolute path on the target.
+- `args` are passed to the program one by one; no shell reads them, so a
+  space or a `;` in one is just a character. A `run` with spaces is refused:
+  put the arguments in `args`, or set `shell: true`, and `run` becomes a
+  shell line, with every value from a template quoted for the shell.
+- `target` is `local` (the computer the app runs on, the default),
+  `{machine: <name>}` or `{workspace: <name>}`. A machine or a workspace is
+  reached through `devmachine run`; the app never opens its own SSH.
+- `every` is how often: a duration of at least `5s`, or `manual` for a ▶
+  button. `timeout` is `30s` unless you say otherwise, at most `10m`.
+- `parse` says how the output is read: `text`, `lines`, `number`, `json`
+  or `ansi` (text with colours). A non-zero exit or output that does not
+  parse is an error; the widget keeps its last good value and shows why.
+- `mode: stream` runs a command that keeps printing, such as `tail -f`,
+  while the widget is on screen. It takes no `every` and no `timeout`,
+  parses `text`, `lines` or `ansi`, and keeps the last `keep` lines (200
+  by default, at most 2000).
+
+### `url`
+
+```yaml
+source: {kind: url, url: "https://example.com/health", every: 30s, parse: status}
+```
+
+A GET request. `parse` is `status` (the HTTP code and how long it took,
+the default), `text` or `json`. `every` at least `5s`; `timeout` as for a
+command. A url widget works without adding its package: it installs
+nothing and runs nothing on a machine.
+
+### `prompt`
+
+```yaml
+source:
+  kind: prompt
+  harness: claude
+  prompt: Summarise what changed in the repository today.
+  target: {workspace: alice}
+```
+
+Asks a coding harness, `claude` or `codex`, without a conversation, on the
+target, and shows the answer as Markdown. `every` is `manual` unless you
+set one, at least `15m`: every run costs tokens. `timeout` is `5m` by
+default. Only one run of a widget happens at a time.
+
+### `session`
+
+```yaml
+source: {kind: session, target: {workspace: alice}, session: main, every: 2s}
+```
+
+A read-only copy of what a session's screen shows, read every `every` (at
+least `2s`). Draw it with the `terminal` view; a click opens the session in
+the app.
+
+### Templates
+
+`{{inputs.<name>}}` and `{{context.<key>}}` can go in `run`, `args`,
+target names, `url`, `prompt` and `session`. The input or key has to be
+declared. `{{item}}` works only inside a list view's `item`.
 
 ## A board
 
@@ -184,7 +271,7 @@ One unit is 80pt; positions and free resizes snap to 8pt.
 | `format` is not 1 | `format 2, and this CLI reads widget format 1` |
 | `requires.engine` missing | `every widget needs requires.engine, for example ">= 1.0"` |
 | `requires.engine` unreadable | `requires.engine "X": write it as ">= 1.0", "> 1.0" or "= 1.0"` |
-| a newer engine is required | ``requires engine >= 1.1, and this CLI implements engine 1.0: update with `devmachine update` `` |
+| a newer engine is required | ``requires engine >= 1.2, and this CLI implements engine 1.1: update with `devmachine update` `` |
 | an unknown top-level field | `unknown field "X"` |
 | `name` malformed or not the folder | `name is "X" but the folder is "Y": a widget is found by its folder` |
 | `summary` missing | `every widget needs a one-line summary` |
@@ -196,11 +283,22 @@ One unit is 80pt; positions and free resizes snap to 8pt.
 | `context` value other than required/optional | `context key "X" is "Y": write required or optional` |
 | input type unknown, or default of the wrong type | `input "X" has type "Y"`, `input "X" is a string, and its default 3 is not` |
 | template names something undeclared | `template {{inputs.X}} in source.with.Y needs inputs.X` |
-| `source.kind` from engine 1.1 | `source.kind "command" needs engine 1.1` |
-| `source.name` unknown | `source.name "X" is not a provider engine 1.0 knows` |
+| `source.kind` unknown | `source.kind "X": engine 1.1 knows provider, command, url, prompt, session` |
+| a key of another kind | `source.url is not a field of a command source: it takes …` |
+| no `run`/`script`, or both | `a command source needs run or script`, `a command source has run or script, not both` |
+| `run` with spaces and no `shell: true` | `source.run "df -h /" has spaces: put each argument in source.args, or set shell: true …` |
+| `script` outside the package, or not runnable | `source.script "X": a package widget names a file inside its package …`, `… is not executable: run chmod +x on it` |
+| `every` missing, unreadable or too short | `a command source needs source.every …`, `source.every 1s is below the command minimum of 5s` |
+| `timeout` above 10m | `source.timeout 11m is above the 10m maximum` |
+| stream with `every`, `timeout` or a whole-output parse | `a stream runs while the widget is on screen: remove source.every` |
+| `keep` without a stream, or out of 1–2000 | `source.keep only applies to mode: stream` |
+| `target` malformed | `source.target "X": write local, {machine: <name>} or {workspace: <name>}` |
+| `parse`, `mode` or `harness` unknown | `source.parse "yaml": a command source takes text, lines, number, json, ansi` |
+| `url` not a full address | `source.url "X": write a full address starting with https:// or http://` |
+| view does not draw the source | `view.kind "gauge" takes number, json, and this command source gives text` |
+| `source.name` unknown | `source.name "X" is not a provider engine 1.1 knows` |
 | `source.with` wrong | `source.with.X is not an argument of P`, `source.with.X is required by P` |
 | `source.every` missing, unreadable or too short | `source.every 1s is below the P minimum of 5s` |
-| `view.kind` from engine 1.1 | `view.kind "gauge" needs engine 1.1` |
 | `view.kind` unknown, or draws another provider | `view.kind "app.clock" draws app/clock, not P` |
 
 `devmachine widgets validate` and `devmachine packages validate` report

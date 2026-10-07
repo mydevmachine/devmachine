@@ -22,6 +22,8 @@ type PackageWidgets struct {
 	Origin  string
 	Version string
 	Root    string
+	// Dir is the package's own folder, the one holding package.yml.
+	Dir string
 }
 
 // Installed says how far a package is from a machine.
@@ -38,6 +40,7 @@ type Entry struct {
 	Origin            string            `json:"origin"`
 	Version           string            `json:"version"`
 	Path              string            `json:"path"`
+	PackagePath       string            `json:"package_path"`
 	Summary           string            `json:"summary"`
 	RequiresEngine    string            `json:"requires_engine"`
 	Fits              []string          `json:"fits"`
@@ -72,7 +75,7 @@ type Catalog struct {
 func Resolve(release string, pkgs []PackageWidgets, installed func(pkg string) Installed) Catalog {
 	catalog := Catalog{Engine: Engine, PackagesRelease: release, Widgets: []Entry{}, Problems: []ListProblem{}}
 	for _, pkg := range pkgs {
-		found, problems := LoadAll(pkg.Root)
+		found, problems := LoadAll(pkg.Dir, pkg.Root)
 		for _, p := range problems {
 			catalog.Problems = append(catalog.Problems, ListProblem{Path: p.Path, Message: p.Message})
 		}
@@ -94,11 +97,11 @@ func (c Catalog) Find(name string) (Entry, bool) {
 	return Entry{}, false
 }
 
-// Availability applies the rule: a widget fed only by the app's own providers
-// works without its package; anything else needs the package added and
-// synced, because the data comes from what the package installs.
+// Availability applies the rule: a widget fed only by the app's own
+// providers, or by a url, works without its package; anything else runs
+// what the package installs, so it needs the package added and synced.
 func Availability(w Widget, pkg PackageWidgets, state Installed) (bool, string) {
-	if strings.HasPrefix(w.Source.Name, "app/") {
+	if !needsPackage(w.Source) {
 		return true, ""
 	}
 	flag := "--machine"
@@ -123,6 +126,7 @@ func entryFor(w Widget, pkg PackageWidgets, state Installed) Entry {
 		Origin:            pkg.Origin,
 		Version:           pkg.Version,
 		Path:              w.Dir,
+		PackagePath:       pkg.Dir,
 		Summary:           w.Summary,
 		RequiresEngine:    w.Requires.Engine,
 		Fits:              w.Fits,
@@ -143,9 +147,6 @@ func entryFor(w Widget, pkg PackageWidgets, state Installed) Entry {
 	if entry.Inputs == nil {
 		entry.Inputs = map[string]Input{}
 	}
-	if entry.Source.With == nil {
-		entry.Source.With = map[string]string{}
-	}
 	if entry.Places == nil {
 		entry.Places = []string{}
 	}
@@ -153,4 +154,11 @@ func entryFor(w Widget, pkg PackageWidgets, state Installed) Entry {
 		entry.Surfaces = []string{}
 	}
 	return entry
+}
+
+func needsPackage(s Source) bool {
+	if s.Kind == SourceURL {
+		return false
+	}
+	return !strings.HasPrefix(s.Name, "app/")
 }

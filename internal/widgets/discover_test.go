@@ -15,7 +15,7 @@ func TestLoadAllKeepsTheGoodWidgetsAndReportsTheBadOne(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	found, problems := LoadAll(root)
+	found, problems := LoadAll("", root)
 	if len(found) != 1 || found[0].Name != "usage" {
 		t.Fatalf("got %v", found)
 	}
@@ -30,21 +30,21 @@ func TestLoadAllRefusesALinkedWidget(t *testing.T) {
 	if err := os.Symlink(target, filepath.Join(root, "usage")); err != nil {
 		t.Fatal(err)
 	}
-	_, problems := LoadAll(root)
+	_, problems := LoadAll("", root)
 	if len(problems) != 1 || !strings.Contains(problems[0].Message, "must not be a link") {
 		t.Fatalf("got %v", problems)
 	}
 }
 
 func TestLoadAllOnAnEmptyFolderSaysSo(t *testing.T) {
-	_, problems := LoadAll(t.TempDir())
+	_, problems := LoadAll("", t.TempDir())
 	if len(problems) != 1 || !strings.Contains(problems[0].Message, "holds no folder with a widget.yml") {
 		t.Fatalf("got %v", problems)
 	}
 }
 
 func TestLoadAllOnAMissingFolderSaysSo(t *testing.T) {
-	_, problems := LoadAll(filepath.Join(t.TempDir(), "widgets"))
+	_, problems := LoadAll("", filepath.Join(t.TempDir(), "widgets"))
 	if len(problems) != 1 || !strings.Contains(problems[0].Message, "the widgets folder is not there") {
 		t.Fatalf("got %v", problems)
 	}

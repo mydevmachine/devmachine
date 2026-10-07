@@ -31,6 +31,13 @@ widget that reads something a package installs needs that package added
 to a machine and synced first; `widgets list` says so, and names the
 command. See [why widgets come from packages](../how-it-works/widgets-come-from-packages.md).
 
+From engine 1.1 a widget can also show the output of a command, a web
+address, an answer from a coding harness, or a live copy of a session —
+on your computer, a machine or a workspace. A command, prompt or session
+widget runs what its package installs, so it needs the package added and
+synced; a web address needs nothing. See [the widget
+format](../reference/widget-format.md#sources).
+
 Your own packages can ship widgets too. Write a `widgets:` folder in the
 package (see [the widget format](../reference/widget-format.md)), then
 check it:

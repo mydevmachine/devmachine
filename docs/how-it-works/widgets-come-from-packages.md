@@ -21,9 +21,10 @@ always do.
 A widget whose data comes only from the app — `app/clock`,
 `app/summary`, `app/machines`, `app/harness-usage` — is available at once.
 The app already has that data; adding a package to a machine would install
-nothing it needs.
+nothing it needs. A `url` widget is available at once too: it reads a web
+page, and nothing on a machine is involved.
 
-Any other widget reads something its package installs on a machine. It is
+A `command`, `prompt` or `session` widget runs something its package installs on a machine. It is
 available only when that package is added to a machine or workspace **and**
 a sync has applied it. Until then `widgets list` shows it with
 `available: false` and the command that fixes it:

@@ -176,7 +176,7 @@ func catalogFrom(dir string, cfg config.Config, store *packages.Store) (widgets.
 		if !ok {
 			continue
 		}
-		pkg := widgets.PackageWidgets{Package: f.Manifest.Name, Scope: f.Manifest.Scope, Origin: widgets.OriginLocal, Root: root}
+		pkg := widgets.PackageWidgets{Package: f.Manifest.Name, Scope: f.Manifest.Scope, Origin: widgets.OriginLocal, Root: root, Dir: f.Manifest.Path}
 		if f.Source == packages.SourceRelease {
 			pkg.Origin, pkg.Version = widgets.OriginRelease, store.Version()
 		}

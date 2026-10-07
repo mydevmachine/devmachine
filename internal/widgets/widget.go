@@ -8,7 +8,6 @@ import (
 	"slices"
 	"sort"
 	"strings"
-	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -24,14 +23,6 @@ type Input struct {
 	Type    string `yaml:"type" json:"type"`
 	Default any    `yaml:"default" json:"default"`
 	Summary string `yaml:"summary" json:"summary"`
-}
-
-// Source is where a widget's data comes from.
-type Source struct {
-	Kind  string            `yaml:"kind" json:"kind"`
-	Name  string            `yaml:"name" json:"name"`
-	With  map[string]string `yaml:"with" json:"with"`
-	Every string            `yaml:"every" json:"every"`
 }
 
 // ViewRef names how a widget is drawn.
@@ -58,6 +49,9 @@ type Widget struct {
 
 	// Dir is the folder the widget was read from.
 	Dir string `yaml:"-"`
+	// PackageDir is the folder holding the package.yml the widget came with,
+	// "" when it was read on its own; a script is checked against it.
+	PackageDir string `yaml:"-"`
 }
 
 // Problem is one thing wrong with a widget or a board, and where it is.
@@ -84,24 +78,21 @@ var (
 // inputTypes are the value types an input may declare.
 var inputTypes = []string{"string", "number", "boolean"}
 
-// laterSourceKinds and laterViews arrive with engine 1.1. Naming them gets a
-// message that says to update, instead of one that says they do not exist.
-var (
-	laterSourceKinds = []string{"command", "url", "prompt", "session"}
-	laterViews       = []string{"text", "number", "gauge", "status", "list", "sparkline", "markdown", "web", "terminal"}
-)
-
 var widgetFields = []string{
 	"format", "name", "summary", "requires", "fits", "context", "inputs",
 	"source", "view", "sizes", "default_size", "places",
 }
 
-// Load reads and checks the widget in dir. The widget is only usable when no
-// problem comes back.
-func Load(dir string) (Widget, []Problem) {
+// Load reads and checks the widget in dir, outside any package.
+func Load(dir string) (Widget, []Problem) { return LoadIn("", dir) }
+
+// LoadIn reads and checks the widget in dir, which belongs to the package in
+// packageDir ("" when unknown). The widget is only usable when no problem
+// comes back.
+func LoadIn(packageDir, dir string) (Widget, []Problem) {
 	path := filepath.Join(dir, FileName)
 	fail := func(message string) (Widget, []Problem) {
-		return Widget{Dir: dir}, []Problem{{Path: path, Message: message}}
+		return Widget{Dir: dir, PackageDir: packageDir}, []Problem{{Path: path, Message: message}}
 	}
 
 	body, err := os.ReadFile(path)
@@ -116,7 +107,7 @@ func Load(dir string) (Widget, []Problem) {
 	if err := root.Decode(&w); err != nil {
 		return fail(fmt.Sprintf("parsing %s: %v", FileName, err))
 	}
-	w.Dir = dir
+	w.Dir, w.PackageDir = dir, packageDir
 	return w, Validate(w, path, &root)
 }
 
@@ -211,93 +202,10 @@ func Validate(w Widget, path string, root *yaml.Node) []Problem {
 		}
 	}
 
-	problems = append(problems, validateSource(w, c, path, lines)...)
-	problems = append(problems, validateView(w, c, path, lines)...)
+	scope := sourceScope{inputs: w.Inputs, context: w.Context, packageDir: w.PackageDir}
+	checkSource(w.Source, field(mapping(root), "source"), scope, c, at)
+	checkView(w.View, w.Source, c, at)
 	return problems
-}
-
-func validateSource(w Widget, c Contract, path string, lines map[string]int) []Problem {
-	var problems []Problem
-	at := func(field, format string, args ...any) {
-		problems = append(problems, Problem{Path: path, Line: lines[field], Message: fmt.Sprintf(format, args...)})
-	}
-	s := w.Source
-
-	switch {
-	case s.Kind == "":
-		at("source", "every widget needs source.kind: engine %s knows %q", Engine, SourceProvider)
-		return problems
-	case slices.Contains(laterSourceKinds, s.Kind):
-		at("source.kind", "source.kind %q needs engine 1.1", s.Kind)
-		return problems
-	case !slices.Contains(c.SourceKinds, s.Kind):
-		at("source.kind", "source.kind %q: engine %s knows %q", s.Kind, Engine, SourceProvider)
-		return problems
-	}
-
-	provider, ok := c.Providers[s.Name]
-	if !ok {
-		at("source.name", "source.name %q is not a provider engine %s knows: %s",
-			s.Name, Engine, strings.Join(providerNames(c), ", "))
-		return problems
-	}
-	for _, arg := range sortedKeys(s.With) {
-		if _, ok := provider.Args[arg]; !ok {
-			at("source.with", "source.with.%s is not an argument of %s", arg, s.Name)
-		}
-	}
-	for _, arg := range sortedKeys(provider.Args) {
-		if _, given := s.With[arg]; provider.Args[arg].Required && !given {
-			at("source.with", "source.with.%s is required by %s", arg, s.Name)
-		}
-	}
-	for _, arg := range sortedKeys(s.With) {
-		for _, match := range template.FindAllStringSubmatch(s.With[arg], -1) {
-			ref := reference.FindStringSubmatch(match[1])
-			switch {
-			case ref == nil:
-				at("source.with", "template %s in source.with.%s names neither inputs.<name> nor context.<name>", match[0], arg)
-			case ref[1] == "inputs":
-				if _, ok := w.Inputs[ref[2]]; !ok {
-					at("source.with", "template %s in source.with.%s needs inputs.%s", match[0], arg, ref[2])
-				}
-			default:
-				if _, ok := w.Context[ref[2]]; !ok {
-					at("source.with", "template %s in source.with.%s needs context.%s to be declared", match[0], arg, ref[2])
-				}
-			}
-		}
-	}
-
-	minimum, _ := time.ParseDuration(provider.MinEvery)
-	every, err := time.ParseDuration(s.Every)
-	switch {
-	case s.Every == "":
-		at("source", "every widget needs source.every, at least %s for %s", provider.MinEvery, s.Name)
-	case err != nil:
-		at("source.every", "source.every %q is not a duration: write it like 60s or 5m", s.Every)
-	case every < minimum:
-		at("source.every", "source.every %s is below the %s minimum of %s", s.Every, s.Name, provider.MinEvery)
-	}
-	return problems
-}
-
-func validateView(w Widget, c Contract, path string, lines map[string]int) []Problem {
-	at := func(field, format string, args ...any) []Problem {
-		return []Problem{{Path: path, Line: lines[field], Message: fmt.Sprintf(format, args...)}}
-	}
-	kind := w.View.Kind
-	switch view, ok := c.Views[kind]; {
-	case kind == "":
-		return at("view", "every widget needs view.kind")
-	case slices.Contains(laterViews, kind):
-		return at("view.kind", "view.kind %q needs engine 1.1", kind)
-	case !ok:
-		return at("view.kind", "view.kind %q is not a view engine %s knows: %s", kind, Engine, strings.Join(viewNames(c), ", "))
-	case isProvider(c, w.Source.Name) && !slices.Contains(view.Accepts, w.Source.Name):
-		return at("view.kind", "view.kind %q draws %s, not %s", kind, strings.Join(view.Accepts, ", "), w.Source.Name)
-	}
-	return nil
 }
 
 // Surfaces lists, sorted, every surface w can be placed on: its layout is one

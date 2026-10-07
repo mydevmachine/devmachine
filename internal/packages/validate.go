@@ -244,7 +244,7 @@ func validateWidgets(dir string, m Manifest) []Problem {
 		at(fmt.Sprintf("widgets %q must stay inside the package", m.Widgets))
 		return problems
 	}
-	_, widgetProblems := widgets.LoadAll(root)
+	_, widgetProblems := widgets.LoadAll(dir, root)
 	for _, p := range widgetProblems {
 		file, err := filepath.Rel(dir, p.Path)
 		if err != nil {

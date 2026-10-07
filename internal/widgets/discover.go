@@ -6,11 +6,11 @@ import (
 	"path/filepath"
 )
 
-// LoadAll reads every widget in root, a package's widgets folder: each direct
-// child folder holding a widget.yml is one widget. A widget with a problem is
+// LoadAll reads every widget in root, the widgets folder of the package in packageDir:
+// each direct child folder holding a widget.yml is one widget. A widget with a problem is
 // left out of the list and its problems are returned, so one broken widget
 // never hides the others.
-func LoadAll(root string) ([]Widget, []Problem) {
+func LoadAll(packageDir, root string) ([]Widget, []Problem) {
 	info, err := os.Lstat(root)
 	if err != nil {
 		return nil, []Problem{{Path: root, Message: fmt.Sprintf("the widgets folder is not there: %v", err)}}
@@ -37,7 +37,7 @@ func LoadAll(root string) ([]Widget, []Problem) {
 		if _, err := os.Stat(filepath.Join(dir, FileName)); err != nil {
 			continue
 		}
-		w, widgetProblems := Load(dir)
+		w, widgetProblems := LoadIn(packageDir, dir)
 		if len(widgetProblems) > 0 {
 			problems = append(problems, widgetProblems...)
 			continue

@@ -1609,15 +1609,42 @@ wrong: `devmachine update` moves the pin, and `devmachine update
 once a day; `DEVMACHINE_NO_UPDATE_HINT=1` turns it off. See
 [Updating](how-it-works/updating.md#why-the-cli-tells-you-a-newer-packages-release-is-out).
 
-## "view.kind "gauge" needs engine 1.1" or "source.kind "command" needs engine 1.1"
+## "source.run "…" has spaces"
 
-**What it means:** The widget uses a view or a source that a later engine
-adds. This CLI implements engine 1.0, which knows only the app's own
-providers and views. `widgets list` leaves the widget out and lists it
-under `problems`; the other widgets still work.
+**What it means:** Without `shell: true`, `run` names one program, and
+`args` holds its arguments, each passed as it is. `df -h /` is read as a
+program called `df -h /`, which does not exist. Nothing ran.
 
-**What to do:** For a published widget, run `devmachine update`. For your
-own, use what `devmachine widgets schema` lists.
+**What to do:** Write `run: df` and `args: [-h, /]`. If you need a pipe
+or `&&`, set `shell: true`; then `run` is a shell line.
+
+## "source.script "…" is not executable" or "only its owner can run it"
+
+**What it means:** The file a package widget runs is copied to the
+machine with the same mode it has in the package. Without the execute
+bit nobody can run it; with `chmod 700` only the machine's admin can,
+and a workspace runs it as its own account.
+
+**What to do:** `chmod 755 <the file>`, then run `devmachine sync` so the
+machine gets the new copy.
+
+## "a stream runs while the widget is on screen: remove source.every"
+
+**What it means:** `mode: stream` keeps one command running and shows its
+lines as they come, so "how often" and "how long" do not apply. A stream
+also reads line by line, so `number` and `json` do not apply either.
+
+**What to do:** Remove `every` and `timeout`, and use `parse: text`,
+`lines` or `ansi`. For a value checked every so often, leave out `mode`.
+
+## "view.kind "…" takes …, and this … source gives …"
+
+**What it means:** Each view draws some kinds of output. A `gauge` needs
+a number; a command parsed as `text` gives text. `devmachine widgets
+schema` lists what every view takes.
+
+**What to do:** Set `source.parse` to what the view takes, or pick a view
+that takes what the source gives.
 
 ## "requires engine >= 1.2, and this CLI implements engine 1.1"
 

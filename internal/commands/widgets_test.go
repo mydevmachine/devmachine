@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -42,6 +43,28 @@ view: {kind: app.harness-usage}
 sizes: [small, medium, wide]
 default_size: medium
 places: [home]
+`
+
+const diskWidgetYAML = `format: 1
+name: disk
+summary: Free space on a machine.
+requires: {engine: ">= 1.1"}
+fits: [canvas]
+source: {kind: command, run: df, args: [-h, /], target: {machine: main}, every: 60s, parse: text}
+view: {kind: text}
+sizes: [medium]
+default_size: medium
+`
+
+const healthWidgetYAML = `format: 1
+name: health
+summary: Whether the site answers.
+requires: {engine: ">= 1.1"}
+fits: [canvas]
+source: {kind: url, url: "https://example.com/health", every: 30s}
+view: {kind: status}
+sizes: [small]
+default_size: small
 `
 
 func writeWidgetPackageAt(t *testing.T, parent, pkg, scope string, widgetFiles map[string]string) {
@@ -158,7 +181,7 @@ func TestWidgetsListKeepsGoingPastABrokenWidget(t *testing.T) {
 		map[string]string{"bad": strings.Replace(strings.Replace(clockWidgetYAML, "name: clock", "name: bad", 1), "view: {kind: app.clock}", "view: {kind: gauge}", 1)})
 
 	catalog := listCatalog(t, dir)
-	if len(catalog.Widgets) != 2 || len(catalog.Problems) != 1 || catalog.Problems[0].Message != `view.kind "gauge" needs engine 1.1` {
+	if len(catalog.Widgets) != 2 || len(catalog.Problems) != 1 || catalog.Problems[0].Message != `view.kind "gauge" draws number, json, not app/clock` {
 		t.Fatalf("got %+v", catalog)
 	}
 }
@@ -644,4 +667,63 @@ func readCommandFile(t *testing.T, path string) string {
 		t.Fatal(err)
 	}
 	return string(body)
+}
+
+func TestWidgetsListKeepsTheEngine10ShapeForAProviderWidget(t *testing.T) {
+	out, err := execute(t, "--config", widgetConfig(t), "--format", "json", "widgets", "list")
+	if err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	var raw struct {
+		Widgets []map[string]json.RawMessage `json:"widgets"`
+	}
+	if err := json.Unmarshal([]byte(out), &raw); err != nil {
+		t.Fatal(err)
+	}
+	compact := func(m json.RawMessage) string {
+		var b bytes.Buffer
+		if err := json.Compact(&b, m); err != nil {
+			t.Fatal(err)
+		}
+		return b.String()
+	}
+	for _, w := range raw.Widgets {
+		if compact(w["name"]) != `"claude-code/usage"` {
+			continue
+		}
+		if got := compact(w["source"]); got != `{"kind":"provider","name":"app/harness-usage","with":{"harness":"{{inputs.harness}}"},"every":"60s"}` {
+			t.Errorf("source is %s", got)
+		}
+		if got := compact(w["view"]); got != `{"kind":"app.harness-usage"}` {
+			t.Errorf("view is %s", got)
+		}
+		return
+	}
+	t.Fatalf("claude-code/usage is missing from %s", out)
+}
+
+func TestWidgetsListPassesANewSourceThrough(t *testing.T) {
+	dir := widgetConfig(t)
+	writeWidgetPackageAt(t, packages.LocalDir(dir), "mine", "machine",
+		map[string]string{"disk": diskWidgetYAML, "health": healthWidgetYAML})
+	catalog := listCatalog(t, dir)
+
+	disk, ok := catalog.Find("mine/disk")
+	if !ok {
+		t.Fatalf("mine/disk is missing: %+v", catalog)
+	}
+	want := widgets.Source{Kind: "command", Run: "df", Args: []string{"-h", "/"},
+		Target: widgets.Target{Machine: "main"}, Every: "60s", Parse: "text"}
+	if !reflect.DeepEqual(disk.Source, want) {
+		t.Errorf("got %+v", disk.Source)
+	}
+	if disk.PackagePath != filepath.Join(packages.LocalDir(dir), "mine") {
+		t.Errorf("package_path is %q", disk.PackagePath)
+	}
+	if disk.Available || !strings.Contains(disk.UnavailableReason, "devmachine packages add mine --machine") {
+		t.Errorf("a command widget of a package nobody added is available: %+v", disk)
+	}
+	if health, _ := catalog.Find("mine/health"); !health.Available {
+		t.Errorf("a url widget needs no package: %+v", health)
+	}
 }
