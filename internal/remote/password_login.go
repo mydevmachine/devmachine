@@ -3,8 +3,9 @@ package remote
 import (
 	"context"
 	"fmt"
-	"regexp"
 	"strings"
+
+	"github.com/mydevmachine/devmachine/internal/config"
 )
 
 // previousDropInPath holds the drop-in as it was before the last change, so a
@@ -19,19 +20,9 @@ const previousDropInPath = "/etc/ssh/.devmachine-hardening.conf.previous"
 const restoreScript = `if [ -f ` + previousDropInPath + ` ]; then mv -f ` + previousDropInPath + ` ` +
 	hardeningDropInPath + `; else rm -f ` + hardeningDropInPath + `; fi`
 
-// accountNamePattern is the portable account name: what useradd and dscl both
-// accept, and nothing sshd_config would read as a pattern, a negation or a
-// list separator.
-var accountNamePattern = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9_.-]{0,63}$`)
-
-// ValidAccountName refuses a name that would change what a Match User line
-// means: a comma is a second account, a star or a ! a pattern.
-func ValidAccountName(name string) error {
-	if !accountNamePattern.MatchString(name) {
-		return fmt.Errorf("%q is not an account name: use letters, digits, '_', '.' and '-', starting with a letter, digit or '_'", name)
-	}
-	return nil
-}
+// ValidAccountName is config's rule, so a name the configuration accepts is
+// one HardenKeeping accepts.
+var ValidAccountName = config.ValidAccountName
 
 // HardeningDropIn is the drop-in's body: password login off for every
 // account, then back on for the accounts in keep.

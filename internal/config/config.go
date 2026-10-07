@@ -444,8 +444,18 @@ func (c Config) RouteOwner(host string) (Workspace, Route, bool) {
 }
 
 // accountName is a name sshd's Match User reads as one account: no comma,
-// which would be a second one, and no * or !, which would be a pattern.
+// which would be a second one, and no * or !, which would be a pattern. It is
+// also what useradd and dscl both accept.
 var accountName = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9_.-]{0,63}$`)
+
+// ValidAccountName refuses a name that would change what a Match User line
+// means.
+func ValidAccountName(name string) error {
+	if !accountName.MatchString(name) {
+		return fmt.Errorf("%q is not an account name: use letters, digits, '_', '.' and '-', starting with a letter, digit or '_'", name)
+	}
+	return nil
+}
 
 func validatePasswordLoginKeep(m Machine) error {
 	if len(m.PasswordLoginKeep) == 0 {
@@ -455,9 +465,8 @@ func validatePasswordLoginKeep(m Machine) error {
 		return fmt.Errorf("machine %q is your computer, and `password_login_keep` is about SSH into a machine: remove it", m.Name)
 	}
 	for _, name := range m.PasswordLoginKeep {
-		if !accountName.MatchString(name) {
-			return fmt.Errorf("machine %q has %q in `password_login_keep`, which is not one account name: "+
-				"use letters, digits, '_', '.' and '-'", m.Name, name)
+		if err := ValidAccountName(name); err != nil {
+			return fmt.Errorf("machine %q, `password_login_keep`: %w", m.Name, err)
 		}
 	}
 	if name, dup := firstDuplicate(m.PasswordLoginKeep); dup {
