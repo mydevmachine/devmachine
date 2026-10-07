@@ -82,10 +82,11 @@ func edited(t *testing.T, body string, edits ...string) string {
 
 func TestEveryNewSourceLoadsWhenWrittenRight(t *testing.T) {
 	cases := map[string]struct{ folder, body string }{
-		"command": {"disk", diskWidget},
-		"url":     {"health", healthWidget},
-		"prompt":  {"digest", digestWidget},
-		"session": {"screen", screenWidget},
+		"command":         {"disk", diskWidget},
+		"url":             {"health", healthWidget},
+		"prompt":          {"digest", digestWidget},
+		"prompt every 5m": {"digest", edited(t, digestWidget, "today.\n", "today.\n  every: 5m\n")},
+		"session":         {"screen", screenWidget},
 		"shell line": {"disk", edited(t, diskWidget,
 			"  run: df\n  args: [-h, /]\n", "  run: df -h / | tail -1\n  shell: true\n")},
 		"manual": {"disk", edited(t, diskWidget, "every: 60s", "every: manual")},
@@ -150,7 +151,7 @@ func TestEachSourceRuleReportsItsOwnProblem(t *testing.T) {
 		{"url without every", "health", healthWidget, []string{"  every: 30s\n", ""}, "a url source needs source.every"},
 		{"url parsed as lines", "health", healthWidget, []string{"  every: 30s\n", "  every: 30s\n  parse: lines\n"}, `source.parse "lines": a url source takes status, text, json`},
 		{"harness unknown", "digest", digestWidget, []string{"harness: claude", "harness: gpt"}, `source.harness "gpt": a prompt source takes claude, codex`},
-		{"prompt too often", "digest", digestWidget, []string{"today.\n", "today.\n  every: 1m\n"}, "source.every 1m is below the prompt minimum of 15m"},
+		{"prompt too often", "digest", digestWidget, []string{"today.\n", "today.\n  every: 4m\n"}, "source.every 4m is below the prompt minimum of 5m"},
 		{"prompt missing", "digest", digestWidget, []string{"  prompt: Summarise what changed in the repository today.\n", ""}, "a prompt source needs source.prompt"},
 		{"session missing", "screen", screenWidget, []string{"  session: main\n", ""}, "a session source needs source.session"},
 		{"session too often", "screen", screenWidget, []string{"every: 2s", "every: 1s"}, "source.every 1s is below the session minimum of 2s"},

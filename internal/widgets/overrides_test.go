@@ -74,7 +74,7 @@ func TestEachOverrideRuleReportsItsLine(t *testing.T) {
 		{"not a duration", []string{"every: 2m", "every: often"}, `usage: every "often" is not a duration: write it like 60s or 5m`, 7},
 		{"manual on a provider", []string{"every: 2m", "every: manual"}, "usage: every manual: claude-code/usage reads a provider, which runs on a schedule: write a duration like 60s", 7},
 		{"a stream", []string{"claude-code/usage", "mine/tail"}, "usage: a stream runs while the widget is on screen, so it takes no every", 7},
-		{"below the kind", []string{"claude-code/usage", "mine/ask", "every: 2m", "every: 5m"}, "usage: every 5m is below mine/ask's minimum of 15m", 7},
+		{"below the kind", []string{"claude-code/usage", "mine/ask", "every: 2m", "every: 4m"}, "usage: every 4m is below mine/ask's minimum of 5m", 7},
 		{"below a package provider", []string{"claude-code/usage", "mine/stats", "every: 2m", "every: 5s"}, "usage: every 5s is below mine/stats's minimum of 10s", 7},
 		{"unknown type, bad shape", []string{"claude-code/usage", "mine/gone", "every: 2m", "every: soon"}, `usage: every "soon" is neither a duration nor manual: write it like 60s, 5m or manual`, 7},
 	} {
@@ -87,6 +87,7 @@ func TestEachOverrideRuleReportsItsLine(t *testing.T) {
 	}
 	for _, ok := range [][]string{
 		{"claude-code/usage", "mine/ask", "every: 2m", "every: manual"},
+		{"claude-code/usage", "mine/ask", "every: 2m", "every: 5m"},
 		{"claude-code/usage", "mine/gone", "every: 2m", "every: 1s"},
 		{"every: 2m", "every: 5s"},
 	} {

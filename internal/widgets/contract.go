@@ -471,7 +471,7 @@ func CurrentContract() Contract {
 				"timeout": timeout("30s"),
 				"parse":   {Type: FieldEnum, Values: []string{ParseStatus, ParseText, ParseJSON}, Default: ParseStatus},
 			}},
-			SourcePrompt: {MinEvery: "15m", Approval: true, Fields: map[string]Field{
+			SourcePrompt: {MinEvery: "5m", Approval: true, Fields: map[string]Field{
 				"harness": {Type: FieldEnum, Values: []string{"claude", "codex"}, Required: true},
 				"permission_mode": {Type: FieldEnumByHarness, ByHarness: map[string][]string{
 					"claude": {"manual", "dontAsk", "plan", "acceptEdits", "auto", "bypassPermissions"},

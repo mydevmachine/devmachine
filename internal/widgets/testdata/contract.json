@@ -152,7 +152,7 @@
       "every": {"type": "every", "required": true},
       "timeout": {"type": "duration", "default": "30s", "max": "10m"},
       "parse": {"type": "enum", "default": "status", "values": ["status", "text", "json"]}}},
-    "prompt": {"min_every": "15m", "approval": true, "fields": {
+    "prompt": {"min_every": "5m", "approval": true, "fields": {
       "harness": {"type": "enum", "required": true, "values": ["claude", "codex"]},
       "permission_mode": {"type": "enum-by-harness", "by_harness": {
         "claude": ["manual", "dontAsk", "plan", "acceptEdits", "auto", "bypassPermissions"],

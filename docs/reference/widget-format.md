@@ -221,7 +221,7 @@ source:
 
 Asks a coding harness, `claude` or `codex`, without a conversation, on the
 target, and shows the answer as Markdown. `every` is `manual` unless you
-set one, at least `15m`: every run costs tokens. `timeout` is `5m` by
+set one, at least `5m`: every run costs tokens. `timeout` is `5m` by
 default. Only one run of a widget happens at a time.
 
 `permission_mode` sets what the harness may do while it answers, such as
@@ -549,7 +549,7 @@ A package declares providers in its `package.yml`; a widget names one `<package>
 | `provider` | the provider's | no | `every` every, required; `name` provider, required; `target` target; `timeout` duration, default `30s`, max 10m; `with` args |
 | `command` | 5s | yes | `args` list; `every` every; `keep` int, default `200`, min 1, max 2000; `mode` enum, poll/stream, default `poll`; `parse` enum, text/lines/number/json/ansi, default `text`; `run` string; `script` path; `shell` bool, default `false`; `target` target, default `local`; `timeout` duration, default `30s`, max 10m |
 | `url` | 5s | no | `every` every, required; `parse` enum, status/text/json, default `status`; `timeout` duration, default `30s`, max 10m; `url` url, required |
-| `prompt` | 15m | yes | `every` every, default `manual`; `harness` enum, required, claude/codex; `permission_mode` enum-by-harness, claude: manual/dontAsk/plan/acceptEdits/auto/bypassPermissions, codex: read-only/workspace-write/danger-full-access/approve-for-me/dangerously-bypass-approvals-and-sandbox, dangerous: bypassPermissions/danger-full-access/dangerously-bypass-approvals-and-sandbox; `prompt` string, required; `target` target, default `local`; `timeout` duration, default `5m`, max 10m |
+| `prompt` | 5m | yes | `every` every, default `manual`; `harness` enum, required, claude/codex; `permission_mode` enum-by-harness, claude: manual/dontAsk/plan/acceptEdits/auto/bypassPermissions, codex: read-only/workspace-write/danger-full-access/approve-for-me/dangerously-bypass-approvals-and-sandbox, dangerous: bypassPermissions/danger-full-access/dangerously-bypass-approvals-and-sandbox; `prompt` string, required; `target` target, default `local`; `timeout` duration, default `5m`, max 10m |
 | `session` | 2s | yes | `every` every, required; `session` string, required; `target` target, default `local` |
 
 ### Views

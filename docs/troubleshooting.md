@@ -1935,7 +1935,7 @@ widgets set <id> --board <area> --set machines=<names>`.
 
 **What it means:** A board entry's `every` asks the widget to run more
 often than its source allows. The minimum comes from the source: an app
-provider, a package provider's `min_every`, or the source kind (15m for a
+provider, a package provider's `min_every`, or the source kind (5m for a
 prompt). The message names the widget and its minimum.
 
 **What to do:** Write the minimum or more, or take the key off to use the
