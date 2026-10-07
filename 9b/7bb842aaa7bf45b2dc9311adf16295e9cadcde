@@ -1,0 +1,55 @@
+internal/commands/packages_install_test.go
+  s_c1c985d7f57ab9::t_48f9c7968c2489 6,466-534
+internal/repo/guard_test.go
+  s_c1c985d7f57ab9::t_efbb14a5ffdbc4 43-49
+internal/packages/origin_test.go
+  s_c1c985d7f57ab9::t_adc48d322eff56 4,38-55
+  s_c1c985d7f57ab9::t_f62d60a6990c90 56
+internal/commands/packages_install.go
+  s_c1c985d7f57ab9::t_11fa2de5e24039 213-214
+  s_c1c985d7f57ab9::t_2a6b1125e40f71 212
+  s_407e2456406577::t_c88070680f9fcf 9,104-106,284-287,289,315-317,340-342,349,399-402
+internal/packages/install.go
+  s_c1c985d7f57ab9::t_56a9e1c10d0522 4,6,226-239,329-331,333-347,350-351,353-360,363-381,393-435
+internal/packages/install_test.go
+  s_c1c985d7f57ab9::t_48f9c7968c2489 463-488
+  s_c1c985d7f57ab9::t_b4c8dac8a4f3fe 380-393,396-402,405-443
+  s_c1c985d7f57ab9::t_d71768720d6eb1 394-395,403-404
+docs/how-it-works/versioning-your-configuration.md
+  s_c1c985d7f57ab9::t_c8fc017b36350e 21,61
+docs/troubleshooting.md
+  s_c1c985d7f57ab9::t_21cb0ada1d2418 2295
+  s_c1c985d7f57ab9::t_c8fc017b36350e 2029-2051,2276-2294,2296-2308
+  s_c1c985d7f57ab9::t_ce88ff4e7cbcc0 2309
+docs/reference/commands.md
+  s_c1c985d7f57ab9::t_21cb0ada1d2418 1621
+  s_c1c985d7f57ab9::t_c8fc017b36350e 1603-1606,1615-1620,1626-1629
+internal/packages/origin.go
+  s_c1c985d7f57ab9::t_8d52e094e21139 43-45,52-63
+internal/repo/guard.go
+  s_c1c985d7f57ab9::t_3cb00e07cd14d8 59-60
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9b7bb842aaa7bf45b2dc9311adf16295e9cadcde",
+  "prompts": {},
+  "sessions": {
+    "s_407e2456406577": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-afb11f361713c3d5f",
+        "model": "unknown"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    },
+    "s_c1c985d7f57ab9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b5256304-4a81-480d-a568-f8cf11d8ddcc",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
