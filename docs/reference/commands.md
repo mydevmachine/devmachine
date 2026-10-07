@@ -716,6 +716,15 @@ prints:
       "trust": "official",
       "returns": {"disk": "object", "load": "object", "errors": "list"},
       "min_every": "10s"
+    },
+    "alice-tools/disk": {
+      "package": "alice-tools",
+      "command": "disk",
+      "scope": "machine",
+      "trust": "third-party",
+      "package_source": {"url": "https://example.com/alice/tools.git", "ref": "v1", "commit": "0123abc"},
+      "returns": {"used": "number"},
+      "min_every": "30s"
     }
   },
   "problems": [
@@ -750,7 +759,10 @@ package was fetched from. A widget that reads a package provider has
 `provider`: that provider's `returns` and `min_every`. `providers` lists
 every package provider a widget may read, by `<package>/<command>`, with
 its package's `scope` and `trust` — a widget written in a board names one
-of these.
+of these. A third-party provider has `package_source` too, the same as its
+widgets. The app puts that commit in what you approve for a board widget
+that reads it, so when `packages update` brings new code the widget asks
+again.
 
 In the text listing, a third-party widget says `(third-party from <url>)`
 in place of its origin.

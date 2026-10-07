@@ -100,7 +100,7 @@ func Resolve(release string, pkgs []PackageWidgets, installed func(pkg string) I
 		catalog.known[pkg.Package] = owner.scope()[pkg.Package]
 		for command, p := range pkg.Providers {
 			catalog.Providers[pkg.Package+"/"+command] = ProviderEntry{Package: pkg.Package, Command: command,
-				Scope: pkg.Scope, Trust: pkg.Trust, Returns: p.Returns, MinEvery: p.MinEvery}
+				Scope: pkg.Scope, Trust: pkg.Trust, PackageSource: pkg.Source, Returns: p.Returns, MinEvery: p.MinEvery}
 		}
 		if pkg.Root == "" {
 			continue

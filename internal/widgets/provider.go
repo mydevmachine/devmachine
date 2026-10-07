@@ -166,12 +166,13 @@ type PackageSource struct {
 // ProviderEntry is one package provider, as `widgets list --format json`
 // prints it under providers.
 type ProviderEntry struct {
-	Package  string            `json:"package"`
-	Command  string            `json:"command"`
-	Scope    string            `json:"scope"`
-	Trust    string            `json:"trust"`
-	Returns  map[string]string `json:"returns"`
-	MinEvery string            `json:"min_every"`
+	Package       string            `json:"package"`
+	Command       string            `json:"command"`
+	Scope         string            `json:"scope"`
+	Trust         string            `json:"trust"`
+	PackageSource *PackageSource    `json:"package_source,omitempty"`
+	Returns       map[string]string `json:"returns"`
+	MinEvery      string            `json:"min_every"`
 }
 
 // BoardProviderProblems checks every widget written in board b that reads a

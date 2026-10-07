@@ -153,6 +153,13 @@ func TestResolveListsPackageProvidersAndTrust(t *testing.T) {
 	if catalog.Providers["devmachine-app/stats"].Trust != TrustOfficial || len(catalog.Providers) != 2 {
 		t.Fatalf("got %+v", catalog.Providers)
 	}
+	if disk.PackageSource == nil || *disk.PackageSource != *source || catalog.Providers["devmachine-app/stats"].PackageSource != nil {
+		t.Fatalf("got %+v", catalog.Providers)
+	}
+	official, err := json.Marshal(catalog.Providers["devmachine-app/stats"])
+	if err != nil || strings.Contains(string(official), "package_source") {
+		t.Fatalf("%v %s", err, official)
+	}
 	known := catalog.KnownProviders()
 	if _, ok := known["mine"]; !ok || len(known["mine"]) != 0 || len(known["alice-tools"]) != 1 {
 		t.Fatalf("got %+v", known)

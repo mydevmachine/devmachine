@@ -1255,6 +1255,10 @@ func TestWidgetsListSaysWhereEachWidgetComesFrom(t *testing.T) {
 	if p := catalog.Providers["alice-tools/disk"]; p.Trust != widgets.TrustThirdParty || p.Returns["used"] != "number" {
 		t.Fatalf("got %+v", catalog.Providers)
 	}
+	if p := catalog.Providers["alice-tools/disk"]; p.PackageSource == nil || p.PackageSource.Commit != "0123abc" ||
+		catalog.Providers["mine/disk"].PackageSource != nil {
+		t.Fatalf("got %+v", catalog.Providers)
+	}
 	out, err := execute(t, "--config", dir, "widgets", "list")
 	if err != nil || !strings.Contains(out, "alice-tools/disk  (third-party from https://example.com/alice/tools.git)") {
 		t.Fatalf("%v\n%s", err, out)
