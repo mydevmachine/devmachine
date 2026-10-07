@@ -1,0 +1,49 @@
+internal/commands/packages_install_test.go
+  s_c1c985d7f57ab9::t_c24a8fef662ab4 286
+  s_c1c985d7f57ab9::t_864b21ec5aa75e 283-285
+  s_c1c985d7f57ab9::t_50989730feeac2 287-289
+  s_1acd45f303a5eb::t_4804fe295675e4 268-282,290
+internal/packages/store.go
+  s_c1c985d7f57ab9::t_86cccfbcbe1fc0 157-166
+  s_c1c985d7f57ab9::t_b0471c1aa9ab27 146
+internal/repo/guard_test.go
+  s_c1c985d7f57ab9::t_b92a12237e2533 11
+internal/repo/guard.go
+  s_c1c985d7f57ab9::t_c2f64dad0ac4f6 12-13,17
+internal/commands/setup_git_test.go
+  s_c1c985d7f57ab9::t_b92a12237e2533 342
+docs/how-it-works/versioning-your-configuration.md
+  s_c1c985d7f57ab9::t_1a060731e5df05 21
+internal/commands/packages_install.go
+  s_c1c985d7f57ab9::t_ee52edf1644f6f 176-182,184-185
+docs/troubleshooting.md
+  s_c1c985d7f57ab9::t_d6bbc175dc896e 2199-2231
+internal/packages/install.go
+  s_c1c985d7f57ab9::t_30eafc60f315c2 117,120-133,146-147,157,162-166,200-222,224-225,227,232-233,235-253,257,260,265,267-270,278-282
+internal/packages/install_test.go
+  s_c1c985d7f57ab9::t_9a321acf48d931 201,213-378
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "002d8eaa6513dc7598705a9b3b566eba85e37ee7",
+  "prompts": {},
+  "sessions": {
+    "s_1acd45f303a5eb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a380e67feb471aa41",
+        "model": "unknown"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    },
+    "s_c1c985d7f57ab9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b5256304-4a81-480d-a568-f8cf11d8ddcc",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
