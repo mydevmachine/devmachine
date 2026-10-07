@@ -1,0 +1,39 @@
+docs/releasing.md
+  s_5ccc211ae481bf::t_6b5aad89ebc5dd 21-29
+scripts/accept/coding-agents.sh
+  s_5ccc211ae481bf::t_3b32900203497b 51
+scripts/accept/common.sh
+  s_5ccc211ae481bf::t_51e7f903ffce34 153-246
+scripts/accept/download.sh
+  s_5ccc211ae481bf::t_9ceb295f1683a3 51
+scripts/accept/expose-via.sh
+  s_5ccc211ae481bf::t_7194040254e491 60
+scripts/accept/network-package.sh
+  s_5ccc211ae481bf::t_ae4bee13bb1fdf 61
+scripts/accept/update.sh
+  s_5ccc211ae481bf::t_4aac10e0c88d77 89
+scripts/accept/upload.sh
+  s_5ccc211ae481bf::t_e88710c8d48d45 50
+scripts/accept/v05-packages-credentials-dns.sh
+  s_5ccc211ae481bf::t_4a7ab887e8afbb 94
+scripts/accept/v06-expose-tunnel.sh
+  s_5ccc211ae481bf::t_6edec9cbe4f0d0 88
+scripts/accept/workspace-secrets.sh
+  s_5ccc211ae481bf::t_87573ce366d27c 58
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "506df8017f64e1b2f2d6161216e30f065a6b945b",
+  "prompts": {},
+  "sessions": {
+    "s_5ccc211ae481bf": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "570a9526-d48d-41cd-8528-3a3200e0855a",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
