@@ -1,0 +1,19 @@
+docs/getting-started.md
+  s_38c7661c7ba89f::t_d96c05ec7406da 3-5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d14f4e6a8446eb485a0cae9fed5efdfab5c869e9",
+  "prompts": {},
+  "sessions": {
+    "s_38c7661c7ba89f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3a15e1ef-c4d8-46db-8ddd-323ed414f20f",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
