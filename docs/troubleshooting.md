@@ -2007,6 +2007,57 @@ out to get the widget's `default_size`.
 
 **What to do:** Pick a size from the list in the message.
 
+## "the menubar holds 3 widgets"
+
+**What it means:** `menubar.yml` has more than three entries, or `widgets
+add` would make it four. The menu bar title shares a thin strip with the
+clock and every other app's items, so it holds three short widgets.
+
+**What to do:** Take one off with `devmachine widgets remove <id> --board
+menubar`, or put the widget in the popover instead (`--board
+menubar-panel`) if it fits there.
+
+## "a widget in the menu bar has no size: it is one line of text"
+
+**What it means:** A menu bar widget is one line, so it has no `size`.
+It has no `frame` or `z` either (its place is its turn in the list), and
+it does not fold (`collapsed`, `minimized`). The message names the key
+it found.
+
+**What to do:** Delete that line. To change the order, move the entry in
+the file or run `devmachine widgets move <id> --before <other> --board
+menubar`; to hide a widget, remove it.
+
+## "the X view cannot be drawn in the menu bar"
+
+**What it means:** The menu bar title draws text and at most one symbol,
+so only the `text`, `number`, `status` and `app.brand` views work there.
+A widget written for engine 1.0 may list `slot` in its `fits` with
+another view, such as `app.clock`; it is still a good widget, it just
+does not fit the menu bar.
+
+**What to do:** Put it on Home, a sidebar or the popover
+(`devmachine widgets help <name>` lists where it fits), or write a widget
+with one of those four views.
+
+## "a tab in the menu bar popover has no frame; its place is its position in the list"
+
+**What it means:** Each widget in `menubar-panel.yml` is a tab, in the
+order written. `frame` and `z` place a widget on Home and mean nothing
+here; a tab does not fold either, so `collapsed` and `minimized` are
+refused with "does not fold".
+
+**What to do:** Delete the line. Reorder with `devmachine widgets move
+<id> --before <other> --board menubar-panel`.
+
+## "warning: … size is ignored in the menu bar popover: a tab fills it"
+
+**What it means:** A tab always fills the popover, so its `size` does
+nothing. It is only a warning: the board is valid, and the CLI keeps the
+line when it rewrites the file.
+
+**What to do:** Delete the `size` line if you want the warning gone.
+
 ## "source.target names machine "…", which config.yml does not have"
 
 **What it means:** A widget written in a board runs on a machine or a

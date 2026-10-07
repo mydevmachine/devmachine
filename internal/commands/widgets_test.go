@@ -1435,3 +1435,19 @@ func TestWidgetsAddRefusesABoardWithAMalformedPackageProviderName(t *testing.T) 
 		t.Fatalf("%v\n%s", err, out)
 	}
 }
+
+func TestWidgetsValidateWarnsAboutASizeOnATab(t *testing.T) {
+	dir := menubarConfig(t)
+	path := widgets.BoardPath(dir, "menubar-panel")
+	writeCommandFile(t, path, "format: 1\nsurface: menubar-panel\nwidgets:\n"+
+		"  - id: pull-requests-panel\n    type: devmachine-app/pull-requests-panel\n"+
+		"  - id: usage-panel\n    type: devmachine-app/usage-panel\n    size: large\n")
+	out, err := execute(t, "--config", dir, "widgets", "validate", path)
+	if err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	if !strings.Contains(out, "warning: "+path+":8: usage-panel: size is ignored in the menu bar popover: a tab fills it\n") ||
+		!strings.Contains(out, "1 checked, all fine\n") {
+		t.Fatalf("got\n%s", out)
+	}
+}

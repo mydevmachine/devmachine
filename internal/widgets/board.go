@@ -113,7 +113,7 @@ func NewBoard(surface string) Board {
 // ParseBoard reads a board's text. A file that is not YAML, or not shaped
 // like a board, is one problem pointing at its line; each unknown key is a
 // problem at its own line. A widget with no size is custom on a canvas; in a
-// stack it stays left out.
+// list it stays left out.
 func ParseBoard(path string, body []byte) (Board, []Problem) {
 	fail := func(err error) (Board, []Problem) {
 		p := Problem{Path: path, Message: fmt.Sprintf("parsing the board: %v", err)}
@@ -132,7 +132,7 @@ func ParseBoard(path string, body []byte) (Board, []Problem) {
 	}
 	top := mapping(&root)
 	problems := unknownBoardKeys(path, top, boardFields, "the board")
-	stack := IsStack(b.Surface)
+	ordered := IsOrdered(b.Surface)
 	if entries := field(top, "widgets"); entries != nil && entries.Kind == yaml.SequenceNode {
 		for i, entry := range entries.Content {
 			if i >= len(b.Widgets) {
@@ -143,7 +143,7 @@ func ParseBoard(path string, body []byte) (Board, []Problem) {
 			w.sourceNode, w.viewNode = field(entry, "source"), field(entry, "view")
 			w.Inline = w.sourceNode != nil || w.viewNode != nil
 			w.lines = fieldLines(&yaml.Node{Kind: yaml.DocumentNode, Content: []*yaml.Node{entry}})
-			if field(entry, "size") == nil && !stack {
+			if field(entry, "size") == nil && !ordered {
 				w.Size = SizeCustom
 			}
 			problems = append(problems, unknownBoardKeys(path, entry, instanceFields, "a widget")...)
@@ -190,12 +190,16 @@ func ValidateBoard(b Board, path string, lookup Lookup) []Problem {
 	if stem, isYAML := strings.CutSuffix(filepath.Base(path), ".yml"); isYAML && ok && stem != b.Surface {
 		at(0, "surface is %q but the file is %s: a board is found by its file name", b.Surface, filepath.Base(path))
 	}
-	stack := surface.Layout == LayoutStack
+	layout := surface.Layout
+	canvas := !IsOrdered(b.Surface)
 
 	seen := map[string]bool{}
 	singles := map[string]string{}
-	for _, w := range b.Widgets {
+	for i, w := range b.Widgets {
 		label := w.ID
+		if layout == LayoutSlot && i == c.SlotMax {
+			at(w.Line, "the menubar holds %d widgets: take one off", c.SlotMax)
+		}
 		switch {
 		case !ValidInstanceID(w.ID):
 			at(w.Line, "id %q: use lower case letters, digits and dashes", w.ID)
@@ -216,9 +220,14 @@ func ValidateBoard(b Board, path string, lookup Lookup) []Problem {
 			continue
 		}
 
-		if stack {
+		switch layout {
+		case LayoutStack:
 			problems = append(problems, stackEntryProblems(w, label, path)...)
-		} else {
+		case LayoutSlot:
+			problems = append(problems, slotEntryProblems(w, label, path)...)
+		case LayoutTabs:
+			problems = append(problems, tabsEntryProblems(w, label, path)...)
+		default:
 			if w.Frame.X < 0 || w.Frame.Y < 0 {
 				at(w.Line, "%s: frame x and y cannot be negative", label)
 			}
@@ -238,17 +247,19 @@ func ValidateBoard(b Board, path string, lookup Lookup) []Problem {
 
 		entry, known := lookup(w.Type)
 		switch {
-		case !known && stack:
+		case !known && layout == LayoutStack:
 			problems = append(problems, stackSizeProblems(w, label, path, presetNames(c), "", true)...)
 			continue
-		case !known:
+		case !known && canvas:
 			if w.Frame.W <= 0 || w.Frame.H <= 0 {
 				at(w.Line, "%s: frame w and h must be above zero", label)
 			}
 			continue
-		case stack:
+		case !known:
+			continue
+		case layout == LayoutStack:
 			problems = append(problems, stackSizeProblems(w, label, path, entry.Sizes, entry.View.Kind, Grows(entry.View.Kind))...)
-		default:
+		case canvas:
 			minW, minH := MinFrame(entry.Sizes)
 			if w.Frame.W < minW || w.Frame.H < minH {
 				at(w.Line, "%s: frame %dx%d is smaller than %s's minimum of %dx%d", label, w.Frame.W, w.Frame.H, w.Type, minW, minH)
@@ -335,7 +346,7 @@ func WriteBoard(path string, read []byte, b Board) error {
 // EncodeBoard writes b in the key order the app also writes, so the two
 // writers never fight over the same file's layout.
 func EncodeBoard(b Board) ([]byte, error) {
-	stack := IsStack(b.Surface)
+	layout := CurrentContract().Surfaces[b.Surface].Layout
 	widgets := &yaml.Node{Kind: yaml.SequenceNode}
 	for _, w := range b.Widgets {
 		entry := &yaml.Node{Kind: yaml.MappingNode}
@@ -358,14 +369,20 @@ func EncodeBoard(b Board) ([]byte, error) {
 				put(entry, "with", with)
 			}
 		}
-		if stack {
+		switch layout {
+		case LayoutStack:
 			if w.Size != "" {
 				put(entry, "size", scalarNode(w.Size))
 			}
 			if w.Collapsed {
 				put(entry, "collapsed", boolNode(true))
 			}
-		} else {
+		case LayoutTabs:
+			if w.Size != "" {
+				put(entry, "size", scalarNode(w.Size))
+			}
+		case LayoutSlot:
+		default:
 			frame := &yaml.Node{Kind: yaml.MappingNode, Style: yaml.FlowStyle}
 			put(frame, "x", intNode(w.Frame.X))
 			put(frame, "y", intNode(w.Frame.Y))

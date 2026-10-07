@@ -359,6 +359,53 @@ and a `context-sidebar.yml` with, in this order, `shortcuts`,
 `pull-requests` and `links`, each `type: devmachine-app/<id>` and
 `size: auto`.
 
+### A board in the menu bar
+
+The menu bar item is two boards, both lists drawn in the order they are
+written.
+
+`menubar.yml` is the title in the menu bar: at most 3 widgets, left to
+right, each one line. An entry there has only `id`, `type` and `with`
+(or `title`, `source` and `view` when written in place): no `frame`,
+`size`, `minimized`, `collapsed` or `z`. Only four views draw there:
+`text` (its first line, cut at 24 characters with "…"), `number`
+(`hide_zero: true` draws nothing at 0), `status` (a dot and its label)
+and `app.brand` ("❯_"). A widget fits it when `slot` is in its `fits` and
+its view is one of those. Its widgets run while the app runs, with or
+without a window, and never more often than every 30s: a shorter `every`
+is raised to 30s.
+
+```yaml
+format: 1
+surface: menubar
+widgets:
+  - id: brand
+    type: devmachine-app/brand
+  - id: open-pull-requests
+    type: devmachine-app/open-pull-requests
+```
+
+`menubar-panel.yml` is the popover that opens when you click it: each
+widget is one tab, titled with the widget's title. A tab fills the
+popover, so a `size` there is kept but ignored, and `widgets validate`
+warns about it; `frame`, `minimized`, `collapsed` and `z` are refused. A
+widget fits it when `tabs` is in its `fits`. Its widgets run only while
+the popover is open. The footer (Open, Stats, Subdomains, the color
+picker, Quit) is not a widget.
+
+```yaml
+format: 1
+surface: menubar-panel
+widgets:
+  - id: pull-requests-panel
+    type: devmachine-app/pull-requests-panel
+  - id: usage-panel
+    type: devmachine-app/usage-panel
+```
+
+A widget in the menu bar that waits for your approval shows "!" in its
+place; its Allow card is in the popover, under an Approvals tab.
+
 ## What the engine offers
 
 `devmachine widgets schema --json` prints all of this as JSON.
@@ -529,6 +576,11 @@ A package declares providers in its `package.yml`; a widget names one `<package>
 | `{{item.x}}` on lines, or an unknown item key | `template {{item.name}} in view.item.title reads a field, and only JSON items have fields` |
 | `web` with `source.parse` | `the web view loads the page itself: remove source.parse` |
 | a board widget with no `title`, `source` or `view` | `disk: a widget written in the board needs a title` |
+| a 4th widget in the menu bar | `the menubar holds 3 widgets: take one off` |
+| `frame`, `size`, `minimized`, `collapsed` or `z` in the menu bar | `brand: a widget in the menu bar has no size: it is one line of text` |
+| a view the menu bar does not draw | `usage: the app.harness-usage view cannot be drawn in the menu bar` |
+| `frame`, `z`, `minimized` or `collapsed` on a tab | `usage-panel: a tab in the menu bar popover has no frame; its place is its position in the list` |
+| `size` on a tab (a warning, not a problem) | `usage-panel: size is ignored in the menu bar popover: a tab fills it` |
 | a board widget with `with` or `{{inputs.x}}` | `disk: a widget written in the board has no inputs, so it takes no with` |
 | a board widget's `script` not absolute | `disk: source.script "bin/df": a widget written in a board names an absolute path on the target` |
 | a board widget's target is not in `config.yml` (checked by `widgets validate` only) | `disk: source.target names machine "X", which config.yml does not have` |
