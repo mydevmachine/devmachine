@@ -40,6 +40,12 @@ reader never sees half of it.
   Mac gets `/usr/bin:/bin:/usr/sbin:/sbin` and nothing else, so `port`,
   `brew` and the Python they installed are not found without it. On Linux
   the list is empty and `run` sends the command as it is.
+- Every other command the CLI runs on a Mac by name gets the same prefix,
+  plus `/Applications/Tailscale.app/Contents/MacOS` last, where Tailscale's
+  app keeps its CLI: `login`'s command (`gh auth login`, `tailscale up`), a
+  network package's `join` and `self_name`, and `expose`'s `caddy validate`
+  and `caddy reload`. `expose` writes the prefix inside the script it pipes
+  to `sudo`, because `sudo` replaces the `PATH` it was started with.
 - `sync` refuses, before it changes anything, a package whose `platforms`
   leave out the machine's system — see
   [troubleshooting](../troubleshooting.md#package-x-runs-on-linux-machine-y-is-macos).

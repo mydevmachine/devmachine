@@ -242,3 +242,36 @@ func onlyProvider(t *testing.T, configDir string) Provider {
 	}
 	return found[0]
 }
+
+func TestResolveOnAMacAlsoFindsTheTailscaleApp(t *testing.T) {
+	was := goos
+	goos = "darwin"
+	t.Cleanup(func() { goos = was })
+	configDir := t.TempDir()
+	localPackage(t, configDir, "acme-net", "acme", `case ":$PATH:" in
+*:`+TailscaleAppDir+`:) echo 100.64.0.7 ;;
+*) echo "$PATH" >&2; exit 1 ;;
+esac
+`)
+	p := onlyProvider(t, configDir)
+
+	if _, err := p.Resolve(context.Background(), "main", nil); err != nil {
+		t.Fatalf("the app's directory is not last on the path: %v", err)
+	}
+}
+
+func TestResolveOnLinuxKeepsThePathAsItIs(t *testing.T) {
+	was := goos
+	goos = "linux"
+	t.Cleanup(func() { goos = was })
+	configDir := t.TempDir()
+	localPackage(t, configDir, "acme-net", "acme", `[ "$PATH" = "$EXPECTED_PATH" ] || { echo "$PATH" >&2; exit 1; }
+echo 100.64.0.7
+`)
+	t.Setenv("EXPECTED_PATH", os.Getenv("PATH"))
+	p := onlyProvider(t, configDir)
+
+	if _, err := p.Resolve(context.Background(), "main", nil); err != nil {
+		t.Fatal(err)
+	}
+}

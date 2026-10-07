@@ -188,6 +188,12 @@ type errNotApplied struct{ reason string }
 
 func (e errNotApplied) Error() string { return e.reason }
 
+// routesScript is what applyRoutes feeds the shell on the machine. The path
+// goes inside the script, because sudo replaces the PATH it was started with.
+func routesScript(dir string, m config.Machine, change expose.FileChange) string {
+	return inMachinePath(dir, m, expose.ApplyScript(change, expose.Caddyfile))
+}
+
 // applyRoutes puts the workspace's routes file on the machine and reloads
 // Caddy, without running the machine's play: the file is rendered by the same
 // code sync uses, so a later sync finds nothing to change.
@@ -209,7 +215,7 @@ func applyRoutes(ctx context.Context, client remote.Client, dir string, machine 
 	if err != nil {
 		return errNotApplied{err.Error()}
 	}
-	out, err := client.RunInput(ctx, expose.ApplyCommand, strings.NewReader(expose.ApplyScript(change, expose.Caddyfile)))
+	out, err := client.RunInput(ctx, expose.ApplyCommand, strings.NewReader(routesScript(dir, machine, change)))
 	if err != nil {
 		return fmt.Errorf("writing %s on %s: %w %s", change.Path, machine.Name, err, strings.TrimSpace(out))
 	}

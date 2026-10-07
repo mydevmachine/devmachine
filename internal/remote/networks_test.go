@@ -96,7 +96,7 @@ func TestResolveUsesThePackageTheMachineInstalls(t *testing.T) {
 
 func TestResolveFallsBackToTheBuiltInTailscaleWhenNoPackageDeclaresIt(t *testing.T) {
 	lookPath = func(string) (string, error) { return "/usr/bin/tailscale", nil }
-	tailscaleIP = func(string) (string, error) { return "100.64.0.5", nil }
+	tailscaleIP = func(string, string) (string, error) { return "100.64.0.5", nil }
 	t.Cleanup(func() { lookPath = realLookPath; tailscaleIP = realTailscaleIP })
 	configDir := t.TempDir()
 	networkPackage(t, configDir, "acme-net", "acme", "echo 100.64.0.7\n")
@@ -313,5 +313,40 @@ func TestUpstreamTakesOnlyAnAddressCaddyAndAShellCanUse(t *testing.T) {
 		if err != nil || got != tc.want {
 			t.Fatalf("%+v: got %q, %v", tc.in, got, err)
 		}
+	}
+}
+
+func TestTheBuiltInTailscaleOnAMacFallsBackToTheApp(t *testing.T) {
+	app := filepath.Join(t.TempDir(), "Tailscale")
+	if err := os.WriteFile(app, []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	var used string
+	lookPath = func(string) (string, error) { return "", errors.New("not found") }
+	tailscaleIP = func(binary, _ string) (string, error) { used = binary; return "100.64.0.5", nil }
+	wasGOOS, wasApp := goos, tailscaleAppCLI
+	goos, tailscaleAppCLI = "darwin", app
+	t.Cleanup(func() {
+		lookPath, tailscaleIP, goos, tailscaleAppCLI = realLookPath, realTailscaleIP, wasGOOS, wasApp
+	})
+
+	got, err := builtInTailscale("main")
+	if err != nil || got != "100.64.0.5" || used != app {
+		t.Fatalf("got %q %v, ran %q", got, err, used)
+	}
+}
+
+func TestTheBuiltInTailscaleOnLinuxDoesNotLookForTheApp(t *testing.T) {
+	app := filepath.Join(t.TempDir(), "Tailscale")
+	if err := os.WriteFile(app, []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	lookPath = func(string) (string, error) { return "", errors.New("not found") }
+	wasGOOS, wasApp := goos, tailscaleAppCLI
+	goos, tailscaleAppCLI = "linux", app
+	t.Cleanup(func() { lookPath, goos, tailscaleAppCLI = realLookPath, wasGOOS, wasApp })
+
+	if _, err := builtInTailscale("main"); err == nil || err.Error() != "tailscale is not installed" {
+		t.Fatalf("got %v", err)
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"regexp"
 	"strings"
 
@@ -142,10 +143,25 @@ func Resolve(m config.Machine) ([]string, error) {
 // kept exactly as it was for a release whose tailscale package has no
 // `network:` block.
 func builtInTailscale(name string) (string, error) {
-	if _, err := lookPath("tailscale"); err != nil {
-		return "", errors.New("tailscale is not installed")
+	binary, err := tailscaleBinary()
+	if err != nil {
+		return "", err
 	}
-	return tailscaleIP(name)
+	return tailscaleIP(binary, name)
+}
+
+// tailscaleBinary is the tailscale on PATH or, on a Mac that has only
+// Tailscale's app, the CLI inside the app.
+func tailscaleBinary() (string, error) {
+	if binary, err := lookPath("tailscale"); err == nil {
+		return binary, nil
+	}
+	if goos == "darwin" {
+		if info, err := os.Stat(tailscaleAppCLI); err == nil && !info.IsDir() {
+			return tailscaleAppCLI, nil
+		}
+	}
+	return "", errors.New("tailscale is not installed")
 }
 
 // Proxy connects to the first target that accepts a TCP connection and pipes

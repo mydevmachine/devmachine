@@ -476,6 +476,12 @@ address instead. This is by design.
 with the reason the package gave. Then run `tailscale status` and check the
 server is listed under the name you wrote.
 
+On a Mac with only Tailscale's app, there is no `tailscale` on `PATH`. The
+CLI still finds the app's own CLI in
+`/Applications/Tailscale.app/Contents/MacOS`, so the app being open and
+signed in is enough. Run `/Applications/Tailscale.app/Contents/MacOS/Tailscale
+status` to check it by hand.
+
 ## "no package declares the prefix"
 
 **What it means:** A `hosts` entry is written `<prefix>:<name>`, and no

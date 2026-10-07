@@ -207,3 +207,8 @@
       when: ansible_facts['system'] == 'Linux' and ((devmachine_routes_written is defined and devmachine_routes_written is changed) or (devmachine_routes_removed is defined and devmachine_routes_removed is changed) or (devmachine_extension_0 is defined and devmachine_extension_0 is changed))
       tags: [routes]
 
+    - name: reload caddy for the routes on a Mac
+      shell: PATH="/opt/local/bin:/opt/local/sbin:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/local/sbin:/Applications/Tailscale.app/Contents/MacOS:$PATH" caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile
+      when: ansible_facts['system'] == 'Darwin' and ((devmachine_routes_written is defined and devmachine_routes_written is changed) or (devmachine_routes_removed is defined and devmachine_routes_removed is changed) or (devmachine_extension_0 is defined and devmachine_extension_0 is changed))
+      tags: [routes]
+

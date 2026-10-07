@@ -57,8 +57,8 @@ func joinNetwork(cmd *cobra.Command, opts *options, found declared, p network.Pr
 		return err
 	}
 	onMachine := func(script string) string {
-		return network.SettingsEnv + "=" + quoteForShell(settings) + " " +
-			quoteForShell(provision.RolePath(base, p.Source, p.Package, script))
+		return inMachinePath(found.dir, m, network.SettingsEnv+"="+quoteForShell(settings)+" "+
+			quoteForShell(provision.RolePath(base, p.Source, p.Package, script)))
 	}
 
 	cmd.Printf("opening a session on %s to join it to %s\n", m.Name, p.Package)
