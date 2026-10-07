@@ -68,7 +68,7 @@ func TestRunArgvPutsThePathPrefixInTheInput(t *testing.T) {
 	if commands[0] != "/bin/sh -s" {
 		t.Fatalf("ran %q", commands[0])
 	}
-	if !strings.HasPrefix(inputs[0], "PATH='/opt/local/bin:/opt/local/sbin'") || !strings.HasSuffix(inputs[0], "exec 'port' 'installed'\n") {
+	if !strings.HasPrefix(inputs[0], macPathLine) || !strings.HasSuffix(inputs[0], "exec 'port' 'installed'\n") {
 		t.Fatalf("sent %q", inputs[0])
 	}
 }
