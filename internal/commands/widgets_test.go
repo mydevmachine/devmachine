@@ -111,7 +111,7 @@ func listCatalog(t *testing.T, dir string) widgets.Catalog {
 
 func TestWidgetsListReadsThePinnedRelease(t *testing.T) {
 	catalog := listCatalog(t, widgetConfig(t))
-	if catalog.Engine != "1.1" || catalog.PackagesRelease != "v40" || len(catalog.Problems) != 0 {
+	if catalog.Engine != "1.2" || catalog.PackagesRelease != "v40" || len(catalog.Problems) != 0 {
 		t.Fatalf("got %+v", catalog)
 	}
 	var names []string
@@ -525,7 +525,6 @@ func TestWidgetsAddRefuses(t *testing.T) {
 		want string
 	}{
 		{"an unknown widget", []string{"nope/nope"}, `no widget named "nope/nope"`},
-		{"a planned area", []string{"claude-code/usage", "--board", "sidebar"}, "the sidebar area arrives in a later version"},
 		{"an unknown area", []string{"claude-code/usage", "--board", "desk"}, "there is no desk area"},
 		{"a size the widget does not take", []string{"devmachine-app/clock", "--size", "wide"}, `does not come in size "wide"`},
 		{"an unknown input", []string{"devmachine-app/clock", "--set", "colour=red"}, `has no input "colour"`},

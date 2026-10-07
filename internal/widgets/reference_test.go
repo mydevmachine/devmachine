@@ -27,6 +27,11 @@ func TestReferenceTablesNameEveryProviderAndView(t *testing.T) {
 	for _, want := range []string{
 		"`app/harness-usage`", "`app.clock`", "`context-sidebar`", "| `wide` | 8×2 | 640×160 |",
 		"### Source kinds", "| `command` | 5s | yes |", "`kind:url`", "`timeout` duration, default `30s`, max 10m",
+		"One preset row in a sidebar is 40pt",
+		"| `app/session-context` | none | `session` required | 5s |",
+		"| `app.todo` | `app/session-context` | stack; grows with its content | none |",
+		"| `text` | `text`, `lines`, `ansi` | any layout |",
+		"| `sidebar` | stack | available |",
 	} {
 		if !strings.Contains(tables, want) {
 			t.Errorf("tables lack %s", want)

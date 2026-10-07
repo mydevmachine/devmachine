@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -68,5 +69,40 @@ func TestEverySourceKindHasItsFields(t *testing.T) {
 		if len(c.Sources[kind].Fields) == 0 {
 			t.Errorf("source kind %s has no fields", kind)
 		}
+	}
+}
+
+func TestTheSidebarsHaveBoards(t *testing.T) {
+	c := CurrentContract()
+	for _, name := range []string{"sidebar", "context-sidebar"} {
+		if s := c.Surfaces[name]; s.Status != StatusAvailable || s.Layout != LayoutStack {
+			t.Errorf("%s is %+v", name, s)
+		}
+		if !IsStack(name) {
+			t.Errorf("IsStack(%s) is false", name)
+		}
+	}
+	if IsStack("home") {
+		t.Error("IsStack(home) is true")
+	}
+	if c.StackRow != 40 || !slices.Equal(c.StackEntry.Forbids, []string{"frame", "z"}) {
+		t.Fatalf("stack_row %d, stack_entry %+v", c.StackRow, c.StackEntry)
+	}
+}
+
+func TestAProviderNeedsOnlyContextKeysASurfaceGives(t *testing.T) {
+	c := CurrentContract()
+	for name, p := range c.Providers {
+		for key, value := range p.Context {
+			if !slices.Contains(contextKeys(c), key) || value != ContextRequired {
+				t.Errorf("provider %s needs context.%s %s", name, key, value)
+			}
+		}
+	}
+}
+
+func TestOnlyViewsThatGrowTakeSizeAuto(t *testing.T) {
+	if !Grows("app.todo") || Grows("app.clock") || Grows("text") || Grows("nope") {
+		t.Fatal("Grows is wrong")
 	}
 }

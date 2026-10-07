@@ -1,13 +1,15 @@
 {
-  "engine": "1.1",
+  "engine": "1.2",
   "layouts": ["canvas", "stack", "slot"],
   "unit": 80,
   "snap": 8,
   "presets": {"small": [2,2], "medium": [4,2], "large": [4,4], "wide": [8,2], "tall": [2,4]},
+  "stack_row": 40,
+  "stack_entry": {"forbids": ["frame", "z"], "size": "preset | auto", "collapsed": "bool"},
   "surfaces": {
     "home": {"layout": "canvas", "status": "available", "context": {}},
-    "sidebar": {"layout": "stack", "status": "planned", "context": {"selected": {"type": "workspace", "presence": "optional"}}},
-    "context-sidebar": {"layout": "stack", "status": "planned", "context": {
+    "sidebar": {"layout": "stack", "status": "available", "context": {"selected": {"type": "workspace", "presence": "optional"}}},
+    "context-sidebar": {"layout": "stack", "status": "available", "context": {
       "machine": {"type": "machine", "presence": "always"},
       "session": {"type": "session", "presence": "always"},
       "workspace": {"type": "workspace", "presence": "optional"},
@@ -27,13 +29,28 @@
     "app/clock": {"args": {}, "min_every": "5s", "returns": {"time": "string", "date": "string", "host": "string"}},
     "app/summary": {"args": {}, "min_every": "5s", "returns": {"sessions": "int", "harness_sessions": "int", "workspaces": "int"}},
     "app/machines": {"args": {}, "min_every": "5s", "returns": {"list": "machine_stats"}},
-    "app/harness-usage": {"args": {"harness": {"type": "string", "required": true}}, "min_every": "5s", "returns": {"harness": "string", "windows": "list", "error": "string?"}}
+    "app/harness-usage": {"args": {"harness": {"type": "string", "required": true}}, "min_every": "5s", "returns": {"harness": "string", "windows": "list", "error": "string?"}},
+    "app/workspaces": {"args": {}, "min_every": "5s", "returns": {"workspaces": "workspace_sessions"}},
+    "app/session-context": {"args": {}, "min_every": "5s", "context": {"session": "required"}, "returns": {
+      "cwd": "path", "harness": "string?", "plan": "plan?", "prs": "list",
+      "links": "list", "agents": "list", "monitors": "list", "shells": "list"}},
+    "app/shortcuts": {"args": {}, "min_every": "5s", "context": {"session": "required"}, "returns": {"shortcuts": "list"}},
+    "app/publish-port": {"args": {}, "min_every": "5s", "returns": {"available": "bool"}}
   },
   "views": {
     "app.clock": {"accepts": ["app/clock"]},
     "app.summary": {"accepts": ["app/summary"]},
     "app.machines": {"accepts": ["app/machines"]},
     "app.harness-usage": {"accepts": ["app/harness-usage"]},
+    "app.workspaces": {"accepts": ["app/workspaces"], "layouts": ["stack"], "grows": true},
+    "app.shortcuts": {"accepts": ["app/shortcuts"], "layouts": ["stack"], "grows": true},
+    "app.publish-port": {"accepts": ["app/publish-port"], "layouts": ["stack"], "grows": true},
+    "app.monitors": {"accepts": ["app/session-context"], "layouts": ["stack"], "grows": true},
+    "app.shells": {"accepts": ["app/session-context"], "layouts": ["stack"], "grows": true},
+    "app.sub-agents": {"accepts": ["app/session-context"], "layouts": ["stack"], "grows": true},
+    "app.todo": {"accepts": ["app/session-context"], "layouts": ["stack"], "grows": true},
+    "app.pull-requests": {"accepts": ["app/session-context"], "layouts": ["stack"], "grows": true},
+    "app.links": {"accepts": ["app/session-context"], "layouts": ["stack"], "grows": true},
     "text": {"accepts": ["text", "lines", "ansi"], "fields": {
       "wrap": {"type": "bool", "default": true},
       "tail": {"type": "int", "min": 1, "max": 2000}}},

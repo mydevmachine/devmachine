@@ -25,6 +25,9 @@ func ReferenceTables() string {
 	line("")
 	line("One unit is %dpt; positions and free resizes snap to %dpt.", c.Unit, c.Snap)
 	line("")
+	line("One preset row in a sidebar is %dpt high, and a widget there is as wide as the panel. "+
+		"`size: auto` makes a view that grows as tall as what it shows.", c.StackRow)
+	line("")
 	line("| Preset | Units | Points |")
 	line("| --- | --- | --- |")
 	for _, name := range presetNames(c) {
@@ -59,11 +62,11 @@ func ReferenceTables() string {
 	line("")
 	line("### Providers")
 	line("")
-	line("| Provider | Arguments | Minimum `every` | Returns |")
-	line("| --- | --- | --- | --- |")
+	line("| Provider | Arguments | Context it needs | Minimum `every` | Returns |")
+	line("| --- | --- | --- | --- | --- |")
 	for _, name := range providerNames(c) {
 		p := c.Providers[name]
-		var args, returns []string
+		var args, returns, context []string
 		for _, a := range sortedKeys(p.Args) {
 			required := "optional"
 			if p.Args[a].Required {
@@ -71,10 +74,14 @@ func ReferenceTables() string {
 			}
 			args = append(args, fmt.Sprintf("`%s` %s, %s", a, p.Args[a].Type, required))
 		}
+		for _, key := range sortedKeys(p.Context) {
+			context = append(context, fmt.Sprintf("`%s` %s", key, p.Context[key]))
+		}
 		for _, r := range sortedKeys(p.Returns) {
 			returns = append(returns, fmt.Sprintf("`%s` %s", r, p.Returns[r]))
 		}
-		line("| `%s` | %s | %s | %s |", name, orNone(strings.Join(args, "; ")), p.MinEvery, strings.Join(returns, ", "))
+		line("| `%s` | %s | %s | %s | %s |", name, orNone(strings.Join(args, "; ")), orNone(strings.Join(context, ", ")),
+			p.MinEvery, strings.Join(returns, ", "))
 	}
 	line("")
 	line("### Source kinds")
@@ -96,11 +103,18 @@ func ReferenceTables() string {
 	line("")
 	line("### Views")
 	line("")
-	line("| View | Draws | Fields besides `kind` |")
-	line("| --- | --- | --- |")
+	line("| View | Draws | Drawn in | Fields besides `kind` |")
+	line("| --- | --- | --- | --- |")
 	for _, name := range viewNames(c) {
 		view := c.Views[name]
-		line("| `%s` | `%s` | %s |", name, strings.Join(view.Accepts, "`, `"), orNone(describeFields(view.Fields)))
+		drawn := "any layout"
+		if len(view.Layouts) > 0 {
+			drawn = strings.Join(view.Layouts, ", ")
+		}
+		if view.Grows {
+			drawn += "; grows with its content"
+		}
+		line("| `%s` | `%s` | %s | %s |", name, strings.Join(view.Accepts, "`, `"), drawn, orNone(describeFields(view.Fields)))
 	}
 	return b.String()
 }

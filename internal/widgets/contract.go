@@ -3,7 +3,7 @@
 package widgets
 
 // Engine is the version of the contract this CLI implements.
-const Engine = "1.1"
+const Engine = "1.2"
 
 // The layouts a surface can have.
 const (
@@ -87,6 +87,10 @@ const AcceptsKind = "kind:"
 // SizeCustom is the size a board entry has after a free resize.
 const SizeCustom = "custom"
 
+// SizeAuto makes a widget in a sidebar as tall as what it shows. Only a view
+// that grows takes it.
+const SizeAuto = "auto"
+
 // ContextKey is one value a surface hands to the widgets on it.
 type ContextKey struct {
 	Type     string `json:"type"`
@@ -106,10 +110,12 @@ type Arg struct {
 	Required bool   `json:"required"`
 }
 
-// Provider is one data source the app runs.
+// Provider is one data source the app runs. Context names the keys the area
+// must hand it, each required.
 type Provider struct {
 	Args     map[string]Arg    `json:"args"`
 	MinEvery string            `json:"min_every"`
+	Context  map[string]string `json:"context,omitempty"`
 	Returns  map[string]string `json:"returns"`
 }
 
@@ -133,10 +139,21 @@ type SourceKind struct {
 	Fields   map[string]Field `json:"fields"`
 }
 
-// View is one way the app draws a source's output.
+// View is one way the app draws a source's output. Layouts, when set, are
+// the only layouts it is drawn in; Grows means it takes size auto in a stack.
 type View struct {
 	Accepts []string         `json:"accepts"`
 	Fields  map[string]Field `json:"fields,omitempty"`
+	Layouts []string         `json:"layouts,omitempty"`
+	Grows   bool             `json:"grows,omitempty"`
+}
+
+// StackEntry is how a widget sits in a stack: the board keys it must not
+// have, and what its size and collapsed keys take.
+type StackEntry struct {
+	Forbids   []string `json:"forbids"`
+	Size      string   `json:"size"`
+	Collapsed string   `json:"collapsed"`
 }
 
 // Contract is everything a widget may name, at one engine version.
@@ -146,6 +163,8 @@ type Contract struct {
 	Unit         int                          `json:"unit"`
 	Snap         int                          `json:"snap"`
 	Presets      map[string][2]int            `json:"presets"`
+	StackRow     int                          `json:"stack_row"`
+	StackEntry   StackEntry                   `json:"stack_entry"`
 	Surfaces     map[string]Surface           `json:"surfaces"`
 	ContextTypes map[string]map[string]string `json:"context_types"`
 	Providers    map[string]Provider          `json:"providers"`
@@ -155,11 +174,19 @@ type Contract struct {
 	Formats      map[string]int               `json:"formats"`
 }
 
-// CurrentContract returns engine 1.1, built fresh on every call so no caller
+// CurrentContract returns engine 1.2, built fresh on every call so no caller
 // can change what another one reads.
 func CurrentContract() Contract {
 	appProvider := func(args map[string]Arg, returns map[string]string) Provider {
 		return Provider{Args: args, MinEvery: "5s", Returns: returns}
+	}
+	sessionProvider := func(returns map[string]string) Provider {
+		p := appProvider(map[string]Arg{}, returns)
+		p.Context = map[string]string{"session": ContextRequired}
+		return p
+	}
+	stackView := func(provider string) View {
+		return View{Accepts: []string{provider}, Layouts: []string{LayoutStack}, Grows: true}
 	}
 	timeout := func(fallback string) Field {
 		return Field{Type: FieldDuration, Default: fallback, Max: "10m"}
@@ -174,12 +201,16 @@ func CurrentContract() Contract {
 		Presets: map[string][2]int{
 			"small": {2, 2}, "medium": {4, 2}, "large": {4, 4}, "wide": {8, 2}, "tall": {2, 4},
 		},
+		StackRow: 40,
+		StackEntry: StackEntry{
+			Forbids: []string{"frame", "z"}, Size: "preset | auto", Collapsed: "bool",
+		},
 		Surfaces: map[string]Surface{
 			"home": {Layout: LayoutCanvas, Status: StatusAvailable, Context: map[string]ContextKey{}},
-			"sidebar": {Layout: LayoutStack, Status: StatusPlanned, Context: map[string]ContextKey{
+			"sidebar": {Layout: LayoutStack, Status: StatusAvailable, Context: map[string]ContextKey{
 				"selected": {Type: "workspace", Presence: PresenceOptional},
 			}},
-			"context-sidebar": {Layout: LayoutStack, Status: StatusPlanned, Context: map[string]ContextKey{
+			"context-sidebar": {Layout: LayoutStack, Status: StatusAvailable, Context: map[string]ContextKey{
 				"machine":   {Type: "machine", Presence: PresenceAlways},
 				"session":   {Type: "session", Presence: PresenceAlways},
 				"workspace": {Type: "workspace", Presence: PresenceOptional},
@@ -206,12 +237,29 @@ func CurrentContract() Contract {
 				map[string]string{"list": "machine_stats"}),
 			"app/harness-usage": appProvider(map[string]Arg{"harness": {Type: "string", Required: true}},
 				map[string]string{"harness": "string", "windows": "list", "error": "string?"}),
+			"app/workspaces": appProvider(map[string]Arg{},
+				map[string]string{"workspaces": "workspace_sessions"}),
+			"app/session-context": sessionProvider(map[string]string{
+				"cwd": "path", "harness": "string?", "plan": "plan?", "prs": "list",
+				"links": "list", "agents": "list", "monitors": "list", "shells": "list",
+			}),
+			"app/shortcuts":    sessionProvider(map[string]string{"shortcuts": "list"}),
+			"app/publish-port": appProvider(map[string]Arg{}, map[string]string{"available": "bool"}),
 		},
 		Views: map[string]View{
 			"app.clock":         {Accepts: []string{"app/clock"}},
 			"app.summary":       {Accepts: []string{"app/summary"}},
 			"app.machines":      {Accepts: []string{"app/machines"}},
 			"app.harness-usage": {Accepts: []string{"app/harness-usage"}},
+			"app.workspaces":    stackView("app/workspaces"),
+			"app.shortcuts":     stackView("app/shortcuts"),
+			"app.publish-port":  stackView("app/publish-port"),
+			"app.monitors":      stackView("app/session-context"),
+			"app.shells":        stackView("app/session-context"),
+			"app.sub-agents":    stackView("app/session-context"),
+			"app.todo":          stackView("app/session-context"),
+			"app.pull-requests": stackView("app/session-context"),
+			"app.links":         stackView("app/session-context"),
 			"text": {Accepts: []string{ParseText, ParseLines, ParseANSI}, Fields: map[string]Field{
 				"wrap": {Type: FieldBool, Default: true},
 				"tail": tail,
@@ -295,4 +343,13 @@ func CurrentContract() Contract {
 		},
 		Formats: map[string]int{"widget": 1, "board": 1},
 	}
+}
+
+// Grows says whether a view takes size auto in a stack: it is as tall as
+// what it shows.
+func Grows(view string) bool { return CurrentContract().Views[view].Grows }
+
+// IsStack says whether a surface lays its widgets out as an ordered list.
+func IsStack(surface string) bool {
+	return CurrentContract().Surfaces[surface].Layout == LayoutStack
 }

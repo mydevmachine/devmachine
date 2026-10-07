@@ -106,11 +106,12 @@ func TestEachBoardRuleReportsItsOwnProblem(t *testing.T) {
 	}
 }
 
-func TestAPlannedSurfaceHasNoBoardYet(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "sidebar.yml")
-	problems := ValidateBoard(Board{Format: 1, Surface: "sidebar"}, path, usageLookup)
-	if len(problems) != 1 || problems[0].Message != "the sidebar area arrives in a later version" {
-		t.Fatalf("got %v", problems)
+func TestTheSidebarsTakeABoard(t *testing.T) {
+	for _, surface := range []string{"sidebar", "context-sidebar"} {
+		path := filepath.Join(t.TempDir(), surface+".yml")
+		if problems := ValidateBoard(Board{Format: 1, Surface: surface}, path, usageLookup); len(problems) != 0 {
+			t.Errorf("%s: %v", surface, problems)
+		}
 	}
 }
 

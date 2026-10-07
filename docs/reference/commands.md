@@ -758,8 +758,7 @@ the input's type. `--size` is a preset the widget takes, default its
 8pt; the widget goes exactly there, even on top of another, because
 widgets may overlap on Home. Without it the widget takes the first free
 spot, scanning rows of 8pt from 24,24 across a band 1280pt wide and
-keeping 8pt from every other widget. Only areas that exist today are accepted: `--board sidebar` says
-the area arrives in a later version.
+keeping 8pt from every other widget.
 
 `remove` takes the widget with that id off the board.
 

@@ -278,11 +278,13 @@ after you press **Allow** on it, and asks again whenever it changes. See
 
 <!-- generated from the engine contract by `make widget-format`: start -->
 
-Engine **1.1**. Widget format 1, board format 1.
+Engine **1.2**. Widget format 1, board format 1.
 
 ### Sizes
 
 One unit is 80pt; positions and free resizes snap to 8pt.
+
+One preset row in a sidebar is 40pt high, and a widget there is as wide as the panel. `size: auto` makes a view that grows as tall as what it shows.
 
 | Preset | Units | Points |
 | --- | --- | --- |
@@ -296,9 +298,9 @@ One unit is 80pt; positions and free resizes snap to 8pt.
 
 | Surface | Layout | Status | Context it gives |
 | --- | --- | --- | --- |
-| `context-sidebar` | stack | planned | `branch` (string, optional), `harness` (string, optional), `machine` (machine, always), `path` (path, optional), `repo` (repo, optional), `session` (session, always), `workspace` (workspace, optional) |
+| `context-sidebar` | stack | available | `branch` (string, optional), `harness` (string, optional), `machine` (machine, always), `path` (path, optional), `repo` (repo, optional), `session` (session, always), `workspace` (workspace, optional) |
 | `home` | canvas | available | none |
-| `sidebar` | stack | planned | `selected` (workspace, optional) |
+| `sidebar` | stack | available | `selected` (workspace, optional) |
 
 ### Context types
 
@@ -313,12 +315,16 @@ One unit is 80pt; positions and free resizes snap to 8pt.
 
 ### Providers
 
-| Provider | Arguments | Minimum `every` | Returns |
-| --- | --- | --- | --- |
-| `app/clock` | none | 5s | `date` string, `host` string, `time` string |
-| `app/harness-usage` | `harness` string, required | 5s | `error` string?, `harness` string, `windows` list |
-| `app/machines` | none | 5s | `list` machine_stats |
-| `app/summary` | none | 5s | `harness_sessions` int, `sessions` int, `workspaces` int |
+| Provider | Arguments | Context it needs | Minimum `every` | Returns |
+| --- | --- | --- | --- | --- |
+| `app/clock` | none | none | 5s | `date` string, `host` string, `time` string |
+| `app/harness-usage` | `harness` string, required | none | 5s | `error` string?, `harness` string, `windows` list |
+| `app/machines` | none | none | 5s | `list` machine_stats |
+| `app/publish-port` | none | none | 5s | `available` bool |
+| `app/session-context` | none | `session` required | 5s | `agents` list, `cwd` path, `harness` string?, `links` list, `monitors` list, `plan` plan?, `prs` list, `shells` list |
+| `app/shortcuts` | none | `session` required | 5s | `shortcuts` list |
+| `app/summary` | none | none | 5s | `harness_sessions` int, `sessions` int, `workspaces` int |
+| `app/workspaces` | none | none | 5s | `workspaces` workspace_sessions |
 
 ### Source kinds
 
@@ -332,21 +338,30 @@ One unit is 80pt; positions and free resizes snap to 8pt.
 
 ### Views
 
-| View | Draws | Fields besides `kind` |
-| --- | --- | --- |
-| `app.clock` | `app/clock` | none |
-| `app.harness-usage` | `app/harness-usage` | none |
-| `app.machines` | `app/machines` | none |
-| `app.summary` | `app/summary` | none |
-| `gauge` | `number`, `json` | `crit` number; `max` number, default `100`; `min` number, default `0`; `unit` string; `value` template; `warn` number |
-| `list` | `lines`, `json` | `item` object (`link` template; `status` template; `subtitle` template; `title` template, default `{{item}}`) |
-| `markdown` | `text` | none |
-| `number` | `number`, `json` | `format` enum, plain/percent/bytes/duration, default `plain`; `unit` string; `value` template |
-| `sparkline` | `number`, `json` | `max` number; `unit` string; `value` template |
-| `status` | `status`, `number`, `json`, `text` | `ok` rule; `value` template; `warn` rule |
-| `terminal` | `ansi`, `text`, `kind:session` | `tail` int, min 1, max 2000 |
-| `text` | `text`, `lines`, `ansi` | `tail` int, min 1, max 2000; `wrap` bool, default `true` |
-| `web` | `kind:url` | `zoom` number, default `1`, min 0.5, max 2 |
+| View | Draws | Drawn in | Fields besides `kind` |
+| --- | --- | --- | --- |
+| `app.clock` | `app/clock` | any layout | none |
+| `app.harness-usage` | `app/harness-usage` | any layout | none |
+| `app.links` | `app/session-context` | stack; grows with its content | none |
+| `app.machines` | `app/machines` | any layout | none |
+| `app.monitors` | `app/session-context` | stack; grows with its content | none |
+| `app.publish-port` | `app/publish-port` | stack; grows with its content | none |
+| `app.pull-requests` | `app/session-context` | stack; grows with its content | none |
+| `app.shells` | `app/session-context` | stack; grows with its content | none |
+| `app.shortcuts` | `app/shortcuts` | stack; grows with its content | none |
+| `app.sub-agents` | `app/session-context` | stack; grows with its content | none |
+| `app.summary` | `app/summary` | any layout | none |
+| `app.todo` | `app/session-context` | stack; grows with its content | none |
+| `app.workspaces` | `app/workspaces` | stack; grows with its content | none |
+| `gauge` | `number`, `json` | any layout | `crit` number; `max` number, default `100`; `min` number, default `0`; `unit` string; `value` template; `warn` number |
+| `list` | `lines`, `json` | any layout | `item` object (`link` template; `status` template; `subtitle` template; `title` template, default `{{item}}`) |
+| `markdown` | `text` | any layout | none |
+| `number` | `number`, `json` | any layout | `format` enum, plain/percent/bytes/duration, default `plain`; `unit` string; `value` template |
+| `sparkline` | `number`, `json` | any layout | `max` number; `unit` string; `value` template |
+| `status` | `status`, `number`, `json`, `text` | any layout | `ok` rule; `value` template; `warn` rule |
+| `terminal` | `ansi`, `text`, `kind:session` | any layout | `tail` int, min 1, max 2000 |
+| `text` | `text`, `lines`, `ansi` | any layout | `tail` int, min 1, max 2000; `wrap` bool, default `true` |
+| `web` | `kind:url` | any layout | `zoom` number, default `1`, min 0.5, max 2 |
 
 <!-- generated from the engine contract by `make widget-format`: end -->
 
@@ -357,7 +372,7 @@ One unit is 80pt; positions and free resizes snap to 8pt.
 | `format` is not 1 | `format 2, and this CLI reads widget format 1` |
 | `requires.engine` missing | `every widget needs requires.engine, for example ">= 1.0"` |
 | `requires.engine` unreadable | `requires.engine "X": write it as ">= 1.0", "> 1.0" or "= 1.0"` |
-| a newer engine is required | ``requires engine >= 1.2, and this CLI implements engine 1.1: update with `devmachine update` `` |
+| a newer engine is required | ``requires engine >= 1.3, and this CLI implements engine 1.2: update with `devmachine update` `` |
 | an unknown top-level field | `unknown field "X"` |
 | `name` malformed or not the folder | `name is "X" but the folder is "Y": a widget is found by its folder` |
 | `summary` missing | `every widget needs a one-line summary` |
@@ -369,7 +384,7 @@ One unit is 80pt; positions and free resizes snap to 8pt.
 | `context` value other than required/optional | `context key "X" is "Y": write required or optional` |
 | input type unknown, or default of the wrong type | `input "X" has type "Y"`, `input "X" is a string, and its default 3 is not` |
 | template names something undeclared | `template {{inputs.X}} in source.with.Y needs inputs.X` |
-| `source.kind` unknown | `source.kind "X": engine 1.1 knows provider, command, url, prompt, session` |
+| `source.kind` unknown | `source.kind "X": engine 1.2 knows provider, command, url, prompt, session` |
 | a key of another kind | `source.url is not a field of a command source: it takes …` |
 | no `run`/`script`, or both | `a command source needs run or script`, `a command source has run or script, not both` |
 | `run` with spaces and no `shell: true` | `source.run "df -h /" has spaces: put each argument in source.args, or set shell: true …` |
@@ -386,7 +401,7 @@ One unit is 80pt; positions and free resizes snap to 8pt.
 | `parse`, `mode` or `harness` unknown | `source.parse "yaml": a command source takes text, lines, number, json, ansi` |
 | `url` not a full address | `source.url "X": write a full address starting with https:// or http://` |
 | view does not draw the source | `view.kind "gauge" takes number, json, and this command source gives text` |
-| `source.name` unknown | `source.name "X" is not a provider engine 1.1 knows` |
+| `source.name` unknown | `source.name "X" is not a provider engine 1.2 knows` |
 | `source.with` wrong | `source.with.X is not an argument of P`, `source.with.X is required by P` |
 | `source.every` missing, unreadable or too short | `source.every 1s is below the P minimum of 5s` |
 | `view.kind` unknown, or draws another provider | `view.kind "app.clock" draws app/clock, not P` |

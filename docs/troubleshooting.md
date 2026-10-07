@@ -1752,7 +1752,7 @@ a `command` source with no `parse`), and a rule uses `<`, `<=`, `>` or
 output is a number, say so: `parse: number` on a `command` source, or
 leave `parse` out on a `url` source to compare its status code.
 
-## "requires engine >= 1.2, and this CLI implements engine 1.1"
+## "requires engine >= 1.3, and this CLI implements engine 1.2"
 
 **What it means:** The widget says it needs a newer engine than this CLI
 has. Nothing else in it was checked.
@@ -1790,14 +1790,6 @@ checked.
 **What to do:** Pass the package folder (the one with `package.yml`), one
 widget folder, or one board file. To check every board and every widget of
 your own packages, run `devmachine widgets validate` with no path.
-
-## "the sidebar area arrives in a later version"
-
-**What it means:** Only Home has a board today. The sidebar and the
-sidebar next to a session are in the engine contract, so a widget can say
-it fits them, but nothing draws them yet.
-
-**What to do:** Use `--board home`, or leave `--board` out.
 
 ## "X does not fit the home area"
 
