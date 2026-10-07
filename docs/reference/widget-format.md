@@ -295,7 +295,7 @@ widgets:
 | Field | What it is |
 | --- | --- |
 | `id`, `type`, `with` | As on Home. A widget written in place (`title`, `source`, `view`) works here too. |
-| `size` | A preset the widget takes, or `auto`. In a sidebar a widget is as wide as the panel and each preset row is 40pt high (`medium` is 80pt, `large` 160pt). `auto` makes it as tall as what it shows, and only a view that grows takes it (the app's sidebar views). Left out, it is `auto` for a view that grows and the widget's `default_size` otherwise. A widget written in place has no `default_size`: the CLI accepts a missing `size` there and writes none. |
+| `size` | A preset the widget takes, or `auto`. In a sidebar a widget is as wide as the panel and each preset row is 40pt high (`medium` is 80pt, `large` 160pt). `auto` makes it as tall as what it shows, and only a view that grows takes it (the app's sidebar views). Left out, it is `auto` for a view that grows and the widget's `default_size` otherwise. A widget written in place has no `default_size`: the CLI accepts a missing `size` there and writes none, and the app draws it at the first preset in its `sizes`, or `medium` when it lists none. |
 | `collapsed` | `true` shows only its header, and nothing runs. Left out when false. |
 
 A widget fits a sidebar when `stack` is in its `fits`; a widget written in
