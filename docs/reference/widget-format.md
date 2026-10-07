@@ -365,6 +365,7 @@ One unit is 80pt; positions and free resizes snap to 8pt.
 | a board widget with no `title`, `source` or `view` | `disk: a widget written in the board needs a title` |
 | a board widget with `with` or `{{inputs.x}}` | `disk: a widget written in the board has no inputs, so it takes no with` |
 | a board widget's `script` not absolute | `disk: source.script "bin/df": a widget written in a board names an absolute path on the target` |
+| a board widget's target is not in `config.yml` (checked by `widgets validate` only) | `disk: source.target names machine "X", which config.yml does not have` |
 
 `devmachine widgets validate` and `devmachine packages validate` report
 every problem at once, with the file and line.

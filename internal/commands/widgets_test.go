@@ -387,11 +387,12 @@ func TestWidgetsValidateWithNoPathChecksBoardsAndYourPackages(t *testing.T) {
 	var result struct {
 		OK       bool              `json:"ok"`
 		Problems []widgets.Problem `json:"problems"`
+		Warnings []widgets.Problem `json:"warnings"`
 	}
 	if err := json.Unmarshal([]byte(out), &result); err != nil {
 		t.Fatal(err)
 	}
-	if result.OK || len(result.Problems) != 2 {
+	if result.OK || len(result.Problems) != 2 || result.Warnings == nil {
 		t.Fatalf("got %+v", result)
 	}
 }
@@ -760,5 +761,67 @@ func TestWidgetsListPassesANewSourceThrough(t *testing.T) {
 	}
 	if health, _ := catalog.Find("mine/health"); !health.Available {
 		t.Errorf("a url widget needs no package: %+v", health)
+	}
+}
+
+func TestWidgetsValidateRefusesAnInlineWidgetOnAnUnknownMachine(t *testing.T) {
+	dir := configWith(t, "machines:\n  - name: main\n    hosts: [203.0.113.10]\npackages: v40\n")
+	widgetRelease(t, dir)
+	forbidDial(t)
+	board := filepath.Join(dir, "boards", "home.yml")
+	ghost := strings.Replace(inlineEntry, "target: {workspace: alice}", "target: {machine: ghost}", 1)
+	writeCommandFile(t, board, "format: 1\nsurface: home\nwidgets:\n"+ghost)
+
+	out, err := execute(t, "--config", dir, "widgets", "validate", board)
+	if err == nil || !strings.Contains(out, `disk: source.target names machine "ghost", which config.yml does not have`) {
+		t.Fatalf("got %v\n%s", err, out)
+	}
+
+	main := strings.Replace(inlineEntry, "target: {workspace: alice}", "target: {machine: main}", 1)
+	writeCommandFile(t, board, "format: 1\nsurface: home\nwidgets:\n"+main)
+	if out, err := execute(t, "--config", dir, "widgets", "validate", board); err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+}
+
+func TestWidgetsValidateWarnsAboutAPackageWidgetsUnknownMachine(t *testing.T) {
+	dir := widgetConfig(t)
+	writeWidgetPackageAt(t, packages.LocalDir(dir), "mine", "machine", map[string]string{"disk": diskWidgetYAML})
+
+	out, err := execute(t, "--config", dir, "--format", "json", "widgets", "validate", filepath.Join(packages.LocalDir(dir), "mine"))
+	if err != nil {
+		t.Fatalf("a warning failed the check: %v\n%s", err, out)
+	}
+	var result struct {
+		OK       bool              `json:"ok"`
+		Warnings []widgets.Problem `json:"warnings"`
+	}
+	if err := json.Unmarshal([]byte(out), &result); err != nil {
+		t.Fatal(err)
+	}
+	if !result.OK || len(result.Warnings) != 1 || !strings.Contains(result.Warnings[0].Message, `machine "main"`) {
+		t.Fatalf("got %+v", result)
+	}
+
+	text, err := execute(t, "--config", dir, "widgets", "validate", filepath.Join(packages.LocalDir(dir), "mine"))
+	if err != nil || !strings.Contains(text, "warning: ") {
+		t.Fatalf("got %v\n%s", err, text)
+	}
+}
+
+func TestWidgetsAddIgnoresTargetNames(t *testing.T) {
+	dir := widgetConfig(t)
+	board := widgets.BoardPath(dir, "home")
+	ghost := strings.Replace(inlineEntry, "target: {workspace: alice}", "target: {machine: ghost}", 1)
+	writeCommandFile(t, board, "format: 1\nsurface: home\nwidgets:\n"+ghost)
+
+	if out, err := execute(t, "--config", dir, "widgets", "add", "devmachine-app/clock"); err != nil {
+		t.Fatalf("a machine missing from config.yml locked the board: %v\n%s", err, out)
+	}
+	if out, err := execute(t, "--config", dir, "widgets", "remove", "clock"); err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	if got := readCommandFile(t, board); !strings.Contains(got, ghost) {
+		t.Fatalf("the inline widget changed:\n%s", got)
 	}
 }

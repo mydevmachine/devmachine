@@ -29,8 +29,14 @@ func newWidgetsValidateCmd(opts *options) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			cfg, err := loadConfigOrEmpty(dir)
+			if err != nil {
+				return err
+			}
+			names := targetNamesOf(cfg)
 			targets := args
 			problems := []widgets.Problem{}
+			warnings := []widgets.Problem{}
 			if len(targets) == 0 {
 				var broken []widgets.Problem
 				if targets, broken, err = defaultValidateTargets(dir); err != nil {
@@ -41,11 +47,12 @@ func newWidgetsValidateCmd(opts *options) *cobra.Command {
 
 			fits := []widgetFit{}
 			for _, target := range targets {
-				valid, found, err := validateTarget(target, catalog.Find)
+				valid, found, warned, err := validateTarget(target, catalog.Find, names)
 				if err != nil {
 					return err
 				}
 				problems = append(problems, found...)
+				warnings = append(warnings, warned...)
 				fits = append(fits, valid...)
 			}
 
@@ -55,7 +62,8 @@ func newWidgetsValidateCmd(opts *options) *cobra.Command {
 					Checked  []string          `json:"checked"`
 					Widgets  []widgetFit       `json:"widgets"`
 					Problems []widgets.Problem `json:"problems"`
-				}{len(problems) == 0, nonNil(targets), fits, problems}); err != nil {
+					Warnings []widgets.Problem `json:"warnings"`
+				}{len(problems) == 0, nonNil(targets), fits, problems, warnings}); err != nil {
 					return err
 				}
 			} else {
@@ -71,6 +79,9 @@ func newWidgetsValidateCmd(opts *options) *cobra.Command {
 				}
 				for _, p := range problems {
 					cmd.Println(p.Error())
+				}
+				for _, w := range warnings {
+					cmd.Printf("warning: %s\n", w.Error())
 				}
 				if len(problems) == 0 && len(targets) > 0 {
 					cmd.Printf("%d checked, all fine\n", len(targets))
@@ -102,41 +113,64 @@ type widgetFit struct {
 	Surfaces []string `json:"surfaces"`
 }
 
+// targetNamesOf is what a widget may name as its target.
+func targetNamesOf(cfg config.Config) widgets.TargetNames {
+	var names widgets.TargetNames
+	for _, m := range cfg.Machines {
+		names.Machines = append(names.Machines, m.Name)
+	}
+	for _, w := range cfg.Workspaces {
+		names.Workspaces = append(names.Workspaces, w.Name)
+	}
+	return names
+}
+
+// targetWarnings names, for each package widget, a machine or workspace it
+// names literally that this configuration lacks. A warning, not a problem:
+// a published widget is written for many configurations, not only yours.
+func targetWarnings(found []widgets.Widget, names widgets.TargetNames) []widgets.Problem {
+	warnings := []widgets.Problem{}
+	for _, w := range found {
+		if message := widgets.UnknownTarget(w.Source, names); message != "" {
+			warnings = append(warnings, widgets.Problem{Path: filepath.Join(w.Dir, widgets.FileName), Message: message})
+		}
+	}
+	return warnings
+}
+
 // validateTarget checks one path, whichever of the four things it is, and
-// returns the widgets that passed beside the problems.
-func validateTarget(path string, lookup widgets.Lookup) ([]widgetFit, []widgets.Problem, error) {
+// returns the widgets that passed beside the problems and the warnings.
+func validateTarget(path string, lookup widgets.Lookup, names widgets.TargetNames) ([]widgetFit, []widgets.Problem, []widgets.Problem, error) {
 	info, err := os.Stat(path)
 	if err != nil {
-		return nil, nil, fmt.Errorf("reading %s: %w", path, err)
+		return nil, nil, nil, fmt.Errorf("reading %s: %w", path, err)
 	}
 	if !info.IsDir() {
 		if filepath.Base(path) == widgets.FileName {
-			return loadOne(filepath.Dir(path))
+			return loadOne(filepath.Dir(path), names)
 		}
-		problems, err := validateBoardFile(path, lookup)
-		return nil, problems, err
+		b, _, problems, err := boardProblems(path, lookup)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		return nil, append(problems, widgets.BoardTargetProblems(b, path, names)...), nil, nil
 	}
 	if fileExists(filepath.Join(path, widgets.FileName)) {
-		return loadOne(path)
+		return loadOne(path, names)
 	}
 	if manifest := packages.ManifestPath(path); fileExists(manifest) {
 		m, err := packages.ParseManifest(path)
 		if err != nil {
-			return nil, []widgets.Problem{{Path: manifest, Message: err.Error()}}, nil
+			return nil, []widgets.Problem{{Path: manifest, Message: err.Error()}}, nil, nil
 		}
 		root, ok := packages.WidgetsDir(m)
 		if !ok {
-			return nil, []widgets.Problem{{Path: manifest, Message: fmt.Sprintf("package %s declares no `widgets:` folder", m.Name)}}, nil
+			return nil, []widgets.Problem{{Path: manifest, Message: fmt.Sprintf("package %s declares no `widgets:` folder", m.Name)}}, nil, nil
 		}
 		valid, problems := widgets.LoadAll(m.Path, root)
-		return fitsOf(m.Name, valid), problems, nil
+		return fitsOf(m.Name, valid), problems, targetWarnings(valid, names), nil
 	}
-	return nil, nil, fmt.Errorf("%s is neither a widget, a package nor a board", path)
-}
-
-func validateBoardFile(path string, lookup widgets.Lookup) ([]widgets.Problem, error) {
-	_, _, problems, err := boardProblems(path, lookup)
-	return problems, err
+	return nil, nil, nil, fmt.Errorf("%s is neither a widget, a package nor a board", path)
 }
 
 // boardProblems reads the board at path and returns it, the bytes it was read
@@ -154,13 +188,14 @@ func boardProblems(path string, lookup widgets.Lookup) (widgets.Board, []byte, [
 	return b, read, append(problems, widgets.ValidateBoard(b, path, lookup)...), nil
 }
 
-func loadOne(dir string) ([]widgetFit, []widgets.Problem, error) {
+func loadOne(dir string, names widgets.TargetNames) ([]widgetFit, []widgets.Problem, []widgets.Problem, error) {
 	pkg, pkgDir := packageOf(dir)
 	w, problems := widgets.LoadIn(pkgDir, dir)
 	if len(problems) > 0 {
-		return nil, problems, nil
+		return nil, problems, nil, nil
 	}
-	return fitsOf(pkg, []widgets.Widget{w}), nil, nil
+	found := []widgets.Widget{w}
+	return fitsOf(pkg, found), nil, targetWarnings(found, names), nil
 }
 
 func fitsOf(pkg string, valid []widgets.Widget) []widgetFit {

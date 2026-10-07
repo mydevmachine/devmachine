@@ -1773,3 +1773,14 @@ relative `script` has nothing to be relative to.
 
 **What to do:** Write the full path on the target, for example
 `/home/alice/bin/check-disk`, or use `run` with `args`.
+
+## "source.target names machine "…", which config.yml does not have"
+
+**What it means:** A widget written in a board runs on a machine or a
+workspace your configuration does not have — removed, renamed, or a
+typo. The app shows the widget's error instead of data. For a package
+widget this is only a warning: its author's names are not yours.
+
+**What to do:** Point `target` at a name `devmachine machines list` or
+`devmachine workspaces list` shows, or remove the widget. `widgets add`
+and `remove` still work on the board in the meantime.

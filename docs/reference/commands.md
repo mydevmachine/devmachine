@@ -736,7 +736,16 @@ folder that sits in no package's widgets folder prints its name alone
 and exits non-zero when there is one. `--format json` prints `{"ok":
 false, "checked": [...], "widgets": [{"path": ..., "name": ...,
 "surfaces": [...]}], "problems": [{"path": ..., "line": ..., "message":
-...}]}`, with `name` written the same way.
+...}], "warnings": [...]}`, with `name` written the same way and each
+warning shaped like a problem.
+
+A widget written in a board that names a machine or a workspace
+`config.yml` does not have is a problem. A package widget that names one
+by its literal name is only a warning (`warning: …` lines, and
+`"warnings"` in `--format json`), because a published widget is written
+for many configurations. A name that holds a template, such as
+`{{inputs.machine}}`, is not checked. `widgets add` and `remove` never
+check names, so removing a machine does not lock a board.
 
 `schema` prints the engine contract: areas, providers, views and sizes.
 `--json` prints it as JSON, the same document the app is built against.
