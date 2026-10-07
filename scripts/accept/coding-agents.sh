@@ -48,7 +48,7 @@ fi
 
 AGENTS="antigravity opencode pi kimi-code cline codex"
 
-"$DEVMACHINE_ACCEPT_BIN" machines create-local "$VM" \
+accept_create_local "$VM" \
   >"$SCENARIO_LOG_DIR/create.log" 2>&1 || die "could not create $VM"
 CLOUD_INIT=$(limactl shell "$VM" -- cloud-init status --wait 2>&1 || true)
 printf '%s\n' "$CLOUD_INIT" > "$SCENARIO_LOG_DIR/cloud-init.log"
