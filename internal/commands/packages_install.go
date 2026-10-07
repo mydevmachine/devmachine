@@ -198,3 +198,214 @@ func absConfigDir(opts *options) (string, error) {
 	}
 	return abs, nil
 }
+
+func newPackagesUpdateCmd(opts *options) *cobra.Command {
+	var check, yes bool
+	c := &cobra.Command{
+		Use:   "update <name>",
+		Short: "Fetch a package installed from a git address again",
+		Long: "Fetches the address and ref recorded when it was installed, says what changed — the " +
+			"commit, and the widgets, commands and providers added or removed — and asks before " +
+			"replacing it. A new commit means its widgets that run code ask again.",
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return updatePackage(cmd, opts, args[0], check, yes)
+		},
+	}
+	c.Flags().BoolVar(&check, "check", false, "show what would change, and change nothing")
+	c.Flags().BoolVar(&yes, "yes", false, "do not ask")
+	return c
+}
+
+// updateReport is what update prints with --format json.
+type updateReport struct {
+	Package        string           `json:"package"`
+	Path           string           `json:"path"`
+	URL            string           `json:"url"`
+	Ref            string           `json:"ref"`
+	PreviousCommit string           `json:"previous_commit"`
+	Commit         string           `json:"commit"`
+	Changes        packages.Changes `json:"changes"`
+	Updated        bool             `json:"updated"`
+}
+
+func updatePackage(cmd *cobra.Command, opts *options, name string, check, yes bool) error {
+	if !packages.ValidName(name) {
+		return fmt.Errorf("%q is not a package name", name)
+	}
+	if opts.format == formatJSON && !check && !yes {
+		return errors.New("--format json cannot ask: add --check to see what would change, or --yes to update")
+	}
+	dir, err := absConfigDir(opts)
+	if err != nil {
+		return err
+	}
+	cfg, err := loadConfigOrEmpty(dir)
+	if err != nil {
+		return err
+	}
+	target := filepath.Join(packages.LocalDir(dir), name)
+	if _, err := os.Stat(packages.ManifestPath(target)); err != nil {
+		return fmt.Errorf("no package %s in %s: packages update works on a package installed with packages install", name, packages.LocalDir(dir))
+	}
+	origin, found, err := packages.ReadOrigin(target)
+	if err != nil {
+		return err
+	}
+	if !found {
+		return fmt.Errorf("%s is your own package, not one installed from a git address: there is nothing to fetch it from", name)
+	}
+	recorded := origin.URL
+	if origin.Ref != "" {
+		recorded += "@" + origin.Ref
+	}
+	address, ref, err := parseGitAddress(recorded)
+	if err != nil {
+		return fmt.Errorf("the address recorded in %s: %w", filepath.Join(target, packages.OriginFile), err)
+	}
+	before, err := packages.Summarize(target)
+	if err != nil {
+		return err
+	}
+	staged, err := packages.Stage(cmd.Context(), dir, address, ref)
+	if err != nil {
+		return err
+	}
+	defer staged.Discard()
+	if staged.Name != name {
+		return fmt.Errorf("%s now holds a package named %s, not %s: remove %s with devmachine packages remove %s, then install the new one",
+			address, staged.Name, name, name, name)
+	}
+	if err := refuseCollision(cmd.Context(), dir, cfg, name); err != nil {
+		return err
+	}
+
+	report := updateReport{Package: name, Path: target, URL: address, Ref: ref, PreviousCommit: origin.Commit,
+		Commit: staged.Origin.Commit, Changes: packages.Compare(before, staged.Summary)}
+	if staged.Origin.Commit == origin.Commit {
+		if opts.format == formatJSON {
+			return writeJSON(cmd.OutOrStdout(), report)
+		}
+		cmd.Printf("%s is up to date at %s\n", name, shortCommit(origin.Commit))
+		return nil
+	}
+	if opts.format != formatJSON {
+		printChanges(cmd, report)
+	}
+	if check {
+		if opts.format == formatJSON {
+			return writeJSON(cmd.OutOrStdout(), report)
+		}
+		return nil
+	}
+	if !yes {
+		ok, err := confirm(cmd.InOrStdin(), cmd.OutOrStdout(), fmt.Sprintf("Update %s to %s?", name, shortCommit(staged.Origin.Commit)))
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return errDeclined
+		}
+	}
+	if _, err := staged.Replace(dir, time.Now()); err != nil {
+		return err
+	}
+	repo.AutoCommit(cmd.Context(), dir, "chore(config): update package "+name)
+	report.Updated = true
+	if opts.format == formatJSON {
+		return writeJSON(cmd.OutOrStdout(), report)
+	}
+	cmd.Printf("updated %s; sync to put it on your machines\n", name)
+	return nil
+}
+
+func printChanges(cmd *cobra.Command, r updateReport) {
+	cmd.Printf("%s: commit %s → %s\n", r.Package, shortCommit(r.PreviousCommit), shortCommit(r.Commit))
+	c := r.Changes
+	for _, row := range []struct {
+		label string
+		items []string
+	}{
+		{"widgets added", c.WidgetsAdded}, {"widgets removed", c.WidgetsRemoved},
+		{"commands added", c.CommandsAdded}, {"commands removed", c.CommandsRemoved},
+		{"providers added", c.ProvidersAdded}, {"providers removed", c.ProvidersRemoved},
+	} {
+		if len(row.items) > 0 {
+			cmd.Printf("%s: %s\n", row.label, strings.Join(row.items, ", "))
+		}
+	}
+	if c.Empty() {
+		cmd.Println("its widgets, commands and providers are the same; files inside them may have changed")
+	}
+	cmd.Println("A new commit means its widgets that run code ask again before they run.")
+}
+
+func newPackagesRemoveCmd(opts *options) *cobra.Command {
+	var yes bool
+	c := &cobra.Command{
+		Use:   "remove <name>",
+		Short: "Delete a package installed from a git address",
+		Long: "Deletes <config>/packages/<name>/. Only a package installed with `packages install`: " +
+			"one you wrote yourself is never deleted. To take a package off a machine or a " +
+			"workspace instead, use `packages rm`.",
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return removeInstalledPackage(cmd, opts, args[0], yes)
+		},
+	}
+	c.Flags().BoolVar(&yes, "yes", false, "do not ask")
+	return c
+}
+
+func removeInstalledPackage(cmd *cobra.Command, opts *options, name string, yes bool) error {
+	if !packages.ValidName(name) {
+		return fmt.Errorf("%q is not a package name", name)
+	}
+	dir, err := absConfigDir(opts)
+	if err != nil {
+		return err
+	}
+	cfg, err := loadConfigOrEmpty(dir)
+	if err != nil {
+		return err
+	}
+	target := filepath.Join(packages.LocalDir(dir), name)
+	if _, err := os.Stat(packages.ManifestPath(target)); err != nil {
+		return fmt.Errorf("no package %s in %s", name, packages.LocalDir(dir))
+	}
+	origin, found, err := packages.ReadOrigin(target)
+	if err != nil {
+		return err
+	}
+	if !found {
+		return fmt.Errorf("%s is your own package, not one installed from a git address: packages remove never deletes your own; "+
+			"delete %s yourself if you mean it", name, target)
+	}
+	if on := installedOn(cfg)[name]; len(on) > 0 {
+		return fmt.Errorf("%s is still on %s: take it off first with devmachine packages rm %s --machine <name> (or --workspace <name>), then sync",
+			name, strings.Join(on, ", "), name)
+	}
+	if !yes {
+		ok, err := confirm(cmd.InOrStdin(), cmd.OutOrStdout(), fmt.Sprintf("Delete %s (installed from %s)?", target, origin.URL))
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return errDeclined
+		}
+	}
+	path, err := packages.Uninstall(dir, name)
+	if err != nil {
+		return err
+	}
+	repo.AutoCommit(cmd.Context(), dir, "chore(config): remove package "+name)
+	if opts.format == formatJSON {
+		return writeJSON(cmd.OutOrStdout(), struct {
+			Package string `json:"package"`
+			Path    string `json:"path"`
+			Removed bool   `json:"removed"`
+		}{name, path, true})
+	}
+	cmd.Printf("removed %s\n", name)
+	return nil
+}

@@ -21,6 +21,8 @@ func newPackagesCmd(opts *options) *cobra.Command {
 		newPackagesAddCmd(opts),
 		newPackagesRmCmd(opts),
 		newPackagesInstallCmd(opts),
+		newPackagesUpdateCmd(opts),
+		newPackagesRemoveCmd(opts),
 		newPackagesNewCmd(opts),
 		newPackagesValidateCmd(opts),
 		newPackagesSchemaCmd(opts),

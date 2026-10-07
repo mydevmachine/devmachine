@@ -2229,3 +2229,42 @@ stays at the path the message names, and the next fetch never sweeps it.
 
 **What to do:** Fix the disk or the permissions, then move that folder
 back to `<config>/packages/X/` yourself.
+
+## "X is your own package, not one installed from a git address"
+
+**What it means:** `packages update` and `packages remove` work only on a
+package installed with `packages install`, which leaves a
+`.devmachine-source.yml` in its folder. X has none: you wrote it, and the
+CLI never fetches over it or deletes it.
+
+**What to do:** Edit your package in `<config>/packages/X/`. To delete
+it, delete the folder yourself.
+
+## "X is still on machine …: take it off first"
+
+**What it means:** `config.yml` still lists X on that machine or
+workspace. Deleting the package would make the next `sync` fail to find
+it.
+
+**What to do:** `devmachine packages rm X --machine <name>` (or
+`--workspace <name>`), `devmachine sync`, then `devmachine packages remove
+X`.
+
+## "… now holds a package named Y, not X"
+
+**What it means:** The repository X was installed from now holds a
+package with another name. Updating would leave the configuration naming
+X while the folder holds Y.
+
+**What to do:** `devmachine packages remove X`, then `devmachine packages
+install <address>`, and change X to Y wherever `config.yml` names it.
+
+## "the address recorded in …/.devmachine-source.yml: …"
+
+**What it means:** `packages update` checks the address it finds in the
+package's `.devmachine-source.yml` the same way `packages install` checks
+the one you type, and that address is not an `https://` or `git@` one.
+Somebody edited the file by hand, so nothing was fetched.
+
+**What to do:** Put back the address the package came from, or
+`devmachine packages remove X` and install it again.

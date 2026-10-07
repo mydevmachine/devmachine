@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -307,4 +308,77 @@ func linksStayInside(dir string) error {
 		}
 		return nil
 	})
+}
+
+// Changes is what an update adds and removes from what a package brings.
+type Changes struct {
+	WidgetsAdded     []string `json:"widgets_added"`
+	WidgetsRemoved   []string `json:"widgets_removed"`
+	CommandsAdded    []string `json:"commands_added"`
+	CommandsRemoved  []string `json:"commands_removed"`
+	ProvidersAdded   []string `json:"providers_added"`
+	ProvidersRemoved []string `json:"providers_removed"`
+}
+
+// Empty says the update changes none of the package's widgets, commands or
+// providers.
+func (c Changes) Empty() bool {
+	return len(c.WidgetsAdded)+len(c.WidgetsRemoved)+len(c.CommandsAdded)+len(c.CommandsRemoved)+
+		len(c.ProvidersAdded)+len(c.ProvidersRemoved) == 0
+}
+
+// Compare names what after has that before lacks, and the reverse.
+func Compare(before, after Summary) Changes {
+	names := func(ws []SummaryWidget) []string {
+		out := make([]string, len(ws))
+		for i, w := range ws {
+			out[i] = w.Name
+		}
+		return out
+	}
+	var c Changes
+	c.WidgetsAdded, c.WidgetsRemoved = difference(names(before.Widgets), names(after.Widgets))
+	c.CommandsAdded, c.CommandsRemoved = difference(before.Commands, after.Commands)
+	c.ProvidersAdded, c.ProvidersRemoved = difference(before.Providers, after.Providers)
+	return c
+}
+
+func difference(before, after []string) (added, removed []string) {
+	added, removed = []string{}, []string{}
+	for _, name := range after {
+		if !slices.Contains(before, name) {
+			added = append(added, name)
+		}
+	}
+	for _, name := range before {
+		if !slices.Contains(after, name) {
+			removed = append(removed, name)
+		}
+	}
+	return added, removed
+}
+
+// Uninstall deletes a package installed from a git address and returns the
+// folder it was in. It refuses a package without an origin: a package you
+// wrote yourself is never deleted by a command.
+func Uninstall(configDir, name string) (string, error) {
+	if !ValidName(name) {
+		return "", fmt.Errorf("%q is not a package name", name)
+	}
+	dir := filepath.Join(LocalDir(configDir), name)
+	if _, err := os.Stat(ManifestPath(dir)); err != nil {
+		return "", fmt.Errorf("no package %s in %s", name, LocalDir(configDir))
+	}
+	_, found, err := ReadOrigin(dir)
+	if err != nil {
+		return "", err
+	}
+	if !found {
+		return "", fmt.Errorf("%s is your own package, not one installed from a git address: packages remove never deletes "+
+			"your own; delete %s yourself if you mean it", name, dir)
+	}
+	if err := os.RemoveAll(dir); err != nil {
+		return "", fmt.Errorf("deleting %s: %w", dir, err)
+	}
+	return dir, nil
 }

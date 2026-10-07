@@ -1468,6 +1468,8 @@ devmachine packages list
 devmachine packages add <name> [--machine m | --workspace w] [--check] [--yes]
 devmachine packages rm  <name> [--machine m | --workspace w] [--check] [--yes]
 devmachine packages install <git-address>[@<ref>] [--check] [--yes]
+devmachine packages update <name> [--check] [--yes]
+devmachine packages remove <name> [--yes]
 devmachine packages new <name> [--scope machine|workspace] [--into <dir>]
 devmachine packages validate <dir>
 devmachine packages schema [--json]
@@ -1582,6 +1584,29 @@ and its tasks then run as root there, like any package's.
 prints `{"name", "scope", "summary", "needs", "widgets": [{"name",
 "source", "runs_code"}], "commands", "providers", "scripts", "tasks",
 "credentials", "url", "ref", "commit", "path", "installed"}`.
+
+`update` fetches the address and ref recorded in
+`.devmachine-source.yml` again, checking the address as `install` does.
+When the commit did not move it says so and changes nothing. Otherwise it
+shows the old and new commit and the widgets, commands and providers
+added or removed, and asks before replacing the folder (`--yes`,
+`--check` as for `install`). A new commit changes what the app approved,
+so the package's widgets that run code ask again. It refuses a package
+you wrote yourself, a repository that now holds a package of another
+name, and a name the pinned release now has. A fetch or a check that
+fails leaves the old copy as it was: the new one is fetched and checked
+in a folder beside it, and only then swapped in. `--format json` prints
+`{"package", "path", "url", "ref", "previous_commit", "commit",
+"changes": {"widgets_added", "widgets_removed", "commands_added",
+"commands_removed", "providers_added", "providers_removed"}, "updated"}`.
+
+`remove` deletes `<config>/packages/<name>/` for a package installed with
+`install`, after asking. It never deletes a package you wrote, and it
+refuses one still added to a machine or a workspace: take it off with
+`rm` and `sync` first, or the next sync would find it missing. Not to be
+confused with `rm`, which takes a package off a machine or a workspace
+and deletes nothing. `--format json` prints `{"package", "path",
+"removed"}`.
 
 `new` writes a package that already passes `validate`; refuses to
 overwrite one that exists. `validate` reports every problem at once, with

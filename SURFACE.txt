@@ -45,8 +45,10 @@ devmachine packages list
 devmachine packages new
 devmachine packages outdated
 devmachine packages pin
+devmachine packages remove
 devmachine packages rm
 devmachine packages schema
+devmachine packages update
 devmachine packages validate
 devmachine resolve
 devmachine run

@@ -376,3 +376,34 @@ func TestStageSweepsStaleFetchFolders(t *testing.T) {
 		t.Fatal("a folder another command may be using was deleted")
 	}
 }
+
+func TestCompareNamesWhatWasAddedAndRemoved(t *testing.T) {
+	before := Summary{Widgets: []SummaryWidget{{Name: "a/disk"}, {Name: "a/health"}}, Commands: []string{"disk", "help"}, Providers: []string{"disk"}}
+	after := Summary{Widgets: []SummaryWidget{{Name: "a/disk"}, {Name: "a/load"}}, Commands: []string{"disk", "load"}, Providers: []string{"disk", "load"}}
+	got := Compare(before, after)
+	if !slices.Equal(got.WidgetsAdded, []string{"a/load"}) || !slices.Equal(got.WidgetsRemoved, []string{"a/health"}) ||
+		!slices.Equal(got.CommandsAdded, []string{"load"}) || !slices.Equal(got.CommandsRemoved, []string{"help"}) ||
+		!slices.Equal(got.ProvidersAdded, []string{"load"}) || len(got.ProvidersRemoved) != 0 || got.Empty() {
+		t.Fatalf("got %+v", got)
+	}
+	if !Compare(before, before).Empty() {
+		t.Fatal("the same summary changed")
+	}
+}
+
+func TestUninstallRefusesAPackageWithoutAnOrigin(t *testing.T) {
+	configDir := t.TempDir()
+	write(t, filepath.Join(LocalDir(configDir), "mine", FileName), "format: 1\nname: mine\n")
+	_, err := Uninstall(configDir, "mine")
+	if err == nil || !strings.Contains(err.Error(), "mine is your own package, not one installed from a git address") {
+		t.Fatalf("got %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(LocalDir(configDir), "mine")); err != nil {
+		t.Fatal("your own package was deleted")
+	}
+	for _, name := range []string{"../mine", "a/b", ""} {
+		if _, err := Uninstall(configDir, name); err == nil || !strings.Contains(err.Error(), "is not a package name") {
+			t.Errorf("%q: got %v", name, err)
+		}
+	}
+}
