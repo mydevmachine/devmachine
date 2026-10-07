@@ -232,13 +232,14 @@ func Validate(w Widget, path string, root *yaml.Node) []Problem {
 }
 
 // Surfaces lists, sorted, every surface w can be placed on: its layout is one
-// w fits, and it gives every context key w requires. Planned surfaces count.
+// w fits and w's view is drawn in, and it gives every context key w
+// requires. Planned surfaces count.
 func Surfaces(w Widget) []string {
 	c := CurrentContract()
 	var out []string
 	for _, name := range surfaceNames(c) {
 		surface := c.Surfaces[name]
-		if !slices.Contains(w.Fits, surface.Layout) {
+		if !slices.Contains(w.Fits, surface.Layout) || !DrawnIn(w.View.Kind, surface.Layout) {
 			continue
 		}
 		fits := true

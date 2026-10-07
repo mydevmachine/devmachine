@@ -2,8 +2,10 @@
 // the engine contract, widget.yml files shipped in packages, and boards.
 package widgets
 
+import "slices"
+
 // Engine is the version of the contract this CLI implements.
-const Engine = "1.3"
+const Engine = "1.4"
 
 // LastEngineWithoutPackageProviders is the newest engine that cannot run a
 // package provider, so a widget reading one must refuse it.
@@ -22,6 +24,7 @@ const (
 	LayoutCanvas = "canvas"
 	LayoutStack  = "stack"
 	LayoutSlot   = "slot"
+	LayoutTabs   = "tabs"
 )
 
 // The states of a surface.
@@ -168,6 +171,23 @@ type StackEntry struct {
 	Collapsed string   `json:"collapsed"`
 }
 
+// SlotEntry is how a widget sits in a slot: the board keys it must not
+// have, the views that draw one line, how much text it shows and how often
+// it runs at most.
+type SlotEntry struct {
+	Forbids  []string `json:"forbids"`
+	Views    []string `json:"views"`
+	TextMax  int      `json:"text_max"`
+	MinEvery string   `json:"min_every"`
+}
+
+// TabsEntry is how a widget sits in tabs: the board keys it must not have,
+// and the ones it may have that mean nothing there.
+type TabsEntry struct {
+	Forbids []string `json:"forbids"`
+	Ignores []string `json:"ignores"`
+}
+
 // PackageProviderRules is how a package's own command feeds a widget: the
 // name a widget calls it by, what its package.yml may declare, where it runs,
 // what it prints, how a widget's with reaches it, and when its widgets ask.
@@ -193,6 +213,9 @@ type Contract struct {
 	Presets         map[string][2]int            `json:"presets"`
 	StackRow        int                          `json:"stack_row"`
 	StackEntry      StackEntry                   `json:"stack_entry"`
+	SlotMax         int                          `json:"slot_max"`
+	SlotEntry       SlotEntry                    `json:"slot_entry"`
+	TabsEntry       TabsEntry                    `json:"tabs_entry"`
 	Surfaces        map[string]Surface           `json:"surfaces"`
 	ContextTypes    map[string]map[string]string `json:"context_types"`
 	Providers       map[string]Provider          `json:"providers"`
@@ -203,7 +226,7 @@ type Contract struct {
 	Formats         map[string]int               `json:"formats"`
 }
 
-// CurrentContract returns engine 1.3, built fresh on every call so no caller
+// CurrentContract returns engine 1.4, built fresh on every call so no caller
 // can change what another one reads.
 func CurrentContract() Contract {
 	appProvider := func(args map[string]Arg, returns map[string]string) Provider {
@@ -224,7 +247,7 @@ func CurrentContract() Contract {
 	tail := Field{Type: FieldInt, Min: 1, Max: 2000}
 	return Contract{
 		Engine:  Engine,
-		Layouts: []string{LayoutCanvas, LayoutStack, LayoutSlot},
+		Layouts: []string{LayoutCanvas, LayoutStack, LayoutSlot, LayoutTabs},
 		Unit:    80,
 		Snap:    8,
 		Presets: map[string][2]int{
@@ -234,6 +257,13 @@ func CurrentContract() Contract {
 		StackEntry: StackEntry{
 			Forbids: []string{"frame", "z"}, Size: "preset | auto", Collapsed: "bool",
 		},
+		SlotMax: 3,
+		SlotEntry: SlotEntry{
+			Forbids: []string{"frame", "size", "collapsed", "z", "minimized"},
+			Views:   []string{"text", "number", "status", "app.brand"},
+			TextMax: 24, MinEvery: "30s",
+		},
+		TabsEntry: TabsEntry{Forbids: []string{"frame", "z", "minimized", "collapsed"}, Ignores: []string{"size"}},
 		Surfaces: map[string]Surface{
 			"home": {Layout: LayoutCanvas, Status: StatusAvailable, Context: map[string]ContextKey{}},
 			"sidebar": {Layout: LayoutStack, Status: StatusAvailable, Context: map[string]ContextKey{
@@ -248,6 +278,8 @@ func CurrentContract() Contract {
 				"branch":    {Type: "string", Presence: PresenceOptional},
 				"harness":   {Type: "string", Presence: PresenceOptional},
 			}},
+			"menubar":       {Layout: LayoutSlot, Status: StatusAvailable, Context: map[string]ContextKey{}},
+			"menubar-panel": {Layout: LayoutTabs, Status: StatusAvailable, Context: map[string]ContextKey{}},
 		},
 		ContextTypes: map[string]map[string]string{
 			"machine":   {"name": "string"},
@@ -272,8 +304,13 @@ func CurrentContract() Contract {
 				"cwd": "path", "harness": "string?", "plan": "plan?", "prs": "list",
 				"links": "list", "agents": "list", "monitors": "list", "shells": "list",
 			}),
-			"app/shortcuts":    sessionProvider(map[string]string{"shortcuts": "list"}),
-			"app/publish-port": appProvider(map[string]Arg{}, map[string]string{"available": "bool"}),
+			"app/shortcuts":          sessionProvider(map[string]string{"shortcuts": "list"}),
+			"app/publish-port":       appProvider(map[string]Arg{}, map[string]string{"available": "bool"}),
+			"app/brand":              appProvider(map[string]Arg{}, map[string]string{"mark": "string"}),
+			"app/open-pull-requests": appProvider(map[string]Arg{}, map[string]string{"count": "number"}),
+			"app/pull-requests-panel": appProvider(map[string]Arg{},
+				map[string]string{"pull_requests": "list", "owners": "list", "error": "string?"}),
+			"app/usage-panel": appProvider(map[string]Arg{}, map[string]string{"harnesses": "list"}),
 		},
 		PackageProvider: PackageProviderRules{
 			Name:     "<package>/<command>",
@@ -288,27 +325,31 @@ func CurrentContract() Contract {
 			Trust:    []string{TrustOfficial, TrustLocal, TrustThirdParty},
 		},
 		Views: map[string]View{
-			"app.clock":         {Accepts: []string{"app/clock"}},
-			"app.summary":       {Accepts: []string{"app/summary"}},
-			"app.machines":      {Accepts: []string{"app/machines"}},
-			"app.harness-usage": {Accepts: []string{"app/harness-usage"}},
-			"app.workspaces":    stackView("app/workspaces"),
-			"app.shortcuts":     stackView("app/shortcuts"),
-			"app.publish-port":  stackView("app/publish-port"),
-			"app.monitors":      stackView("app/session-context"),
-			"app.shells":        stackView("app/session-context"),
-			"app.sub-agents":    stackView("app/session-context"),
-			"app.todo":          stackView("app/session-context"),
-			"app.pull-requests": stackView("app/session-context"),
-			"app.links":         stackView("app/session-context"),
+			"app.clock":               {Accepts: []string{"app/clock"}},
+			"app.summary":             {Accepts: []string{"app/summary"}},
+			"app.machines":            {Accepts: []string{"app/machines"}},
+			"app.harness-usage":       {Accepts: []string{"app/harness-usage"}},
+			"app.workspaces":          stackView("app/workspaces"),
+			"app.shortcuts":           stackView("app/shortcuts"),
+			"app.publish-port":        stackView("app/publish-port"),
+			"app.monitors":            stackView("app/session-context"),
+			"app.shells":              stackView("app/session-context"),
+			"app.sub-agents":          stackView("app/session-context"),
+			"app.todo":                stackView("app/session-context"),
+			"app.pull-requests":       stackView("app/session-context"),
+			"app.links":               stackView("app/session-context"),
+			"app.brand":               {Accepts: []string{"app/brand"}, Layouts: []string{LayoutSlot}},
+			"app.pull-requests-panel": {Accepts: []string{"app/pull-requests-panel"}, Layouts: []string{LayoutTabs}},
+			"app.usage-panel":         {Accepts: []string{"app/usage-panel"}, Layouts: []string{LayoutTabs}},
 			"text": {Accepts: []string{ParseText, ParseLines, ParseANSI}, Fields: map[string]Field{
 				"wrap": {Type: FieldBool, Default: true},
 				"tail": tail,
 			}},
-			"number": {Accepts: []string{ParseNumber, ParseJSON}, Fields: map[string]Field{
-				"value":  {Type: FieldTemplate},
-				"unit":   {Type: FieldString},
-				"format": {Type: FieldEnum, Values: []string{"plain", "percent", "bytes", "duration"}, Default: "plain"},
+			"number": {Accepts: []string{ParseNumber, ParseJSON, "app/open-pull-requests"}, Fields: map[string]Field{
+				"value":     {Type: FieldTemplate},
+				"unit":      {Type: FieldString},
+				"format":    {Type: FieldEnum, Values: []string{"plain", "percent", "bytes", "duration"}, Default: "plain"},
+				"hide_zero": {Type: FieldBool, Default: false},
 			}},
 			"gauge": {Accepts: []string{ParseNumber, ParseJSON}, Fields: map[string]Field{
 				"value": {Type: FieldTemplate},
@@ -396,3 +437,25 @@ func Grows(view string) bool { return CurrentContract().Views[view].Grows }
 func IsStack(surface string) bool {
 	return CurrentContract().Surfaces[surface].Layout == LayoutStack
 }
+
+// IsOrdered says whether a surface lays its widgets out as a list, where a
+// widget's place is its turn: every layout but the canvas.
+func IsOrdered(surface string) bool {
+	s, ok := CurrentContract().Surfaces[surface]
+	return ok && s.Layout != LayoutCanvas
+}
+
+// DrawnIn says whether a view can be drawn in a layout. A slot draws only
+// its own list of one-line views; elsewhere a view without layouts is drawn
+// anywhere.
+func DrawnIn(view, layout string) bool {
+	c := CurrentContract()
+	if layout == LayoutSlot {
+		return slices.Contains(c.SlotEntry.Views, view)
+	}
+	v := c.Views[view]
+	return len(v.Layouts) == 0 || slices.Contains(v.Layouts, layout)
+}
+
+// SurfaceNames lists every surface the contract has, sorted.
+func SurfaceNames() []string { return surfaceNames(CurrentContract()) }

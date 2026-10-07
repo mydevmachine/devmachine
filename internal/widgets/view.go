@@ -10,19 +10,20 @@ import (
 
 // ViewRef is how a widget is drawn: a view, and the fields that view takes.
 type ViewRef struct {
-	Kind   string    `yaml:"kind" json:"kind"`
-	Wrap   *bool     `yaml:"wrap,omitempty" json:"wrap,omitempty"`
-	Tail   int       `yaml:"tail,omitempty" json:"tail,omitempty"`
-	Unit   string    `yaml:"unit,omitempty" json:"unit,omitempty"`
-	Format string    `yaml:"format,omitempty" json:"format,omitempty"`
-	Value  string    `yaml:"value,omitempty" json:"value,omitempty"`
-	Min    any       `yaml:"min,omitempty" json:"min,omitempty"`
-	Max    any       `yaml:"max,omitempty" json:"max,omitempty"`
-	Warn   any       `yaml:"warn,omitempty" json:"warn,omitempty"`
-	Crit   any       `yaml:"crit,omitempty" json:"crit,omitempty"`
-	OK     any       `yaml:"ok,omitempty" json:"ok,omitempty"`
-	Zoom   any       `yaml:"zoom,omitempty" json:"zoom,omitempty"`
-	Item   *ListItem `yaml:"item,omitempty" json:"item,omitempty"`
+	Kind     string    `yaml:"kind" json:"kind"`
+	Wrap     *bool     `yaml:"wrap,omitempty" json:"wrap,omitempty"`
+	Tail     int       `yaml:"tail,omitempty" json:"tail,omitempty"`
+	Unit     string    `yaml:"unit,omitempty" json:"unit,omitempty"`
+	Format   string    `yaml:"format,omitempty" json:"format,omitempty"`
+	HideZero *bool     `yaml:"hide_zero,omitempty" json:"hide_zero,omitempty"`
+	Value    string    `yaml:"value,omitempty" json:"value,omitempty"`
+	Min      any       `yaml:"min,omitempty" json:"min,omitempty"`
+	Max      any       `yaml:"max,omitempty" json:"max,omitempty"`
+	Warn     any       `yaml:"warn,omitempty" json:"warn,omitempty"`
+	Crit     any       `yaml:"crit,omitempty" json:"crit,omitempty"`
+	OK       any       `yaml:"ok,omitempty" json:"ok,omitempty"`
+	Zoom     any       `yaml:"zoom,omitempty" json:"zoom,omitempty"`
+	Item     *ListItem `yaml:"item,omitempty" json:"item,omitempty"`
 }
 
 // ListItem is how a list view draws each item of its source.

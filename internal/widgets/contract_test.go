@@ -132,3 +132,45 @@ func TestAProviderSourceTakesATargetAndATimeout(t *testing.T) {
 		t.Fatalf("timeout %+v every %+v", fields["timeout"], fields["every"])
 	}
 }
+
+func TestTheMenuBarHasBoards(t *testing.T) {
+	c := CurrentContract()
+	for name, layout := range map[string]string{"menubar": LayoutSlot, "menubar-panel": LayoutTabs} {
+		s := c.Surfaces[name]
+		if s.Status != StatusAvailable || s.Layout != layout || len(s.Context) != 0 {
+			t.Errorf("%s is %+v", name, s)
+		}
+	}
+	if c.SlotMax != 3 || c.SlotEntry.TextMax != 24 || c.SlotEntry.MinEvery != "30s" {
+		t.Fatalf("slot_max %d, slot_entry %+v", c.SlotMax, c.SlotEntry)
+	}
+	if !slices.Equal(c.TabsEntry.Ignores, []string{"size"}) {
+		t.Fatalf("tabs_entry %+v", c.TabsEntry)
+	}
+	for surface, want := range map[string]bool{
+		"menubar": true, "menubar-panel": true, "sidebar": true, "context-sidebar": true, "home": false, "desk": false,
+	} {
+		if IsOrdered(surface) != want {
+			t.Errorf("IsOrdered(%s) is %v", surface, !want)
+		}
+	}
+	if got := strings.Join(SurfaceNames(), ","); got != "context-sidebar,home,menubar,menubar-panel,sidebar" {
+		t.Fatalf("got %s", got)
+	}
+}
+
+func TestOnlyOneLineViewsAreDrawnInASlot(t *testing.T) {
+	for _, tc := range []struct {
+		view, layout string
+		want         bool
+	}{
+		{"text", LayoutSlot, true}, {"number", LayoutSlot, true}, {"status", LayoutSlot, true},
+		{"app.brand", LayoutSlot, true}, {"gauge", LayoutSlot, false}, {"app.clock", LayoutSlot, false},
+		{"app.brand", LayoutCanvas, false}, {"app.usage-panel", LayoutTabs, true}, {"app.usage-panel", LayoutStack, false},
+		{"app.todo", LayoutTabs, false}, {"gauge", LayoutTabs, true}, {"text", LayoutCanvas, true},
+	} {
+		if got := DrawnIn(tc.view, tc.layout); got != tc.want {
+			t.Errorf("DrawnIn(%s, %s) = %v", tc.view, tc.layout, got)
+		}
+	}
+}

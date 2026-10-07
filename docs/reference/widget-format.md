@@ -48,7 +48,7 @@ places: [home]
 | `name` | yes | The folder's name: lower case letters, digits and dashes. |
 | `summary` | yes | One line. It is what `widgets list` prints. |
 | `requires.engine` | yes | The engine versions the widget works with, as `">= 1.0"`, `"> 1.0"` or `"= 1.0"`. |
-| `fits` | yes | The layouts it can be drawn in: `canvas`, `stack`, `slot`. |
+| `fits` | yes | The layouts it can be drawn in: `canvas`, `stack`, `slot` (the menu bar), `tabs` (the menu bar popover). |
 | `context` | no | The context keys it reads, each `required` or `optional`. A widget sees only the keys it declares. |
 | `inputs` | no | Values a person sets on each copy: `type` (`string`, `number` or `boolean`), `default`, `summary`. |
 | `source` | yes | Where the data comes from: `kind` and the fields of that kind. See [Sources](#sources). |
@@ -226,7 +226,7 @@ outputs each view takes; a view that cannot draw the source is refused.
 | View | Draws | Fields |
 | --- | --- | --- |
 | `text` | `text`, `lines`, `ansi` | `wrap` (true unless `false`), `tail` (last N lines, 1–2000) |
-| `number` | `number`, `json` | `value`, `unit`, `format`: `plain`, `percent`, `bytes`, `duration` |
+| `number` | `number`, `json`, `app/open-pull-requests` | `value`, `unit`, `format`: `plain`, `percent`, `bytes`, `duration`; `hide_zero` (draw nothing at 0) |
 | `gauge` | `number`, `json` | `value`, `min` (0), `max` (100), `unit`, `warn`, `crit` |
 | `status` | `status`, `number`, `json`, `text` | `value`, `ok`, `warn` rules |
 | `list` | `lines`, `json` (an array) | `item: {title, subtitle, status, link}` |
@@ -365,13 +365,15 @@ and a `context-sidebar.yml` with, in this order, `shortcuts`,
 
 <!-- generated from the engine contract by `make widget-format`: start -->
 
-Engine **1.3**. Widget format 1, board format 1.
+Engine **1.4**. Widget format 1, board format 1.
 
 ### Sizes
 
 One unit is 80pt; positions and free resizes snap to 8pt.
 
 One preset row in a sidebar is 40pt high, and a widget there is as wide as the panel. `size: auto` makes a view that grows as tall as what it shows.
+
+The menu bar holds at most 3 widgets, left to right, each one line drawn by one of the views `text`, `number`, `status`, `app.brand`. Text shows its first line, cut at 24 characters. A widget there runs at most every 30s. A tab in the menu bar popover fills it, so a `size` there is ignored.
 
 | Preset | Units | Points |
 | --- | --- | --- |
@@ -387,6 +389,8 @@ One preset row in a sidebar is 40pt high, and a widget there is as wide as the p
 | --- | --- | --- | --- |
 | `context-sidebar` | stack | available | `branch` (string, optional), `harness` (string, optional), `machine` (machine, always), `path` (path, optional), `repo` (repo, optional), `session` (session, always), `workspace` (workspace, optional) |
 | `home` | canvas | available | none |
+| `menubar` | slot | available | none |
+| `menubar-panel` | tabs | available | none |
 | `sidebar` | stack | available | `selected` (workspace, optional) |
 
 ### Context types
@@ -404,13 +408,17 @@ One preset row in a sidebar is 40pt high, and a widget there is as wide as the p
 
 | Provider | Arguments | Context it needs | Minimum `every` | Returns |
 | --- | --- | --- | --- | --- |
+| `app/brand` | none | none | 5s | `mark` string |
 | `app/clock` | none | none | 5s | `date` string, `host` string, `time` string |
 | `app/harness-usage` | `harness` string, required | none | 5s | `error` string?, `harness` string, `windows` list |
 | `app/machines` | none | none | 5s | `list` machine_stats |
+| `app/open-pull-requests` | none | none | 5s | `count` number |
 | `app/publish-port` | none | none | 5s | `available` bool |
+| `app/pull-requests-panel` | none | none | 5s | `error` string?, `owners` list, `pull_requests` list |
 | `app/session-context` | none | `session` required | 5s | `agents` list, `cwd` path, `harness` string?, `links` list, `monitors` list, `plan` plan?, `prs` list, `shells` list |
 | `app/shortcuts` | none | `session` required | 5s | `shortcuts` list |
 | `app/summary` | none | none | 5s | `harness_sessions` int, `sessions` int, `workspaces` int |
+| `app/usage-panel` | none | none | 5s | `harnesses` list |
 | `app/workspaces` | none | none | 5s | `workspaces` workspace_sessions |
 
 ### Package providers
@@ -431,28 +439,31 @@ A package declares providers in its `package.yml`; a widget names one `<package>
 
 | View | Draws | Drawn in | Fields besides `kind` |
 | --- | --- | --- | --- |
-| `app.clock` | `app/clock` | any layout | none |
-| `app.harness-usage` | `app/harness-usage` | any layout | none |
+| `app.brand` | `app/brand` | slot | none |
+| `app.clock` | `app/clock` | canvas, stack, tabs | none |
+| `app.harness-usage` | `app/harness-usage` | canvas, stack, tabs | none |
 | `app.links` | `app/session-context` | stack; grows with its content | none |
-| `app.machines` | `app/machines` | any layout | none |
+| `app.machines` | `app/machines` | canvas, stack, tabs | none |
 | `app.monitors` | `app/session-context` | stack; grows with its content | none |
 | `app.publish-port` | `app/publish-port` | stack; grows with its content | none |
 | `app.pull-requests` | `app/session-context` | stack; grows with its content | none |
+| `app.pull-requests-panel` | `app/pull-requests-panel` | tabs | none |
 | `app.shells` | `app/session-context` | stack; grows with its content | none |
 | `app.shortcuts` | `app/shortcuts` | stack; grows with its content | none |
 | `app.sub-agents` | `app/session-context` | stack; grows with its content | none |
-| `app.summary` | `app/summary` | any layout | none |
+| `app.summary` | `app/summary` | canvas, stack, tabs | none |
 | `app.todo` | `app/session-context` | stack; grows with its content | none |
+| `app.usage-panel` | `app/usage-panel` | tabs | none |
 | `app.workspaces` | `app/workspaces` | stack; grows with its content | none |
-| `gauge` | `number`, `json` | any layout | `crit` number; `max` number, default `100`; `min` number, default `0`; `unit` string; `value` template; `warn` number |
-| `list` | `lines`, `json` | any layout | `item` object (`link` template; `status` template; `subtitle` template; `title` template, default `{{item}}`) |
-| `markdown` | `text` | any layout | none |
-| `number` | `number`, `json` | any layout | `format` enum, plain/percent/bytes/duration, default `plain`; `unit` string; `value` template |
-| `sparkline` | `number`, `json` | any layout | `max` number; `unit` string; `value` template |
+| `gauge` | `number`, `json` | canvas, stack, tabs | `crit` number; `max` number, default `100`; `min` number, default `0`; `unit` string; `value` template; `warn` number |
+| `list` | `lines`, `json` | canvas, stack, tabs | `item` object (`link` template; `status` template; `subtitle` template; `title` template, default `{{item}}`) |
+| `markdown` | `text` | canvas, stack, tabs | none |
+| `number` | `number`, `json`, `app/open-pull-requests` | any layout | `format` enum, plain/percent/bytes/duration, default `plain`; `hide_zero` bool, default `false`; `unit` string; `value` template |
+| `sparkline` | `number`, `json` | canvas, stack, tabs | `max` number; `unit` string; `value` template |
 | `status` | `status`, `number`, `json`, `text` | any layout | `ok` rule; `value` template; `warn` rule |
-| `terminal` | `ansi`, `text`, `kind:session` | any layout | `tail` int, min 1, max 2000 |
+| `terminal` | `ansi`, `text`, `kind:session` | canvas, stack, tabs | `tail` int, min 1, max 2000 |
 | `text` | `text`, `lines`, `ansi` | any layout | `tail` int, min 1, max 2000; `wrap` bool, default `true` |
-| `web` | `kind:url` | any layout | `zoom` number, default `1`, min 0.5, max 2 |
+| `web` | `kind:url` | canvas, stack, tabs | `zoom` number, default `1`, min 0.5, max 2 |
 
 <!-- generated from the engine contract by `make widget-format`: end -->
 
@@ -463,14 +474,14 @@ A package declares providers in its `package.yml`; a widget names one `<package>
 | `format` is not 1 | `format 2, and this CLI reads widget format 1` |
 | `requires.engine` missing | `every widget needs requires.engine, for example ">= 1.0"` |
 | `requires.engine` unreadable | `requires.engine "X": write it as ">= 1.0", "> 1.0" or "= 1.0"` |
-| a newer engine is required | ``requires engine >= 1.4, and this CLI implements engine 1.3: update with `devmachine update` `` |
+| a newer engine is required | ``requires engine >= 1.5, and this CLI implements engine 1.4: update with `devmachine update` `` |
 | an unknown top-level field | `unknown field "X"` |
 | `name` malformed or not the folder | `name is "X" but the folder is "Y": a widget is found by its folder` |
 | `summary` missing | `every widget needs a one-line summary` |
-| `fits` empty or unknown | `fits "X": the layouts are canvas, stack, slot` |
+| `fits` empty or unknown | `fits "X": the layouts are canvas, stack, slot, tabs` |
 | `sizes` empty or unknown | `size "X": the presets are small, medium, tall, large, wide` |
 | `default_size` not in `sizes` | `default_size "X" is not one of sizes` |
-| `places` unknown | `places "X": the surfaces are context-sidebar, home, sidebar` |
+| `places` unknown | `places "X": the surfaces are context-sidebar, home, menubar, menubar-panel, sidebar` |
 | `places` names an area it does not fit | `places "sidebar": the widget does not fit that area, so the app would never place it there` |
 | `fits` names a layout its view is not drawn in | `fits canvas, and the app.todo view is drawn only in stack` |
 | a provider's context not declared | `source.name app/session-context needs context.session: declare context: {session: required}` |
@@ -478,7 +489,7 @@ A package declares providers in its `package.yml`; a widget names one `<package>
 | `context` value other than required/optional | `context key "X" is "Y": write required or optional` |
 | input type unknown, or default of the wrong type | `input "X" has type "Y"`, `input "X" is a string, and its default 3 is not` |
 | template names something undeclared | `template {{inputs.X}} in source.with.Y needs inputs.X` |
-| `source.kind` unknown | `source.kind "X": engine 1.3 knows provider, command, url, prompt, session` |
+| `source.kind` unknown | `source.kind "X": engine 1.4 knows provider, command, url, prompt, session` |
 | a key of another kind | `source.url is not a field of a command source: it takes …` |
 | no `run`/`script`, or both | `a command source needs run or script`, `a command source has run or script, not both` |
 | `run` with spaces and no `shell: true` | `source.run "df -h /" has spaces: put each argument in source.args, or set shell: true …` |
@@ -495,7 +506,7 @@ A package declares providers in its `package.yml`; a widget names one `<package>
 | `parse`, `mode` or `harness` unknown | `source.parse "yaml": a command source takes text, lines, number, json, ansi` |
 | `url` not a full address | `source.url "X": write a full address starting with https:// or http://` |
 | view does not draw the source | `view.kind "gauge" takes number, json, and this command source gives text` |
-| `source.name` unknown | `source.name "X" is not a provider engine 1.3 knows` |
+| `source.name` unknown | `source.name "X" is not a provider engine 1.4 knows` |
 | `source.with` wrong | `source.with.X is not an argument of P`, `source.with.X is required by P` |
 | an app provider with target or timeout | `source.target: app/clock is the app's own data, so it takes no target` |
 | `source.every` missing, unreadable or too short | `source.every 1s is below the P minimum of 5s` |

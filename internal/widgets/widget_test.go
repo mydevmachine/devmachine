@@ -114,11 +114,11 @@ func TestEachRuleReportsItsOwnProblem(t *testing.T) {
 		{"summary missing", "usage", "summary: Coding-harness usage windows.", "summary: \"\"", "needs a one-line summary"},
 		{"requires.engine missing", "usage", `requires: {engine: ">= 1.0"}`, "requires: {}", "needs requires.engine"},
 		{"requires.engine unreadable", "usage", `">= 1.0"`, `"latest"`, `requires.engine "latest": write it as ">= 1.0"`},
-		{"fits unknown", "usage", "fits: [canvas, stack, slot]", "fits: [grid]", `fits "grid": the layouts are canvas, stack, slot`},
+		{"fits unknown", "usage", "fits: [canvas, stack, slot]", "fits: [grid]", `fits "grid": the layouts are canvas, stack, slot, tabs`},
 		{"fits empty", "usage", "fits: [canvas, stack, slot]", "fits: []", "fits names the layouts"},
 		{"size unknown", "usage", "sizes: [small, medium, wide]", "sizes: [small, medium, huge]", `size "huge": the presets are`},
 		{"default_size not in sizes", "usage", "default_size: medium", "default_size: large", `default_size "large" is not one of sizes`},
-		{"places unknown", "usage", "places: [home]", "places: [menubar]", `places "menubar": the surfaces are`},
+		{"places unknown", "usage", "places: [home]", "places: [desk]", `places "desk": the surfaces are`},
 		{"context key unknown", "usage", "context: {}", "context: {colour: required}", `context key "colour" is not given by any surface`},
 		{"context value unknown", "usage", "context: {}", "context: {repo: maybe}", `context key "repo" is "maybe": write required or optional`},
 		{"input type unknown", "usage", "type: string", "type: date", `input "harness" has type "date"`},
@@ -126,7 +126,7 @@ func TestEachRuleReportsItsOwnProblem(t *testing.T) {
 		{"template names an unknown input", "usage", "{{inputs.harness}}", "{{inputs.agent}}", "needs inputs.agent"},
 		{"template names an undeclared context key", "usage", "{{inputs.harness}}", "{{context.repo}}", "needs context.repo to be declared"},
 		{"template names something else", "usage", "{{inputs.harness}}", "{{env.HOME}}", "names neither inputs.<name> nor context.<name>"},
-		{"source.kind unknown", "usage", "kind: provider", "kind: magic", `source.kind "magic": engine 1.3 knows provider, command, url, prompt, session`},
+		{"source.kind unknown", "usage", "kind: provider", "kind: magic", `source.kind "magic": engine 1.4 knows provider, command, url, prompt, session`},
 		{"source.name unknown", "usage", "name: app/harness-usage", "name: app/weather", `source.name "app/weather" is not a provider`},
 		{"source.with has an extra argument", "usage", `with: {harness: "{{inputs.harness}}"}`, `with: {harness: "{{inputs.harness}}", colour: red}`, "source.with.colour is not an argument of app/harness-usage"},
 		{"source.with misses a required argument", "usage", `with: {harness: "{{inputs.harness}}"}`, "with: {}", "source.with.harness is required by app/harness-usage"},
@@ -185,10 +185,10 @@ func TestAFormatMismatchStopsEveryOtherCheck(t *testing.T) {
 }
 
 func TestANewerEngineStopsEveryOtherCheck(t *testing.T) {
-	body := strings.Replace(usageWidget, `">= 1.0"`, `">= 1.4"`, 1)
+	body := strings.Replace(usageWidget, `">= 1.0"`, `">= 1.5"`, 1)
 	body = strings.Replace(body, "view: {kind: app.harness-usage}", "view: {kind: gauge}", 1)
 	_, problems := Load(writeWidget(t, t.TempDir(), "usage", body))
-	if len(problems) != 1 || !strings.Contains(problems[0].Message, "requires engine >= 1.4, and this CLI implements engine 1.3") {
+	if len(problems) != 1 || !strings.Contains(problems[0].Message, "requires engine >= 1.5, and this CLI implements engine 1.4") {
 		t.Fatalf("got %v", problems)
 	}
 }
@@ -244,5 +244,32 @@ func TestEngineConstraints(t *testing.T) {
 	}
 	if _, err := parseEngineConstraint(">= 1.0.0"); err == nil {
 		t.Error("a three-part engine version should be refused")
+	}
+}
+
+const openPullRequestsWidget = `format: 1
+name: open-pull-requests
+summary: How many pull requests are open.
+requires: {engine: ">= 1.4"}
+fits: [slot]
+context: {}
+source: {kind: provider, name: app/open-pull-requests, every: 60s}
+view: {kind: number, hide_zero: true}
+sizes: [small]
+default_size: small
+places: [menubar]
+`
+
+func TestANumberViewMayHideZero(t *testing.T) {
+	w, problems := Load(writeWidget(t, t.TempDir(), "open-pull-requests", openPullRequestsWidget))
+	if len(problems) != 0 {
+		t.Fatalf("got %v", problems)
+	}
+	if w.View.HideZero == nil || !*w.View.HideZero {
+		t.Fatalf("got %+v", w.View)
+	}
+	body := strings.Replace(openPullRequestsWidget, "hide_zero: true", "hide_zero: maybe", 1)
+	if _, problems := Load(writeWidget(t, t.TempDir(), "open-pull-requests", body)); len(problems) == 0 {
+		t.Fatal("hide_zero: maybe was accepted")
 	}
 }

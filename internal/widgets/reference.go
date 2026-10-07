@@ -28,6 +28,11 @@ func ReferenceTables() string {
 	line("One preset row in a sidebar is %dpt high, and a widget there is as wide as the panel. "+
 		"`size: auto` makes a view that grows as tall as what it shows.", c.StackRow)
 	line("")
+	line("The menu bar holds at most %d widgets, left to right, each one line drawn by one of the views %s. "+
+		"Text shows its first line, cut at %d characters. A widget there runs at most every %s. "+
+		"A tab in the menu bar popover fills it, so a `size` there is ignored.",
+		c.SlotMax, "`"+strings.Join(c.SlotEntry.Views, "`, `")+"`", c.SlotEntry.TextMax, c.SlotEntry.MinEvery)
+	line("")
 	line("| Preset | Units | Points |")
 	line("| --- | --- | --- |")
 	for _, name := range presetNames(c) {
@@ -122,9 +127,15 @@ func ReferenceTables() string {
 	line("| --- | --- | --- | --- |")
 	for _, name := range viewNames(c) {
 		view := c.Views[name]
-		drawn := "any layout"
-		if len(view.Layouts) > 0 {
-			drawn = strings.Join(view.Layouts, ", ")
+		var layouts []string
+		for _, layout := range c.Layouts {
+			if DrawnIn(name, layout) {
+				layouts = append(layouts, layout)
+			}
+		}
+		drawn := strings.Join(layouts, ", ")
+		if len(layouts) == len(c.Layouts) {
+			drawn = "any layout"
 		}
 		if view.Grows {
 			drawn += "; grows with its content"
