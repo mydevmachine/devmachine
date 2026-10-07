@@ -59,7 +59,7 @@ esac
 
 PORT=$(limactl list --format '{{.SSHLocalPort}}' "$VM")
 [ -n "$PORT" ] || die "$VM never received an SSH port"
-SETUP=$(printf '%s\n' "$VM" "127.0.0.1" "root" "$PORT" "example.com" "y" "1" "devmachine" "n" \
+SETUP=$(printf '%s\n' "$VM" "127.0.0.1" "root" "$PORT" "example.com" "y" "1" "devmachine" "1" "n" \
   | "$DEVMACHINE_ACCEPT_BIN" setup --no-aliases 2>&1) || die "could not set up $VM: $SETUP"
 printf '%s\n' "$SETUP" > "$SCENARIO_LOG_DIR/setup.log"
 
