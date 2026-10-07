@@ -1,0 +1,28 @@
+docs/reference/widget-format.md
+  s_c1c985d7f57ab9::t_954ce612846092 103-104,107-111,116-117,123-125
+  s_c1c985d7f57ab9::t_06506a17160d3a 112-115
+  s_c1c985d7f57ab9::t_08235bcb2c32c8 118
+internal/widgets/source.go
+  s_c1c985d7f57ab9::t_954ce612846092 429-430
+docs/troubleshooting.md
+  s_c1c985d7f57ab9::t_954ce612846092 1662-1670
+internal/widgets/source_test.go
+  s_c1c985d7f57ab9::t_954ce612846092 117,174,176,189-192
+  s_c1c985d7f57ab9::t_08235bcb2c32c8 193-195
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e8d5a5d3310c27a1d662df7badb091d1c5866de7",
+  "prompts": {},
+  "sessions": {
+    "s_c1c985d7f57ab9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b5256304-4a81-480d-a568-f8cf11d8ddcc",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
