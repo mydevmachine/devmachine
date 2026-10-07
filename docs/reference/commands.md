@@ -869,7 +869,8 @@ in the board file, and the app asks for your approval again. `--board`
 is required; a missing sidebar or menu bar board is read as its default
 board, and a missing Home board is an error. It prints `changed <id> on
 the <board> board: <what>`, then any `warning:` about a choice your
-`config.yml` lacks.
+`config.yml` lacks. A `set` that changes nothing prints the same line but
+does not touch the file, so its comments stay.
 
 All four re-read the board first and write it in one step (a temporary file,
 then a rename). A board with a problem is refused and left as it is; so is

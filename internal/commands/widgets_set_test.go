@@ -181,3 +181,33 @@ func TestWidgetsSetPrintsJSON(t *testing.T) {
 		t.Fatalf("got %+v", change)
 	}
 }
+
+func TestWidgetsSetRefusesAnInputOnATypeTheCatalogLacks(t *testing.T) {
+	dir, board := setConfig(t)
+	gone := "  - id: gone\n    type: mine/gone\n    frame: {x: 24, y: 400, w: 320, h: 160}\n    size: medium\n    minimized: false\n    z: 3\n"
+	body := setHomeBoard + gone
+	writeCommandFile(t, board, body)
+	_, err := execute(t, "--config", dir, "widgets", "set", "gone", "--board", "home", "--set", "x=1")
+	if err == nil || !strings.Contains(err.Error(), "mine/gone is not in the catalog, so its inputs are unknown") {
+		t.Fatalf("got %v", err)
+	}
+	if got := readCommandFile(t, board); got != body {
+		t.Fatalf("a refused set changed the board:\n%s", got)
+	}
+}
+
+func TestWidgetsSetThatChangesNothingDoesNotRewriteTheBoard(t *testing.T) {
+	dir, board := setConfig(t)
+	body := "# my board\n" + setHomeBoard
+	writeCommandFile(t, board, body)
+	out, err := execute(t, "--config", dir, "widgets", "set", "usage", "--board", "home", "--every", "", "--title", "", "--set", "harness=claude")
+	if err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	if out != "changed usage on the home board: title, every, harness\n" {
+		t.Fatalf("got %q", out)
+	}
+	if got := readCommandFile(t, board); got != body {
+		t.Fatalf("a set that changes nothing rewrote the board:\n%s", got)
+	}
+}

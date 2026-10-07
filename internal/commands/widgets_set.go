@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"maps"
@@ -56,6 +57,10 @@ func newWidgetsSetCmd(opts *options) *cobra.Command {
 				return err
 			}
 			entry, known := catalog.Find(w.Type)
+			before, err := widgets.EncodeBoard(b)
+			if err != nil {
+				return err
+			}
 			with, err := applyEdit(w, entry, known, edit)
 			if err != nil {
 				return err
@@ -65,8 +70,14 @@ func newWidgetsSetCmd(opts *options) *cobra.Command {
 				return err
 			}
 			warnings := widgets.OptionWarnings(w.ID, entry, with, targetNamesOf(cfg))
-			if err := widgets.WriteBoard(path, read, b); err != nil {
+			after, err := widgets.EncodeBoard(b)
+			if err != nil {
 				return err
+			}
+			if !bytes.Equal(before, after) {
+				if err := widgets.WriteBoard(path, read, b); err != nil {
+					return err
+				}
 			}
 			if opts.format == formatJSON {
 				return writeJSON(cmd.OutOrStdout(), boardChange{Board: board, Path: path, Widget: w, Warnings: warnings})
