@@ -1608,3 +1608,20 @@ wrong: `devmachine update` moves the pin, and `devmachine update
 --no-machines` does it without touching a machine. The line shows at most
 once a day; `DEVMACHINE_NO_UPDATE_HINT=1` turns it off. See
 [Updating](how-it-works/updating.md#why-the-cli-tells-you-a-newer-packages-release-is-out).
+
+## "view.kind "gauge" needs engine 1.1" or "source.kind "command" needs engine 1.1"
+
+**What it means:** The widget uses a view or a source that a later engine
+adds. This CLI implements engine 1.0, which knows only the app's own
+providers and views. `widgets list` leaves the widget out and lists it
+under `problems`; the other widgets still work.
+
+**What to do:** For a published widget, run `devmachine update`. For your
+own, use what `devmachine widgets schema` lists.
+
+## "requires engine >= 1.1, and this CLI implements engine 1.0"
+
+**What it means:** The widget says it needs a newer engine than this CLI
+has. Nothing else in it was checked.
+
+**What to do:** `devmachine update`.

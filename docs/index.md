@@ -89,6 +89,8 @@ list](guides/index.md).
   reach your server privately, and how the options compare.
 - [Agent Skills](concepts/agent-skills.md) — teaching a coding agent to use
   devmachine.
+- [Widgets](concepts/widgets.md) — the app's Home as a canvas of widgets,
+  where they come from, and the board file that holds the layout.
 
 ## How it works
 
@@ -138,6 +140,9 @@ these when something behaves in a way that surprises you.
   names, never overwrites a file here, and sends a folder as one archive.
 - [What a new machine starts with](how-it-works/what-a-new-machine-starts-with.md)
   — what `essentials` holds, and why the macOS app's package is in it.
+- [Why widgets come from packages](how-it-works/widgets-come-from-packages.md)
+  — why there is no other source, when a widget is available, and why the
+  app has no built-in copy.
 - [Updating](how-it-works/updating.md) — why `update` stops before your
   machines, hands over to the new CLI, and goes through Homebrew when
   Homebrew installed it.
@@ -152,6 +157,8 @@ these when something behaves in a way that surprises you.
   write a DNS provider.
 - [The network package contract](reference/network-package-contract.md) —
   how to make a private network reachable through a package.
+- [The widget format](reference/widget-format.md) — how to write a
+  `widget.yml` and a board, and what the engine offers.
 - [Settings](reference/settings.md) — every option the built-in packages
   accept.
 
