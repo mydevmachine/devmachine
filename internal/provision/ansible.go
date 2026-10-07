@@ -168,9 +168,10 @@ func hostVars(plan packages.MachinePlan) ([]byte, error) {
 		Packages []string `yaml:"packages"`
 	}
 	vars := struct {
-		Machine    string          `yaml:"devmachine_machine"`
-		Workspaces []workspaceVars `yaml:"devmachine_workspaces"`
-	}{Machine: plan.Machine.Name, Workspaces: []workspaceVars{}}
+		Machine           string          `yaml:"devmachine_machine"`
+		Workspaces        []workspaceVars `yaml:"devmachine_workspaces"`
+		PasswordLoginKeep []string        `yaml:"devmachine_password_login_keep,omitempty"`
+	}{Machine: plan.Machine.Name, Workspaces: []workspaceVars{}, PasswordLoginKeep: plan.Machine.PasswordLoginKeep}
 
 	for _, workspace := range plan.Workspaces {
 		vars.Workspaces = append(vars.Workspaces, workspaceVars{

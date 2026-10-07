@@ -119,8 +119,12 @@ anybody to stand on.
 
 Locking down means writing one file that turns password login off,
 checking it is valid, and only reloading SSH if it passes — **an invalid
-file is deleted**, since a bad file left behind would break the next SSH
-reload, even a routine reboot.
+file is taken back**: the one that was there before is put back, or the
+new one deleted when there was none, since a bad file left behind would
+break the next SSH reload, even a routine reboot.
+
+`setup` asks first whether every account loses its password, or some keep
+it. See [password login, account by account](password-login.md).
 
 ### Why the file name starts with `00`
 
@@ -137,7 +141,7 @@ A valid file is not proof that SSH reads it. A server whose main
 `PasswordAuthentication yes` above that line, accepts the file and ignores
 it. So after the reload `setup` runs `sshd -T`, which prints the settings
 SSH is really running with, and requires `passwordauthentication no`. If
-SSH still allows passwords, the file is removed, SSH is reloaded without
+SSH still allows passwords, the file is taken back, SSH is reloaded without
 it, and `setup` stops — it never says "password login is off" about a
 server that still takes passwords.
 

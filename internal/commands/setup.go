@@ -35,7 +35,8 @@ var (
 	dialWith       = remote.DialWith
 	installKey     = remote.InstallKey
 	proveAuth      = remote.ProveAuth
-	harden         = remote.Harden
+	harden         = remote.HardenKeeping
+	humanAccounts  = remote.HumanAccounts
 	installAnsible = remote.InstallAnsible
 	checkRoot      = remote.CheckRoot
 	detectSystem   = remote.DetectSystem
@@ -51,12 +52,15 @@ var (
 
 // setupOptions are the flags the flow reads.
 type setupOptions struct {
-	force        bool
-	noHarden     bool
-	noEssentials bool
-	noAliases    bool
-	yes          bool
-	machine      string
+	force    bool
+	noHarden bool
+	// keepPasswordLogin are the accounts that keep SSH password login once
+	// it goes off for everybody else. Set, nothing is asked about it.
+	keepPasswordLogin []string
+	noEssentials      bool
+	noAliases         bool
+	yes               bool
+	machine           string
 	// The answers `machines add` takes as flags. An address makes the whole
 	// run unattended: nothing is asked, and what has no flag takes its
 	// default.
@@ -185,6 +189,7 @@ func newSetupCmd(opts *options) *cobra.Command {
 	c.Flags().BoolVar(&s.force, "force", false, "overwrite a configuration that already exists")
 	c.Flags().BoolVar(&s.noHarden, "no-harden", false,
 		"during a new takeover, leave password login on (the key is still installed and proved)")
+	addKeepPasswordLoginFlag(c, &s)
 	c.Flags().BoolVar(&s.noEssentials, "no-essentials", false,
 		"start the machine with no packages, instead of the essentials")
 	c.Flags().BoolVar(&s.noAliases, "no-aliases", false,
@@ -201,6 +206,9 @@ func newSetupCmd(opts *options) *cobra.Command {
 // testable without a terminal.
 func runSetup(ctx context.Context, dir string, in io.Reader, out io.Writer, opts setupOptions) error {
 	if err := checkPackageManager(opts.packageManager); err != nil {
+		return err
+	}
+	if err := checkKeepPasswordLogin(opts); err != nil {
 		return err
 	}
 	path := filepath.Join(dir, config.FileName)
@@ -265,7 +273,11 @@ func runSetup(ctx context.Context, dir string, in io.Reader, out io.Writer, opts
 		m.Packages = names
 		return setMachinePackages(dir, m.Name, names)
 	}
-	if err := bootstrap(ctx, out, dir, m, key, opts.noHarden, askingPassword(r, in, out), prep); err != nil {
+	keep, err := bootstrap(ctx, out, dir, m, key, passwordLoginFor(opts, r, out), askingPassword(r, in, out), prep)
+	if err != nil {
+		return err
+	}
+	if err := config.SetMachinePasswordLoginKeep(dir, m.Name, keep); err != nil {
 		return err
 	}
 	if err := offerSSHAliases(r, out, dir, opts.noAliases, opts.yes); err != nil {
@@ -927,8 +939,11 @@ func askForKey(r *bufio.Reader, out io.Writer, dir, machine string) (chosenKey, 
 // The order is the whole point and is not negotiable: prove the key on a
 // connection of its own before turning password login off. The other way round
 // is locking the door with the key still inside.
-func bootstrap(ctx context.Context, out io.Writer, dir string, m config.Machine, key chosenKey, noHarden bool,
-	password passwordSource, prep ansiblePrep) error {
+//
+// It returns the accounts that kept password login, for the configuration to
+// record so ssh_hardening keeps the same exceptions on every converge.
+func bootstrap(ctx context.Context, out io.Writer, dir string, m config.Machine, key chosenKey, login passwordLogin,
+	password passwordSource, prep ansiblePrep) ([]string, error) {
 	client, address, err := dialWith(ctx, m, m.User, key.auth())
 	unproved := false
 	var system remote.System
@@ -936,7 +951,7 @@ func bootstrap(ctx context.Context, out io.Writer, dir string, m config.Machine,
 		var detectErr error
 		if system, detectErr = refuseUnknownSystem(ctx, client, out, address); detectErr != nil {
 			_ = client.Close()
-			return detectErr
+			return nil, detectErr
 		}
 	}
 	switch {
@@ -950,7 +965,7 @@ func bootstrap(ctx context.Context, out io.Writer, dir string, m config.Machine,
 			"checking a key, so the key cannot be proved from here; installing it anyway.\n", address)
 		if err := installKey(ctx, client, key.Public); err != nil {
 			_ = client.Close()
-			return err
+			return nil, err
 		}
 	case err == nil:
 		fmt.Fprintf(out, "%s already logs in as %s@%s, so no password is needed.\n",
@@ -958,11 +973,11 @@ func bootstrap(ctx context.Context, out io.Writer, dir string, m config.Machine,
 	case !errors.Is(err, remote.ErrAuthRefused):
 		// Nothing answered. A machine nobody can reach is not one whose
 		// password is worth asking for.
-		return err
+		return nil, err
 	default:
 		client, system, err = installWithPassword(ctx, out, m, key, password)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 	defer func() { _ = client.Close() }()
@@ -970,11 +985,12 @@ func bootstrap(ctx context.Context, out io.Writer, dir string, m config.Machine,
 	// Before anything is changed: an admin with no way to root is one clear
 	// sentence here, rather than an apt lock error halfway through.
 	if err := checkRoot(ctx, client, m.User); err != nil {
-		return err
+		return nil, err
 	}
 
+	var keep []string
 	switch {
-	case noHarden:
+	case login.leaveOn:
 		fmt.Fprintf(out, "--no-harden: password login is left as it was.\n")
 	case unproved:
 		// Locking down comes after the proof, never with it — and nothing
@@ -983,20 +999,33 @@ func bootstrap(ctx context.Context, out io.Writer, dir string, m config.Machine,
 		fmt.Fprintf(out, "password login is left as it was: the key could not be proved past Tailscale SSH. "+
 			"Prove it from outside the tailnet before the ssh_hardening package turns passwords off.\n")
 	default:
-		fmt.Fprintf(out, "turning password login off...\n")
-		if err := harden(ctx, client, system); err != nil {
-			return err
+		leaveOn := false
+		if keep, leaveOn, err = login.decide(ctx, client, system, m.User); err != nil {
+			return nil, err
 		}
-		fmt.Fprintf(out, "password login is off; the key is the only way in.\n")
+		if leaveOn {
+			fmt.Fprintf(out, "password login is left as it was.\n")
+			break
+		}
+		fmt.Fprintf(out, "turning password login off...\n")
+		if err := harden(ctx, client, system, keep); err != nil {
+			return nil, err
+		}
+		if len(keep) == 0 {
+			fmt.Fprintf(out, "password login is off; the key is the only way in.\n")
+		} else {
+			fmt.Fprintf(out, "password login is off, except for %s; for everybody else the key is the only way in.\n",
+				joinAnd(keep))
+		}
 	}
 
 	// The last thing done by hand. From here on everything is a play.
 	fmt.Fprintf(out, "installing Ansible...\n")
 	if err := prepareAnsible(ctx, client, out, system, m, prep); err != nil {
-		return err
+		return nil, err
 	}
 	facts.Record(ctx, dir, m.Name, client, time.Now())
-	return nil
+	return keep, nil
 }
 
 // installWithPassword is the branch for a machine as it was bought: a root
@@ -1165,7 +1194,7 @@ func machineEntry(m config.Machine) machineFile {
 	}
 	return machineFile{
 		Name: m.Name, Hosts: addresses, User: m.User, Port: m.Port, Key: m.Key, AgentKey: m.AgentKey,
-		Location: m.Location,
+		Location: m.Location, PasswordLoginKeep: m.PasswordLoginKeep,
 	}
 }
 
@@ -1192,6 +1221,19 @@ type machineFile struct {
 	AgentKey string   `yaml:"agent_key,omitempty"`
 	Location string   `yaml:"location,omitempty"`
 	Packages []string `yaml:"packages,omitempty"`
+	// PasswordLoginKeep is written in flow style, the way packages read.
+	PasswordLoginKeep flowList `yaml:"password_login_keep,omitempty"`
+}
+
+// flowList is a list written on one line: [a, b].
+type flowList []string
+
+func (l flowList) MarshalYAML() (any, error) {
+	node := &yaml.Node{Kind: yaml.SequenceNode, Tag: "!!seq", Style: yaml.FlowStyle}
+	for _, v := range l {
+		node.Content = append(node.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: v})
+	}
+	return node, nil
 }
 
 type workspaceFile struct {

@@ -317,6 +317,19 @@ func TestGenerateHostVarsCarryTheWorkspaces(t *testing.T) {
 	}
 }
 
+func TestGenerateHostVarsCarryTheAccountsThatKeepPasswordLogin(t *testing.T) {
+	plan := planWith(t, "main", nil, nil)
+	plan.Machine.PasswordLoginKeep = []string{"alice"}
+	files, err := Generate(plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	vars := string(files["host_vars/devmachine.yml"])
+	if !strings.Contains(vars, "devmachine_password_login_keep:\n  - alice\n") {
+		t.Fatalf("got:\n%s", vars)
+	}
+}
+
 // kind, entrypoint and commands are inert until v0.4. A generator that started
 // treating them specially would be a surprise nobody asked for.
 func TestGenerateTreatsACallablePackageAsAnOrdinaryRole(t *testing.T) {
