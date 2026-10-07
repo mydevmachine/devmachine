@@ -683,7 +683,7 @@ prints:
 
 ```json
 {
-  "engine": "1.5",
+  "engine": "1.6",
   "packages_release": "v40",
   "widgets": [
     {

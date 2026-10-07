@@ -444,7 +444,7 @@ open pull request count, and the Pull Requests and Usage tabs.
 
 <!-- generated from the engine contract by `make widget-format`: start -->
 
-Engine **1.5**. Widget format 1, board format 1.
+Engine **1.6**. Widget format 1, board format 1.
 
 ### Sizes
 
@@ -524,7 +524,7 @@ A package declares providers in its `package.yml`; a widget names one `<package>
 | `provider` | the provider's | no | `every` every, required; `name` provider, required; `target` target; `timeout` duration, default `30s`, max 10m; `with` args |
 | `command` | 5s | yes | `args` list; `every` every; `keep` int, default `200`, min 1, max 2000; `mode` enum, poll/stream, default `poll`; `parse` enum, text/lines/number/json/ansi, default `text`; `run` string; `script` path; `shell` bool, default `false`; `target` target, default `local`; `timeout` duration, default `30s`, max 10m |
 | `url` | 5s | no | `every` every, required; `parse` enum, status/text/json, default `status`; `timeout` duration, default `30s`, max 10m; `url` url, required |
-| `prompt` | 15m | yes | `every` every, default `manual`; `harness` enum, required, claude/codex; `prompt` string, required; `target` target, default `local`; `timeout` duration, default `5m`, max 10m |
+| `prompt` | 15m | yes | `every` every, default `manual`; `harness` enum, required, claude/codex; `permission_mode` enum-by-harness, claude: manual/dontAsk/plan/acceptEdits/auto/bypassPermissions, codex: read-only/workspace-write/danger-full-access/approve-for-me/dangerously-bypass-approvals-and-sandbox, dangerous: bypassPermissions/danger-full-access/dangerously-bypass-approvals-and-sandbox; `prompt` string, required; `target` target, default `local`; `timeout` duration, default `5m`, max 10m |
 | `session` | 2s | yes | `every` every, required; `session` string, required; `target` target, default `local` |
 
 ### Views
@@ -566,7 +566,7 @@ A package declares providers in its `package.yml`; a widget names one `<package>
 | `format` is not 1 | `format 2, and this CLI reads widget format 1` |
 | `requires.engine` missing | `every widget needs requires.engine, for example ">= 1.0"` |
 | `requires.engine` unreadable | `requires.engine "X": write it as ">= 1.0", "> 1.0" or "= 1.0"` |
-| a newer engine is required | ``requires engine >= 1.6, and this CLI implements engine 1.5: update with `devmachine update` `` |
+| a newer engine is required | ``requires engine >= 1.7, and this CLI implements engine 1.6: update with `devmachine update` `` |
 | an unknown top-level field | `unknown field "X"` |
 | `name` malformed or not the folder | `name is "X" but the folder is "Y": a widget is found by its folder` |
 | `summary` missing | `every widget needs a one-line summary` |
@@ -590,7 +590,7 @@ A package declares providers in its `package.yml`; a widget names one `<package>
 | an `every` on an entry that its source does not take | `usage: every 1s is below claude-code/usage's minimum of 5s`, `usage: every "often" is not a duration: …`, `usage: every manual: claude-code/usage reads a provider, which runs on a schedule: …`, `tail: a stream runs while the widget is on screen, so it takes no every` |
 | an `every` on a widget written in the board | `disk: a widget written in the board sets how often in source.every, not every` |
 | template names something undeclared | `template {{inputs.X}} in source.with.Y needs inputs.X` |
-| `source.kind` unknown | `source.kind "X": engine 1.5 knows provider, command, url, prompt, session` |
+| `source.kind` unknown | `source.kind "X": engine 1.6 knows provider, command, url, prompt, session` |
 | a key of another kind | `source.url is not a field of a command source: it takes …` |
 | no `run`/`script`, or both | `a command source needs run or script`, `a command source has run or script, not both` |
 | `run` with spaces and no `shell: true` | `source.run "df -h /" has spaces: put each argument in source.args, or set shell: true …` |
@@ -607,7 +607,7 @@ A package declares providers in its `package.yml`; a widget names one `<package>
 | `parse`, `mode` or `harness` unknown | `source.parse "yaml": a command source takes text, lines, number, json, ansi` |
 | `url` not a full address | `source.url "X": write a full address starting with https:// or http://` |
 | view does not draw the source | `view.kind "gauge" takes number, json, and this command source gives text` |
-| `source.name` unknown | `source.name "X" is not a provider engine 1.5 knows` |
+| `source.name` unknown | `source.name "X" is not a provider engine 1.6 knows` |
 | `source.with` wrong | `source.with.X is not an argument of P`, `source.with.X is required by P` |
 | an app provider with target or timeout | `source.target: app/clock is the app's own data, so it takes no target` |
 | `source.every` missing, unreadable or too short | `source.every 1s is below the P minimum of 5s` |

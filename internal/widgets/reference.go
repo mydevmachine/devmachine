@@ -182,6 +182,12 @@ func describeField(name string, f Field) string {
 	if len(f.Values) > 0 {
 		details = append(details, strings.Join(f.Values, "/"))
 	}
+	for _, harness := range sortedKeys(f.ByHarness) {
+		details = append(details, harness+": "+strings.Join(f.ByHarness[harness], "/"))
+	}
+	if len(f.Dangerous) > 0 {
+		details = append(details, "dangerous: "+strings.Join(f.Dangerous, "/"))
+	}
 	if f.Default != nil {
 		details = append(details, fmt.Sprintf("default `%v`", f.Default))
 	}

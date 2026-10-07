@@ -5,7 +5,7 @@ package widgets
 import "slices"
 
 // Engine is the version of the contract this CLI implements.
-const Engine = "1.5"
+const Engine = "1.6"
 
 // LastEngineWithoutPackageProviders is the newest engine that cannot run a
 // package provider, so a widget reading one must refuse it.
@@ -60,22 +60,23 @@ const (
 
 // The types a source or view field takes, as the contract names them.
 const (
-	FieldString   = "string"
-	FieldBool     = "bool"
-	FieldInt      = "int"
-	FieldNumber   = "number"
-	FieldDuration = "duration"
-	FieldEvery    = "every"
-	FieldEnum     = "enum"
-	FieldList     = "list"
-	FieldArgs     = "args"
-	FieldTarget   = "target"
-	FieldPath     = "path"
-	FieldURL      = "url"
-	FieldTemplate = "template"
-	FieldRule     = "rule"
-	FieldObject   = "object"
-	FieldProvider = "provider"
+	FieldString        = "string"
+	FieldBool          = "bool"
+	FieldInt           = "int"
+	FieldNumber        = "number"
+	FieldDuration      = "duration"
+	FieldEvery         = "every"
+	FieldEnum          = "enum"
+	FieldEnumByHarness = "enum-by-harness"
+	FieldList          = "list"
+	FieldArgs          = "args"
+	FieldTarget        = "target"
+	FieldPath          = "path"
+	FieldURL           = "url"
+	FieldTemplate      = "template"
+	FieldRule          = "rule"
+	FieldObject        = "object"
+	FieldProvider      = "provider"
 )
 
 // The ways a command or a url's output is read.
@@ -149,15 +150,19 @@ type Provider struct {
 	Returns  map[string]string `json:"returns"`
 }
 
-// Field describes one key a source or a view takes.
+// Field describes one key a source or a view takes. ByHarness holds the
+// values of an enum-by-harness field for each harness, and Dangerous the
+// values that run without any check.
 type Field struct {
-	Type     string           `json:"type"`
-	Required bool             `json:"required,omitempty"`
-	Default  any              `json:"default,omitempty"`
-	Values   []string         `json:"values,omitempty"`
-	Min      any              `json:"min,omitempty"`
-	Max      any              `json:"max,omitempty"`
-	Fields   map[string]Field `json:"fields,omitempty"`
+	Type      string              `json:"type"`
+	Required  bool                `json:"required,omitempty"`
+	Default   any                 `json:"default,omitempty"`
+	Values    []string            `json:"values,omitempty"`
+	ByHarness map[string][]string `json:"by_harness,omitempty"`
+	Dangerous []string            `json:"dangerous,omitempty"`
+	Min       any                 `json:"min,omitempty"`
+	Max       any                 `json:"max,omitempty"`
+	Fields    map[string]Field    `json:"fields,omitempty"`
 }
 
 // SourceKind is one kind of source: how often it may run, whether a widget
@@ -258,7 +263,7 @@ type Contract struct {
 	Formats         map[string]int               `json:"formats"`
 }
 
-// CurrentContract returns engine 1.5, built fresh on every call so no caller
+// CurrentContract returns engine 1.6, built fresh on every call so no caller
 // can change what another one reads.
 func CurrentContract() Contract {
 	appProvider := func(args map[string]Arg, returns map[string]string) Provider {
@@ -464,6 +469,10 @@ func CurrentContract() Contract {
 			}},
 			SourcePrompt: {MinEvery: "15m", Approval: true, Fields: map[string]Field{
 				"harness": {Type: FieldEnum, Values: []string{"claude", "codex"}, Required: true},
+				"permission_mode": {Type: FieldEnumByHarness, ByHarness: map[string][]string{
+					"claude": {"manual", "dontAsk", "plan", "acceptEdits", "auto", "bypassPermissions"},
+					"codex":  {"read-only", "workspace-write", "danger-full-access", "approve-for-me", "dangerously-bypass-approvals-and-sandbox"},
+				}, Dangerous: []string{"bypassPermissions", "danger-full-access", "dangerously-bypass-approvals-and-sandbox"}},
 				"prompt":  {Type: FieldString, Required: true},
 				"target":  target,
 				"every":   {Type: FieldEvery, Default: EveryManual},
@@ -507,3 +516,9 @@ func SurfaceNames() []string { return surfaceNames(CurrentContract()) }
 
 // OptionSourceNames lists every option source the contract has, sorted.
 func OptionSourceNames() []string { return sortedKeys(CurrentContract().OptionSources) }
+
+// IsDangerousPermissionMode says whether a prompt's permission_mode runs
+// the harness without any check.
+func IsDangerousPermissionMode(mode string) bool {
+	return slices.Contains(CurrentContract().Sources[SourcePrompt].Fields["permission_mode"].Dangerous, mode)
+}

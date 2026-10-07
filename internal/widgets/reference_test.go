@@ -49,6 +49,9 @@ func TestReferenceTablesNameEveryProviderAndView(t *testing.T) {
 		"An entry with a `type` may also set `every` every; `title` string on a board: they change only that copy.",
 		"| `app/machines` | `machines` list, optional | none | 5s | `list` machine_stats |",
 		"| `app.pull-requests-panel` | `app/pull-requests-panel` | canvas, stack, tabs | none |",
+		"`permission_mode` enum-by-harness, claude: manual/dontAsk/plan/acceptEdits/auto/bypassPermissions, " +
+			"codex: read-only/workspace-write/danger-full-access/approve-for-me/dangerously-bypass-approvals-and-sandbox, " +
+			"dangerous: bypassPermissions/danger-full-access/dangerously-bypass-approvals-and-sandbox",
 	} {
 		if !strings.Contains(tables, want) {
 			t.Errorf("tables lack %s", want)

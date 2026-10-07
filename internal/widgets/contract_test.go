@@ -200,3 +200,39 @@ func TestEngine15OffersChoicesOptionSourcesAndOverrides(t *testing.T) {
 		}
 	}
 }
+
+func TestEngine16GivesAPromptPermissionModesByHarness(t *testing.T) {
+	c := CurrentContract()
+	mode := c.Sources[SourcePrompt].Fields["permission_mode"]
+	if mode.Type != FieldEnumByHarness || mode.Required || len(mode.Values) != 0 {
+		t.Fatalf("permission_mode is %+v", mode)
+	}
+	want := map[string][]string{
+		"claude": {"manual", "dontAsk", "plan", "acceptEdits", "auto", "bypassPermissions"},
+		"codex":  {"read-only", "workspace-write", "danger-full-access", "approve-for-me", "dangerously-bypass-approvals-and-sandbox"},
+	}
+	if !reflect.DeepEqual(mode.ByHarness, want) {
+		t.Fatalf("by harness %v", mode.ByHarness)
+	}
+	if !slices.Equal(sortedKeys(mode.ByHarness), c.Sources[SourcePrompt].Fields["harness"].Values) {
+		t.Fatalf("modes for %v, harnesses %v", sortedKeys(mode.ByHarness), c.Sources[SourcePrompt].Fields["harness"].Values)
+	}
+	if !slices.Equal(mode.Dangerous, []string{"bypassPermissions", "danger-full-access", "dangerously-bypass-approvals-and-sandbox"}) {
+		t.Fatalf("dangerous %v", mode.Dangerous)
+	}
+	for _, name := range mode.Dangerous {
+		if !IsDangerousPermissionMode(name) {
+			t.Errorf("%s is not dangerous", name)
+		}
+	}
+	for _, name := range []string{"", "auto", "read-only", "approve-for-me", "manual"} {
+		if IsDangerousPermissionMode(name) {
+			t.Errorf("%q is dangerous", name)
+		}
+	}
+	for kind, source := range c.Sources {
+		if _, has := source.Fields["permission_mode"]; has != (kind == SourcePrompt) {
+			t.Errorf("source %s has permission_mode: %v", kind, has)
+		}
+	}
+}

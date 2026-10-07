@@ -1,5 +1,5 @@
 {
-  "engine": "1.5",
+  "engine": "1.6",
   "layouts": ["canvas", "stack", "slot", "tabs"],
   "unit": 80,
   "snap": 8,
@@ -154,6 +154,10 @@
       "parse": {"type": "enum", "default": "status", "values": ["status", "text", "json"]}}},
     "prompt": {"min_every": "15m", "approval": true, "fields": {
       "harness": {"type": "enum", "required": true, "values": ["claude", "codex"]},
+      "permission_mode": {"type": "enum-by-harness", "by_harness": {
+        "claude": ["manual", "dontAsk", "plan", "acceptEdits", "auto", "bypassPermissions"],
+        "codex": ["read-only", "workspace-write", "danger-full-access", "approve-for-me", "dangerously-bypass-approvals-and-sandbox"]},
+        "dangerous": ["bypassPermissions", "danger-full-access", "dangerously-bypass-approvals-and-sandbox"]},
       "prompt": {"type": "string", "required": true},
       "target": {"type": "target", "default": "local"},
       "every": {"type": "every", "default": "manual"},

@@ -1752,7 +1752,7 @@ a `command` source with no `parse`), and a rule uses `<`, `<=`, `>` or
 output is a number, say so: `parse: number` on a `command` source, or
 leave `parse` out on a `url` source to compare its status code.
 
-## "requires engine >= 1.6, and this CLI implements engine 1.5"
+## "requires engine >= 1.7, and this CLI implements engine 1.6"
 
 **What it means:** The widget says it needs a newer engine than this CLI
 has. Nothing else in it was checked.
