@@ -54,7 +54,11 @@ func newMachinesListCmd(opts *options) *cobra.Command {
 			}
 
 			if opts.format == formatJSON {
-				return writeJSON(cmd.OutOrStdout(), asJSON(cfg).Machines)
+				dir, _, err := config.Dir(opts.configDir)
+				if err != nil {
+					return err
+				}
+				return writeJSON(cmd.OutOrStdout(), asJSON(dir, cfg).Machines)
 			}
 			if !found {
 				cmd.Println("No machines yet: `devmachine setup` adds the first one.")

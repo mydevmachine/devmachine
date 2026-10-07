@@ -48,15 +48,15 @@ func newConfigShowCmd(opts *options) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			dir, _, err := config.Dir(opts.configDir)
+			if err != nil {
+				return err
+			}
 
 			if opts.format == formatJSON {
-				return writeJSON(cmd.OutOrStdout(), asJSON(cfg))
+				return writeJSON(cmd.OutOrStdout(), asJSON(dir, cfg))
 			}
 			if !found {
-				dir, _, err := config.Dir(opts.configDir)
-				if err != nil {
-					return err
-				}
 				cmd.Printf("no configuration at %s yet: `devmachine setup` writes it.\n", dir)
 				return nil
 			}
@@ -105,6 +105,7 @@ type machineJSON struct {
 	Packages   []string  `json:"packages"`
 	Self       bool      `json:"self,omitempty"`
 	Location   string    `json:"location"`
+	Platform   string    `json:"platform,omitempty"`
 	Size       *sizeJSON `json:"size,omitempty"`
 }
 
@@ -144,7 +145,7 @@ type workspaceJSON struct {
 	User    string `json:"user"`
 }
 
-func asJSON(cfg config.Config) configJSON {
+func asJSON(dir string, cfg config.Config) configJSON {
 	out := configJSON{
 		Machines: []machineJSON{}, Workspaces: []workspaceJSON{},
 		Defaults:    defaultsJSON{Workspace: onOrNone(cfg.Defaults.Workspace)},
@@ -165,6 +166,7 @@ func asJSON(cfg config.Config) configJSON {
 			Name: m.Name, Hosts: addresses, AdminUser: m.User,
 			Port: m.Port, Key: m.Key, AgentKey: m.AgentKey, Workspaces: names,
 			Packages: onOrNone(m.Packages), Self: m.Self, Location: m.EffectiveLocation(),
+			Platform: knownPlatform(dir, m),
 		})
 	}
 

@@ -57,7 +57,7 @@ func showMachine(out io.Writer, opts *options, name string) error {
 	}
 
 	show := machineShowJSON{}
-	for _, entry := range asJSON(cfg).Machines {
+	for _, entry := range asJSON(dir, cfg).Machines {
 		if entry.Name == m.Name {
 			show.machineJSON = entry
 		}

@@ -328,7 +328,10 @@ first machine, and `--format json` prints `[]`.
 `admin_user`, `port`, `key`, `agent_key`, `workspaces`, `packages` (the
 machine's own package list from `config.yml`, `[]` when it has none),
 `location` (never empty: `external` or `local` when `config.yml` names
-none), and `self: true` on your own computer. Without `--format json`,
+none), `platform` (`linux` or `macos`, the names `platforms` uses in a
+`package.yml`, from what a command last read on the machine; `macos` on your
+own computer; left out for a machine no command has read yet), and
+`self: true` on your own computer. Without `--format json`,
 `list` prints a table with a `LOCATION` column. `config show --format json` carries the
 same machine entries. **Your computer is never picked by default** — a
 command with no `--machine` still acts on the server, even with a self
@@ -351,6 +354,7 @@ prints the same entry as `list --format json`, plus `observed`:
   "workspaces": [],
   "packages": ["mac-ports"],
   "location": "external",
+  "platform": "macos",
   "observed": {
     "observed_at": "2026-10-05T15:22:00-03:00",
     "system": "Darwin",
