@@ -265,3 +265,36 @@ func TestRunPackageScriptPassesAnEmptyWord(t *testing.T) {
 		t.Fatalf("sent %q", inputs)
 	}
 }
+
+func TestRunPackageWithMachinePassesWidgetArgumentsAsWords(t *testing.T) {
+	var commands, inputs []string
+	dialing(t, inputRemote{commands: &commands, inputs: &inputs})
+	dir := configDirWithProviderAccepting(t, "devmachine-app", []string{"stats"})
+
+	_, err := execute(t, "--config", dir, "--machine", "main", "run", "--package", "devmachine-app", "--no-log",
+		"--", "stats", "--path", "; rm -rf ~", "--max-lines", "-5")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "/bin/provider stats --path " + quoteForShell("; rm -rf ~") + " --max-lines -5\n"
+	if len(inputs) != 1 || !strings.HasSuffix(inputs[0], want) {
+		t.Fatalf("sent %q, want it to end in %q", inputs, want)
+	}
+	if body, err := os.ReadFile(filepath.Join(dir, history.FileName)); err == nil && strings.TrimSpace(string(body)) != "" {
+		t.Fatalf("--no-log logged %q", body)
+	}
+}
+
+func TestRunPackageRefusesACommandThePackageDoesNotList(t *testing.T) {
+	var commands, inputs []string
+	dialing(t, inputRemote{commands: &commands, inputs: &inputs})
+	dir := configDirWithProviderAccepting(t, "devmachine-app", []string{"stats"})
+
+	_, err := execute(t, "--config", dir, "--machine", "main", "run", "--package", "devmachine-app", "--no-log", "--", "context")
+	if err == nil || !strings.Contains(err.Error(), `devmachine-app does not accept "context". It accepts stats`) {
+		t.Fatalf("got %v", err)
+	}
+	if len(inputs) != 0 {
+		t.Fatalf("sent %q", inputs)
+	}
+}

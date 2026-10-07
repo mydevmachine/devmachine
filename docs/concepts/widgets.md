@@ -49,6 +49,13 @@ devmachine widgets validate ~/.config/devmachine/packages/my-package
 A widget in your own package replaces the release's package of the same
 name, the same way your packages always do.
 
+A package can also feed its widgets with one of its own commands — a
+package provider, such as `devmachine-app/stats` — run on a machine
+through the CLI. And anybody can publish a package with widgets:
+`devmachine packages install <git-address>` brings it in, and its widgets
+that run code ask before they run. See [where a public widget comes
+from](../how-it-works/where-a-public-widget-comes-from.md).
+
 ## Areas and boards
 
 An area is a place in the app that holds widgets. There are three:

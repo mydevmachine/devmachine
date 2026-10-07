@@ -14,9 +14,12 @@ until you say yes.
   session's screen.
 - **A `url` does not wait.** It only reads a web page, the way a browser
   would.
-- **A widget from a package does not wait.** You chose to trust that
-  package when you added it; its widgets come with it, and `devmachine
-  packages validate` checks them like the rest of the package.
+- **A widget from an official or a local package does not wait.** You
+  chose that packages release, or you wrote the package; `devmachine
+  packages validate` checks its widgets like the rest of it.
+- **A widget from a third-party package waits when it runs something** —
+  a `command`, `prompt`, `session` or package provider. See [where a public
+  widget comes from](where-a-public-widget-comes-from.md).
 
 ## What you approve
 
