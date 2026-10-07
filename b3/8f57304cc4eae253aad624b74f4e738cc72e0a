@@ -1,0 +1,25 @@
+docs/concepts/widgets.md
+  s_c1c985d7f57ab9::t_6f3f43e9942103 80-81,107-108
+docs/how-it-works/what-runs-in-the-menu-bar.md
+  s_c1c985d7f57ab9::t_adac12b8c8f87e 24
+docs/reference/commands.md
+  s_c1c985d7f57ab9::t_1076daac75e910 843-852,857-861
+docs/troubleshooting.md
+  s_c1c985d7f57ab9::t_f83369367132da 1844-1846
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b38f57304cc4eae253aad624b74f4e738cc72e0a",
+  "prompts": {},
+  "sessions": {
+    "s_c1c985d7f57ab9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b5256304-4a81-480d-a568-f8cf11d8ddcc",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
