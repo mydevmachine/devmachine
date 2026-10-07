@@ -29,9 +29,9 @@ func newWidgetsAddCmd(opts *options) *cobra.Command {
 		Use:   "add <package/widget>",
 		Short: "Place a widget on a board",
 		Long: "On Home, without --at it takes the first free spot, scanning rows of 8pt " +
-			"from the top left. In a sidebar it goes at the end of the list, or next to " +
-			"--after or --before. The board is re-read first and written atomically; a " +
-			"board with a problem is refused, never rewritten.",
+			"from the top left. In a sidebar, the menu bar or its popover it goes at the " +
+			"end of the list, or next to --after or --before. The board is re-read first " +
+			"and written atomically; a board with a problem is refused, never rewritten.",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := checkAnchors(cmd); err != nil {
@@ -51,14 +51,21 @@ func newWidgetsAddCmd(opts *options) *cobra.Command {
 			if err := checkBoardSurface(board); err != nil {
 				return err
 			}
-			stack := widgets.IsStack(board)
+			contract := widgets.CurrentContract()
+			layout := contract.Surfaces[board].Layout
+			ordered := widgets.IsOrdered(board)
 			switch {
-			case stack && at != "":
+			case ordered && at != "":
 				return fmt.Errorf("--at places a widget on Home's canvas; in the %s area use --after or --before", board)
-			case !stack && (after != "" || before != ""):
+			case !ordered && (after != "" || before != ""):
 				return fmt.Errorf("--after and --before order a sidebar's list; the %s area is a canvas, so use --at", board)
-			}
-			if !slices.Contains(entry.Surfaces, board) {
+			case layout == widgets.LayoutSlot && size != "":
+				return errors.New("a widget in the menu bar has no size: it is one line of text, so it takes no --size")
+			case layout == widgets.LayoutTabs && size != "":
+				return errors.New("a tab fills the menu bar popover, so it takes no --size")
+			case layout == widgets.LayoutSlot && slices.Contains(entry.Fits, layout) && !widgets.DrawnIn(entry.View.Kind, layout):
+				return fmt.Errorf("%s does not fit the %s area: the %s view cannot be drawn in the menu bar", entry.Name, board, entry.View.Kind)
+			case !slices.Contains(entry.Surfaces, board):
 				return fmt.Errorf("%s does not fit the %s area: it fits %s", entry.Name, board, strings.Join(entry.Surfaces, ", "))
 			}
 
@@ -67,13 +74,17 @@ func newWidgetsAddCmd(opts *options) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if layout == widgets.LayoutSlot && len(b.Widgets) >= contract.SlotMax {
+				return fmt.Errorf("the menubar holds %d widgets: take one off first with `devmachine widgets remove <id> --board menubar`", contract.SlotMax)
+			}
 			if other, taken := b.IDOfType(entry.Name); entry.Single && taken {
 				return fmt.Errorf("%s goes on a board once, and the %s board has it as %s", entry.Name, board, other)
 			}
 
-			if stack {
+			switch {
+			case layout == widgets.LayoutStack:
 				size, err = stackSize(entry, size)
-			} else {
+			case !ordered:
 				size, err = canvasSize(entry, size)
 			}
 			if err != nil {
@@ -94,7 +105,7 @@ func newWidgetsAddCmd(opts *options) *cobra.Command {
 
 			instance := widgets.Instance{ID: id, Type: entry.Name, With: with, Size: size}
 			where := "at the end"
-			if stack {
+			if ordered {
 				if err := b.Insert(instance, after, before); err != nil {
 					return err
 				}
@@ -126,13 +137,13 @@ func newWidgetsAddCmd(opts *options) *cobra.Command {
 			return nil
 		},
 	}
-	c.Flags().StringVar(&board, "board", "home", "the board to place it on: home, sidebar or context-sidebar")
+	c.Flags().StringVar(&board, "board", "home", "the board to place it on: home, sidebar, context-sidebar, menubar or menubar-panel")
 	c.Flags().StringVar(&id, "id", "", "the instance id (default: the widget's name, made unique)")
 	c.Flags().StringArrayVar(&sets, "set", nil, "an input value, as name=value (repeatable)")
-	c.Flags().StringVar(&size, "size", "", "a preset the widget takes, or auto in a sidebar (default: auto when its view grows, else its default_size)")
+	c.Flags().StringVar(&size, "size", "", "a preset the widget takes, or auto in a sidebar (default: auto when its view grows, else its default_size); none in the menu bar")
 	c.Flags().StringVar(&at, "at", "", "on Home, the top-left corner in points, as x,y (default: the first free spot)")
-	c.Flags().StringVar(&after, "after", "", "in a sidebar, the id it goes right after")
-	c.Flags().StringVar(&before, "before", "", "in a sidebar, the id it goes right before")
+	c.Flags().StringVar(&after, "after", "", "in a sidebar or the menu bar, the id it goes right after")
+	c.Flags().StringVar(&before, "before", "", "in a sidebar or the menu bar, the id it goes right before")
 	c.MarkFlagsMutuallyExclusive("after", "before")
 	return c
 }
@@ -182,7 +193,7 @@ func newWidgetsRemoveCmd(opts *options) *cobra.Command {
 				return err
 			}
 			path := widgets.BoardPath(dir, board)
-			if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) && !widgets.IsStack(board) {
+			if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) && !widgets.IsOrdered(board) {
 				return fmt.Errorf("there is no %s board at %s", board, path)
 			}
 			b, read, err := readValidBoard(path, board, catalog.Find)
@@ -210,10 +221,10 @@ func newWidgetsMoveCmd(opts *options) *cobra.Command {
 	var board, after, before string
 	c := &cobra.Command{
 		Use:   "move <id>",
-		Short: "Move a widget up or down a sidebar's list",
-		Long: "Puts the widget right after --after or right before --before. Only the " +
-			"sidebar and the context sidebar have an order; a missing board is read as " +
-			"the area's default board. The board is re-read first and written atomically.",
+		Short: "Move a widget along a list: a sidebar, the menu bar or its popover",
+		Long: "Puts the widget right after --after or right before --before. Home has no " +
+			"order; a missing board is read as the area's default board. The board is " +
+			"re-read first and written atomically.",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := checkAnchors(cmd); err != nil {
@@ -226,7 +237,7 @@ func newWidgetsMoveCmd(opts *options) *cobra.Command {
 			if err := checkBoardSurface(board); err != nil {
 				return err
 			}
-			if !widgets.IsStack(board) {
+			if !widgets.IsOrdered(board) {
 				return fmt.Errorf("the %s area is a canvas: a widget there has a place, not a turn in a list; move it in the app or change its frame", board)
 			}
 			catalog, err := cachedCatalog(dir)
@@ -258,7 +269,7 @@ func newWidgetsMoveCmd(opts *options) *cobra.Command {
 			return nil
 		},
 	}
-	c.Flags().StringVar(&board, "board", "", "the board: sidebar or context-sidebar")
+	c.Flags().StringVar(&board, "board", "", "the board: sidebar, context-sidebar, menubar or menubar-panel")
 	c.Flags().StringVar(&after, "after", "", "the id it goes right after")
 	c.Flags().StringVar(&before, "before", "", "the id it goes right before")
 	c.MarkFlagsMutuallyExclusive("after", "before")
@@ -290,7 +301,7 @@ func checkBoardSurface(board string) error {
 	surface, ok := widgets.CurrentContract().Surfaces[board]
 	switch {
 	case !ok:
-		return fmt.Errorf("there is no %s area: the areas are home, sidebar and context-sidebar", board)
+		return fmt.Errorf("there is no %s area: the areas are %s", board, strings.Join(widgets.SurfaceNames(), ", "))
 	case surface.Status == widgets.StatusPlanned:
 		return fmt.Errorf("the %s area arrives in a later version", board)
 	}

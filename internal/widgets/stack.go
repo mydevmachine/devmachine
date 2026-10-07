@@ -77,24 +77,44 @@ const DefaultSidebarWidget = "devmachine-app/workspaces"
 // sidebar board, in the order the Context tab always showed its sections.
 var DefaultContextSidebar = []string{"shortcuts", "publish-port", "monitors", "shells", "sub-agents", "todo", "pull-requests", "links"}
 
+// DefaultMenubar are the devmachine-app widgets of the default menu bar
+// title, left to right: the mark and the open pull request count it always
+// showed.
+var DefaultMenubar = []string{"brand", "open-pull-requests"}
+
+// DefaultMenubarPanel are the devmachine-app widgets of the default menu bar
+// popover, in the order of its tabs: Pull Requests, then Usage.
+var DefaultMenubarPanel = []string{"pull-requests-panel", "usage-panel"}
+
 // DefaultBoard is the board an area has when its file is missing: what the
 // app draws, and writes, before anybody changed it. Home starts empty.
 func DefaultBoard(surface string) Board {
 	b := NewBoard(surface)
 	var types []string
+	size := SizeAuto
 	switch surface {
 	case "sidebar":
 		types = []string{DefaultSidebarWidget}
 	case "context-sidebar":
-		for _, name := range DefaultContextSidebar {
-			types = append(types, "devmachine-app/"+name)
-		}
+		types = appWidgets(DefaultContextSidebar)
+	case "menubar":
+		types, size = appWidgets(DefaultMenubar), ""
+	case "menubar-panel":
+		types, size = appWidgets(DefaultMenubarPanel), ""
 	}
 	for _, t := range types {
 		_, name, _ := strings.Cut(t, "/")
-		b.Widgets = append(b.Widgets, Instance{ID: name, Type: t, Size: SizeAuto})
+		b.Widgets = append(b.Widgets, Instance{ID: name, Type: t, Size: size})
 	}
 	return b
+}
+
+func appWidgets(names []string) []string {
+	types := make([]string, len(names))
+	for i, name := range names {
+		types[i] = "devmachine-app/" + name
+	}
+	return types
 }
 
 // Insert puts w in the list right after the widget with id after, right

@@ -233,11 +233,31 @@ widgets:
     size: auto
 `
 
+const defaultMenubar = `format: 1
+surface: menubar
+widgets:
+  - id: brand
+    type: devmachine-app/brand
+  - id: open-pull-requests
+    type: devmachine-app/open-pull-requests
+`
+
+const defaultMenubarPanel = `format: 1
+surface: menubar-panel
+widgets:
+  - id: pull-requests-panel
+    type: devmachine-app/pull-requests-panel
+  - id: usage-panel
+    type: devmachine-app/usage-panel
+`
+
 func TestTheDefaultBoardsDrawWhatTheAppAlwaysShowed(t *testing.T) {
 	for surface, want := range map[string]string{
 		"sidebar":         "format: 1\nsurface: sidebar\nwidgets:\n  - id: workspaces\n    type: devmachine-app/workspaces\n    size: auto\n",
 		"context-sidebar": defaultContextSidebar,
 		"home":            "format: 1\nsurface: home\nwidgets: []\n",
+		"menubar":         defaultMenubar,
+		"menubar-panel":   defaultMenubarPanel,
 	} {
 		body, err := EncodeBoard(DefaultBoard(surface))
 		if err != nil {
@@ -245,6 +265,12 @@ func TestTheDefaultBoardsDrawWhatTheAppAlwaysShowed(t *testing.T) {
 		}
 		if string(body) != want {
 			t.Errorf("%s: got\n%s", surface, body)
+		}
+	}
+	for _, surface := range []string{"menubar", "menubar-panel"} {
+		path := filepath.Join(t.TempDir(), surface+".yml")
+		if problems := ValidateBoard(DefaultBoard(surface), path, menubarLookup); len(problems) != 0 {
+			t.Errorf("%s: %v", surface, problems)
 		}
 	}
 }

@@ -406,6 +406,10 @@ widgets:
 A widget in the menu bar that waits for your approval shows "!" in its
 place; its Allow card is in the popover, under an Approvals tab.
 
+When either file is missing, the app writes, and the CLI reads, the two
+boards above: they draw the menu bar as it always looked, "❯_" and the
+open pull request count, and the Pull Requests and Usage tabs.
+
 ## What the engine offers
 
 `devmachine widgets schema --json` prints all of this as JSON.

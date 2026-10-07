@@ -1451,3 +1451,143 @@ func TestWidgetsValidateWarnsAboutASizeOnATab(t *testing.T) {
 		t.Fatalf("got\n%s", out)
 	}
 }
+
+func TestWidgetsAddToAMissingMenubarStartsFromTheDefaultBoard(t *testing.T) {
+	dir := menubarConfig(t)
+	board := widgets.BoardPath(dir, "menubar")
+	out, err := execute(t, "--config", dir, "widgets", "add", "devmachine-app/brand", "--board", "menubar", "--id", "mark", "--before", "brand")
+	if err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	if out != "added mark (devmachine-app/brand) to the menubar board before brand\n" {
+		t.Fatalf("got %q", out)
+	}
+	want := "format: 1\nsurface: menubar\nwidgets:\n  - id: mark\n    type: devmachine-app/brand\n" +
+		"  - id: brand\n    type: devmachine-app/brand\n" +
+		"  - id: open-pull-requests\n    type: devmachine-app/open-pull-requests\n"
+	if got := readCommandFile(t, board); got != want {
+		t.Fatalf("got\n%s", got)
+	}
+	_, err = execute(t, "--config", dir, "widgets", "add", "devmachine-app/open-pull-requests", "--board", "menubar")
+	if err == nil || !strings.Contains(err.Error(), "the menubar holds 3 widgets: take one off first with `devmachine widgets remove <id> --board menubar`") {
+		t.Fatalf("got %v", err)
+	}
+	if got := readCommandFile(t, board); got != want {
+		t.Fatalf("a refused add changed the board:\n%s", got)
+	}
+}
+
+func TestWidgetsAddRefusesOnTheMenuBar(t *testing.T) {
+	cases := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{"--size in the menu bar", []string{"devmachine-app/brand", "--board", "menubar", "--size", "small"},
+			"a widget in the menu bar has no size: it is one line of text, so it takes no --size"},
+		{"--at in the menu bar", []string{"devmachine-app/brand", "--board", "menubar", "--at", "0,0"},
+			"--at places a widget on Home's canvas; in the menubar area use --after or --before"},
+		{"a view no slot draws", []string{"claude-code/usage", "--board", "menubar"},
+			"claude-code/usage does not fit the menubar area: the app.harness-usage view cannot be drawn in the menu bar"},
+		{"a widget with no slot", []string{"devmachine-app/clock", "--board", "menubar"},
+			"devmachine-app/clock does not fit the menubar area: it fits home"},
+		{"--size on a tab", []string{"devmachine-app/usage-panel", "--board", "menubar-panel", "--size", "large"},
+			"a tab fills the menu bar popover, so it takes no --size"},
+		{"a slot widget as a tab", []string{"devmachine-app/brand", "--board", "menubar-panel"},
+			"devmachine-app/brand does not fit the menubar-panel area: it fits menubar"},
+		{"an unknown area", []string{"devmachine-app/brand", "--board", "desk"},
+			"there is no desk area: the areas are context-sidebar, home, menubar, menubar-panel, sidebar"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := menubarConfig(t)
+			_, err := execute(t, append([]string{"--config", dir, "widgets", "add"}, tc.args...)...)
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("want %q, got %v", tc.want, err)
+			}
+			for _, surface := range []string{"menubar", "menubar-panel"} {
+				if _, statErr := os.Stat(widgets.BoardPath(dir, surface)); statErr == nil {
+					t.Fatalf("a refused add wrote the %s board", surface)
+				}
+			}
+		})
+	}
+}
+
+func TestWidgetsMoveAndRemoveUseTheDefaultMenubarBoards(t *testing.T) {
+	dir := menubarConfig(t)
+	if out, err := execute(t, "--config", dir, "widgets", "move", "usage-panel", "--before", "pull-requests-panel", "--board", "menubar-panel"); err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	wantPanel := "format: 1\nsurface: menubar-panel\nwidgets:\n" +
+		"  - id: usage-panel\n    type: devmachine-app/usage-panel\n" +
+		"  - id: pull-requests-panel\n    type: devmachine-app/pull-requests-panel\n"
+	if got := readCommandFile(t, widgets.BoardPath(dir, "menubar-panel")); got != wantPanel {
+		t.Fatalf("got\n%s", got)
+	}
+	if out, err := execute(t, "--config", dir, "widgets", "remove", "brand", "--board", "menubar"); err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	if got := readCommandFile(t, widgets.BoardPath(dir, "menubar")); got != "format: 1\nsurface: menubar\nwidgets:\n  - id: open-pull-requests\n    type: devmachine-app/open-pull-requests\n" {
+		t.Fatalf("got\n%s", got)
+	}
+}
+
+func TestWidgetsMoveKeepsASizeOnATab(t *testing.T) {
+	dir := menubarConfig(t)
+	board := widgets.BoardPath(dir, "menubar-panel")
+	writeCommandFile(t, board, "format: 1\nsurface: menubar-panel\nwidgets:\n"+
+		"  - id: pull-requests-panel\n    type: devmachine-app/pull-requests-panel\n"+
+		"  - id: usage-panel\n    type: devmachine-app/usage-panel\n    size: large\n")
+	if out, err := execute(t, "--config", dir, "widgets", "move", "usage-panel", "--before", "pull-requests-panel", "--board", "menubar-panel"); err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	want := "format: 1\nsurface: menubar-panel\nwidgets:\n" +
+		"  - id: usage-panel\n    type: devmachine-app/usage-panel\n    size: large\n" +
+		"  - id: pull-requests-panel\n    type: devmachine-app/pull-requests-panel\n"
+	if got := readCommandFile(t, board); got != want {
+		t.Fatalf("got\n%s", got)
+	}
+}
+
+const inlineMenubarEntry = `  - id: load
+    title: Load
+    source:
+      kind: command
+      run: uptime
+      every: 60s
+    view: {kind: text}
+`
+
+func TestWidgetsAddKeepsAnInlineMenubarWidget(t *testing.T) {
+	dir := menubarConfig(t)
+	board := widgets.BoardPath(dir, "menubar")
+	writeCommandFile(t, board, "format: 1\nsurface: menubar\nwidgets:\n"+inlineMenubarEntry)
+	if out, err := execute(t, "--config", dir, "widgets", "add", "devmachine-app/brand", "--board", "menubar", "--before", "load"); err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	want := "format: 1\nsurface: menubar\nwidgets:\n  - id: brand\n    type: devmachine-app/brand\n" + inlineMenubarEntry
+	if got := readCommandFile(t, board); got != want {
+		t.Fatalf("got\n%s", got)
+	}
+}
+
+func TestWidgetsOnAMissingMenubarBoardSpeakOfAList(t *testing.T) {
+	dir := menubarConfig(t)
+	out, err := execute(t, "--config", dir, "widgets", "remove", "usage-panel", "--board", "menubar-panel")
+	if err != nil || out != "removed usage-panel from the menubar-panel board\n" {
+		t.Fatalf("%v\n%q", err, out)
+	}
+	out, err = execute(t, "--config", dir, "widgets", "add", "devmachine-app/brand", "--board", "menubar", "--id", "mark")
+	if err != nil || out != "added mark (devmachine-app/brand) to the menubar board at the end\n" {
+		t.Fatalf("%v\n%q", err, out)
+	}
+	out, err = execute(t, "--config", dir, "widgets", "move", "mark", "--before", "brand", "--board", "menubar")
+	if err != nil || out != "moved mark before brand on the menubar board\n" {
+		t.Fatalf("%v\n%q", err, out)
+	}
+	got := readCommandFile(t, widgets.BoardPath(dir, "menubar"))
+	if !strings.HasPrefix(got, "format: 1\nsurface: menubar\nwidgets:\n  - id: mark\n    type: devmachine-app/brand\n  - id: brand\n") || strings.Contains(got, "frame") {
+		t.Fatalf("got\n%s", got)
+	}
+}

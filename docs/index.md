@@ -149,6 +149,9 @@ these when something behaves in a way that surprises you.
 - [Where a public widget comes from](how-it-works/where-a-public-widget-comes-from.md)
   — what installing a package from a git address brings, and why its
   widgets ask.
+- [What runs in the menu bar](how-it-works/what-runs-in-the-menu-bar.md)
+  — when the title's and the popover's widgets run, and why the title holds
+  three one-line widgets.
 - [Updating](how-it-works/updating.md) — why `update` stops before your
   machines, hands over to the new CLI, and goes through Homebrew when
   Homebrew installed it.

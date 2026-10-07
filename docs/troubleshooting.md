@@ -1801,13 +1801,15 @@ checked.
 widget folder, or one board file. To check every board and every widget of
 your own packages, run `devmachine widgets validate` with no path.
 
-## "X does not fit the home area" (or the sidebar, or the context sidebar)
+## "X does not fit the home area" (or another area)
 
 **What it means:** The widget's `fits` does not include the area's layout
-(`canvas` for Home, `stack` for both sidebars), or it requires a context
-key the area does not give. `widgets add` says it before writing;
-`widgets validate` says it for a board you wrote by hand.
-`devmachine widgets help <name>` lists the areas it fits.
+(`canvas` for Home, `stack` for both sidebars, `slot` for the menu bar,
+`tabs` for its popover), or it requires a context key the area does not
+give. `widgets add` says it before writing; `widgets validate` says it for
+a board you wrote by hand. `devmachine widgets help <name>` lists the
+areas it fits. In the menu bar the view must also draw one line: "does
+not fit the menubar area: the X view cannot be drawn in the menu bar".
 
 **What to do:** Pick a widget that fits the area, or, for your own widget,
 add the layout to `fits`. A widget that needs `session` fits only the
@@ -1835,9 +1837,9 @@ devmachine-app/workspaces --board sidebar`.
 ## "--at places a widget on Home's canvas" or "--after and --before order a sidebar's list"
 
 **What it means:** Home is a canvas: a widget there has a position, given
-with `--at`. The sidebars are lists: a widget there has a turn, given with
-`--after` or `--before`. Each flag only means something in its own kind of
-area.
+with `--at`. The sidebars, the menu bar and its popover are lists: a
+widget there has a turn, given with `--after` or `--before`. Each flag
+only means something in its own kind of area.
 
 **What to do:** On Home use `--at x,y` or nothing; in a sidebar use
 `--after <id>`, `--before <id>` or nothing (the end of the list).
@@ -2012,10 +2014,21 @@ out to get the widget's `default_size`.
 **What it means:** `menubar.yml` has more than three entries, or `widgets
 add` would make it four. The menu bar title shares a thin strip with the
 clock and every other app's items, so it holds three short widgets.
+`widgets add` adds "take one off first with `devmachine widgets remove
+<id> --board menubar`"; on a missing `menubar.yml` it counts the two
+default widgets.
 
 **What to do:** Take one off with `devmachine widgets remove <id> --board
 menubar`, or put the widget in the popover instead (`--board
 menubar-panel`) if it fits there.
+
+## "a widget in the menu bar has no size: it is one line of text, so it takes no --size" or "a tab fills the menu bar popover, so it takes no --size"
+
+**What it means:** `widgets add --size` sets how big a widget is on Home
+or in a sidebar. A menu bar widget is one line and a tab fills the
+popover, so neither has a size.
+
+**What to do:** Leave `--size` out.
 
 ## "a widget in the menu bar has no size: it is one line of text"
 

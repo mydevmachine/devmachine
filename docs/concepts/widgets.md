@@ -58,7 +58,7 @@ from](../how-it-works/where-a-public-widget-comes-from.md).
 
 ## Areas and boards
 
-An area is a place in the app that holds widgets. There are three:
+An area is a place in the app that holds widgets. There are five:
 
 - **Home**, a free canvas: each widget has a place and a size.
 - **The sidebar**, on the left: a list, top to bottom. The workspace list
@@ -66,12 +66,18 @@ An area is a place in the app that holds widgets. There are three:
 - **The context sidebar**, the Context tab next to a session: a list too.
   Each of its sections (shortcuts, publish a port, monitors, shells,
   sub-agents, to-do, pull requests, links) is one widget.
+- **The menu bar title**, at the top of the screen: up to three short
+  widgets in a row, "❯_" and the number of open pull requests unless you
+  change it.
+- **The menu bar popover**, what opens when you click it: each widget is
+  a tab, Pull Requests and Usage unless you change it.
 
 The sidebar's top bar and footer, and the context panel's other tabs
-(Preview, Files, Git), stay as they are: they are not widgets.
+(Preview, Files, Git), stay as they are: they are not widgets. Neither
+is the popover's footer (Open, Stats, Subdomains, the color picker, Quit).
 
-Each area has a board in `<config>/boards/`: `home.yml`, `sidebar.yml`
-and `context-sidebar.yml`. Home's board says where each widget is and how
+Each area has a board in `<config>/boards/`: `home.yml`, `sidebar.yml`,
+`context-sidebar.yml`, `menubar.yml` and `menubar-panel.yml`. Home's board says where each widget is and how
 big:
 
 ```yaml
@@ -97,9 +103,8 @@ widgets:
     size: auto
 ```
 
-When `sidebar.yml` or `context-sidebar.yml` is missing, the app writes
-the board that draws the sidebar and the Context tab as they always
-looked, and the CLI reads a missing one the same way. Settings →
+When a sidebar or menu bar board is missing, the app writes the board
+that draws that area as it always looked, and the CLI reads a missing one the same way. Settings →
 Appearance can reset each one.
 
 The context sidebar hands its widgets the selected session's context:
@@ -109,12 +114,17 @@ widget again with the new values. A widget written in place that uses
 them, such as a command reading `{{context.path}}`, asks you to allow it
 again for each new set of values.
 
+The menu bar title runs its widgets whenever the app runs, at most every
+30 seconds; the popover runs its own only while it is open. See [what
+runs in the menu bar](../how-it-works/what-runs-in-the-menu-bar.md).
+
 Edit a board by hand, from the app, or with the CLI:
 
 ```
 devmachine widgets add claude-code/usage --set harness=codex
 devmachine widgets add claude-code/usage --board context-sidebar --after todo
 devmachine widgets move usage --before shortcuts --board context-sidebar
+devmachine widgets move usage-panel --before pull-requests-panel --board menubar-panel
 devmachine widgets remove usage
 ```
 

@@ -664,10 +664,10 @@ devmachine widgets list [--board home|sidebar|context-sidebar|menubar|menubar-pa
 devmachine widgets help <package/widget>
 devmachine widgets validate [path...]
 devmachine widgets schema [--json]
-devmachine widgets add <package/widget> [--board home|sidebar|context-sidebar]
+devmachine widgets add <package/widget> [--board home|sidebar|context-sidebar|menubar|menubar-panel]
     [--id x] [--set name=value]... [--size s] [--at x,y | --after id | --before id]
-devmachine widgets remove <id> [--board home|sidebar|context-sidebar]
-devmachine widgets move <id> (--after id | --before id) --board sidebar|context-sidebar
+devmachine widgets remove <id> [--board home|sidebar|context-sidebar|menubar|menubar-panel]
+devmachine widgets move <id> (--after id | --before id) --board sidebar|context-sidebar|menubar|menubar-panel
 ```
 
 The widgets the app draws, and the boards they sit on. Local only: these
@@ -831,12 +831,21 @@ starts from the board the app draws by default, so the workspace list and
 the Context tab's sections stay. The default boards are listed in [the
 widget format](widget-format.md#a-board-in-a-sidebar).
 
+In the menu bar (`--board menubar`) and its popover (`--board
+menubar-panel`), the widget goes in the list the same way, with
+`--after` or `--before`. Neither takes `--size` or `--at`. The menu bar
+holds 3 widgets, so a 4th is refused, and only a widget whose view draws
+one line fits it. A missing board starts from the default, so "❯_", the
+pull request count and the two tabs stay. See [the widget
+format](widget-format.md#a-board-in-the-menu-bar).
+
 `remove` takes the widget with that id off the board. On a missing
-sidebar board it starts from the default board, so `widgets remove
+sidebar or menu bar board it starts from the default board, so `widgets remove
 publish-port --board context-sidebar` drops that one section and keeps
 the rest.
 
-`move` changes a widget's turn in a sidebar's list: right after
+`move` changes a widget's turn in a list: a sidebar, the menu bar or its
+popover: right after
 `--after <id>` or right before `--before <id>` (exactly one). `--board`
 is required, and Home is refused: a widget there has a place, not a turn.
 A missing board is read as the default board. A move that leaves the order
@@ -847,8 +856,9 @@ All three re-read the board first and write it in one step (a temporary file,
 then a rename). A board with a problem is refused and left as it is; so is
 a board that changed while the command ran. Comments in a board are lost
 when the CLI rewrites it. `--format json` prints `{"board", "path", "widget"}` for `add` (for a
-sidebar widget, `frame`, `minimized` and `z` are zero and mean nothing;
-`collapsed` appears when true) and `{"board", "path", "removed"}` for
+widget in a sidebar or the menu bar, `frame`, `minimized` and `z` are zero
+and mean nothing, and in the menu bar `size` is `""`; `collapsed` appears
+when true) and `{"board", "path", "removed"}` for
 `remove`, and `{"board", "path", "moved", "order"}` for `move`, `order`
 being every id after the move.
 
