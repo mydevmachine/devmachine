@@ -3,7 +3,9 @@ package commands
 import (
 	"context"
 	"errors"
+	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -13,18 +15,91 @@ import (
 	"github.com/mydevmachine/devmachine/internal/remote"
 )
 
-func TestRunArgvQuotesEveryWord(t *testing.T) {
-	var runs []string
-	dialing(t, factsRemote{runs: &runs})
+// inputRemote records each command it streams and the stdin that came with it.
+type inputRemote struct {
+	fakeRemote
+	commands, inputs *[]string
+}
+
+func (r inputRemote) Stream(_ context.Context, command string, _, _ io.Writer) error {
+	*r.commands = append(*r.commands, command)
+	*r.inputs = append(*r.inputs, "")
+	return nil
+}
+
+func (r inputRemote) StreamInput(_ context.Context, command string, stdin io.Reader, _, _ io.Writer) error {
+	body, err := io.ReadAll(stdin)
+	if err != nil {
+		return err
+	}
+	*r.commands = append(*r.commands, command)
+	*r.inputs = append(*r.inputs, string(body))
+	return nil
+}
+
+var hostileWords = []string{"x; rm -rf ~", "$(id)", "it's", "", `ends in \`, `; touch pwned ; #`, "two\nlines", `\'`, "`id`"}
+
+func TestRunArgvSendsTheProgramOnShellInput(t *testing.T) {
+	var commands, inputs []string
+	dialing(t, inputRemote{commands: &commands, inputs: &inputs})
 	dir := configWith(t, twoMachineConfig)
 
-	_, err := execute(t, "--config", dir, "--machine", "main", "run", "--argv", "--", "echo", "x; rm -rf ~", "$(id)", "it's", "")
+	args := append([]string{"--config", dir, "--machine", "main", "run", "--argv", "--", "echo"}, hostileWords...)
+	if _, err := execute(t, args...); err != nil {
+		t.Fatal(err)
+	}
+	if len(commands) != 1 || commands[0] != "/bin/sh -s" {
+		t.Fatalf("ran %q, want exactly /bin/sh -s", commands)
+	}
+	if want := argvScript(append([]string{"echo"}, hostileWords...)); inputs[0] != want {
+		t.Fatalf("sent %q, want %q", inputs[0], want)
+	}
+}
+
+func TestRunArgvPutsThePathPrefixInTheInput(t *testing.T) {
+	var commands, inputs []string
+	dialing(t, inputRemote{commands: &commands, inputs: &inputs})
+	dir := configWith(t, twoMachineConfig)
+	saveFacts(t, dir, "main", observedMac)
+
+	if _, err := execute(t, "--config", dir, "--machine", "main", "run", "--argv", "--", "port", "installed"); err != nil {
+		t.Fatal(err)
+	}
+	if commands[0] != "/bin/sh -s" {
+		t.Fatalf("ran %q", commands[0])
+	}
+	if !strings.HasPrefix(inputs[0], "PATH='/opt/local/bin:/opt/local/sbin'") || !strings.HasSuffix(inputs[0], "exec 'port' 'installed'\n") {
+		t.Fatalf("sent %q", inputs[0])
+	}
+}
+
+func TestArgvScriptReachesTheProgramWordForWordUnderSh(t *testing.T) {
+	words := append([]string{"printf", "[%s]\n"}, hostileWords...)
+	sh := exec.CommandContext(context.Background(), "/bin/sh", "-s")
+	sh.Stdin = strings.NewReader(argvScript(words))
+	out, err := sh.Output()
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := `'echo' 'x; rm -rf ~' '$(id)' 'it'\''s' ''`
-	if len(runs) != 1 || runs[0] != want {
-		t.Fatalf("ran %q, want %q", runs, want)
+	var want strings.Builder
+	for _, w := range hostileWords {
+		want.WriteString("[" + w + "]\n")
+	}
+	if string(out) != want.String() {
+		t.Fatalf("got %q, want %q", out, want.String())
+	}
+}
+
+func TestRunArgvOnASelfMachineRunsTheWordsWithoutInput(t *testing.T) {
+	var commands, inputs []string
+	dialing(t, inputRemote{commands: &commands, inputs: &inputs})
+	dir := configWith(t, "machines:\n  - name: here\n    self: true\n")
+
+	if _, err := execute(t, "--config", dir, "--machine", "here", "run", "--argv", "--", "echo", "it's"); err != nil {
+		t.Fatal(err)
+	}
+	if want := `'echo' 'it'\''s'`; len(commands) != 1 || commands[0] != want || inputs[0] != "" {
+		t.Fatalf("ran %q with input %q, want %q", commands, inputs, want)
 	}
 }
 

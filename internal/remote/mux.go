@@ -129,6 +129,11 @@ func (c *muxClient) Stream(ctx context.Context, command string, stdout, stderr i
 	return c.exec(ctx, command, nil, stdout, stderr)
 }
 
+// StreamInput is Stream with stdin fed from the reader.
+func (c *muxClient) StreamInput(ctx context.Context, command string, stdin io.Reader, stdout, stderr io.Writer) error {
+	return c.exec(ctx, command, stdin, stdout, stderr)
+}
+
 func (c *muxClient) Upload(context.Context, string, io.Reader) error {
 	return errors.New("uploading a directory needs the programmatic SSH client: the multiplexed client only runs commands")
 }

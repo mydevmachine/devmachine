@@ -270,8 +270,13 @@ func newRunCmd(opts *options) *cobra.Command {
 			// so both streams reach the person as they come, before the error
 			// is reported; stdout stays the command's own for a program
 			// reading it.
-			err = client.Stream(ctx, withMachinePath(opts, tgt.machine, command),
-				cmd.OutOrStdout(), cmd.ErrOrStderr())
+			if flags.argv && !tgt.machine.Self {
+				script := strings.NewReader(withMachinePath(opts, tgt.machine, argvScript(args)))
+				err = remote.StreamInput(ctx, client, argvShell, script, cmd.OutOrStdout(), cmd.ErrOrStderr())
+			} else {
+				err = client.Stream(ctx, withMachinePath(opts, tgt.machine, command),
+					cmd.OutOrStdout(), cmd.ErrOrStderr())
+			}
 			if !flags.noLog {
 				record(opts, tgt, command, err == nil)
 			}
@@ -287,6 +292,19 @@ func newRunCmd(opts *options) *cobra.Command {
 		"the program and its arguments follow `--`, each passed as one word; no shell reads them")
 	c.Flags().BoolVar(&flags.noLog, "no-log", false, "leave this run out of the command log, for a program that polls")
 	return c
+}
+
+// argvShell is the whole command an --argv run sends over SSH. The machine
+// hands a command to the account's login shell, which can be fish, where a
+// backslash inside single quotes is an escape and POSIX quoting stops being
+// safe. A fixed command holds no value for that shell to misread; the words
+// go on stdin, which only /bin/sh reads.
+const argvShell = "/bin/sh -s"
+
+// argvScript is the line argvShell reads: the program and its words, quoted
+// for a POSIX shell, run in its place.
+func argvScript(argv []string) string {
+	return "exec " + shellWords(argv) + "\n"
 }
 
 // shellWords joins argv into one line the remote shell splits back into

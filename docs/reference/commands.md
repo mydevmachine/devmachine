@@ -954,6 +954,10 @@ See [packages](../concepts/packages.md).
 after `--` is quoted before it reaches the machine's shell, so a space,
 a `;` or a `$(…)` in one is just a character. It is how the app runs a
 widget's command; use it whenever the words come from somewhere else.
+Over SSH the command is always `/bin/sh -s`, and the words go on its
+input, so the account's login shell — even fish, which reads quotes
+differently — never sees them. On your own computer (`self: true`) bash
+runs the quoted words directly.
 
 `--script <path>`, with `--package`, runs one file of the installed
 package instead of its entrypoint — the copy `sync` put on the machine,
