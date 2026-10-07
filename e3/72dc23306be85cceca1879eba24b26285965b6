@@ -1,0 +1,23 @@
+docs/guides/index.md
+  s_38c7661c7ba89f::t_39aa0257d7fbfa 20-21
+docs/index.md
+  s_38c7661c7ba89f::t_39aa0257d7fbfa 40
+docs/guides/an-old-mac-as-a-machine.md
+  s_38c7661c7ba89f::t_e39059854599b5 1-155
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e372dc23306be85cceca1879eba24b26285965b6",
+  "prompts": {},
+  "sessions": {
+    "s_38c7661c7ba89f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3a15e1ef-c4d8-46db-8ddd-323ed414f20f",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
