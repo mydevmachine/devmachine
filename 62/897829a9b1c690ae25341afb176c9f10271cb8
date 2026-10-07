@@ -1,0 +1,38 @@
+docs/reference/widget-format.md
+  s_c1c985d7f57ab9::t_badb6ba5ff5e2e 419,458-470,478,514
+  s_c1c985d7f57ab9::t_2293fbe234dbf7 541,556,573
+internal/widgets/reference.go
+  s_c1c985d7f57ab9::t_340a863b2a4e07 68-88
+docs/reference/commands.md
+  s_c1c985d7f57ab9::t_2293fbe234dbf7 684
+docs/troubleshooting.md
+  s_c1c985d7f57ab9::t_2293fbe234dbf7 1755
+internal/widgets/testdata/contract.json
+  s_c1c985d7f57ab9::t_37071733e901d2 2,12-29,54,94
+internal/commands/widgets_test.go
+  s_c1c985d7f57ab9::t_4259de34e7ed0f 265
+internal/widgets/contract_test.go
+  s_c1c985d7f57ab9::t_4259de34e7ed0f 171-202
+internal/widgets/reference_test.go
+  s_c1c985d7f57ab9::t_4259de34e7ed0f 45-51
+internal/widgets/widget_test.go
+  s_c1c985d7f57ab9::t_4259de34e7ed0f 129,188,191
+internal/widgets/contract.go
+  s_c1c985d7f57ab9::t_340a863b2a4e07 8,109-119,202-215,244-246,257,295-312,343,388,503-505
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "62897829a9b1c690ae25341afb176c9f10271cb8",
+  "prompts": {},
+  "sessions": {
+    "s_c1c985d7f57ab9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b5256304-4a81-480d-a568-f8cf11d8ddcc",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
