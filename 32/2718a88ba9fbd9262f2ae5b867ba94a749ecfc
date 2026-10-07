@@ -1,0 +1,166 @@
+scripts/accept/workspace-secrets.sh
+  s_c1c985d7f57ab9::t_b59b036d369234 58
+internal/facts/facts_test.go
+  s_c1c985d7f57ab9::t_b59b036d369234 286-311
+internal/commands/machines_location_test.go
+  s_c1c985d7f57ab9::t_b59b036d369234 10,387-427
+internal/network/network.go
+  s_c1c985d7f57ab9::t_b59b036d369234 22,167-191,207
+internal/commands/platform_fit.go
+  s_c1c985d7f57ab9::t_b59b036d369234 1-123
+internal/remote/bootstrap.go
+  s_c1c985d7f57ab9::t_b59b036d369234 163-164,229-232,234,241,279,295
+SURFACE.txt
+  s_c1c985d7f57ab9::t_b59b036d369234 33
+internal/config/config_test.go
+  s_c1c985d7f57ab9::t_b59b036d369234 1918-1948
+internal/commands/platform_fit_test.go
+  s_c1c985d7f57ab9::t_b59b036d369234 1-225
+internal/commands/run_path_test.go
+  s_c1c985d7f57ab9::t_b59b036d369234 18
+docs/index.md
+  s_c1c985d7f57ab9::t_b59b036d369234 40,119-121
+internal/config/config.go
+  s_c1c985d7f57ab9::t_b59b036d369234 130-135,446-477,533-535,1036,1155-1165,1173
+  s_c1c985d7f57ab9::t_0ea1558aa01c5d 1166-1172,1174
+internal/packages/manifest.go
+  s_c1c985d7f57ab9::t_b59b036d369234 58-62,66-79
+internal/remote/networks_test.go
+  s_c1c985d7f57ab9::t_b59b036d369234 99,318-352
+internal/commands/password_login.go
+  s_c1c985d7f57ab9::t_b59b036d369234 1-311
+docs/guides/an-old-mac-as-a-machine.md
+  s_c1c985d7f57ab9::t_b59b036d369234 1-155
+docs/how-it-works/trust-bootstrap.md
+  s_c1c985d7f57ab9::t_b59b036d369234 122-127,144
+internal/commands/login.go
+  s_c1c985d7f57ab9::t_b59b036d369234 74,107
+internal/commands/sync.go
+  s_c1c985d7f57ab9::t_b59b036d369234 153-155
+scripts/accept/download.sh
+  s_c1c985d7f57ab9::t_b59b036d369234 51
+docs/reference/settings.md
+  s_c1c985d7f57ab9::t_b59b036d369234 44,59,68-70,95,101,104-105
+scripts/accept/coding-agents.sh
+  s_c1c985d7f57ab9::t_b59b036d369234 51,62
+docs/releasing.md
+  s_c1c985d7f57ab9::t_b59b036d369234 21-29
+internal/commands/mac_path_test.go
+  s_c1c985d7f57ab9::t_b59b036d369234 1-85
+internal/provision/ansible_test.go
+  s_c1c985d7f57ab9::t_b59b036d369234 320-332,931-956
+  s_c1c985d7f57ab9::t_b9e7046c0989e7 957
+internal/packages/validate.go
+  s_c1c985d7f57ab9::t_b59b036d369234 125
+docs/how-it-works/published-sites.md
+  s_c1c985d7f57ab9::t_b59b036d369234 40-42
+internal/provision/testdata/generate/site.yml
+  s_c1c985d7f57ab9::t_b59b036d369234 210-214
+internal/provision/ansible.go
+  s_c1c985d7f57ab9::t_b59b036d369234 17,171-174,793-795,798-800
+  s_c1c985d7f57ab9::t_76e99d73b3230b 801
+internal/packages/variables_test.go
+  s_c1c985d7f57ab9::t_b59b036d369234 1-203
+docs/how-it-works/what-the-cli-knows-about-a-machine.md
+  s_c1c985d7f57ab9::t_b59b036d369234 43-48
+scripts/accept/expose-via.sh
+  s_c1c985d7f57ab9::t_b59b036d369234 60
+scripts/accept/essentials.sh
+  s_c1c985d7f57ab9::t_b59b036d369234 69
+cmd/settings/main.go
+  s_c1c985d7f57ab9::t_b59b036d369234 81,106-125
+  s_c1c985d7f57ab9::t_c035e13562d621 126
+internal/facts/facts.go
+  s_c1c985d7f57ab9::t_b59b036d369234 21,227-248
+  s_c1c985d7f57ab9::t_5132226a999fdc 249
+internal/remote/password_login_test.go
+  s_c1c985d7f57ab9::t_b59b036d369234 1-256
+internal/network/network_test.go
+  s_c1c985d7f57ab9::t_b59b036d369234 245-277
+internal/packages/variables.go
+  s_c1c985d7f57ab9::t_b59b036d369234 1-183
+internal/remote/remote.go
+  s_c1c985d7f57ab9::t_b59b036d369234 25,32,52-53,105-106
+docs/troubleshooting.md
+  s_c1c985d7f57ab9::t_b59b036d369234 326-376,530-535,682-690,2636-2648
+  s_c1c985d7f57ab9::t_21cec4d26c230f 2635
+  s_c1c985d7f57ab9::t_c42df28519e2c0 691
+internal/commands/facts.go
+  s_c1c985d7f57ab9::t_b59b036d369234 60,75-76,83-88,93
+internal/commands/machines.go
+  s_c1c985d7f57ab9::t_b59b036d369234 34,58-62,148,308-310,431-433,557-561
+internal/commands/password_login_test.go
+  s_c1c985d7f57ab9::t_b59b036d369234 1-277
+scripts/accept/upload.sh
+  s_c1c985d7f57ab9::t_b59b036d369234 50
+scripts/accept/v05-packages-credentials-dns.sh
+  s_c1c985d7f57ab9::t_b59b036d369234 94
+docs/getting-started.md
+  s_c1c985d7f57ab9::t_b59b036d369234 3-5
+internal/commands/config.go
+  s_c1c985d7f57ab9::t_b59b036d369234 51-54,57,108,148,169
+scripts/accept/v06-expose-tunnel.sh
+  s_c1c985d7f57ab9::t_b59b036d369234 88
+docs/how-it-works/password-login.md
+  s_c1c985d7f57ab9::t_b59b036d369234 1-93
+docs/reference/commands.md
+  s_c1c985d7f57ab9::t_b59b036d369234 18,37-47,95,320,324,343-346,369,395-396,437,502-521,603-611,649-650,1580-1584,1634-1636
+internal/commands/packages_config.go
+  s_c1c985d7f57ab9::t_b59b036d369234 159-164,261-262,270,275-277,279
+scripts/accept/update.sh
+  s_c1c985d7f57ab9::t_b59b036d369234 89
+scripts/accept/common.sh
+  s_c1c985d7f57ab9::t_b59b036d369234 153-250
+internal/commands/workspaces.go
+  s_c1c985d7f57ab9::t_b59b036d369234 275-277,734-741,954,959-962
+  s_c1c985d7f57ab9::t_adb039550d69fb 963-964
+internal/commands/expose.go
+  s_c1c985d7f57ab9::t_b59b036d369234 191-196,218
+internal/packages/skeleton.go
+  s_c1c985d7f57ab9::t_b59b036d369234 40
+internal/remote/bootstrap_test.go
+  s_c1c985d7f57ab9::t_b59b036d369234 304-310
+internal/remote/password_login.go
+  s_c1c985d7f57ab9::t_b59b036d369234 1-205
+docs/reference/package-format.md
+  s_c1c985d7f57ab9::t_b59b036d369234 148-187
+internal/commands/network_login.go
+  s_c1c985d7f57ab9::t_b59b036d369234 60-61
+internal/remote/networks.go
+  s_c1c985d7f57ab9::t_b59b036d369234 9,146-148,150-164
+internal/commands/setting_types.go
+  s_c1c985d7f57ab9::t_b59b036d369234 1-82
+scripts/accept/network-package.sh
+  s_c1c985d7f57ab9::t_b59b036d369234 61
+internal/commands/setup.go
+  s_c1c985d7f57ab9::t_b59b036d369234 38-39,55-63,192,211-213,276-277,280-284,944-948,956,970,978,982,990,993,995,1004-1011,1013-1020,1027,1030,1199,1226-1238
+internal/config/location_test.go
+  s_c1c985d7f57ab9::t_b59b036d369234 196-220
+internal/commands/setting_types_test.go
+  s_c1c985d7f57ab9::t_b59b036d369234 1-127
+internal/remote/remote_test.go
+  s_c1c985d7f57ab9::t_b59b036d369234 98,111
+docs/guides/index.md
+  s_c1c985d7f57ab9::t_b59b036d369234 20-21
+docs/changelog.md
+  s_c1c985d7f57ab9::t_b59b036d369234 11-73,129-135
+  s_c1c985d7f57ab9::t_eafcdf64eaf75f 136
+internal/commands/setup_test.go
+  s_c1c985d7f57ab9::t_b59b036d369234 77,142,144,228,348,422,446
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "322718a88ba9fbd9262f2ae5b867ba94a749ecfc",
+  "prompts": {},
+  "sessions": {
+    "s_c1c985d7f57ab9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b5256304-4a81-480d-a568-f8cf11d8ddcc",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
