@@ -2017,3 +2017,29 @@ widget this is only a warning: its author's names are not yours.
 **What to do:** Point `target` at a name `devmachine machines list` or
 `devmachine workspaces list` shows, or remove the widget. `widgets add`
 and `remove` still work on the board in the meantime.
+
+## "provider X is not one of commands"
+
+**What it means:** `package.yml` lists X under `providers`, but not in
+`commands`. `devmachine run --package` refuses a command that is not in
+`commands`, so a widget reading X would never get an answer.
+
+**What to do:** Add X to `commands`, or remove it from `providers`.
+
+## `package.yml` says "did not find expected ',' or '}'"
+
+**What it means:** A line written between `{` and `}` holds a value YAML
+cannot read there. The usual one is an optional type in `returns`:
+`{note: string?}`. Inside braces, `?` needs quotes.
+
+**What to do:** Write `{note: "string?"}`, or put each field on its own
+line under `returns:`, where no quotes are needed.
+
+## "provider X min_every … is below the 5s floor"
+
+**What it means:** A widget may run a package's command at most every 5
+seconds; a provider cannot promise more, because each run is a connection to
+a machine.
+
+**What to do:** Write `min_every: 5s` or more. Pick what the command can
+really afford: one that reads every container on a machine wants `30s`.

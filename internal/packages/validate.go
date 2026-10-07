@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/mydevmachine/devmachine/internal/skills"
 	"github.com/mydevmachine/devmachine/internal/widgets"
@@ -38,6 +39,11 @@ func (p Problem) Error() string {
 var aptModule = regexp.MustCompile(`^\s*(-\s*)?(ansible\.builtin\.)?(apt|apt_key|apt_repository)\s*:`)
 
 var packageName = regexp.MustCompile(`^[a-z][a-z0-9_-]*$`)
+
+var (
+	providerName = regexp.MustCompile(`^[a-z][a-z0-9_-]*$`)
+	returnField  = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_-]*$`)
+)
 
 // The kinds a package can declare.
 //
@@ -117,6 +123,7 @@ func Validate(dir string) ([]Problem, error) {
 	problems = append(problems, validatePlatforms(m)...)
 	problems = append(problems, validateBootstrap(dir, m)...)
 	problems = append(problems, validateEntrypoint(dir, m)...)
+	problems = append(problems, validateProviders(m)...)
 	problems = append(problems, validateCredentials(m)...)
 	problems = append(problems, validateSkills(dir, m)...)
 	problems = append(problems, validateWidgets(dir, m)...)
@@ -317,6 +324,62 @@ func validateEntrypoint(dir string, m Manifest) []Problem {
 
 	for _, what := range scriptProblems(dir, "entrypoint", m.Entrypoint) {
 		at("entrypoint", what)
+	}
+	return problems
+}
+
+// validateProviders checks the commands a package lets widgets read. The
+// types and the floor are the engine contract's, so a package and the widgets
+// reading it are judged by the same rules.
+func validateProviders(m Manifest) []Problem {
+	if len(m.Providers) == 0 {
+		return nil
+	}
+	rules := widgets.CurrentContract().PackageProvider
+	floor, _ := time.ParseDuration(rules.MinEvery)
+	var problems []Problem
+	at := func(field, format string, args ...any) {
+		line := m.Lines[field]
+		if line == 0 {
+			line = m.Lines["providers"]
+		}
+		problems = append(problems, Problem{File: FileName, Line: line, What: fmt.Sprintf(format, args...)})
+	}
+	if m.Entrypoint == "" {
+		at("providers", "`providers` are commands of an `entrypoint`, and this package declares none")
+		return problems
+	}
+	anything := slices.Contains(m.Commands, AnyCommand)
+	for _, name := range sortedKeys(m.Providers) {
+		p, key := m.Providers[name], "providers."+name
+		switch {
+		case !providerName.MatchString(name):
+			at(key, "provider %q: use lower case letters, digits, dashes and underscores, starting with a letter", name)
+		case !anything && !slices.Contains(m.Commands, name):
+			at(key, "provider %s is not one of commands: add it to commands, or remove the provider", name)
+		}
+		if len(p.Returns) == 0 {
+			at(key, "provider %s says what it returns: returns: {<field>: <type>}", name)
+		}
+		for _, field := range sortedKeys(p.Returns) {
+			where := key + ".returns." + field
+			if !returnField.MatchString(field) {
+				at(where, "provider %s returns.%s: a field name is letters, digits, dashes and underscores, starting with a letter", name, field)
+			}
+			if kind := strings.TrimSuffix(p.Returns[field], rules.Optional); !slices.Contains(rules.Returns, kind) {
+				at(where, "provider %s returns.%s is %q: the types are %s, each with %s when optional",
+					name, field, p.Returns[field], strings.Join(rules.Returns, ", "), rules.Optional)
+			}
+		}
+		every, err := time.ParseDuration(p.MinEvery)
+		switch {
+		case p.MinEvery == "":
+			at(key, "provider %s needs min_every: how often a widget may run it at most, at least %s", name, rules.MinEvery)
+		case err != nil:
+			at(key+".min_every", "provider %s min_every %q is not a duration: write it like 10s or 1m", name, p.MinEvery)
+		case every < floor:
+			at(key+".min_every", "provider %s min_every %s is below the %s floor", name, p.MinEvery, rules.MinEvery)
+		}
 	}
 	return problems
 }
@@ -547,7 +610,7 @@ func joinInts(values []int) string {
 }
 
 // sortedKeys keeps a message about a map from moving between runs.
-func sortedKeys(m map[string]string) []string {
+func sortedKeys[V any](m map[string]V) []string {
 	out := make([]string, 0, len(m))
 	for k := range m {
 		out = append(out, k)

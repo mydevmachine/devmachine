@@ -107,6 +107,13 @@ type SkillContribution struct {
 	Path string `yaml:"path"`
 }
 
+// Provider is one of a package's commands that a widget may read: the
+// fields of the one JSON object it prints, and how often it may run at most.
+type Provider struct {
+	Returns  map[string]string `yaml:"returns"`
+	MinEvery string            `yaml:"min_every"`
+}
+
 // Manifest is what package.yml holds.
 type Manifest struct {
 	// Format is the shape of this file, and it is required. Without it the
@@ -148,12 +155,15 @@ type Manifest struct {
 	// answers, the executable to call on the machine, and what that executable
 	// accepts.
 	//
-	// Commands is a list, or the single entry "*" for anything. Nothing calls
-	// them in this version; validating them now is what stops the first one
-	// inventing its own shape.
+	// Commands is a list, or the single entry "*" for anything. `devmachine
+	// run --package` is the door to them, and refuses anything else.
 	Kind       string   `yaml:"kind"`
 	Entrypoint string   `yaml:"entrypoint"`
 	Commands   []string `yaml:"commands"`
+
+	// Providers are the commands a widget may read, each printing one JSON
+	// object. The key is the command; a widget names it <package>/<command>.
+	Providers map[string]Provider `yaml:"providers"`
 
 	// Bootstrap is a POSIX sh script that brings a machine to the point where
 	// Ansible can run on it, for a system that has no package manager the CLI
@@ -162,7 +172,8 @@ type Manifest struct {
 	Bootstrap string `yaml:"bootstrap"`
 
 	// Path is the directory the manifest was read from, and Lines maps a
-	// top-level field name onto the line it was written on.
+	// top-level field name, or a dotted path under providers, onto the line
+	// it was written on.
 	Path  string         `yaml:"-"`
 	Lines map[string]int `yaml:"-"`
 }
@@ -193,8 +204,9 @@ func ParseManifest(dir string) (Manifest, error) {
 	return m, nil
 }
 
-// topLevelLines maps each top-level key onto the line it was written on, so a
-// validation message can point at it.
+// topLevelLines maps each top-level key onto the line it was written on, and
+// every key under providers onto its own, so a validation message can point
+// at it.
 func topLevelLines(root *yaml.Node) map[string]int {
 	lines := map[string]int{}
 	if len(root.Content) == 0 || root.Content[0].Kind != yaml.MappingNode {
@@ -203,8 +215,22 @@ func topLevelLines(root *yaml.Node) map[string]int {
 	pairs := root.Content[0].Content
 	for i := 0; i+1 < len(pairs); i += 2 {
 		lines[pairs[i].Value] = pairs[i].Line
+		if pairs[i].Value == "providers" {
+			nestedLines(lines, "providers", pairs[i+1])
+		}
 	}
 	return lines
+}
+
+func nestedLines(lines map[string]int, prefix string, node *yaml.Node) {
+	if node.Kind != yaml.MappingNode {
+		return
+	}
+	for i := 0; i+1 < len(node.Content); i += 2 {
+		key := prefix + "." + node.Content[i].Value
+		lines[key] = node.Content[i].Line
+		nestedLines(lines, key, node.Content[i+1])
+	}
 }
 
 // FirstCLIWithWidgets is the first CLI version that reads `widgets:`.
