@@ -1651,6 +1651,29 @@ program called `df -h /`, which does not exist. Nothing ran.
 **What to do:** Write `run: df` and `args: [-h, /]`. If you need a pipe
 or `&&`, set `shell: true`; then `run` is a shell line.
 
+## "source.run puts {{…}} inside quotes"
+
+**What it means:** With `shell: true` the app wraps every template value
+in single quotes before the shell reads the line. If you already put the
+template inside quotes, as in `echo '{{inputs.path}}'`, the app's quotes
+close yours, and a value such as `a; rm -rf ~` or `$(id)` runs as shell
+code. The widget is refused so that cannot happen.
+
+**What to do:** Remove the quotes around the template:
+`echo {{inputs.path}}`. The value still reaches the program as one word,
+spaces and all.
+
+## "source.run "…" starts with -" or "has ="
+
+**What it means:** Without `shell: true`, the app starts a local program
+through `env`. `env` reads a first word that starts with `-` as one of its
+own options, and a word with `=` as a variable to set, so the program you
+meant would not run.
+
+**What to do:** Put the program's name in `run` and options in `args`.
+To set a variable for the program, set `shell: true` and write
+`run: LC_ALL=C df -h /`.
+
 ## "source.script "…" is not executable" or "only its owner can run it"
 
 **What it means:** The file a package widget runs is copied to the

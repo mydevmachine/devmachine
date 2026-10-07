@@ -91,7 +91,12 @@ source:
 - `args` are passed to the program one by one; no shell reads them, so a
   space or a `;` in one is just a character. A `run` with spaces is refused:
   put the arguments in `args`, or set `shell: true`, and `run` becomes a
-  shell line, with every value from a template quoted for the shell.
+  shell line, with every value from a template quoted for the shell. So
+  write a template bare (`echo {{inputs.path}}`), never inside your own
+  quotes: `'{{inputs.path}}'` or `"{{inputs.path}}"` is refused, because the
+  value would close those quotes and run as shell code. Without a shell,
+  `run` cannot start with `-` or hold `=`: the app starts the program
+  through `env`, which would read it as an option or a variable.
 - `target` is `local` (the computer the app runs on, the default),
   `{machine: <name>}` or `{workspace: <name>}`. A machine or a workspace is
   reached through `devmachine run`; the app never opens its own SSH.
@@ -344,6 +349,8 @@ One unit is 80pt; positions and free resizes snap to 8pt.
 | a key of another kind | `source.url is not a field of a command source: it takes …` |
 | no `run`/`script`, or both | `a command source needs run or script`, `a command source has run or script, not both` |
 | `run` with spaces and no `shell: true` | `source.run "df -h /" has spaces: put each argument in source.args, or set shell: true …` |
+| a template inside quotes in a `shell: true` line | `source.run puts {{inputs.x}} inside quotes; with shell: true every value is quoted for you — remove the quotes around it` |
+| `run` starting with `-` or holding `=`, no `shell: true` | `source.run "-df" starts with -: …`, `source.run "LANG=C" has =: …` |
 | `script` outside the package, or not runnable | `source.script "X": a package widget names a file inside its package …`, `… is not executable: run chmod +x on it` |
 | `every` missing, unreadable or too short | `a command source needs source.every …`, `source.every 1s is below the command minimum of 5s` |
 | `timeout` above 10m | `source.timeout 11m is above the 10m maximum` |

@@ -94,6 +94,10 @@ func TestEveryNewSourceLoadsWhenWrittenRight(t *testing.T) {
 			"  run: df\n", "  run: \"{{ inputs.machine }}\"\n")},
 		"input in a shell line": {"disk", edited(t, diskWidget,
 			"  run: df\n  args: [-h, /]\n", "  run: \"echo {{inputs.machine}}\"\n  shell: true\n")},
+		"escaped quotes around a template": {"disk", edited(t, diskWidget,
+			"  run: df\n  args: [-h, /]\n", "  run: 'echo \\''{{inputs.machine}}\\'' \"a\" {{inputs.machine}}'\n  shell: true\n")},
+		"assignment in a shell line": {"disk", edited(t, diskWidget,
+			"  run: df\n  args: [-h, /]\n", "  run: LC_ALL=C df -h /\n  shell: true\n")},
 	}
 	for name, tc := range cases {
 		if _, problems := Load(writeWidget(t, t.TempDir(), tc.folder, tc.body)); len(problems) != 0 {
@@ -115,6 +119,12 @@ func TestEachSourceRuleReportsItsOwnProblem(t *testing.T) {
 		{"run with a carriage return", "disk", diskWidget, []string{"  run: df\n  args: [-h, /]\n", "  run: \"df\\r-h\"\n"}, "has spaces"},
 		{"run with a unicode space", "disk", diskWidget, []string{"  run: df\n  args: [-h, /]\n", "  run: \"df\\u2003-h\"\n"}, "has spaces"},
 		{"run with a no-break space", "disk", diskWidget, []string{"  run: df\n  args: [-h, /]\n", "  run: \"df\\u00a0-h\"\n"}, "has spaces"},
+		{"template inside single quotes", "disk", diskWidget, []string{"  run: df\n  args: [-h, /]\n", "  run: \"echo '{{inputs.machine}}'\"\n  shell: true\n"}, "source.run puts {{inputs.machine}} inside quotes; with shell: true every value is quoted for you"},
+		{"template inside double quotes", "disk", diskWidget, []string{"  run: df\n  args: [-h, /]\n", "  run: 'echo \"a {{inputs.machine}}\"'\n  shell: true\n"}, "source.run puts {{inputs.machine}} inside quotes"},
+		{"template after an escaped quote inside double quotes", "disk", diskWidget, []string{"  run: df\n  args: [-h, /]\n", "  run: 'echo \"a\\\" {{inputs.machine}}\"'\n  shell: true\n"}, "source.run puts {{inputs.machine}} inside quotes"},
+		{"template after a backslash inside double quotes", "disk", diskWidget, []string{"  run: df\n  args: [-h, /]\n", "  run: 'echo \"\\{{inputs.machine}}\"'\n  shell: true\n"}, "source.run puts {{inputs.machine}} inside quotes"},
+		{"run starting with a dash", "disk", diskWidget, []string{"  run: df\n", "  run: -df\n"}, `source.run "-df" starts with -`},
+		{"run with an equals sign", "disk", diskWidget, []string{"  run: df\n", "  run: LANG=C\n"}, `source.run "LANG=C" has =`},
 		{"every below the minimum", "disk", diskWidget, []string{"every: 60s", "every: 1s"}, "source.every 1s is below the command minimum of 5s"},
 		{"every missing on a poll", "disk", diskWidget, []string{"  every: 60s\n", ""}, "a command source needs source.every"},
 		{"every unreadable", "disk", diskWidget, []string{"every: 60s", "every: often"}, `source.every "often" is neither a duration nor manual`},
@@ -157,6 +167,21 @@ func TestEachSourceRuleReportsItsOwnProblem(t *testing.T) {
 				t.Fatalf("the problem names no line: %v", problems[0])
 			}
 		})
+	}
+}
+
+func TestEveryQuotedTemplateInAShellLineIsReported(t *testing.T) {
+	body := edited(t, diskWidget, "  run: df\n  args: [-h, /]\n",
+		"  run: >-\n    echo '{{inputs.machine}}' {{inputs.machine}}\n    \"{{ inputs.machine }}\"\n  shell: true\n")
+	_, problems := Load(writeWidget(t, t.TempDir(), "disk", body))
+	want := []string{"{{inputs.machine}}", "{{ inputs.machine }}"}
+	if len(problems) != len(want) {
+		t.Fatalf("want %d problems, got %v", len(want), problems)
+	}
+	for i, template := range want {
+		if problems[i].Line != 10 || !strings.Contains(problems[i].Message, "puts "+template+" inside quotes") {
+			t.Errorf("problem %d: want line 10 about %s, got %v", i, template, problems[i])
+		}
 	}
 }
 
