@@ -1646,6 +1646,22 @@ schema` lists what every view takes.
 **What to do:** Set `source.parse` to what the view takes, or pick a view
 that takes what the source gives.
 
+## "view.value picks what to show out of the JSON"
+
+**What it means:** The source parses its output as JSON, which can hold
+many values, and the view shows one. It needs to be told which.
+
+**What to do:** Add `value: "{{json.<field>}}"` to the view, for example
+`value: "{{json.disk.used}}"` for `{"disk": {"used": 41}}`.
+
+## "view.ok … is not a rule"
+
+**What it means:** A status rule is a comparison and a value: `< 300`,
+`>= 99.5`, `== "up"`. Text can only be compared with `==` or `!=`.
+
+**What to do:** Rewrite the rule in one of those shapes. Quote the whole
+rule in YAML when it holds a quote: `ok: '== "up"'`.
+
 ## "requires engine >= 1.2, and this CLI implements engine 1.1"
 
 **What it means:** The widget says it needs a newer engine than this CLI

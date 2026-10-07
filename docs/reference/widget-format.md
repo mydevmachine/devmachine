@@ -52,7 +52,7 @@ places: [home]
 | `context` | no | The context keys it reads, each `required` or `optional`. A widget sees only the keys it declares. |
 | `inputs` | no | Values a person sets on each copy: `type` (`string`, `number` or `boolean`), `default`, `summary`. |
 | `source` | yes | Where the data comes from: `kind` and the fields of that kind. See [Sources](#sources). |
-| `view` | yes | How it is drawn: `kind`. |
+| `view` | yes | How it is drawn: `kind` and that view's fields. See [Views](#views). |
 | `sizes` | yes | The presets it takes. |
 | `default_size` | yes | The preset a new copy gets. One of `sizes`. |
 | `places` | no | Surfaces the app adds it to once, the first time it is available. Removing it from there is final. |
@@ -146,6 +146,39 @@ the app.
 `{{inputs.<name>}}` and `{{context.<key>}}` can go in `run`, `args`,
 target names, `url`, `prompt` and `session`. The input or key has to be
 declared. `{{item}}` works only inside a list view's `item`.
+
+## Views
+
+A view draws what a source gives. `devmachine widgets schema` lists which
+outputs each view takes; a view that cannot draw the source is refused.
+
+| View | Draws | Fields |
+| --- | --- | --- |
+| `text` | `text`, `lines`, `ansi` | `wrap` (true unless `false`), `tail` (last N lines, 1–2000) |
+| `number` | `number`, `json` | `value`, `unit`, `format`: `plain`, `percent`, `bytes`, `duration` |
+| `gauge` | `number`, `json` | `value`, `min` (0), `max` (100), `unit`, `warn`, `crit` |
+| `status` | `status`, `number`, `json`, `text` | `value`, `ok`, `warn` rules |
+| `list` | `lines`, `json` (an array) | `item: {title, subtitle, status, link}` |
+| `sparkline` | `number`, `json` | `value`, `unit`, `max`; the app keeps the last 120 points |
+| `markdown` | `text` (a prompt's answer, or any text) | none |
+| `web` | any `url` source; it loads the page itself | `zoom` (0.5–2, default 1) |
+| `terminal` | `ansi`, `text`, a `session` | `tail` |
+
+**Picking a value out of JSON.** With `parse: json`, `number`, `gauge`,
+`status` and `sparkline` need `value`, a template naming a field:
+`value: "{{json.disk.used}}"`. Without `parse: json`, `value` is refused.
+
+**Status rules.** `ok` and `warn` compare the value: `"< 300"`, `">= 99.5"`,
+`'== "up"'`, `'!= "down"'`. Text compares only with `==` and `!=`. The
+first rule that holds picks the colour; none holding means failing.
+
+**List items.** Each line, or each element of a JSON array, is one item.
+`{{item}}` is the whole item; `{{item.name}}` reads a field of a JSON
+item. `title` is `{{item}}` unless you set it.
+
+**Web.** The page is loaded in a private browser store that keeps no
+cookies between launches, and reloaded on `every`. `source.parse` does
+nothing here and is refused.
 
 ## A board
 
@@ -300,6 +333,12 @@ One unit is 80pt; positions and free resizes snap to 8pt.
 | `source.with` wrong | `source.with.X is not an argument of P`, `source.with.X is required by P` |
 | `source.every` missing, unreadable or too short | `source.every 1s is below the P minimum of 5s` |
 | `view.kind` unknown, or draws another provider | `view.kind "app.clock" draws app/clock, not P` |
+| a view key that view does not take | `view.colour is not a field of the gauge view: it takes kind, …` |
+| JSON without `value`, or `value` without JSON | `view.value picks what to show out of the JSON …`, `view.value only applies when source.parse is json` |
+| a number field that is not a number or out of range | `view.warn is high, and it has to be a number`, `view.zoom 3 is above 2` |
+| a status rule that does not read | `view.ok fine is not a rule: write it like "< 300" or '== "ok"'` |
+| `{{item.x}}` on lines, or an unknown item key | `template {{item.name}} in view.item.title reads a field, and only JSON items have fields` |
+| `web` with `source.parse` | `the web view loads the page itself: remove source.parse` |
 
 `devmachine widgets validate` and `devmachine packages validate` report
 every problem at once, with the file and line.

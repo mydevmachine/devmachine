@@ -25,11 +25,6 @@ type Input struct {
 	Summary string `yaml:"summary" json:"summary"`
 }
 
-// ViewRef names how a widget is drawn.
-type ViewRef struct {
-	Kind string `yaml:"kind" json:"kind"`
-}
-
 // Widget is what widget.yml holds.
 type Widget struct {
 	Format   int    `yaml:"format"`
@@ -204,7 +199,7 @@ func Validate(w Widget, path string, root *yaml.Node) []Problem {
 
 	scope := sourceScope{inputs: w.Inputs, context: w.Context, packageDir: w.PackageDir}
 	checkSource(w.Source, field(mapping(root), "source"), scope, c, at)
-	checkView(w.View, w.Source, c, at)
+	checkView(w.View, field(mapping(root), "view"), w.Source, scope, c, at)
 	return problems
 }
 

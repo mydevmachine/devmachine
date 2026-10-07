@@ -425,31 +425,6 @@ func checkTemplates(value, label, line string, scope sourceScope, at reporter) {
 	}
 }
 
-func checkView(v ViewRef, s Source, c Contract, at reporter) {
-	view, ok := c.Views[v.Kind]
-	switch {
-	case v.Kind == "":
-		at("view", "every widget needs view.kind")
-		return
-	case !ok:
-		at("view.kind", "view.kind %q is not a view engine %s knows: %s", v.Kind, Engine, strings.Join(viewNames(c), ", "))
-		return
-	}
-	output, known := sourceOutput(s, c)
-	if !known || accepts(view, s.Kind, output) {
-		return
-	}
-	if s.Kind == SourceProvider {
-		at("view.kind", "view.kind %q draws %s, not %s", v.Kind, strings.Join(view.Accepts, ", "), s.Name)
-		return
-	}
-	gives := output
-	if gives == "" {
-		gives = "a screen"
-	}
-	at("view.kind", "view.kind %q takes %s, and this %s source gives %s", v.Kind, strings.Join(view.Accepts, ", "), s.Kind, gives)
-}
-
 // sourceOutput is what a source hands its view: a provider's name, or how a
 // command or a url is parsed. A prompt gives text; a session gives nothing a
 // parse names, so only a view that takes its kind draws it. known is false
