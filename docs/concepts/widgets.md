@@ -80,3 +80,8 @@ devmachine widgets remove usage
 The app sees a change to the file within a second. A board with a mistake
 is never written over: the app keeps the last good layout and says which
 line is wrong, and the CLI refuses to change it until it is fixed.
+
+A board can also hold a widget written in place, with a title, a source
+and a view and no package — a quick `df` on a workspace, say. One that
+runs something waits until you press Allow. See [the widget
+format](../reference/widget-format.md#a-widget-written-in-the-board).

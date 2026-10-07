@@ -702,6 +702,41 @@ func TestWidgetsListKeepsTheEngine10ShapeForAProviderWidget(t *testing.T) {
 	t.Fatalf("claude-code/usage is missing from %s", out)
 }
 
+const inlineEntry = `  - id: disk
+    title: Disk on alice
+    source:
+      kind: command
+      run: df
+      args: [-h, /]
+      target: {workspace: alice}
+      every: 60s
+    view: {kind: text, tail: 20}
+    frame: {x: 24, y: 400, w: 320, h: 160}
+    size: medium
+    minimized: false
+    z: 9
+`
+
+func TestWidgetsRemoveKeepsAnInlineWidget(t *testing.T) {
+	dir := widgetConfig(t)
+	if _, err := execute(t, "--config", dir, "widgets", "add", "devmachine-app/clock"); err != nil {
+		t.Fatal(err)
+	}
+	board := widgets.BoardPath(dir, "home")
+	writeCommandFile(t, board, readCommandFile(t, board)+inlineEntry)
+
+	if out, err := execute(t, "--config", dir, "widgets", "add", "claude-code/usage"); err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	if out, err := execute(t, "--config", dir, "widgets", "remove", "clock"); err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	got := readCommandFile(t, board)
+	if !strings.Contains(got, inlineEntry) {
+		t.Fatalf("the inline widget did not survive:\n%s", got)
+	}
+}
+
 func TestWidgetsListPassesANewSourceThrough(t *testing.T) {
 	dir := widgetConfig(t)
 	writeWidgetPackageAt(t, packages.LocalDir(dir), "mine", "machine",

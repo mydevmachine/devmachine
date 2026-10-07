@@ -209,15 +209,38 @@ widgets:
 
 A `type` no package provides is not an error: the app keeps the entry and
 shows a placeholder, so a missing package never loses a layout. A widget
-written in place, with its own `source` and `view` and no `type`, needs
-engine 1.1 and is refused for now. A widget has either a `type` or a
-`source` and a `view`, never both.
+can also be written in place, with no `type` and no package: see below. A
+widget has either a `type` or a `source` and a `view`, never both.
 
 A key the board does not know, at the top, in a widget or in a `frame`, is
 a mistake, for example `unknown key "minimised" in a widget`. A typo is
 caught instead of being dropped on the next write.
 
 When the app or the CLI rewrites a board, comments in it are lost.
+
+### A widget written in the board
+
+```yaml
+  - id: disk
+    title: Disk on alice
+    source: {kind: command, run: df, args: [-h, /], target: {workspace: alice}, every: 60s}
+    view: {kind: text}
+    sizes: [medium, wide]
+    frame: {x: 24, y: 400, w: 320, h: 160}
+    size: medium
+    minimized: false
+    z: 9
+```
+
+It needs a `title`, a `source` and a `view`, and takes `sizes` (all the
+presets when left out) and `fits`. It has no `type`, no `with` and no
+inputs, so a template can only name a context key the board's area gives.
+A `script` is an absolute path on the target. Every source and view rule
+above applies.
+
+The app runs a `command`, `prompt` or `session` written in a board only
+after you press **Allow** on it, and asks again whenever it changes. See
+[why a widget an agent wrote waits for you](../how-it-works/why-an-agent-written-widget-waits.md).
 
 ## What the engine offers
 
@@ -339,6 +362,9 @@ One unit is 80pt; positions and free resizes snap to 8pt.
 | a status rule that does not read | `view.ok fine is not a rule: write it like "< 300" or '== "ok"'` |
 | `{{item.x}}` on lines, or an unknown item key | `template {{item.name}} in view.item.title reads a field, and only JSON items have fields` |
 | `web` with `source.parse` | `the web view loads the page itself: remove source.parse` |
+| a board widget with no `title`, `source` or `view` | `disk: a widget written in the board needs a title` |
+| a board widget with `with` or `{{inputs.x}}` | `disk: a widget written in the board has no inputs, so it takes no with` |
+| a board widget's `script` not absolute | `disk: source.script "bin/df": a widget written in a board names an absolute path on the target` |
 
 `devmachine widgets validate` and `devmachine packages validate` report
 every problem at once, with the file and line.

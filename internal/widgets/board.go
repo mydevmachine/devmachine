@@ -28,7 +28,7 @@ var (
 
 var (
 	boardFields    = []string{"format", "surface", "widgets"}
-	instanceFields = []string{"id", "type", "with", "frame", "size", "minimized", "z", "source", "view"}
+	instanceFields = []string{"id", "type", "title", "with", "source", "view", "sizes", "fits", "frame", "size", "minimized", "z"}
 	frameFields    = []string{"x", "y", "w", "h"}
 )
 
@@ -46,11 +46,17 @@ type Frame struct {
 	H int `yaml:"h" json:"h"`
 }
 
-// Instance is one widget placed on a board.
+// Instance is one widget placed on a board: a widget from the catalog named
+// by Type, or one written in place with a Title, a Source and a View.
 type Instance struct {
 	ID        string         `yaml:"id" json:"id"`
 	Type      string         `yaml:"type" json:"type"`
+	Title     string         `yaml:"title,omitempty" json:"title,omitempty"`
 	With      map[string]any `yaml:"with" json:"with"`
+	Source    *Source        `yaml:"source,omitempty" json:"source,omitempty"`
+	View      *ViewRef       `yaml:"view,omitempty" json:"view,omitempty"`
+	Sizes     []string       `yaml:"sizes,omitempty" json:"sizes,omitempty"`
+	Fits      []string       `yaml:"fits,omitempty" json:"fits,omitempty"`
 	Frame     Frame          `yaml:"frame" json:"frame"`
 	Size      string         `yaml:"size" json:"size"`
 	Minimized bool           `yaml:"minimized" json:"minimized"`
@@ -60,6 +66,21 @@ type Instance struct {
 	// of a type, and Line is where the entry starts in the file.
 	Inline bool `yaml:"-" json:"-"`
 	Line   int  `yaml:"-" json:"-"`
+
+	// The nodes source and view were read from are written back as they
+	// were, so a rewrite never reshapes a widget somebody wrote by hand.
+	lines      map[string]int
+	sourceNode *yaml.Node
+	viewNode   *yaml.Node
+}
+
+// lineOf is the line of one of the entry's fields, such as "source.every",
+// or the entry's own line when that field is not written.
+func (w Instance) lineOf(field string) int {
+	if line := w.lines[field]; line > 0 {
+		return line
+	}
+	return w.Line
 }
 
 // Board is what <config>/boards/<surface>.yml holds.
@@ -111,10 +132,13 @@ func ParseBoard(path string, body []byte) (Board, []Problem) {
 			if i >= len(b.Widgets) {
 				break
 			}
-			b.Widgets[i].Line = entry.Line
-			b.Widgets[i].Inline = field(entry, "source") != nil || field(entry, "view") != nil
+			w := &b.Widgets[i]
+			w.Line = entry.Line
+			w.sourceNode, w.viewNode = field(entry, "source"), field(entry, "view")
+			w.Inline = w.sourceNode != nil || w.viewNode != nil
+			w.lines = fieldLines(&yaml.Node{Kind: yaml.DocumentNode, Content: []*yaml.Node{entry}})
 			if field(entry, "size") == nil {
-				b.Widgets[i].Size = SizeCustom
+				w.Size = SizeCustom
 			}
 			problems = append(problems, unknownBoardKeys(path, entry, instanceFields, "a widget")...)
 			problems = append(problems, unknownBoardKeys(path, field(entry, "frame"), frameFields, "a frame")...)
@@ -176,13 +200,10 @@ func ValidateBoard(b Board, path string, lookup Lookup) []Problem {
 		case w.Type != "" && w.Inline:
 			at(w.Line, "%s: a widget has either a type or a source and a view, not both", label)
 			continue
-		case w.Type == "" && w.Inline:
-			at(w.Line, "%s: a widget with its own source and view needs engine 1.1; this CLI implements engine %s", label, Engine)
+		case w.Type == "" && !w.Inline:
+			at(w.Line, "%s: every widget needs a type, written <package>/<widget>, or a title, a source and a view", label)
 			continue
-		case w.Type == "":
-			at(w.Line, "%s: every widget needs a type, written <package>/<widget>", label)
-			continue
-		case !instanceType.MatchString(w.Type):
+		case !w.Inline && !instanceType.MatchString(w.Type):
 			at(w.Line, "%s: type %q is written <package>/<widget>", label, w.Type)
 			continue
 		}
@@ -194,6 +215,10 @@ func ValidateBoard(b Board, path string, lookup Lookup) []Problem {
 			if _, ok := c.Presets[w.Size]; !ok {
 				at(w.Line, "%s: size %q is a preset (%s) or custom", label, w.Size, strings.Join(presetNames(c), ", "))
 			}
+		}
+		if w.Inline {
+			problems = append(problems, validateInline(w, label, path, surface, c)...)
+			continue
 		}
 
 		entry, known := lookup(w.Type)
@@ -282,17 +307,23 @@ func EncodeBoard(b Board) ([]byte, error) {
 	for _, w := range b.Widgets {
 		entry := &yaml.Node{Kind: yaml.MappingNode}
 		put(entry, "id", scalarNode(w.ID))
-		put(entry, "type", scalarNode(w.Type))
-		if len(w.With) > 0 {
-			with := &yaml.Node{Kind: yaml.MappingNode, Style: yaml.FlowStyle}
-			for _, name := range sortedKeys(w.With) {
-				value := &yaml.Node{}
-				if err := value.Encode(w.With[name]); err != nil {
-					return nil, fmt.Errorf("writing input %s of %s: %w", name, w.ID, err)
-				}
-				put(with, name, value)
+		if w.Inline {
+			if err := putInline(entry, w); err != nil {
+				return nil, err
 			}
-			put(entry, "with", with)
+		} else {
+			put(entry, "type", scalarNode(w.Type))
+			if len(w.With) > 0 {
+				with := &yaml.Node{Kind: yaml.MappingNode, Style: yaml.FlowStyle}
+				for _, name := range sortedKeys(w.With) {
+					value := &yaml.Node{}
+					if err := value.Encode(w.With[name]); err != nil {
+						return nil, fmt.Errorf("writing input %s of %s: %w", name, w.ID, err)
+					}
+					put(with, name, value)
+				}
+				put(entry, "with", with)
+			}
 		}
 		frame := &yaml.Node{Kind: yaml.MappingNode, Style: yaml.FlowStyle}
 		put(frame, "x", intNode(w.Frame.X))
@@ -324,6 +355,49 @@ func EncodeBoard(b Board) ([]byte, error) {
 		return nil, fmt.Errorf("writing the board: %w", err)
 	}
 	return buffer.Bytes(), nil
+}
+
+// putInline writes title, source, view, sizes and fits, in that order.
+// source and view go back as the nodes they were read from, so a rewrite
+// keeps their layout; an entry built in code is encoded from its fields.
+func putInline(entry *yaml.Node, w Instance) error {
+	put(entry, "title", scalarNode(w.Title))
+	source, err := nodeFor(w.sourceNode, w.Source)
+	if err != nil {
+		return fmt.Errorf("writing the source of %s: %w", w.ID, err)
+	}
+	put(entry, "source", source)
+	view, err := nodeFor(w.viewNode, w.View)
+	if err != nil {
+		return fmt.Errorf("writing the view of %s: %w", w.ID, err)
+	}
+	put(entry, "view", view)
+	if len(w.Sizes) > 0 {
+		put(entry, "sizes", flowList(w.Sizes))
+	}
+	if len(w.Fits) > 0 {
+		put(entry, "fits", flowList(w.Fits))
+	}
+	return nil
+}
+
+func nodeFor(read *yaml.Node, value any) (*yaml.Node, error) {
+	if read != nil {
+		return read, nil
+	}
+	node := &yaml.Node{}
+	if err := node.Encode(value); err != nil {
+		return nil, err
+	}
+	return node, nil
+}
+
+func flowList(items []string) *yaml.Node {
+	list := &yaml.Node{Kind: yaml.SequenceNode, Style: yaml.FlowStyle}
+	for _, item := range items {
+		list.Content = append(list.Content, scalarNode(item))
+	}
+	return list
 }
 
 func put(m *yaml.Node, key string, value *yaml.Node) {

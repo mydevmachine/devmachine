@@ -74,7 +74,7 @@ func TestEachBoardRuleReportsItsOwnProblem(t *testing.T) {
 		{"id used twice", "id: usage", "id: clock", `id "clock" is used twice`},
 		{"type missing", "    type: devmachine-app/clock\n", "", "every widget needs a type"},
 		{"type malformed", "type: devmachine-app/clock", "type: clock", `type "clock" is written <package>/<widget>`},
-		{"inline widget", "    type: devmachine-app/clock\n", "    source: {kind: provider, name: app/clock}\n    view: {kind: app.clock}\n", "needs engine 1.1"},
+		{"inline widget", "    type: devmachine-app/clock\n", "    title: Clock\n    source: {kind: provider, name: app/clock}\n    view: {kind: app.clock}\n", "clock: every widget needs source.every, at least 5s for app/clock"},
 		{"negative position", "x: 24, y: 24, w: 320", "x: -8, y: 24, w: 320", "frame x and y cannot be negative"},
 		{"size unknown", "size: medium\n    minimized: false\n    z: 1", "size: huge\n    minimized: false\n    z: 1", `size "huge" is a preset`},
 		{"zero frame on an unknown type", "w: 320, h: 160}\n    size: medium\n    minimized: false\n    z: 1", "w: 0, h: 160}\n    size: medium\n    minimized: false\n    z: 1", "frame w and h must be above zero"},

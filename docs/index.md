@@ -143,6 +143,9 @@ these when something behaves in a way that surprises you.
 - [Why widgets come from packages](how-it-works/widgets-come-from-packages.md)
   — why there is no other source, when a widget is available, and why the
   app has no built-in copy.
+- [Why a widget an agent wrote waits for you](how-it-works/why-an-agent-written-widget-waits.md)
+  — which board widgets ask before they run, what you approve, and where
+  the answer is kept.
 - [Updating](how-it-works/updating.md) — why `update` stops before your
   machines, hands over to the new CLI, and goes through Homebrew when
   Homebrew installed it.

@@ -1755,3 +1755,21 @@ file; `remove` never does.
 
 **What to do:** Check `--board` and the config directory the path names.
 To see what is on a board, open `<config>/boards/<board>.yml`.
+
+## "a widget written in the board needs a title"
+
+**What it means:** A board entry with a `source` or a `view` and no
+`type` is a widget written in place. It needs a `title` (what the card
+shows), a `source` and a `view`. An entry with a `type` and a `source`
+mixes the two kinds and is refused too.
+
+**What to do:** Add the missing key, or, for a widget from the gallery,
+keep only `type` and `with`.
+
+## "a widget written in a board names an absolute path on the target"
+
+**What it means:** A widget in a board belongs to no package, so a
+relative `script` has nothing to be relative to.
+
+**What to do:** Write the full path on the target, for example
+`/home/alice/bin/check-disk`, or use `run` with `args`.

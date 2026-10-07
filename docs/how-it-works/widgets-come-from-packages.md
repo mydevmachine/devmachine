@@ -1,8 +1,11 @@
 # Why widgets come from packages
 
-A widget can only come from a package: the pinned packages release, or a
-package in your configuration folder. There is no widget store, no folder
-of loose widgets, and no copy inside the app.
+A widget you pick from the gallery comes from a package: the pinned
+packages release, or a package in your configuration folder. There is no
+widget store, no folder of loose widgets, and no copy inside the app. The
+one other way is to write a widget straight into a board (engine 1.1),
+which is how you or your agent make a one-off; one that runs something
+[waits for your approval](why-an-agent-written-widget-waits.md).
 
 ## One place for a tool and its widget
 
