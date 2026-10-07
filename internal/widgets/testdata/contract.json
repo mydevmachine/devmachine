@@ -1,5 +1,5 @@
 {
-  "engine": "1.4",
+  "engine": "1.5",
   "layouts": ["canvas", "stack", "slot", "tabs"],
   "unit": 80,
   "snap": 8,
@@ -9,6 +9,24 @@
   "slot_max": 3,
   "slot_entry": {"forbids": ["frame", "size", "collapsed", "z", "minimized"], "views": ["text", "number", "status", "app.brand"], "text_max": 24, "min_every": "30s"},
   "tabs_entry": {"forbids": ["frame", "z", "minimized", "collapsed"], "ignores": ["size"]},
+  "input_types": {
+    "string": {"with": "string"},
+    "number": {"with": "number"},
+    "boolean": {"with": "bool"},
+    "choice": {"fields": {
+      "from": {"type": "enum", "required": true, "values": ["harnesses", "machines", "workspaces"]},
+      "many": {"type": "bool", "default": false}},
+      "with": "string, or a list of strings when many"}
+  },
+  "option_sources": {
+    "harnesses": {"values": ["claude", "codex"]},
+    "machines": {"config": "machines"},
+    "workspaces": {"config": "workspaces"}
+  },
+  "entry_overrides": {
+    "title": {"type": "string"},
+    "every": {"type": "every"}
+  },
   "surfaces": {
     "home": {"layout": "canvas", "status": "available", "context": {}},
     "sidebar": {"layout": "stack", "status": "available", "context": {"selected": {"type": "workspace", "presence": "optional"}}},
@@ -33,7 +51,7 @@
   "providers": {
     "app/clock": {"args": {}, "min_every": "5s", "returns": {"time": "string", "date": "string", "host": "string"}},
     "app/summary": {"args": {}, "min_every": "5s", "returns": {"sessions": "int", "harness_sessions": "int", "workspaces": "int"}},
-    "app/machines": {"args": {}, "min_every": "5s", "returns": {"list": "machine_stats"}},
+    "app/machines": {"args": {"machines": {"type": "list", "required": false}}, "min_every": "5s", "returns": {"list": "machine_stats"}},
     "app/harness-usage": {"args": {"harness": {"type": "string", "required": true}}, "min_every": "5s", "returns": {"harness": "string", "windows": "list", "error": "string?"}},
     "app/workspaces": {"args": {}, "min_every": "5s", "returns": {"workspaces": "workspace_sessions"}},
     "app/session-context": {"args": {}, "min_every": "5s", "context": {"session": "required"}, "returns": {
@@ -73,7 +91,7 @@
     "app.pull-requests": {"accepts": ["app/session-context"], "layouts": ["stack"], "grows": true},
     "app.links": {"accepts": ["app/session-context"], "layouts": ["stack"], "grows": true},
     "app.brand": {"accepts": ["app/brand"], "layouts": ["slot"]},
-    "app.pull-requests-panel": {"accepts": ["app/pull-requests-panel"], "layouts": ["tabs"]},
+    "app.pull-requests-panel": {"accepts": ["app/pull-requests-panel"], "layouts": ["tabs", "canvas", "stack"]},
     "app.usage-panel": {"accepts": ["app/usage-panel"], "layouts": ["tabs"]},
     "text": {"accepts": ["text", "lines", "ansi"], "fields": {
       "wrap": {"type": "bool", "default": true},

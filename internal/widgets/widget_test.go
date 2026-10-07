@@ -126,7 +126,7 @@ func TestEachRuleReportsItsOwnProblem(t *testing.T) {
 		{"template names an unknown input", "usage", "{{inputs.harness}}", "{{inputs.agent}}", "needs inputs.agent"},
 		{"template names an undeclared context key", "usage", "{{inputs.harness}}", "{{context.repo}}", "needs context.repo to be declared"},
 		{"template names something else", "usage", "{{inputs.harness}}", "{{env.HOME}}", "names neither inputs.<name> nor context.<name>"},
-		{"source.kind unknown", "usage", "kind: provider", "kind: magic", `source.kind "magic": engine 1.4 knows provider, command, url, prompt, session`},
+		{"source.kind unknown", "usage", "kind: provider", "kind: magic", `source.kind "magic": engine 1.5 knows provider, command, url, prompt, session`},
 		{"source.name unknown", "usage", "name: app/harness-usage", "name: app/weather", `source.name "app/weather" is not a provider`},
 		{"source.with has an extra argument", "usage", `with: {harness: "{{inputs.harness}}"}`, `with: {harness: "{{inputs.harness}}", colour: red}`, "source.with.colour is not an argument of app/harness-usage"},
 		{"source.with misses a required argument", "usage", `with: {harness: "{{inputs.harness}}"}`, "with: {}", "source.with.harness is required by app/harness-usage"},
@@ -185,10 +185,10 @@ func TestAFormatMismatchStopsEveryOtherCheck(t *testing.T) {
 }
 
 func TestANewerEngineStopsEveryOtherCheck(t *testing.T) {
-	body := strings.Replace(usageWidget, `">= 1.0"`, `">= 1.5"`, 1)
+	body := strings.Replace(usageWidget, `">= 1.0"`, `">= 1.6"`, 1)
 	body = strings.Replace(body, "view: {kind: app.harness-usage}", "view: {kind: gauge}", 1)
 	_, problems := Load(writeWidget(t, t.TempDir(), "usage", body))
-	if len(problems) != 1 || !strings.Contains(problems[0].Message, "requires engine >= 1.5, and this CLI implements engine 1.4") {
+	if len(problems) != 1 || !strings.Contains(problems[0].Message, "requires engine >= 1.6, and this CLI implements engine 1.5") {
 		t.Fatalf("got %v", problems)
 	}
 }

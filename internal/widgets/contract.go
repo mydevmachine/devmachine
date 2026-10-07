@@ -5,7 +5,7 @@ package widgets
 import "slices"
 
 // Engine is the version of the contract this CLI implements.
-const Engine = "1.4"
+const Engine = "1.5"
 
 // LastEngineWithoutPackageProviders is the newest engine that cannot run a
 // package provider, so a widget reading one must refuse it.
@@ -106,6 +106,17 @@ const SizeCustom = "custom"
 // that grows takes it.
 const SizeAuto = "auto"
 
+// InputChoice is the input type a person picks from a list the app fills
+// from one of the option sources.
+const InputChoice = "choice"
+
+// The option sources a choice input takes its options from.
+const (
+	OptionHarnesses  = "harnesses"
+	OptionMachines   = "machines"
+	OptionWorkspaces = "workspaces"
+)
+
 // ContextKey is one value a surface hands to the widgets on it.
 type ContextKey struct {
 	Type     string `json:"type"`
@@ -188,6 +199,20 @@ type TabsEntry struct {
 	Ignores []string `json:"ignores"`
 }
 
+// InputType is one type an input may declare: the keys it takes besides
+// type, default and summary, and what a board's with holds for it.
+type InputType struct {
+	Fields map[string]Field `json:"fields,omitempty"`
+	With   string           `json:"with"`
+}
+
+// OptionSource is where a choice's options come from: a list in the
+// person's config.yml, or values the contract names.
+type OptionSource struct {
+	Config string   `json:"config,omitempty"`
+	Values []string `json:"values,omitempty"`
+}
+
 // PackageProviderRules is how a package's own command feeds a widget: the
 // name a widget calls it by, what its package.yml may declare, where it runs,
 // what it prints, how a widget's with reaches it, and when its widgets ask.
@@ -216,6 +241,9 @@ type Contract struct {
 	SlotMax         int                          `json:"slot_max"`
 	SlotEntry       SlotEntry                    `json:"slot_entry"`
 	TabsEntry       TabsEntry                    `json:"tabs_entry"`
+	InputTypes      map[string]InputType         `json:"input_types"`
+	OptionSources   map[string]OptionSource      `json:"option_sources"`
+	EntryOverrides  map[string]Field             `json:"entry_overrides"`
 	Surfaces        map[string]Surface           `json:"surfaces"`
 	ContextTypes    map[string]map[string]string `json:"context_types"`
 	Providers       map[string]Provider          `json:"providers"`
@@ -226,7 +254,7 @@ type Contract struct {
 	Formats         map[string]int               `json:"formats"`
 }
 
-// CurrentContract returns engine 1.4, built fresh on every call so no caller
+// CurrentContract returns engine 1.5, built fresh on every call so no caller
 // can change what another one reads.
 func CurrentContract() Contract {
 	appProvider := func(args map[string]Arg, returns map[string]string) Provider {
@@ -264,6 +292,24 @@ func CurrentContract() Contract {
 			TextMax: 24, MinEvery: "30s",
 		},
 		TabsEntry: TabsEntry{Forbids: []string{"frame", "z", "minimized", "collapsed"}, Ignores: []string{"size"}},
+		InputTypes: map[string]InputType{
+			"string":  {With: "string"},
+			"number":  {With: "number"},
+			"boolean": {With: "bool"},
+			InputChoice: {Fields: map[string]Field{
+				"from": {Type: FieldEnum, Required: true, Values: []string{OptionHarnesses, OptionMachines, OptionWorkspaces}},
+				"many": {Type: FieldBool, Default: false},
+			}, With: "string, or a list of strings when many"},
+		},
+		OptionSources: map[string]OptionSource{
+			OptionHarnesses:  {Values: []string{"claude", "codex"}},
+			OptionMachines:   {Config: "machines"},
+			OptionWorkspaces: {Config: "workspaces"},
+		},
+		EntryOverrides: map[string]Field{
+			"title": {Type: FieldString},
+			"every": {Type: FieldEvery},
+		},
 		Surfaces: map[string]Surface{
 			"home": {Layout: LayoutCanvas, Status: StatusAvailable, Context: map[string]ContextKey{}},
 			"sidebar": {Layout: LayoutStack, Status: StatusAvailable, Context: map[string]ContextKey{
@@ -294,7 +340,7 @@ func CurrentContract() Contract {
 				map[string]string{"time": "string", "date": "string", "host": "string"}),
 			"app/summary": appProvider(map[string]Arg{},
 				map[string]string{"sessions": "int", "harness_sessions": "int", "workspaces": "int"}),
-			"app/machines": appProvider(map[string]Arg{},
+			"app/machines": appProvider(map[string]Arg{"machines": {Type: FieldList}},
 				map[string]string{"list": "machine_stats"}),
 			"app/harness-usage": appProvider(map[string]Arg{"harness": {Type: "string", Required: true}},
 				map[string]string{"harness": "string", "windows": "list", "error": "string?"}),
@@ -339,7 +385,7 @@ func CurrentContract() Contract {
 			"app.pull-requests":       stackView("app/session-context"),
 			"app.links":               stackView("app/session-context"),
 			"app.brand":               {Accepts: []string{"app/brand"}, Layouts: []string{LayoutSlot}},
-			"app.pull-requests-panel": {Accepts: []string{"app/pull-requests-panel"}, Layouts: []string{LayoutTabs}},
+			"app.pull-requests-panel": {Accepts: []string{"app/pull-requests-panel"}, Layouts: []string{LayoutTabs, LayoutCanvas, LayoutStack}},
 			"app.usage-panel":         {Accepts: []string{"app/usage-panel"}, Layouts: []string{LayoutTabs}},
 			"text": {Accepts: []string{ParseText, ParseLines, ParseANSI}, Fields: map[string]Field{
 				"wrap": {Type: FieldBool, Default: true},
@@ -454,3 +500,6 @@ func DrawnIn(view, layout string) bool {
 
 // SurfaceNames lists every surface the contract has, sorted.
 func SurfaceNames() []string { return surfaceNames(CurrentContract()) }
+
+// OptionSourceNames lists every option source the contract has, sorted.
+func OptionSourceNames() []string { return sortedKeys(CurrentContract().OptionSources) }

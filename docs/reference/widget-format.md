@@ -416,7 +416,7 @@ open pull request count, and the Pull Requests and Usage tabs.
 
 <!-- generated from the engine contract by `make widget-format`: start -->
 
-Engine **1.4**. Widget format 1, board format 1.
+Engine **1.5**. Widget format 1, board format 1.
 
 ### Sizes
 
@@ -455,6 +455,19 @@ The menu bar holds at most 3 widgets, left to right, each one line drawn by one 
 | `string` | none |
 | `workspace` | `machine` machine, `name` string, `path` path, `user` string |
 
+### Inputs
+
+| Type | Fields besides `type`, `default` and `summary` | A board's `with` value |
+| --- | --- | --- |
+| `boolean` | none | bool |
+| `choice` | `from` enum, required, harnesses/machines/workspaces; `many` bool, default `false` | string, or a list of strings when many |
+| `number` | none | number |
+| `string` | none | string |
+
+A choice takes its options from `harnesses` (claude, codex), `machines` (the machines in config.yml), `workspaces` (the workspaces in config.yml).
+
+An entry with a `type` may also set `every` every; `title` string on a board: they change only that copy.
+
 ### Providers
 
 | Provider | Arguments | Context it needs | Minimum `every` | Returns |
@@ -462,7 +475,7 @@ The menu bar holds at most 3 widgets, left to right, each one line drawn by one 
 | `app/brand` | none | none | 5s | `mark` string |
 | `app/clock` | none | none | 5s | `date` string, `host` string, `time` string |
 | `app/harness-usage` | `harness` string, required | none | 5s | `error` string?, `harness` string, `windows` list |
-| `app/machines` | none | none | 5s | `list` machine_stats |
+| `app/machines` | `machines` list, optional | none | 5s | `list` machine_stats |
 | `app/open-pull-requests` | none | none | 5s | `count` number |
 | `app/publish-port` | none | none | 5s | `available` bool |
 | `app/pull-requests-panel` | none | none | 5s | `error` string?, `owners` list, `pull_requests` list |
@@ -498,7 +511,7 @@ A package declares providers in its `package.yml`; a widget names one `<package>
 | `app.monitors` | `app/session-context` | stack; grows with its content | none |
 | `app.publish-port` | `app/publish-port` | stack; grows with its content | none |
 | `app.pull-requests` | `app/session-context` | stack; grows with its content | none |
-| `app.pull-requests-panel` | `app/pull-requests-panel` | tabs | none |
+| `app.pull-requests-panel` | `app/pull-requests-panel` | canvas, stack, tabs | none |
 | `app.shells` | `app/session-context` | stack; grows with its content | none |
 | `app.shortcuts` | `app/shortcuts` | stack; grows with its content | none |
 | `app.sub-agents` | `app/session-context` | stack; grows with its content | none |
@@ -525,7 +538,7 @@ A package declares providers in its `package.yml`; a widget names one `<package>
 | `format` is not 1 | `format 2, and this CLI reads widget format 1` |
 | `requires.engine` missing | `every widget needs requires.engine, for example ">= 1.0"` |
 | `requires.engine` unreadable | `requires.engine "X": write it as ">= 1.0", "> 1.0" or "= 1.0"` |
-| a newer engine is required | ``requires engine >= 1.5, and this CLI implements engine 1.4: update with `devmachine update` `` |
+| a newer engine is required | ``requires engine >= 1.6, and this CLI implements engine 1.5: update with `devmachine update` `` |
 | an unknown top-level field | `unknown field "X"` |
 | `name` malformed or not the folder | `name is "X" but the folder is "Y": a widget is found by its folder` |
 | `summary` missing | `every widget needs a one-line summary` |
@@ -540,7 +553,7 @@ A package declares providers in its `package.yml`; a widget names one `<package>
 | `context` value other than required/optional | `context key "X" is "Y": write required or optional` |
 | input type unknown, or default of the wrong type | `input "X" has type "Y"`, `input "X" is a string, and its default 3 is not` |
 | template names something undeclared | `template {{inputs.X}} in source.with.Y needs inputs.X` |
-| `source.kind` unknown | `source.kind "X": engine 1.4 knows provider, command, url, prompt, session` |
+| `source.kind` unknown | `source.kind "X": engine 1.5 knows provider, command, url, prompt, session` |
 | a key of another kind | `source.url is not a field of a command source: it takes …` |
 | no `run`/`script`, or both | `a command source needs run or script`, `a command source has run or script, not both` |
 | `run` with spaces and no `shell: true` | `source.run "df -h /" has spaces: put each argument in source.args, or set shell: true …` |
@@ -557,7 +570,7 @@ A package declares providers in its `package.yml`; a widget names one `<package>
 | `parse`, `mode` or `harness` unknown | `source.parse "yaml": a command source takes text, lines, number, json, ansi` |
 | `url` not a full address | `source.url "X": write a full address starting with https:// or http://` |
 | view does not draw the source | `view.kind "gauge" takes number, json, and this command source gives text` |
-| `source.name` unknown | `source.name "X" is not a provider engine 1.4 knows` |
+| `source.name` unknown | `source.name "X" is not a provider engine 1.5 knows` |
 | `source.with` wrong | `source.with.X is not an argument of P`, `source.with.X is required by P` |
 | an app provider with target or timeout | `source.target: app/clock is the app's own data, so it takes no target` |
 | `source.every` missing, unreadable or too short | `source.every 1s is below the P minimum of 5s` |

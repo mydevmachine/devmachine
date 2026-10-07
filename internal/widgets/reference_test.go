@@ -42,6 +42,13 @@ func TestReferenceTablesNameEveryProviderAndView(t *testing.T) {
 		"### Package providers",
 		"`<package>/<command>`",
 		"| `provider` | the provider's | no | `every` every, required; `name` provider, required; `target` target; `timeout` duration, default `30s`, max 10m; `with` args |",
+		"### Inputs",
+		"| `choice` | `from` enum, required, harnesses/machines/workspaces; `many` bool, default `false` | string, or a list of strings when many |",
+		"| `boolean` | none | bool |",
+		"A choice takes its options from `harnesses` (claude, codex), `machines` (the machines in config.yml), `workspaces` (the workspaces in config.yml).",
+		"An entry with a `type` may also set `every` every; `title` string on a board: they change only that copy.",
+		"| `app/machines` | `machines` list, optional | none | 5s | `list` machine_stats |",
+		"| `app.pull-requests-panel` | `app/pull-requests-panel` | canvas, stack, tabs | none |",
 	} {
 		if !strings.Contains(tables, want) {
 			t.Errorf("tables lack %s", want)

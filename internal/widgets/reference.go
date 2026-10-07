@@ -65,6 +65,27 @@ func ReferenceTables() string {
 		line("| `%s` | %s |", name, orNone(strings.Join(fields, ", ")))
 	}
 	line("")
+	line("### Inputs")
+	line("")
+	line("| Type | Fields besides `type`, `default` and `summary` | A board's `with` value |")
+	line("| --- | --- | --- |")
+	for _, name := range sortedKeys(c.InputTypes) {
+		input := c.InputTypes[name]
+		line("| `%s` | %s | %s |", name, orNone(describeFields(input.Fields)), input.With)
+	}
+	line("")
+	sources := make([]string, 0, len(c.OptionSources))
+	for _, name := range sortedKeys(c.OptionSources) {
+		from := "the " + c.OptionSources[name].Config + " in config.yml"
+		if values := c.OptionSources[name].Values; len(values) > 0 {
+			from = strings.Join(values, ", ")
+		}
+		sources = append(sources, fmt.Sprintf("`%s` (%s)", name, from))
+	}
+	line("A choice takes its options from %s.", strings.Join(sources, ", "))
+	line("")
+	line("An entry with a `type` may also set %s on a board: they change only that copy.", describeFields(c.EntryOverrides))
+	line("")
 	line("### Providers")
 	line("")
 	line("| Provider | Arguments | Context it needs | Minimum `every` | Returns |")

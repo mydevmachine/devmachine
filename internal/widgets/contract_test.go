@@ -168,3 +168,35 @@ func TestOnlyOneLineViewsAreDrawnInASlot(t *testing.T) {
 		}
 	}
 }
+
+func TestEngine15OffersChoicesOptionSourcesAndOverrides(t *testing.T) {
+	c := CurrentContract()
+	if got := strings.Join(OptionSourceNames(), ","); got != "harnesses,machines,workspaces" {
+		t.Fatalf("option sources %s", got)
+	}
+	choice := c.InputTypes[InputChoice]
+	if !slices.Equal(choice.Fields["from"].Values, OptionSourceNames()) || !choice.Fields["from"].Required ||
+		choice.Fields["many"].Type != FieldBool || choice.Fields["many"].Default != false {
+		t.Fatalf("choice is %+v", choice)
+	}
+	for _, name := range []string{"string", "number", "boolean", InputChoice} {
+		if c.InputTypes[name].With == "" {
+			t.Errorf("input type %s says nothing about with", name)
+		}
+	}
+	if !slices.Equal(c.OptionSources[OptionHarnesses].Values, []string{"claude", "codex"}) ||
+		c.OptionSources[OptionMachines].Config != "machines" || c.OptionSources[OptionWorkspaces].Config != "workspaces" {
+		t.Fatalf("option sources %+v", c.OptionSources)
+	}
+	if c.EntryOverrides["title"].Type != FieldString || c.EntryOverrides["every"].Type != FieldEvery || len(c.EntryOverrides) != 2 {
+		t.Fatalf("overrides %+v", c.EntryOverrides)
+	}
+	if arg := c.Providers["app/machines"].Args["machines"]; arg.Type != FieldList || arg.Required {
+		t.Fatalf("app/machines takes %+v", arg)
+	}
+	for layout, want := range map[string]bool{LayoutTabs: true, LayoutCanvas: true, LayoutStack: true, LayoutSlot: false} {
+		if DrawnIn("app.pull-requests-panel", layout) != want {
+			t.Errorf("app.pull-requests-panel in %s is %v", layout, !want)
+		}
+	}
+}
