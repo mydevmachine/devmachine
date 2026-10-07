@@ -21,7 +21,7 @@ a `size` there does nothing.
 
 ## Why three widgets, one line and 24 characters
 
-macOS draws the menu bar title as a small picture, in the same colour as
+macOS draws the menu bar title as a small picture, in the same color as
 the other icons, and the strip is shared with the clock and every other
 app. So the title holds text and at most one symbol per widget (the
 status dot), never a chart or an image. Three widgets of at most 24

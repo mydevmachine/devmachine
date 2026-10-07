@@ -1841,8 +1841,9 @@ with `--at`. The sidebars, the menu bar and its popover are lists: a
 widget there has a turn, given with `--after` or `--before`. Each flag
 only means something in its own kind of area.
 
-**What to do:** On Home use `--at x,y` or nothing; in a sidebar use
-`--after <id>`, `--before <id>` or nothing (the end of the list).
+**What to do:** On Home use `--at x,y` or nothing; in a sidebar, the menu bar or its
+popover use `--after <id>`, `--before <id>` or nothing (the end of the
+list).
 
 ## "the home area is a canvas: a widget there has a place, not a turn in a list"
 

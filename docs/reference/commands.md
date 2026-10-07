@@ -840,25 +840,25 @@ pull request count and the two tabs stay. See [the widget
 format](widget-format.md#a-board-in-the-menu-bar).
 
 `remove` takes the widget with that id off the board. On a missing
-sidebar or menu bar board it starts from the default board, so `widgets remove
-publish-port --board context-sidebar` drops that one section and keeps
-the rest.
+sidebar or menu bar board it starts from the default board, so
+`widgets remove publish-port --board context-sidebar` drops that one
+section and keeps the rest.
 
-`move` changes a widget's turn in a list: a sidebar, the menu bar or its
-popover: right after
-`--after <id>` or right before `--before <id>` (exactly one). `--board`
-is required, and Home is refused: a widget there has a place, not a turn.
-A missing board is read as the default board. A move that leaves the order
-as it was does not rewrite the file. An empty `--after ""` or `--before ""`
-is refused, on `add` as on `move`.
+`move` changes a widget's turn in a list (a sidebar, the menu bar or its
+popover): right after `--after <id>` or right before `--before <id>`
+(exactly one). `--board` is required, and Home is refused: a widget there
+has a place, not a turn. A missing board is read as the default board. A
+move that leaves the order as it was does not rewrite the file. An empty
+`--after ""` or `--before ""` is refused, on `add` as on `move`.
 
 All three re-read the board first and write it in one step (a temporary file,
 then a rename). A board with a problem is refused and left as it is; so is
 a board that changed while the command ran. Comments in a board are lost
-when the CLI rewrites it. `--format json` prints `{"board", "path", "widget"}` for `add` (for a
-widget in a sidebar or the menu bar, `frame`, `minimized` and `z` are zero
-and mean nothing, and in the menu bar `size` is `""`; `collapsed` appears
-when true) and `{"board", "path", "removed"}` for
+when the CLI rewrites it. `--format json` prints
+`{"board", "path", "widget"}` for `add` (for a widget in a list, which is a
+sidebar, the menu bar or its popover, `frame`, `minimized` and `z` are zero
+and mean nothing, and in the menu bar and its popover `size` is `""`;
+`collapsed` appears when true), `{"board", "path", "removed"}` for
 `remove`, and `{"board", "path", "moved", "order"}` for `move`, `order`
 being every id after the move.
 

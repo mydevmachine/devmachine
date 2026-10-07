@@ -77,8 +77,8 @@ The sidebar's top bar and footer, and the context panel's other tabs
 is the popover's footer (Open, Stats, Subdomains, the color picker, Quit).
 
 Each area has a board in `<config>/boards/`: `home.yml`, `sidebar.yml`,
-`context-sidebar.yml`, `menubar.yml` and `menubar-panel.yml`. Home's board says where each widget is and how
-big:
+`context-sidebar.yml`, `menubar.yml` and `menubar-panel.yml`. Home's board
+says where each widget is and how big:
 
 ```yaml
 format: 1
@@ -104,8 +104,8 @@ widgets:
 ```
 
 When a sidebar or menu bar board is missing, the app writes the board
-that draws that area as it always looked, and the CLI reads a missing one the same way. Settings →
-Appearance can reset each one.
+that draws that area as it always looked, and the CLI reads a missing one
+the same way. Settings → Appearance can reset each one.
 
 The context sidebar hands its widgets the selected session's context:
 `machine`, `session`, `workspace`, `path` (the session's folder), `repo`
