@@ -736,6 +736,9 @@ func runWorkspaceEdit(cmd *cobra.Command, opts *options, name string, e workspac
 			return err
 		}
 	}
+	if err := refuseMistypedSettings(dir, cfg.Packages, w.Settings, e.set); err != nil {
+		return err
+	}
 
 	if e.check {
 		for _, line := range changes {

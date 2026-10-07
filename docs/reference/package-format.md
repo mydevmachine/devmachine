@@ -145,6 +145,46 @@ A dash works in a package name but never in a variable name, so `-`
 becomes `_`, as does the `.` a package name may contain. Names that
 collide this way are refused, rather than one silently winning.
 
+#### Types
+
+A variable may also say what shape its value has, with `type`: one of
+`string`, `boolean`, `number`, `list` or `map`. A list whose entries are
+mappings describes them with `items.fields`:
+
+```yaml
+variables:
+  repos:
+    summary: Repositories cloned into ~/dev/<name>.
+    type: list
+    default: []
+    items:
+      fields:
+        name: {summary: The folder under ~/dev., required: true}
+        url: {summary: Where it is cloned from., required: true}
+        branch: {summary: The branch to check out.}
+```
+
+A field is a `string` unless it says `type: boolean` or `type: number`.
+One level of structure is all a field gets: a list of things needs it, and
+anything deeper would be a second configuration language.
+
+The type is checked on your computer, never on the machine. `workspaces
+edit` and `machines edit` refuse a `--set` that does not fit, `sync`
+refuses a setting that does not fit before it reaches the machine, and
+`packages validate` refuses a default that does not fit its own type. That
+is the whole reason for a type: without one, a mistyped field such as
+`nmae:` is carried to the machine and fails in Ansible halfway through a
+sync, or worse, is quietly ignored by the recipe.
+
+```console
+$ devmachine workspaces edit alice --set 'workspace.repos=[{name: app}]'
+error: workspace.repos[0]: "url" is required
+```
+
+A variable without a `type` takes any value, as every variable did before
+types existed. Older CLIs ignore `type` and `items`, so a package that relies
+on the check should also raise `requires.cli` to the release that brought it.
+
 ### `credentials`
 
 What the package's tool needs to authenticate, **and how to get it** —

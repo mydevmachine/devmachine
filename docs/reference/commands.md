@@ -392,7 +392,8 @@ machine](../how-it-works/what-the-cli-knows-about-a-machine.md).
 writes a package option, read as YAML (`--set
 hostinger.zones=[example.com]` writes a list); an empty value or `--unset
 <package>.<name>` removes it. Both repeat. A setting for a package the
-machine does not install is refused. Comments in `config.yml` survive, and
+machine does not install is refused, and so is one that does not fit the
+[type](package-format.md#types) its package declares. Comments in `config.yml` survive, and
 `sync` applies the change. `--location <text>` sets or changes where the
 machine is; `--location ""` clears it, back to `external` (or `local` for
 your own computer).
@@ -645,7 +646,8 @@ repeatable. `--set <package>.<name>=<value>` writes a package option
 (read as YAML — see [packages](../concepts/packages.md)); an empty value
 or `--unset <package>.<name>` removes it. `--share <credential>=own` keeps this workspace's own login
 instead of the shared one; `=machine` shares it again. A package option
-for a package the workspace does not install is refused.
+for a package the workspace does not install is refused, and so is one that
+does not fit the [type](package-format.md#types) its package declares.
 
 **Changing `--machine` does not move a workspace.** The next `sync`
 creates the account on the new machine; the old one keeps everything.
@@ -1352,8 +1354,9 @@ the only answer is `own`; it is always `false` for a secret or a file.
 `variables` lists the settings the
 manifest declares, sorted by name, always an array: each one's `name`,
 `summary`, the manifest's `default` (`null` when it has none) and `type`
-(`string`, `number`, `boolean`, `list` or `map`), read off the default and
-left out when there is no default. It is what `--set <package>.<name>=…`
+(`string`, `number`, `boolean`, `list` or `map`): the one the manifest
+declares, or else read off the default, and left out when there is
+neither. It is what `--set <package>.<name>=…`
 on `machines edit` or `workspaces edit` accepts. **It carries the
 manifest's default, never a value you set** — your values are in
 `workspaces list` and `config.yml`. `installed_on` is `[]` when nothing

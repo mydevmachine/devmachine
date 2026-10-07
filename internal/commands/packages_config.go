@@ -258,7 +258,8 @@ type packageVariable struct {
 	Name    string `json:"name"`
 	Summary string `json:"summary,omitempty"`
 	Default any    `json:"default"`
-	// Type is read off the default, so it is left out when there is none.
+	// Type is the one the manifest declares, or else read off the default,
+	// so it is left out when there is neither.
 	Type string `json:"type,omitempty"`
 }
 
@@ -266,28 +267,16 @@ func variablesOf(m packages.Manifest) []packageVariable {
 	out := make([]packageVariable, 0, len(m.Variables))
 	for _, name := range slices.Sorted(maps.Keys(m.Variables)) {
 		v := m.Variables[name]
-		out = append(out, packageVariable{Name: name, Summary: v.Summary, Default: v.Default, Type: typeOf(v.Default)})
+		out = append(out, packageVariable{Name: name, Summary: v.Summary, Default: v.Default, Type: variableType(v)})
 	}
 	return out
 }
 
-func typeOf(value any) string {
-	switch value.(type) {
-	case nil:
-		return ""
-	case string:
-		return "string"
-	case bool:
-		return "boolean"
-	case int, int64, uint64, float64:
-		return "number"
-	case []any:
-		return "list"
-	case map[string]any:
-		return "map"
-	default:
-		return ""
+func variableType(v packages.Variable) string {
+	if v.Type != "" {
+		return v.Type
 	}
+	return packages.TypeOf(v.Default)
 }
 
 // packageCredential is a credential a package declares: where its value goes,
