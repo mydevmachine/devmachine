@@ -8,6 +8,50 @@ page](https://github.com/mydevmachine/devmachine/releases).
 
 To get the latest version, see [Upgrade](upgrade.md).
 
+## v0.10.0 — 2026-10-07
+
+### Added
+
+- Widgets for the macOS app (engine 1.6). A board lists the widgets for one
+  place: Home, the sidebar, a session's context sidebar, the menu bar title
+  and the menu bar popover. See [Widgets](concepts/widgets.md) and [the
+  widget format](reference/widget-format.md).
+- `widgets list`, `schema`, `validate`, `add`, `move`, `remove` and `set`
+  read and change boards. Each one answers in JSON with `--format json`.
+  `widgets list --board` shows only the widgets that fit that place.
+- A package can ship widgets in its `widgets` folder, and declare
+  `providers`: commands its widgets may read on a machine or workspace.
+- A widget can be written straight into a board, without a package. Its
+  source is a command, a web address, a coding harness's answer to a
+  prompt, or a session's screen.
+- A widget input can be a choice of machines, workspaces or harnesses, one
+  or many. A board fills it with a name or a list.
+- A board entry can override its widget's `title` and `every`. `widgets set`
+  changes them, and an empty value puts the widget's own back.
+- A prompt widget takes `permission_mode`, with the names Claude and Codex
+  use. A mode that runs without checks only runs when you press refresh
+  (`every: manual`). See [A prompt widget's permission
+  mode](how-it-works/a-prompt-widgets-permission-mode.md).
+- `packages install <git-address>` fetches a package from git, shows what
+  it brings and asks before it writes it. `packages update` fetches it
+  again and says what changed; `packages remove` deletes it.
+- `run --argv` runs a program with its words exactly as given, `run
+  --package --script` runs one file of an installed package, and
+  `--no-log` keeps a run out of the log.
+
+### Changed
+
+- `run` exits with the command's own exit code, 255 when it never ran, and
+  stops when it gets SIGTERM.
+- Over SSH, `run --argv` and `run --package` send the command on standard
+  input to `/bin/sh`, so a fish login shell never reads it.
+
+### Fixed
+
+- `run` no longer adds its own error line under a command's own failure.
+- When SSH tries a machine's addresses, it moves to the next one only when
+  the first never connected.
+
 ## v0.9.0 — 2026-10-07
 
 ### Added
