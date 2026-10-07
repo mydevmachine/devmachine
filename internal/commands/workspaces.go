@@ -272,6 +272,9 @@ func runWorkspaceNew(cmd *cobra.Command, opts *options, name string, o workspace
 	if err != nil {
 		return err
 	}
+	if list, err = fitNewWorkspace(cmd.Printf, dir, cfg, machine, name, list, o.packagesGiven); err != nil {
+		return err
+	}
 
 	w := config.Workspace{Name: name, Machine: machine.Name, User: o.user, Packages: list}
 
@@ -727,6 +730,11 @@ func runWorkspaceEdit(cmd *cobra.Command, opts *options, name string, e workspac
 	}
 	if err := edited.Validate(); err != nil {
 		return err
+	}
+	for _, p := range e.add {
+		if err := refuseForeignAdd(dir, edited, workspacePackageTarget(name), p); err != nil {
+			return err
+		}
 	}
 
 	if e.check {

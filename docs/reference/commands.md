@@ -562,6 +562,15 @@ changes the account.
 <name>` copies another workspace's package list instead — packages only,
 never the account or the machine.
 
+When the CLI knows the machine's system (what `setup`, `sync` or `doctor`
+last read from it), `new` leaves out of the default or copied list any
+package that does not run there, itself or through a package it needs, and
+says which one and why: a workspace on a Mac starts without
+`claude-remote-control`, which runs only on Linux. A package named in
+`--packages` is refused instead of dropped, since you asked for it by name.
+`edit --add` refuses the same way. With the system not yet known, nothing
+is left out.
+
 `defaults` with no flag prints that list and changes nothing. With `--add`
 or `--rm` it edits it; existing workspaces keep their own lists. With
 `--format json`, both print `{"packages": ["dev", "zsh"], "changed":
@@ -1251,6 +1260,11 @@ devmachine packages outdated
 
 Manages what is installed on your machines and workspaces. See [the
 package format](package-format.md).
+
+`add` refuses a package that does not run on the machine's system — or on
+the system of the workspace's machine — once the CLI knows that system, so
+the mistake shows now and not at the next `sync`. See
+[troubleshooting](../troubleshooting.md#package-x-runs-on-linux-machine-y-is-macos).
 
 `list` shows each package once with every machine and workspace that
 uses it; one nothing provides is listed as `missing`.

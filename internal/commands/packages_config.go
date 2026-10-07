@@ -156,6 +156,12 @@ func editPackage(cmd *cobra.Command, opts *options, name, workspace string, add,
 		return reportEdit(cmd, opts, name, target, false, fmt.Sprintf("%s %s %s", name, word, target.label()))
 	}
 
+	if add {
+		if err := refuseForeignAdd(dir, cfg, target, name); err != nil {
+			return err
+		}
+	}
+
 	wanted := slices.Clone(current)
 	if add {
 		wanted = append(wanted, name)

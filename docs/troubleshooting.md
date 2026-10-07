@@ -589,6 +589,16 @@ run on that system, add the system to its `platforms`. If the machine was
 rebuilt with another system, run `devmachine doctor --machine <name>` so
 the CLI reads it again.
 
+`devmachine packages add` and `devmachine workspaces edit --add` stop the
+same mistake up front, with `package "docker" runs only on linux and
+machine "studio" is macos, so it was not added`; nothing is written.
+`devmachine workspaces new` leaves such a package out of the default list
+and says so, and refuses it in `--packages` with `leave it out of
+--packages`. A package can also be refused because of one it needs:
+`needs systemd-unit, which runs only on linux`. Both check only once the
+machine's system is known, so a list written before that can still reach
+`sync` with a package that does not fit.
+
 A Mac added by an older CLI may list `essentials`, which runs only on
 Linux. Swap it for what a new Mac starts with:
 `devmachine packages rm essentials --machine <name>`, then
