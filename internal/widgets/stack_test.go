@@ -147,3 +147,59 @@ func TestCollapsedIsNotAHomeKey(t *testing.T) {
 		t.Fatalf("got %v", problems)
 	}
 }
+
+const sidebarBoard = `format: 1
+surface: sidebar
+widgets:
+  - id: workspaces
+    type: devmachine-app/workspaces
+    size: auto
+`
+
+func TestEachFitRuleReportsItsOwnProblem(t *testing.T) {
+	cases := []struct{ name, surface, body, want string }{
+		{"a widget that does not fit a stack", "context-sidebar",
+			strings.Replace(contextBoard, "type: devmachine-app/todo\n    size: auto", "type: devmachine-app/clock\n    size: medium", 1),
+			"todo: devmachine-app/clock does not fit the context-sidebar area: its fits has no stack"},
+		{"a context key the area does not give", "sidebar",
+			sidebarBoard + "  - id: todo\n    type: devmachine-app/todo\n    size: auto\n",
+			"todo: devmachine-app/todo needs context.session, which the sidebar area does not give"},
+		{"a single widget twice", "sidebar",
+			sidebarBoard + "  - id: workspaces-2\n    type: devmachine-app/workspaces\n",
+			"workspaces-2: devmachine-app/workspaces goes on a board once, and workspaces already has it"},
+		{"an inline provider that needs a session", "sidebar",
+			sidebarBoard + "  - id: keys\n    title: Shortcuts\n    source: {kind: provider, name: app/shortcuts, every: 60s}\n    view: {kind: app.shortcuts}\n    size: auto\n",
+			"keys: source.name app/shortcuts needs context.session, which this board's area does not give"},
+		{"an inline sidebar view on Home", "home",
+			homeBoard + "  - id: port\n    title: Publish\n    source: {kind: provider, name: app/publish-port, every: 60s}\n    view: {kind: app.publish-port}\n    frame: {x: 24, y: 400, w: 320, h: 160}\n    size: medium\n    minimized: false\n    z: 3\n",
+			"port: the app.publish-port view is drawn only in stack, and this board's area is laid out as canvas"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			problems := stackProblemsOf(t, tc.surface, tc.body)
+			if len(problems) != 1 || !strings.Contains(problems[0].Message, tc.want) {
+				t.Fatalf("want one problem containing %q, got %v", tc.want, problems)
+			}
+		})
+	}
+}
+
+func TestTheSidebarBoardWithItsWorkspacesIsFine(t *testing.T) {
+	if problems := stackProblemsOf(t, "sidebar", sidebarBoard); len(problems) != 0 {
+		t.Fatal(problems)
+	}
+	if problems := stackProblemsOf(t, "context-sidebar", contextBoard); len(problems) != 0 {
+		t.Fatal(problems)
+	}
+}
+
+func TestAutoOnAnInlineEntryWithNoViewNamesNoBlankView(t *testing.T) {
+	body := strings.Replace(contextBoard, "    view: {kind: list}\n    size: medium\n", "    size: auto\n", 1)
+	problems := stackProblemsOf(t, "context-sidebar", body)
+	if len(problems) != 2 || !strings.Contains(problems[0].Message, "notes: size auto follows the content, and a widget with no view does not grow") {
+		t.Fatalf("got %v", problems)
+	}
+	if strings.Contains(problems[0].Message, "  ") {
+		t.Fatalf("double space in %q", problems[0].Message)
+	}
+}

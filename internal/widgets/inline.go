@@ -58,6 +58,10 @@ func validateInline(w Instance, label, path string, surface Surface, c Contract)
 		at("source", "a widget written in the board needs both a source and a view")
 		return problems
 	}
+	if view, ok := c.Views[w.View.Kind]; ok && surface.Layout != "" && len(view.Layouts) > 0 && !slices.Contains(view.Layouts, surface.Layout) {
+		at("view", "the %s view is drawn only in %s, and this board's area is laid out as %s",
+			w.View.Kind, strings.Join(view.Layouts, ", "), surface.Layout)
+	}
 	context := map[string]string{}
 	for key := range surface.Context {
 		context[key] = ContextOptional

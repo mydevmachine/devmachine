@@ -457,6 +457,12 @@ One preset row in a sidebar is 40pt high, and a widget there is as wide as the p
 | a Home widget with `collapsed` | `clock: a widget on a canvas folds with minimized: true, not collapsed` |
 | `size: auto` on a view that does not grow | `usage: size auto follows the content, and the app.harness-usage view does not grow: use small, medium, wide` |
 | a sidebar size that is neither auto nor a preset it takes | `todo: size "custom" in a sidebar is auto or one of medium, large` |
+| `size: auto` on a widget written in a sidebar board with no view | `notes: size auto follows the content, and a widget with no view does not grow: use small, medium, tall, large, wide` |
+| a board widget whose `fits` lacks the area's layout | `todo: devmachine-app/clock does not fit the context-sidebar area: its fits has no stack` |
+| a board widget that requires context the area lacks | `todo: devmachine-app/todo needs context.session, which the sidebar area does not give` |
+| a `single` widget twice on one board | `workspaces-2: devmachine-app/workspaces goes on a board once, and workspaces already has it` |
+| a widget written in a board whose provider needs context the area lacks | `keys: source.name app/shortcuts needs context.session, which this board's area does not give` |
+| a widget written in a board whose view is drawn only in a stack, on Home | `port: the app.publish-port view is drawn only in stack, and this board's area is laid out as canvas` |
 
 `devmachine widgets validate` and `devmachine packages validate` report
 every problem at once, with the file and line.

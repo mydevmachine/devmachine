@@ -37,10 +37,29 @@ func stackSizeProblems(w Instance, label, path string, sizes []string, view stri
 	at := entryReporter(&problems, w, label, path)
 	switch {
 	case w.Size == "", w.Size == SizeAuto && grows:
+	case w.Size == SizeAuto && view == "":
+		at("size", "size auto follows the content, and a widget with no view does not grow: use %s", strings.Join(sizes, ", "))
 	case w.Size == SizeAuto:
 		at("size", "size auto follows the content, and the %s view does not grow: use %s", view, strings.Join(sizes, ", "))
 	case !slices.Contains(sizes, w.Size):
 		at("size", "size %q in a sidebar is auto or one of %s", w.Size, strings.Join(sizes, ", "))
+	}
+	return problems
+}
+
+// fitProblems says whether a catalog widget may sit on an area: its fits
+// names the area's layout, and the area gives every context key it requires.
+func fitProblems(w Instance, label, path, name string, surface Surface, entry Entry) []Problem {
+	var problems []Problem
+	at := entryReporter(&problems, w, label, path)
+	if !slices.Contains(entry.Fits, surface.Layout) {
+		at("type", "%s does not fit the %s area: its fits has no %s", w.Type, name, surface.Layout)
+		return problems
+	}
+	for _, key := range sortedKeys(entry.Context) {
+		if _, given := surface.Context[key]; entry.Context[key] == ContextRequired && !given {
+			at("type", "%s needs context.%s, which the %s area does not give", w.Type, key, name)
+		}
 	}
 	return problems
 }

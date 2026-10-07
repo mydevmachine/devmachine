@@ -193,6 +193,7 @@ func ValidateBoard(b Board, path string, lookup Lookup) []Problem {
 	stack := surface.Layout == LayoutStack
 
 	seen := map[string]bool{}
+	singles := map[string]string{}
 	for _, w := range b.Widgets {
 		label := w.ID
 		switch {
@@ -254,6 +255,16 @@ func ValidateBoard(b Board, path string, lookup Lookup) []Problem {
 			}
 			if _, preset := c.Presets[w.Size]; preset && !slices.Contains(entry.Sizes, w.Size) {
 				at(w.Line, "%s: %s does not come in size %s: it takes %s", label, w.Type, w.Size, strings.Join(entry.Sizes, ", "))
+			}
+		}
+		if ok {
+			problems = append(problems, fitProblems(w, label, path, b.Surface, surface, entry)...)
+		}
+		if entry.Single {
+			if first, twice := singles[w.Type]; twice {
+				at(w.lineOf("type"), "%s: %s goes on a board once, and %s already has it", label, w.Type, first)
+			} else {
+				singles[w.Type] = w.ID
 			}
 		}
 		for _, name := range sortedKeys(w.With) {

@@ -201,7 +201,10 @@ func checkProvider(s Source, scope sourceScope, c Contract, at reporter) {
 		return
 	}
 	for _, key := range sortedKeys(provider.Context) {
-		if !scope.inline && scope.context[key] != ContextRequired {
+		switch {
+		case scope.inline && scope.context[key] == "":
+			at("source.name", "source.name %s needs context.%s, which this board's area does not give", s.Name, key)
+		case !scope.inline && scope.context[key] != ContextRequired:
 			at("source.name", "source.name %s needs context.%s: declare context: {%s: required}", s.Name, key, key)
 		}
 	}

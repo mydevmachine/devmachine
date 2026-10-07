@@ -1791,14 +1791,45 @@ checked.
 widget folder, or one board file. To check every board and every widget of
 your own packages, run `devmachine widgets validate` with no path.
 
-## "X does not fit the home area"
+## "X does not fit the home area" (or the sidebar, or the context sidebar)
 
-**What it means:** The widget's `fits` does not include Home's layout
-(`canvas`), or it requires a context key Home does not give.
+**What it means:** The widget's `fits` does not include the area's layout
+(`canvas` for Home, `stack` for both sidebars), or it requires a context
+key the area does not give. `widgets add` says it before writing;
+`widgets validate` says it for a board you wrote by hand.
 `devmachine widgets help <name>` lists the areas it fits.
 
-**What to do:** Pick a widget that fits Home, or, for your own widget, add
-`canvas` to `fits`.
+**What to do:** Pick a widget that fits the area, or, for your own widget,
+add the layout to `fits`. A widget that needs `session` fits only the
+context sidebar.
+
+## "X needs context.session, which the sidebar area does not give"
+
+**What it means:** The widget reads the selected session, and only the
+context sidebar has one. The same goes for a widget written in a board
+whose provider needs it ("which this board's area does not give").
+
+**What to do:** Put it on the context sidebar instead.
+
+## "X goes on a board once"
+
+**What it means:** The widget says `single: true`: the app's workspace
+list is one, since two copies would fight over the same selection and
+order. On a missing `sidebar.yml` the CLI reads the default board, which
+already holds the workspace list.
+
+**What to do:** Keep one. To move it, use `devmachine widgets move`; to
+bring it back after removing it, `devmachine widgets add
+devmachine-app/workspaces --board sidebar`.
+
+## "the X view is drawn only in stack"
+
+**What it means:** A widget written in a board uses one of the app's
+sidebar views, such as `app.publish-port`, and those are drawn only in a
+list. Home is a canvas.
+
+**What to do:** Move the widget to a sidebar board, or pick a view that
+is drawn anywhere, such as `list` or `text`.
 
 ## "source.name app/session-context needs context.session"
 
