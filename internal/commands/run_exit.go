@@ -21,7 +21,7 @@ func runResult(err error) error {
 		return nil
 	}
 	if code, ok := commandExitCode(err); ok {
-		return &exitError{code: code, err: err}
+		return &exitError{code: code, err: err, quiet: true}
 	}
 	return &exitError{code: unreachedExit, err: err}
 }

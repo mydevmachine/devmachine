@@ -977,12 +977,15 @@ The app uses it for widgets that run every few seconds.
 `run` never sends your input to the command: it reads end-of-file.
 
 **Exit code.** `run` exits with the command's own code: 0 when it
-worked, the same non-zero code when it ran and failed. When the command
+worked, the same non-zero code when it ran and failed. A command that
+ran and failed already said why on its own stderr, so `run` adds no
+`error:` line under it. When the command
 never ran — no such machine or workspace, no connection, a changed host
 key, a package that is not installed, a command `commands:` does not
 allow — it exits **255**, the code `ssh` uses for the same thing. So 255
 has three meanings: the command never ran, the command itself exited
-255, or it was stopped (see below); the `error:` line says which. A
+255, or it was stopped (see below). Only the first and the last print
+an `error:` line, and that line says which. A
 mistake in how `run` was called — an unknown flag, a missing `--`, a
 `--script` path outside the package — exits 1 before anything connects.
 

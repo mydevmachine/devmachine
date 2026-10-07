@@ -33,18 +33,32 @@ func Execute() {
 	if err == nil {
 		return
 	}
-	fmt.Fprintln(os.Stderr, "error:", err)
+	if line, ok := errorLine(err); ok {
+		fmt.Fprintln(os.Stderr, line)
+	}
 	os.Exit(exitCode(err))
 }
 
-// exitError is a failure that asks for its own exit code instead of 1.
+// exitError is a failure that asks for its own exit code instead of 1. A
+// quiet one already spoke for itself: run passing on a command's own failure
+// adds no line under what that command wrote.
 type exitError struct {
-	code int
-	err  error
+	code  int
+	err   error
+	quiet bool
 }
 
 func (e *exitError) Error() string { return e.err.Error() }
 func (e *exitError) Unwrap() error { return e.err }
+
+// errorLine is what Execute prints for err, unless err is quiet.
+func errorLine(err error) (string, bool) {
+	var coded *exitError
+	if errors.As(err, &coded) && coded.quiet {
+		return "", false
+	}
+	return "error: " + err.Error(), true
+}
 
 // exitCode is what a failure costs: 1, unless the command chose another.
 func exitCode(err error) int {

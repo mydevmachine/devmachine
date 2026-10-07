@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 	"testing"
 	"time"
 
@@ -53,6 +54,33 @@ func TestRunExitsWithTheCommandsOwnCode(t *testing.T) {
 		if got := exitCode(err); got != 3 {
 			t.Errorf("%T: exit %d from %v", failure, got, err)
 		}
+	}
+}
+
+func TestRunAddsNoErrorLineToTheCommandsOwnFailure(t *testing.T) {
+	dialing(t, fakeRemote{err: fmt.Errorf("running %q: %w", "false", exitStatus(3))})
+	dir := configWith(t, twoMachineConfig)
+	_, err := execute(t, "--config", dir, "--machine", "main", "run", "false")
+	if line, ok := errorLine(err); ok {
+		t.Errorf("the command's own failure printed %q", line)
+	}
+}
+
+func TestRunStillSaysWhyWhenTheCommandNeverRan(t *testing.T) {
+	dir := configWith(t, twoMachineConfig)
+	_, err := execute(t, "--config", dir, "--machine", "nowhere", "run", "true")
+	line, ok := errorLine(err)
+	if !ok || !strings.Contains(line, "nowhere") {
+		t.Errorf("got %q, %v", line, ok)
+	}
+}
+
+func TestErrorLine(t *testing.T) {
+	if line, ok := errorLine(errors.New("plain")); !ok || line != "error: plain" {
+		t.Errorf("plain: %q, %v", line, ok)
+	}
+	if _, ok := errorLine(&exitError{code: 3, err: errors.New("exit status 3"), quiet: true}); ok {
+		t.Error("a quiet failure printed a line")
 	}
 }
 
