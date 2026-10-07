@@ -1,6 +1,7 @@
 package widgets
 
 import (
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -165,6 +166,54 @@ func TestAnInlineWidgetTakesAPackageProviderShape(t *testing.T) {
 		problems := boardProblemsOf(t, strings.Replace(inlineStatsBoard, tc.from, tc.to, 1))
 		if len(problems) != 1 || !strings.Contains(problems[0].Message, tc.want) {
 			t.Errorf("%s: want %q, got %v", tc.to, tc.want, problems)
+		}
+	}
+}
+
+func TestBoardProviderProblems(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "home.yml")
+	known := ProviderSet{"devmachine-app": {"stats": {MinEvery: "10s"}}, "mine": {}}
+	cases := []struct {
+		name, from, to string
+		complete       bool
+		want           string
+	}{
+		{"fine", "every: 30s", "every: 30s", true, ""},
+		{"no package", "devmachine-app/stats", "ghost/stats", true, "stats: source.name ghost/stats: no package ghost in the release or your own packages"},
+		{"no package, nothing read", "devmachine-app/stats", "ghost/stats", false, ""},
+		{"no provider", "devmachine-app/stats", "mine/stats", false, "stats: source.name mine/stats: mine has no provider stats; its providers: none"},
+		{"below its minimum", "every: 30s", "every: 6s", true, "stats: source.every 6s is below the devmachine-app/stats minimum of 10s"},
+		{"below the floor is ValidateBoard's", "every: 30s", "every: 2s", true, ""},
+	}
+	for _, tc := range cases {
+		b, problems := ParseBoard(path, []byte(strings.Replace(inlineStatsBoard, tc.from, tc.to, 1)))
+		if len(problems) != 0 {
+			t.Fatal(problems)
+		}
+		got := BoardProviderProblems(b, path, known, tc.complete)
+		switch {
+		case tc.want == "" && len(got) != 0:
+			t.Errorf("%s: got %v", tc.name, got)
+		case tc.want != "" && (len(got) != 1 || got[0].Message != tc.want || got[0].Line == 0):
+			t.Errorf("%s: want %q, got %v", tc.name, tc.want, got)
+		}
+	}
+}
+
+func TestAnInlineWidgetsPackageProviderNameIsCheckedByItsShape(t *testing.T) {
+	want := "is written <package>/<command>, each in lower case letters, digits, dashes and underscores, starting with a letter"
+	for _, name := range []string{"Alice/stats", "devmachine-app/-rf", "devmachine-app/{{inputs.cmd}}", "{{inputs.pkg}}/stats", "alice tools/stats", "devmachine-app/Stats"} {
+		board := strings.Replace(inlineStatsBoard, "name: devmachine-app/stats", `name: "`+name+`"`, 1)
+		problems := boardProblemsOf(t, board)
+		if len(problems) != 1 || !strings.Contains(problems[0].Message, "stats: source.name "+name+": "+want) || problems[0].Line == 0 {
+			t.Errorf("%s: got %v", name, problems)
+		}
+		b, parsed := ParseBoard("home.yml", []byte(board))
+		if len(parsed) != 0 {
+			t.Fatal(parsed)
+		}
+		if got := BoardProviderProblems(b, "home.yml", ProviderSet{}, true); len(got) != 0 {
+			t.Errorf("%s: the shape is ValidateBoard's to report, got %v", name, got)
 		}
 	}
 }

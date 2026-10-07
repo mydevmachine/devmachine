@@ -1209,3 +1209,112 @@ default_size: small
 		}
 	}
 }
+
+const statsWidgetYAML = `format: 1
+name: disk
+summary: Disk.
+requires: {engine: ">= 1.3"}
+fits: [canvas]
+source: {kind: provider, name: PKG/disk, target: {machine: main}, every: 60s}
+view: {kind: number, value: "{{json.used}}"}
+sizes: [small]
+default_size: small
+`
+
+func writeProviderPackage(t *testing.T, dir, name string) string {
+	t.Helper()
+	pkg := filepath.Join(packages.LocalDir(dir), name)
+	writeCommandFile(t, filepath.Join(pkg, "package.yml"), "format: 1\nname: "+name+"\nscope: machine\nsummary: Disk.\n"+
+		"requires: {cli: \">= 0.9.0\"}\nwidgets: widgets\nentrypoint: bin/"+name+"\ncommands: [disk]\n"+
+		"providers:\n  disk: {returns: {used: number}, min_every: 10s}\n")
+	writeCommandFile(t, filepath.Join(pkg, "tasks", "main.yml"), "---\n[]\n")
+	writeCommandFile(t, filepath.Join(pkg, "widgets", "disk", "widget.yml"), strings.ReplaceAll(statsWidgetYAML, "PKG", name))
+	return pkg
+}
+
+func TestWidgetsListSaysWhereEachWidgetComesFrom(t *testing.T) {
+	dir := widgetConfig(t)
+	writeProviderPackage(t, dir, "mine")
+	tools := writeProviderPackage(t, dir, "alice-tools")
+	if err := packages.WriteOrigin(tools, packages.Origin{URL: "https://example.com/alice/tools.git", Ref: "v1", Commit: "0123abc"}); err != nil {
+		t.Fatal(err)
+	}
+	catalog := listCatalog(t, dir)
+	clock, _ := catalog.Find("devmachine-app/clock")
+	mine, _ := catalog.Find("mine/disk")
+	alice, _ := catalog.Find("alice-tools/disk")
+	if clock.Trust != widgets.TrustOfficial || mine.Trust != widgets.TrustLocal || alice.Trust != widgets.TrustThirdParty {
+		t.Fatalf("got %s %s %s", clock.Trust, mine.Trust, alice.Trust)
+	}
+	if alice.PackageSource == nil || alice.PackageSource.Commit != "0123abc" || mine.PackageSource != nil {
+		t.Fatalf("got %+v %+v", alice.PackageSource, mine.PackageSource)
+	}
+	if alice.Provider == nil || alice.Provider.MinEvery != "10s" || clock.Provider != nil {
+		t.Fatalf("got %+v %+v", alice.Provider, clock.Provider)
+	}
+	if p := catalog.Providers["alice-tools/disk"]; p.Trust != widgets.TrustThirdParty || p.Returns["used"] != "number" {
+		t.Fatalf("got %+v", catalog.Providers)
+	}
+	out, err := execute(t, "--config", dir, "widgets", "list")
+	if err != nil || !strings.Contains(out, "alice-tools/disk  (third-party from https://example.com/alice/tools.git)") {
+		t.Fatalf("%v\n%s", err, out)
+	}
+}
+
+func TestABrokenOriginFileStillMeansThirdParty(t *testing.T) {
+	dir := widgetConfig(t)
+	tools := writeProviderPackage(t, dir, "alice-tools")
+	writeCommandFile(t, filepath.Join(tools, packages.OriginFile), "url: [\n")
+	catalog := listCatalog(t, dir)
+	alice, ok := catalog.Find("alice-tools/disk")
+	if !ok || alice.Trust != widgets.TrustThirdParty || alice.PackageSource != nil {
+		t.Fatalf("got %+v", alice)
+	}
+	if len(catalog.Problems) != 1 || !strings.Contains(catalog.Problems[0].Message, "its widgets are treated as third-party") {
+		t.Fatalf("got %+v", catalog.Problems)
+	}
+}
+
+const ghostStatsBoard = `format: 1
+surface: home
+widgets:
+  - id: stats
+    title: Disk on main
+    source: {kind: provider, name: ghost/stats, target: {machine: main}, every: 30s}
+    view: {kind: gauge, value: "{{json.used}}"}
+    sizes: [small]
+    frame: {x: 24, y: 24, w: 160, h: 160}
+    size: small
+    minimized: false
+    z: 1
+`
+
+func TestWidgetsValidateChecksABoardWidgetsPackageProvider(t *testing.T) {
+	dir := widgetConfig(t)
+	board := widgets.BoardPath(dir, "home")
+	writeCommandFile(t, board, ghostStatsBoard)
+	out, err := execute(t, "--config", dir, "widgets", "validate", board)
+	if err == nil || !strings.Contains(out, "stats: source.name ghost/stats: no package ghost in the release or your own packages") {
+		t.Fatalf("%v\n%s", err, out)
+	}
+}
+
+func TestWidgetsAddKeepsWorkingWhenABoardWidgetsPackageIsGone(t *testing.T) {
+	dir := widgetConfig(t)
+	writeCommandFile(t, widgets.BoardPath(dir, "home"), ghostStatsBoard)
+	if out, err := execute(t, "--config", dir, "widgets", "add", "devmachine-app/clock"); err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	if out, err := execute(t, "--config", dir, "widgets", "remove", "stats"); err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+}
+
+func TestWidgetsAddRefusesABoardWithAMalformedPackageProviderName(t *testing.T) {
+	dir := widgetConfig(t)
+	writeCommandFile(t, widgets.BoardPath(dir, "home"), strings.Replace(ghostStatsBoard, "name: ghost/stats", "name: ghost/-rf", 1))
+	out, err := execute(t, "--config", dir, "widgets", "add", "devmachine-app/clock")
+	if err == nil || !strings.Contains(err.Error()+out, "source.name ghost/-rf: is written <package>/<command>") {
+		t.Fatalf("%v\n%s", err, out)
+	}
+}

@@ -2089,3 +2089,28 @@ underscores, starting with a letter. The value can be any text.
 and its `requires.engine` lets that app try.
 
 **What to do:** Write `requires: {engine: ">= 1.3"}`.
+
+## "source.name X: is written <package>/<command>, …"
+
+**What it means:** A provider name with a slash that does not start with
+`app/` names a package's command. The CLI and the app turn that name into
+a package folder and a command to run on a machine, so it must look like
+one: a package name and a command name, each in lower case letters,
+digits, dashes and underscores, starting with a letter. A template, a
+space, a capital or a leading dash is refused. Unlike "no package X",
+`widgets add`, `move` and `remove` refuse this too, because a board that
+holds such a name is unsafe to hand to the app.
+
+**What to do:** Fix the name in the board, for example
+`devmachine-app/stats`. `devmachine widgets list --format json` lists
+every provider under `providers`.
+
+## "… its widgets are treated as third-party"
+
+**What it means:** A package in `<config>/packages/` has a
+`.devmachine-source.yml`, the file `packages install` writes, and it does
+not read. The CLI cannot tell where the package came from, so it treats
+it as the least trusted kind: its widgets that run code ask first.
+
+**What to do:** Run `devmachine packages update <name>` to fetch it again
+and rewrite the file. If you wrote the package yourself, delete the file.

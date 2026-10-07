@@ -47,7 +47,7 @@ func newWidgetsValidateCmd(opts *options) *cobra.Command {
 
 			fits := []widgetFit{}
 			for _, target := range targets {
-				valid, found, warned, err := validateTarget(target, catalog.Find, names)
+				valid, found, warned, err := validateTarget(target, catalog, names)
 				if err != nil {
 					return err
 				}
@@ -140,7 +140,7 @@ func targetWarnings(found []widgets.Widget, names widgets.TargetNames) []widgets
 
 // validateTarget checks one path, whichever of the four things it is, and
 // returns the widgets that passed beside the problems and the warnings.
-func validateTarget(path string, lookup widgets.Lookup, names widgets.TargetNames) ([]widgetFit, []widgets.Problem, []widgets.Problem, error) {
+func validateTarget(path string, catalog widgets.Catalog, names widgets.TargetNames) ([]widgetFit, []widgets.Problem, []widgets.Problem, error) {
 	info, err := os.Stat(path)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("reading %s: %w", path, err)
@@ -149,11 +149,13 @@ func validateTarget(path string, lookup widgets.Lookup, names widgets.TargetName
 		if filepath.Base(path) == widgets.FileName {
 			return loadOne(filepath.Dir(path), names)
 		}
-		b, _, problems, err := boardProblems(path, lookup)
+		b, _, problems, err := boardProblems(path, catalog.Find)
 		if err != nil {
 			return nil, nil, nil, err
 		}
-		return nil, append(problems, widgets.BoardTargetProblems(b, path, names)...), nil, nil
+		problems = append(problems, widgets.BoardTargetProblems(b, path, names)...)
+		problems = append(problems, widgets.BoardProviderProblems(b, path, catalog.KnownProviders(), catalog.PackagesRelease != "")...)
+		return nil, problems, nil, nil
 	}
 	if fileExists(filepath.Join(path, widgets.FileName)) {
 		return loadOne(path, names)

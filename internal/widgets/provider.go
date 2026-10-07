@@ -1,6 +1,7 @@
 package widgets
 
 import (
+	"fmt"
 	"regexp"
 	"slices"
 	"strings"
@@ -28,7 +29,16 @@ type Owner struct {
 	Providers map[string]PackageProvider
 }
 
-var withKey = regexp.MustCompile(`^[a-z][a-z0-9_-]*$`)
+var (
+	withKey = regexp.MustCompile(`^[a-z][a-z0-9_-]*$`)
+	// providerPart mirrors the package-name and provider-name rules of
+	// package.yml, which this package cannot import.
+	providerPart = regexp.MustCompile(`^[a-z][a-z0-9_-]*$`)
+)
+
+func wellFormedProvider(pkg, command string) bool {
+	return providerPart.MatchString(pkg) && providerPart.MatchString(command)
+}
 
 // SplitProviderName cuts a package provider's name, <package>/<command>. ok
 // is false for an app provider and for any other shape.
@@ -81,6 +91,10 @@ func providerList(declared map[string]PackageProvider) string {
 // package is there is checked by BoardProviderProblems, so a package removed
 // since never locks a board.
 func checkPackageProvider(s Source, pkg, command string, scope sourceScope, c Contract, at reporter) {
+	if !wellFormedProvider(pkg, command) {
+		at("source.name", "source.name %s: is written <package>/<command>, each in lower case letters, digits, dashes and underscores, starting with a letter", s.Name)
+		return
+	}
 	minimum := c.PackageProvider.MinEvery
 	if !scope.inline || scope.providers != nil {
 		if provider, found := findPackageProvider(s.Name, pkg, command, scope, at); found {
@@ -140,4 +154,66 @@ func findPackageProvider(name, pkg, command string, scope sourceScope, at report
 		return PackageProvider{}, false
 	}
 	return provider, true
+}
+
+// PackageSource is where a package installed from a git address came from.
+type PackageSource struct {
+	URL    string `json:"url"`
+	Ref    string `json:"ref"`
+	Commit string `json:"commit"`
+}
+
+// ProviderEntry is one package provider, as `widgets list --format json`
+// prints it under providers.
+type ProviderEntry struct {
+	Package  string            `json:"package"`
+	Command  string            `json:"command"`
+	Scope    string            `json:"scope"`
+	Trust    string            `json:"trust"`
+	Returns  map[string]string `json:"returns"`
+	MinEvery string            `json:"min_every"`
+}
+
+// BoardProviderProblems checks every widget written in board b that reads a
+// package provider against the packages this configuration reaches: the
+// package is there, it declares that provider, and every is not below its
+// minimum. It stays apart from ValidateBoard for the reason
+// BoardTargetProblems does: removing a package must not lock a board.
+// complete is false when no release was read, so a missing package may only
+// be one the release has.
+func BoardProviderProblems(b Board, path string, providers ProviderSet, complete bool) []Problem {
+	floor, _ := time.ParseDuration(CurrentContract().PackageProvider.MinEvery)
+	var problems []Problem
+	for _, w := range b.Widgets {
+		if !w.Inline || w.Source == nil || w.Source.Kind != SourceProvider {
+			continue
+		}
+		pkg, command, ok := SplitProviderName(w.Source.Name)
+		if !ok || !wellFormedProvider(pkg, command) {
+			continue
+		}
+		at := func(field, format string, args ...any) {
+			problems = append(problems, Problem{Path: path, Line: w.lineOf(field), Message: w.ID + ": " + fmt.Sprintf(format, args...)})
+		}
+		declared, known := providers[pkg]
+		if !known {
+			if complete {
+				at("source.name", "source.name %s: no package %s in the release or your own packages", w.Source.Name, pkg)
+			}
+			continue
+		}
+		provider, found := declared[command]
+		if !found {
+			at("source.name", "source.name %s: %s has no provider %s; its providers: %s", w.Source.Name, pkg, command, providerList(declared))
+			continue
+		}
+		minimum, err := time.ParseDuration(provider.MinEvery)
+		if err != nil {
+			continue
+		}
+		if every, err := time.ParseDuration(w.Source.Every); err == nil && every >= floor && every < minimum {
+			at("source.every", "source.every %s is below the %s minimum of %s", w.Source.Every, w.Source.Name, provider.MinEvery)
+		}
+	}
+	return problems
 }

@@ -12,8 +12,9 @@ const (
 	OriginLocal   = "local"
 )
 
-// PackageWidgets is one package that declares a widgets folder, and the copy
-// of it that won: yours over the release's, as everywhere else.
+// PackageWidgets is one package this configuration reaches, and the copy of
+// it that won: yours over the release's, as everywhere else. Root is "" for a
+// package with no widgets folder, which may still have providers.
 type PackageWidgets struct {
 	Package string
 	// Scope is the package's scope, "machine" or "workspace": it decides which
@@ -24,6 +25,12 @@ type PackageWidgets struct {
 	Root    string
 	// Dir is the package's own folder, the one holding package.yml.
 	Dir string
+	// Trust is official, local or third-party; empty reads as official for
+	// the release and local otherwise.
+	Trust string
+	// Source is where a third-party package was fetched from, nil otherwise.
+	Source    *PackageSource
+	Providers map[string]PackageProvider
 }
 
 // Installed says how far a package is from a machine.
@@ -38,6 +45,9 @@ type Entry struct {
 	Package           string            `json:"package"`
 	Widget            string            `json:"widget"`
 	Origin            string            `json:"origin"`
+	Trust             string            `json:"trust"`
+	PackageSource     *PackageSource    `json:"package_source,omitempty"`
+	Provider          *PackageProvider  `json:"provider,omitempty"`
 	Version           string            `json:"version"`
 	Path              string            `json:"path"`
 	PackagePath       string            `json:"package_path"`
@@ -63,20 +73,39 @@ type ListProblem struct {
 	Message string `json:"message"`
 }
 
-// Catalog is every widget this configuration can reach.
+// Catalog is every widget this configuration can reach, and every package
+// provider a widget written in a board may read.
 type Catalog struct {
-	Engine          string        `json:"engine"`
-	PackagesRelease string        `json:"packages_release"`
-	Widgets         []Entry       `json:"widgets"`
-	Problems        []ListProblem `json:"problems"`
+	Engine          string                   `json:"engine"`
+	PackagesRelease string                   `json:"packages_release"`
+	Widgets         []Entry                  `json:"widgets"`
+	Providers       map[string]ProviderEntry `json:"providers"`
+	Problems        []ListProblem            `json:"problems"`
+
+	known ProviderSet
 }
 
-// Resolve builds the catalog from the packages that declare widgets. installed
-// answers how far one package is from a machine.
+// KnownProviders is every package Resolve saw with the providers it declares.
+// It is not printed: a catalog read back from JSON has none.
+func (c Catalog) KnownProviders() ProviderSet { return c.known }
+
+// Resolve builds the catalog from the packages this configuration reaches.
+// installed answers how far one package is from a machine.
 func Resolve(release string, pkgs []PackageWidgets, installed func(pkg string) Installed) Catalog {
-	catalog := Catalog{Engine: Engine, PackagesRelease: release, Widgets: []Entry{}, Problems: []ListProblem{}}
+	catalog := Catalog{Engine: Engine, PackagesRelease: release, Widgets: []Entry{},
+		Providers: map[string]ProviderEntry{}, Problems: []ListProblem{}, known: ProviderSet{}}
 	for _, pkg := range pkgs {
-		found, problems := LoadAll(Owner{Dir: pkg.Dir, Name: pkg.Package}, pkg.Root)
+		pkg.Trust = trustOf(pkg)
+		owner := Owner{Dir: pkg.Dir, Name: pkg.Package, Providers: pkg.Providers}
+		catalog.known[pkg.Package] = owner.scope()[pkg.Package]
+		for command, p := range pkg.Providers {
+			catalog.Providers[pkg.Package+"/"+command] = ProviderEntry{Package: pkg.Package, Command: command,
+				Scope: pkg.Scope, Trust: pkg.Trust, Returns: p.Returns, MinEvery: p.MinEvery}
+		}
+		if pkg.Root == "" {
+			continue
+		}
+		found, problems := LoadAll(owner, pkg.Root)
 		for _, p := range problems {
 			catalog.Problems = append(catalog.Problems, ListProblem{Path: p.Path, Message: p.Message})
 		}
@@ -86,6 +115,16 @@ func Resolve(release string, pkgs []PackageWidgets, installed func(pkg string) I
 	}
 	sort.Slice(catalog.Widgets, func(i, j int) bool { return catalog.Widgets[i].Name < catalog.Widgets[j].Name })
 	return catalog
+}
+
+func trustOf(pkg PackageWidgets) string {
+	switch {
+	case pkg.Trust != "":
+		return pkg.Trust
+	case pkg.Origin == OriginRelease:
+		return TrustOfficial
+	}
+	return TrustLocal
 }
 
 // Find returns the widget with this full name, <package>/<widget>.
@@ -125,6 +164,8 @@ func entryFor(w Widget, pkg PackageWidgets, state Installed) Entry {
 		Package:           pkg.Package,
 		Widget:            w.Name,
 		Origin:            pkg.Origin,
+		Trust:             pkg.Trust,
+		PackageSource:     pkg.Source,
 		Version:           pkg.Version,
 		Path:              w.Dir,
 		PackagePath:       pkg.Dir,
@@ -142,6 +183,11 @@ func entryFor(w Widget, pkg PackageWidgets, state Installed) Entry {
 		Surfaces:          Surfaces(w),
 		Available:         available,
 		UnavailableReason: reason,
+	}
+	if _, command, ok := SplitProviderName(w.Source.Name); ok && w.Source.Kind == SourceProvider {
+		if p, declared := pkg.Providers[command]; declared {
+			entry.Provider = &p
+		}
 	}
 	if entry.Context == nil {
 		entry.Context = map[string]string{}

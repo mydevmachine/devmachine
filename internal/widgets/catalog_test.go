@@ -89,20 +89,20 @@ func TestCatalogJSONHasTheAgreedShape(t *testing.T) {
 	if err := json.Unmarshal(body, &got); err != nil {
 		t.Fatal(err)
 	}
-	for _, key := range []string{"engine", "packages_release", "widgets", "problems"} {
+	for _, key := range []string{"engine", "packages_release", "widgets", "providers", "problems"} {
 		if _, ok := got[key]; !ok {
 			t.Errorf("missing %q", key)
 		}
 	}
 	entry := got["widgets"].([]any)[0].(map[string]any)
 	for _, key := range []string{"name", "package", "widget", "origin", "version", "path", "summary", "requires_engine",
-		"fits", "context", "inputs", "source", "view", "sizes", "default_size", "places", "single", "surfaces", "available", "unavailable_reason", "package_path"} {
+		"fits", "context", "inputs", "source", "view", "sizes", "default_size", "places", "single", "surfaces", "available", "unavailable_reason", "package_path", "trust"} {
 		if _, ok := entry[key]; !ok {
 			t.Errorf("widget entry is missing %q", key)
 		}
 	}
-	if len(entry) != 21 {
-		t.Errorf("widget entry has %d keys, want 21: %v", len(entry), entry)
+	if len(entry) != 22 {
+		t.Errorf("widget entry has %d keys, want 22: %v", len(entry), entry)
 	}
 	source := entry["source"].(map[string]any)
 	if source["every"] != "60s" || source["with"].(map[string]any)["harness"] != "{{inputs.harness}}" {
@@ -122,5 +122,39 @@ func TestAURLWidgetIsAvailableWithoutItsPackage(t *testing.T) {
 	commandWidget := Widget{Source: Source{Kind: SourceCommand}}
 	if ok, reason := Availability(commandWidget, pkg, Installed{}); ok || !strings.Contains(reason, "devmachine packages add mine --machine") {
 		t.Fatalf("got %v %q", ok, reason)
+	}
+}
+
+func TestResolveListsPackageProvidersAndTrust(t *testing.T) {
+	release := t.TempDir()
+	writeWidget(t, filepath.Join(release, "devmachine-app", "widgets"), "machine-stats", machineStatsWidget)
+	stats := map[string]PackageProvider{"stats": {Returns: map[string]string{"disk": "object"}, MinEvery: "10s"}}
+	source := &PackageSource{URL: "https://example.com/alice/tools.git", Ref: "v1", Commit: "0123abc"}
+
+	catalog := Resolve("v40", []PackageWidgets{
+		{Package: "devmachine-app", Scope: "machine", Origin: OriginRelease, Version: "v40",
+			Dir: filepath.Join(release, "devmachine-app"), Root: filepath.Join(release, "devmachine-app", "widgets"), Providers: stats},
+		{Package: "alice-tools", Scope: "workspace", Origin: OriginLocal, Trust: TrustThirdParty, Source: source,
+			Providers: map[string]PackageProvider{"disk": {Returns: map[string]string{"used": "number"}, MinEvery: "30s"}}},
+		{Package: "mine", Scope: "machine", Origin: OriginLocal},
+	}, notInstalled)
+
+	if len(catalog.Widgets) != 1 || len(catalog.Problems) != 0 {
+		t.Fatalf("got %+v", catalog)
+	}
+	w := catalog.Widgets[0]
+	if w.Trust != TrustOfficial || w.PackageSource != nil || w.Provider == nil || w.Provider.MinEvery != "10s" {
+		t.Fatalf("got %+v", w)
+	}
+	disk := catalog.Providers["alice-tools/disk"]
+	if disk.Trust != TrustThirdParty || disk.Scope != "workspace" || disk.Command != "disk" || disk.MinEvery != "30s" {
+		t.Fatalf("got %+v", catalog.Providers)
+	}
+	if catalog.Providers["devmachine-app/stats"].Trust != TrustOfficial || len(catalog.Providers) != 2 {
+		t.Fatalf("got %+v", catalog.Providers)
+	}
+	known := catalog.KnownProviders()
+	if _, ok := known["mine"]; !ok || len(known["mine"]) != 0 || len(known["alice-tools"]) != 1 {
+		t.Fatalf("got %+v", known)
 	}
 }

@@ -681,7 +681,7 @@ prints:
 
 ```json
 {
-  "engine": "1.0",
+  "engine": "1.3",
   "packages_release": "v40",
   "widgets": [
     {
@@ -689,6 +689,7 @@ prints:
       "package": "claude-code",
       "widget": "usage",
       "origin": "release",
+      "trust": "official",
       "version": "v40",
       "path": "/Users/alice/.config/devmachine/cache/packages/v40/packages/claude-code/widgets/usage",
       "summary": "Coding-harness usage windows.",
@@ -707,6 +708,16 @@ prints:
       "unavailable_reason": ""
     }
   ],
+  "providers": {
+    "devmachine-app/stats": {
+      "package": "devmachine-app",
+      "command": "stats",
+      "scope": "machine",
+      "trust": "official",
+      "returns": {"disk": "object", "load": "object", "errors": "list"},
+      "min_every": "10s"
+    }
+  },
   "problems": [
     {"path": "/Users/alice/.config/devmachine/packages/mine/widgets/bad/widget.yml", "message": "view.kind \"gauge\" needs engine 1.1"}
   ]
@@ -726,6 +737,23 @@ still exits 0, so one broken widget never hides the rest. A `package.yml`
 that cannot be read is a problem too: its widgets are left out, and when it
 is one of your own packages the release package of the same name is not
 used in its place.
+
+`trust` says how far the app trusts the widget: `official` for the
+pinned release, `local` for a package you wrote in `<config>/packages/`,
+and `third-party` for a package installed with `packages install`. A
+third-party widget that runs something — a `command`, `prompt`, `session`
+or package provider — waits for your approval in the app, like a widget
+written in a board (see [where a public widget comes
+from](../how-it-works/where-a-public-widget-comes-from.md)). A third-party
+widget also has `package_source`: `{"url", "ref", "commit"}`, where its
+package was fetched from. A widget that reads a package provider has
+`provider`: that provider's `returns` and `min_every`. `providers` lists
+every package provider a widget may read, by `<package>/<command>`, with
+its package's `scope` and `trust` — a widget written in a board names one
+of these.
+
+In the text listing, a third-party widget says `(third-party from <url>)`
+in place of its origin.
 
 `--board <area>` keeps only the widgets whose `surfaces` include that
 area — what the app's gallery offers when you press "Add widget" there.
@@ -748,7 +776,14 @@ false, "checked": [...], "widgets": [{"path": ..., "name": ...,
 warning shaped like a problem.
 
 A widget written in a board that names a machine or a workspace
-`config.yml` does not have is a problem. A package widget that names one
+`config.yml` does not have is a problem. A widget written in a board that
+reads a package provider is checked too: the package exists and declares
+it, and `every` is not below its `min_every`. With no release in the cache,
+a missing package is not reported, since it may be one the release has.
+`widgets add`, `move` and `remove` skip that check, so removing a package
+never locks a board; they still refuse a provider name that is not
+`<package>/<command>` in lower case letters, digits, dashes and
+underscores. A package widget that names one
 by its literal name is only a warning (`warning: …` lines, and
 `"warnings"` in `--format json`), because a published widget is written
 for many configurations. A name that holds a template, such as

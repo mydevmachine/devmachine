@@ -69,6 +69,9 @@ func newWidgetsListCmd(opts *options) *cobra.Command {
 				if e.Version != "" {
 					origin += " " + e.Version
 				}
+				if e.PackageSource != nil {
+					origin = "third-party from " + e.PackageSource.URL
+				}
 				state := "available"
 				if !e.Available {
 					state = "unavailable: " + e.UnavailableReason
@@ -188,23 +191,39 @@ func catalogFrom(dir string, cfg config.Config, store *packages.Store) (widgets.
 	if err != nil {
 		return widgets.Catalog{}, err
 	}
-	var pkgs []widgets.PackageWidgets
+	var originProblems []widgets.ListProblem
+	pkgs := make([]widgets.PackageWidgets, 0, len(all))
 	for _, f := range all {
-		root, ok := packages.WidgetsDir(f.Manifest)
-		if !ok {
-			continue
+		owner := packages.WidgetOwner(f.Manifest)
+		pkg := widgets.PackageWidgets{Package: f.Manifest.Name, Scope: f.Manifest.Scope, Origin: widgets.OriginLocal,
+			Trust: widgets.TrustLocal, Dir: f.Manifest.Path, Providers: owner.Providers}
+		if root, ok := packages.WidgetsDir(f.Manifest); ok {
+			pkg.Root = root
 		}
-		pkg := widgets.PackageWidgets{Package: f.Manifest.Name, Scope: f.Manifest.Scope, Origin: widgets.OriginLocal, Root: root, Dir: f.Manifest.Path}
 		if f.Source == packages.SourceRelease {
-			pkg.Origin, pkg.Version = widgets.OriginRelease, store.Version()
+			pkg.Origin, pkg.Version, pkg.Trust = widgets.OriginRelease, store.Version(), widgets.TrustOfficial
+		} else {
+			origin, found, err := packages.ReadOrigin(f.Manifest.Path)
+			switch {
+			case err != nil:
+				pkg.Trust = widgets.TrustThirdParty
+				originProblems = append(originProblems, widgets.ListProblem{
+					Path:    filepath.Join(f.Manifest.Path, packages.OriginFile),
+					Message: err.Error() + ": its widgets are treated as third-party",
+				})
+			case found:
+				pkg.Trust = widgets.TrustThirdParty
+				pkg.Source = &widgets.PackageSource{URL: origin.URL, Ref: origin.Ref, Commit: origin.Commit}
+			}
 		}
 		pkgs = append(pkgs, pkg)
 	}
 	catalog := widgets.Resolve(store.Version(), pkgs, installedState(cfg, lock))
-	manifestProblems := make([]widgets.ListProblem, 0, len(broken))
+	manifestProblems := make([]widgets.ListProblem, 0, len(broken)+len(originProblems))
 	for _, b := range broken {
 		manifestProblems = append(manifestProblems, widgets.ListProblem{Path: b.Path, Message: b.Err.Error()})
 	}
+	manifestProblems = append(manifestProblems, originProblems...)
 	catalog.Problems = append(manifestProblems, catalog.Problems...)
 	return catalog, nil
 }
