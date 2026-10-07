@@ -1655,3 +1655,41 @@ func TestWidgetsOnAMissingMenubarBoardSpeakOfAList(t *testing.T) {
 		t.Fatalf("got\n%s", got)
 	}
 }
+
+func TestWidgetsAddWritesAListForAManyChoice(t *testing.T) {
+	dir := choiceConfig(t)
+	out, err := execute(t, "--config", dir, "widgets", "add", "mine/machines", "--set", "machines=main, ghost")
+	if err != nil {
+		t.Fatalf("an unknown machine stopped add: %v\n%s", err, out)
+	}
+	if !strings.Contains(out, `warning: machines: input "machines" names machine "ghost", which config.yml does not have: the app leaves it out`) {
+		t.Fatalf("got\n%s", out)
+	}
+	if got := readCommandFile(t, widgets.BoardPath(dir, "home")); !strings.Contains(got, "    with: {machines: [main, ghost]}\n") {
+		t.Fatalf("got\n%s", got)
+	}
+	printed, err := execute(t, "--config", dir, "--format", "json", "widgets", "add", "mine/machines", "--set", "machines=")
+	if err != nil || strings.Contains(printed, `"warnings"`) || !strings.Contains(readCommandFile(t, widgets.BoardPath(dir, "home")), "with: {machines: []}") {
+		t.Fatalf("%v\n%s", err, printed)
+	}
+}
+
+func TestWidgetsValidateWarnsAboutAChoiceTheConfigLacks(t *testing.T) {
+	dir := choiceConfig(t)
+	board := widgets.BoardPath(dir, "home")
+	entry := "  - id: machines\n    type: mine/machines\n    with: {machines: [ghost]}\n" +
+		"    frame: {x: 24, y: 24, w: 320, h: 320}\n    size: large\n    minimized: false\n    z: 1\n"
+	writeCommandFile(t, board, "format: 1\nsurface: home\nwidgets:\n"+entry)
+	out, err := execute(t, "--config", dir, "widgets", "validate", board)
+	if err != nil || !strings.Contains(out, "warning: "+board+`:6: machines: input "machines" names machine "ghost"`) {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	if out, err := execute(t, "--config", dir, "widgets", "remove", "machines"); err != nil {
+		t.Fatalf("a machine missing from config.yml locked the board: %v\n%s", err, out)
+	}
+	writeCommandFile(t, board, "format: 1\nsurface: home\nwidgets:\n"+strings.Replace(entry, "[ghost]", "main", 1))
+	out, err = execute(t, "--config", dir, "widgets", "validate", board)
+	if err == nil || !strings.Contains(out, board+`:6: machines: input "machines" takes a list of names, written [a, b], and main is not one`) {
+		t.Fatalf("%v\n%s", err, out)
+	}
+}

@@ -296,7 +296,7 @@ widgets:
 | --- | --- |
 | `id` | Unique on the board: lower case letters, digits and dashes. |
 | `type` | The widget, `<package>/<widget>`. |
-| `with` | Values for the widget's inputs. Left out when there are none. |
+| `with` | Values for the widget's inputs. Left out when there are none. A choice of many takes a list: `with: {machines: [main, backup]}`; `[]` means all. |
 | `frame` | Position and size in points. `x` and `y` are 0 or more; `w` and `h` are at least the smallest preset the widget takes. |
 | `size` | A preset, or `custom` after a free resize. Left out, it is `custom`. |
 | `minimized` | `true` draws a pill with the title instead. |
@@ -580,6 +580,7 @@ A package declares providers in its `package.yml`; a widget names one `<package>
 | a choice's default of the wrong shape | `input "X" is a list of choices, and its default main is not: write [a, b], or [] for all`, `input "X" is one choice, and its default [main] is not a name` |
 | `from` or `many` on another type | `input "X" is a string: from and many belong to a choice` |
 | a choice input on an engine below 1.5 | `a widget with a choice input needs requires.engine ">= 1.5": an app on engine 1.4 cannot show its choices` |
+| a board's `with` of the wrong shape for a choice | `machines: input "machines" takes a list of names, written [a, b], and main is not one`, `usage: input "harness" takes one name, and [claude, codex] is not one` |
 | template names something undeclared | `template {{inputs.X}} in source.with.Y needs inputs.X` |
 | `source.kind` unknown | `source.kind "X": engine 1.5 knows provider, command, url, prompt, session` |
 | a key of another kind | `source.url is not a field of a command source: it takes …` |
@@ -640,6 +641,11 @@ A package declares providers in its `package.yml`; a widget names one `<package>
 | a `single` widget twice on one board | `workspaces-2: devmachine-app/workspaces goes on a board once, and workspaces already has it` |
 | a widget written in a board whose provider needs context the area lacks | `keys: source.name app/shortcuts needs context.session, which this board's area does not give` |
 | a widget written in a board whose view is drawn only in a stack, on Home | `port: the app.publish-port view is drawn only in stack, and this board's area is laid out as canvas` |
+
+A choice that names a machine or workspace your `config.yml` does not
+have, or a harness the engine does not know, is a warning (`warning: …`),
+never a problem: see [choosing and editing a
+widget](../how-it-works/choosing-and-editing-a-widget.md).
 
 `devmachine widgets validate` and `devmachine packages validate` report
 every problem at once, with the file and line.

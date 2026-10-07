@@ -1768,6 +1768,40 @@ with another name, the app has nothing to offer.
 **What to do:** Add `from: machines` (or one of the other two). Add
 `many: true` when the person may pick more than one.
 
+## "input X takes its options from Y, which is not a source"
+
+**What it means:** `from` names the list a `choice` is picked from, and
+there are three: `machines`, `workspaces` and `harnesses`. Any other
+name gives the app nothing to offer.
+
+**What to do:** Write one of the three, for example `from: machines`.
+
+## "input X: many is …: write true or false"
+
+**What it means:** `many` says whether the person may pick more than one
+name. It is a yes or no, so a word such as `maybe` is refused.
+
+**What to do:** Write `many: true`, or `many: false` (the same as
+leaving it out).
+
+## "input X is a list of choices, and its default … is not"
+
+**What it means:** The input has `many: true`, so its value is a list,
+and so is its default, even for one name. The other way round, "is one
+choice, and its default [main] is not a name" means a list was written
+where the input takes one name.
+
+**What to do:** Write `default: [main]`, or `default: []` for all; for
+an input without `many`, write `default: main`.
+
+## "input X is a string: from and many belong to a choice"
+
+**What it means:** `from` and `many` only mean something on a `choice`
+input. On a `string`, `number` or `boolean` they are a mistake, often a
+`type:` left over from before the input became a choice.
+
+**What to do:** Write `type: choice`, or remove `from` and `many`.
+
 ## "a widget with a choice input needs requires.engine \">= 1.5\""
 
 **What it means:** An app on engine 1.4 or older has no chooser, so it
@@ -1776,6 +1810,27 @@ lets such an app read it.
 
 **What to do:** Write `requires: {engine: ">= 1.5"}`. An older CLI then
 says "update" instead of hiding the widget for a reason nobody can read.
+
+## "input X takes a list of names, written [a, b]"
+
+**What it means:** The widget's input is a choice of many, so a board's
+`with` holds a list for it, even for one name. The same goes the other
+way: "takes one name" means the board holds a list where the widget
+takes a single name.
+
+**What to do:** Write `with: {machines: [main]}`, or set it with
+`devmachine widgets set <id> --board <area> --set machines=main`, which
+writes the right shape.
+
+## "warning: … names machine "X", which config.yml does not have"
+
+**What it means:** A widget on the board picked a machine (or workspace)
+that is not in `config.yml` any more, or a harness the engine does not
+know. The app leaves that name out and draws the rest. Nothing is
+refused.
+
+**What to do:** Pick again in the app (⋯ → Choose), or run `devmachine
+widgets set <id> --board <area> --set machines=<names>`.
 
 ## "source.target: app/… is the app's own data, so it takes no target"
 

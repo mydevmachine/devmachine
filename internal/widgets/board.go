@@ -280,11 +280,17 @@ func ValidateBoard(b Board, path string, lookup Lookup) []Problem {
 		}
 		for _, name := range sortedKeys(w.With) {
 			input, ok := entry.Inputs[name]
+			value := w.With[name]
 			switch {
 			case !ok:
 				at(w.Line, "%s: %s has no input %q", label, w.Type, name)
-			case !valueFits(input.Type, w.With[name]):
-				at(w.Line, "%s: input %q is a %s, and %v is not", label, name, input.Type, w.With[name])
+			case InputValueFits(input, value):
+			case input.Type == InputChoice && input.Many:
+				at(w.lineOf("with"), "%s: input %q takes a list of names, written [a, b], and %s is not one", label, name, shownValue(value))
+			case input.Type == InputChoice:
+				at(w.lineOf("with"), "%s: input %q takes one name, and %s is not one", label, name, shownValue(value))
+			default:
+				at(w.Line, "%s: input %q is a %s, and %v is not", label, name, input.Type, value)
 			}
 		}
 	}
@@ -363,6 +369,9 @@ func EncodeBoard(b Board) ([]byte, error) {
 					value := &yaml.Node{}
 					if err := value.Encode(w.With[name]); err != nil {
 						return nil, fmt.Errorf("writing input %s of %s: %w", name, w.ID, err)
+					}
+					if value.Kind == yaml.SequenceNode {
+						value.Style = yaml.FlowStyle
 					}
 					put(with, name, value)
 				}

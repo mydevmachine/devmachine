@@ -91,3 +91,19 @@ func TestInputValueFits(t *testing.T) {
 		t.Fatalf("got %q", got)
 	}
 }
+
+func TestAChoiceInputFillsATemplateAndAShellLine(t *testing.T) {
+	choice := strings.NewReplacer(
+		`requires: {engine: ">= 1.1"}`, `requires: {engine: ">= 1.5"}`,
+		"machine: {type: string,", "machine: {type: choice, from: machines,",
+	).Replace(diskWidget)
+	for _, body := range []string{
+		strings.Replace(choice, "args: [-h, /]", `args: [-h, "{{inputs.machine}}"]`, 1),
+		strings.Replace(choice, "  run: df\n  args: [-h, /]\n", "  run: 'df -h -- \"$DM_INPUT_MACHINE\"'\n  shell: true\n", 1),
+		strings.Replace(choice, "from: machines,", "from: machines, many: true,", 1),
+	} {
+		if _, problems := Load(writeWidget(t, t.TempDir(), "disk", body)); len(problems) != 0 {
+			t.Errorf("got %v for\n%s", problems, body)
+		}
+	}
+}

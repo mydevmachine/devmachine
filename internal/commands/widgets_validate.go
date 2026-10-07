@@ -155,7 +155,8 @@ func validateTarget(path string, catalog widgets.Catalog, names widgets.TargetNa
 		}
 		problems = append(problems, widgets.BoardTargetProblems(b, path, names)...)
 		problems = append(problems, widgets.BoardProviderProblems(b, path, catalog.KnownProviders(), catalog.PackagesRelease != "")...)
-		return nil, problems, widgets.BoardWarnings(b, path), nil
+		warnings := append(widgets.BoardWarnings(b, path), widgets.BoardOptionWarnings(b, path, catalog.Find, names)...)
+		return nil, problems, warnings, nil
 	}
 	if fileExists(filepath.Join(path, widgets.FileName)) {
 		return loadOne(path, names)

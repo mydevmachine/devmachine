@@ -152,6 +152,9 @@ these when something behaves in a way that surprises you.
 - [What runs in the menu bar](how-it-works/what-runs-in-the-menu-bar.md)
   — when the title's and the popover's widgets run, and why the title holds
   three one-line widgets.
+- [Choosing and editing a widget](how-it-works/choosing-and-editing-a-widget.md)
+  — where a widget's choices come from, and why a machine you removed
+  never locks a board.
 - [Updating](how-it-works/updating.md) — why `update` stops before your
   machines, hands over to the new CLI, and goes through Homebrew when
   Homebrew installed it.

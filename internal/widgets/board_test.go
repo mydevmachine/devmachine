@@ -305,3 +305,93 @@ func TestUnknownBoardKeysPointAtTheirLine(t *testing.T) {
 		t.Fatalf("got %v", problems)
 	}
 }
+
+const choiceBoard = `format: 1
+surface: home
+widgets:
+  - id: machines
+    type: mine/machines
+    with: {machines: [main, backup]}
+    frame: {x: 24, y: 24, w: 320, h: 320}
+    size: large
+    minimized: false
+    z: 1
+  - id: usage
+    type: mine/usage
+    with: {harness: codex}
+    frame: {x: 352, y: 24, w: 320, h: 160}
+    size: medium
+    minimized: false
+    z: 2
+`
+
+func choiceLookup(name string) (Entry, bool) {
+	switch name {
+	case "mine/machines":
+		return Entry{Name: name, Fits: []string{LayoutCanvas, LayoutStack}, View: ViewRef{Kind: "app.machines"},
+			Sizes: []string{"medium", "large"}, Source: Source{Kind: SourceProvider, Name: "app/machines", Every: "90s"},
+			Inputs: map[string]Input{"machines": {Type: InputChoice, From: OptionMachines, Many: true}}}, true
+	case "mine/usage":
+		return Entry{Name: name, Fits: []string{LayoutCanvas, LayoutStack}, View: ViewRef{Kind: "app.harness-usage"},
+			Sizes: []string{"small", "medium"}, Source: Source{Kind: SourceProvider, Name: "app/harness-usage", Every: "60s"},
+			Inputs: map[string]Input{"harness": {Type: InputChoice, From: OptionHarnesses}}}, true
+	}
+	return Entry{}, false
+}
+
+func TestAChoiceListRoundTripsAsAFlowList(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "home.yml")
+	b, problems := ParseBoard(path, []byte(choiceBoard))
+	if len(problems) != 0 {
+		t.Fatal(problems)
+	}
+	if got := ValidateBoard(b, path, choiceLookup); len(got) != 0 {
+		t.Fatal(got)
+	}
+	body, err := EncodeBoard(b)
+	if err != nil || string(body) != choiceBoard {
+		t.Fatalf("%v\ngot\n%s", err, body)
+	}
+	b.Widgets[0].With["machines"] = []string{}
+	body, err = EncodeBoard(b)
+	if err != nil || !strings.Contains(string(body), "    with: {machines: []}\n") {
+		t.Fatalf("%v\ngot\n%s", err, body)
+	}
+}
+
+func TestEachChoiceValueRuleReportsItsLine(t *testing.T) {
+	for _, tc := range []struct {
+		from, to, want string
+		line           int
+	}{
+		{"{machines: [main, backup]}", "{machines: main}", `machines: input "machines" takes a list of names, written [a, b], and main is not one`, 6},
+		{"{machines: [main, backup]}", "{machines: [main, 3]}", `machines: input "machines" takes a list of names, written [a, b], and [main 3] is not one`, 6},
+		{"{harness: codex}", "{harness: [claude, codex]}", `usage: input "harness" takes one name, and [claude, codex] is not one`, 13},
+	} {
+		t.Run(tc.to, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "home.yml")
+			b, _ := ParseBoard(path, []byte(strings.Replace(choiceBoard, tc.from, tc.to, 1)))
+			problems := ValidateBoard(b, path, choiceLookup)
+			if len(problems) != 1 || problems[0].Message != tc.want || problems[0].Line != tc.line {
+				t.Fatalf("want %q at %d, got %+v", tc.want, tc.line, problems)
+			}
+		})
+	}
+}
+
+func TestCoerceInputSplitsAManyChoice(t *testing.T) {
+	many := Input{Type: InputChoice, From: OptionMachines, Many: true}
+	for raw, want := range map[string][]string{"main, backup,": {"main", "backup"}, "main": {"main"}, "": {}} {
+		got, err := CoerceInput("machines", many, raw)
+		if names, ok := got.([]string); err != nil || !ok || !reflect.DeepEqual(names, want) {
+			t.Errorf("%q: got %#v, %v", raw, got, err)
+		}
+	}
+	one := Input{Type: InputChoice, From: OptionHarnesses}
+	if got, err := CoerceInput("harness", one, "codex"); err != nil || got != "codex" {
+		t.Fatalf("got %#v, %v", got, err)
+	}
+	if _, err := CoerceInput("harness", one, "claude,codex"); err == nil || err.Error() != `input harness takes one name, and "claude,codex" is a list` {
+		t.Fatalf("got %v", err)
+	}
+}

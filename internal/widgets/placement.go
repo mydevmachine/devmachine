@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"slices"
 	"strconv"
+	"strings"
 )
 
 // The CLI has no window to measure, so a free spot is looked for inside a
@@ -114,7 +115,7 @@ func (b *Board) Remove(id string) error {
 	return nil
 }
 
-// CoerceInput turns a --set value into the type its input declares.
+// CoerceInput turns a --set value into the type its input declares: a list of names, split on commas, for a choice of many.
 func CoerceInput(name string, input Input, raw string) (any, error) {
 	switch input.Type {
 	case "number":
@@ -132,6 +133,20 @@ func CoerceInput(name string, input Input, raw string) (any, error) {
 			return nil, fmt.Errorf("input %s is true or false, and %q is neither", name, raw)
 		}
 		return v, nil
+	case InputChoice:
+		if input.Many {
+			names := []string{}
+			for _, part := range strings.Split(raw, ",") {
+				if part = strings.TrimSpace(part); part != "" {
+					names = append(names, part)
+				}
+			}
+			return names, nil
+		}
+		if strings.Contains(raw, ",") {
+			return nil, fmt.Errorf("input %s takes one name, and %q is a list", name, raw)
+		}
+		return raw, nil
 	default:
 		return raw, nil
 	}

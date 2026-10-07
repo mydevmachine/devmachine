@@ -14,12 +14,13 @@ import (
 )
 
 type boardChange struct {
-	Board   string            `json:"board"`
-	Path    string            `json:"path"`
-	Widget  *widgets.Instance `json:"widget,omitempty"`
-	Removed string            `json:"removed,omitempty"`
-	Moved   string            `json:"moved,omitempty"`
-	Order   []string          `json:"order,omitempty"`
+	Board    string            `json:"board"`
+	Path     string            `json:"path"`
+	Widget   *widgets.Instance `json:"widget,omitempty"`
+	Removed  string            `json:"removed,omitempty"`
+	Moved    string            `json:"moved,omitempty"`
+	Order    []string          `json:"order,omitempty"`
+	Warnings []string          `json:"warnings,omitempty"`
 }
 
 func newWidgetsAddCmd(opts *options) *cobra.Command {
@@ -102,6 +103,11 @@ func newWidgetsAddCmd(opts *options) *cobra.Command {
 			case b.HasID(id):
 				return fmt.Errorf("id %q is already on the %s board", id, board)
 			}
+			cfg, err := loadConfigOrEmpty(dir)
+			if err != nil {
+				return err
+			}
+			warnings := widgets.OptionWarnings(id, entry, with, targetNamesOf(cfg))
 
 			instance := widgets.Instance{ID: id, Type: entry.Name, With: with, Size: size}
 			where := "at the end"
@@ -131,15 +137,16 @@ func newWidgetsAddCmd(opts *options) *cobra.Command {
 				return err
 			}
 			if opts.format == formatJSON {
-				return writeJSON(cmd.OutOrStdout(), boardChange{Board: board, Path: path, Widget: &instance})
+				return writeJSON(cmd.OutOrStdout(), boardChange{Board: board, Path: path, Widget: &instance, Warnings: warnings})
 			}
 			cmd.Printf("added %s (%s) to the %s board %s\n", id, entry.Name, board, where)
+			printWarnings(cmd, warnings)
 			return nil
 		},
 	}
 	c.Flags().StringVar(&board, "board", "home", "the board to place it on: home, sidebar, context-sidebar, menubar or menubar-panel")
 	c.Flags().StringVar(&id, "id", "", "the instance id (default: the widget's name, made unique)")
-	c.Flags().StringArrayVar(&sets, "set", nil, "an input value, as name=value (repeatable)")
+	c.Flags().StringArrayVar(&sets, "set", nil, "an input value, as name=value, or name=a,b for a choice of many (repeatable)")
 	c.Flags().StringVar(&size, "size", "", "a preset the widget takes, or auto in a sidebar (default: auto when its view grows, else its default_size); none in the menu bar")
 	c.Flags().StringVar(&at, "at", "", "on Home, the top-left corner in points, as x,y (default: the first free spot)")
 	c.Flags().StringVar(&after, "after", "", "in a sidebar or the menu bar, the id it goes right after")
@@ -364,4 +371,12 @@ func parsePoint(s string) (int, int, error) {
 		return 0, 0, fmt.Errorf("--at %q: write it as x,y in points, both 0 or more", s)
 	}
 	return widgets.Snap(x), widgets.Snap(y), nil
+}
+
+// printWarnings writes each warning to stderr, so stdout keeps only what
+// the command did.
+func printWarnings(cmd *cobra.Command, warnings []string) {
+	for _, w := range warnings {
+		cmd.PrintErrf("warning: %s\n", w)
+	}
 }
