@@ -883,6 +883,9 @@ one written in the board). `--at x,y` is the top-left corner in points, snapped 
 widgets may overlap on Home. Without it the widget takes the first free
 spot, scanning rows of 8pt from 24,24 across a band 1280pt wide and
 keeping 8pt from every other widget. `--after` and `--before` are refused.
+The point is on Home with the app's sidebar open. With the sidebar hidden,
+the app spreads the widgets over the wider canvas: one at an edge stays at
+that edge, and any other keeps its centre in proportion.
 
 In the sidebar or the context sidebar, the widget goes at the end of the
 list, or right after `--after <id>`, or right before `--before <id>` (one
