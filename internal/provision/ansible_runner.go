@@ -51,6 +51,11 @@ func (a *Ansible) Apply(ctx context.Context, plan packages.MachinePlan, opts Opt
 			return Result{}, err
 		}
 	}
+	release, err := holdMachine(ctx, a.Client, plan.Machine.Name, base+".lock", self)
+	if err != nil {
+		return Result{}, err
+	}
+	defer release()
 	// Unpacking never deletes, and Ansible searches roles.local before roles:
 	// a copy an earlier sync left would keep running instead of this one.
 	if _, err := a.Client.Run(ctx, asRootUnlessSelf("rm -rf "+base, self)); err != nil {

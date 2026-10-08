@@ -1098,6 +1098,18 @@ meaningful, because there is something on the server to compare against. Use
 a dry run to preview a change to a server you already built — not to preview
 the first build itself.
 
+## "another sync is running on …: wait for it to finish, then run this again"
+
+**What it means:** Another `sync` or `sync --check` holds this machine
+right now. It can be one in another terminal, one from another computer,
+or the app's Prepare button. Two runs at once would delete each other's
+files on the machine, so the second one stops before it changes anything.
+
+**What to do:** Wait for the other run to end, then run yours again. The
+lock clears itself when that run ends, when its connection drops, and
+after a reboot, so there is nothing to remove by hand. See [one sync per
+machine](how-it-works/one-sync-per-machine.md).
+
 ## `sync --check` fails on a skill with "getgrnam(): name not found: '1001'"
 
 A dry run stops on a task like `global-skills installs the workflow skill`,

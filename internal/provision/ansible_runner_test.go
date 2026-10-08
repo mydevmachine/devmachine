@@ -29,6 +29,10 @@ type fakeClient struct {
 	runErr   error
 	// runErrOn limits runErr to commands holding this text.
 	runErrOn string
+	// busy is another sync holding the machine's lock.
+	busy bool
+	// unlockedAfter is how many commands had run when the lock was let go.
+	unlockedAfter int
 }
 
 func (c *fakeClient) Run(_ context.Context, command string) (string, error) {
@@ -65,6 +69,24 @@ func (c *fakeClient) Upload(_ context.Context, dir string, tarball io.Reader) er
 }
 
 func (c *fakeClient) Close() error { return nil }
+
+// StreamInput stands in for the session that holds the machine's sync lock:
+// it answers busy, or holds the lock until its input closes.
+func (c *fakeClient) StreamInput(_ context.Context, command string, stdin io.Reader, stdout, _ io.Writer) error {
+	c.commands = append(c.commands, "lock "+command)
+	if c.busy {
+		_, err := io.WriteString(stdout, "busy\n")
+		return err
+	}
+	if _, err := io.WriteString(stdout, "locked\n"); err != nil {
+		return err
+	}
+	if _, err := io.Copy(io.Discard, stdin); err != nil {
+		return err
+	}
+	c.unlockedAfter = len(c.commands)
+	return nil
+}
 
 // namesIn lists an archive's entries without a testing.T, because Upload has
 // no way to fail a test.
@@ -117,11 +139,46 @@ func TestApplyStartsFromAnEmptyBundle(t *testing.T) {
 	if !strings.Contains(c.commands[0], "sudo -n true") {
 		t.Fatalf("first it must prove it can become root, it ran %q", c.commands[0])
 	}
-	if c.commands[1] != remote.AsRoot("rm -rf "+RemoteDir) {
-		t.Fatalf("then empty the bundle as root, it ran %q", c.commands[1])
+	if !strings.HasPrefix(c.commands[1], "lock ") {
+		t.Fatalf("then take the machine's sync lock, it ran %q", c.commands[1])
 	}
-	if c.commands[2] != "upload "+RemoteDir {
-		t.Fatalf("then send the new one, it ran %q", c.commands[2])
+	if c.commands[2] != remote.AsRoot("rm -rf "+RemoteDir) {
+		t.Fatalf("then empty the bundle as root, it ran %q", c.commands[2])
+	}
+	if c.commands[3] != "upload "+RemoteDir {
+		t.Fatalf("then send the new one, it ran %q", c.commands[3])
+	}
+}
+
+// TestApplyHoldsTheMachineLockForTheWholeRun: a second sync on the same
+// machine would empty the bundle under the first one's play.
+func TestApplyHoldsTheMachineLockForTheWholeRun(t *testing.T) {
+	c := &fakeClient{output: okRecap}
+	a := &Ansible{Client: c}
+
+	if _, err := a.Apply(context.Background(), planWith(t, "main", []string{"base"}, nil), Options{Out: io.Discard}); err != nil {
+		t.Fatal(err)
+	}
+	if c.unlockedAfter != len(c.commands) || !strings.Contains(c.commands[len(c.commands)-1], "ansible-playbook") {
+		t.Fatalf("the lock must be let go only after the play: %q", c.commands)
+	}
+	if !strings.Contains(c.commands[1], RemoteDir+".lock") || !strings.Contains(c.commands[1], "sudo -n") {
+		t.Fatalf("the lock is not root's, next to the bundle: %q", c.commands[1])
+	}
+}
+
+func TestApplyRefusesWhileAnotherSyncHoldsTheMachine(t *testing.T) {
+	c := &fakeClient{output: okRecap, busy: true}
+	a := &Ansible{Client: c}
+
+	_, err := a.Apply(context.Background(), planWith(t, "main", []string{"base"}, nil), Options{Out: io.Discard})
+	if !errors.Is(err, ErrSyncRunning) || !strings.Contains(err.Error(), "another sync is running on main") {
+		t.Fatalf("got %v", err)
+	}
+	for _, command := range c.commands[2:] {
+		if strings.Contains(command, "rm -rf") || strings.HasPrefix(command, "upload") || strings.Contains(command, "ansible-playbook") {
+			t.Fatalf("it touched the bundle another sync is using: %q", c.commands)
+		}
 	}
 }
 
