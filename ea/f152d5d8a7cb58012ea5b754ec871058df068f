@@ -1,0 +1,19 @@
+docs/reference/commands.md
+  s_ab2539e5de1e5c::t_a36e1216c0330e 886-888
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "eaf152d5d8a7cb58012ea5b754ec871058df068f",
+  "prompts": {},
+  "sessions": {
+    "s_ab2539e5de1e5c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "44b04469-37a6-436b-b7c9-ef63c2d495fc",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
