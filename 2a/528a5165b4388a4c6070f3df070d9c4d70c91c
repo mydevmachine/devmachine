@@ -1,0 +1,24 @@
+internal/provision/ansible_test.go
+  s_c1c985d7f57ab9::t_5d12fc488ff8fb 848-879
+internal/provision/ansible.go
+  s_c1c985d7f57ab9::t_c86237ccfbe639 437-444
+  s_c1c985d7f57ab9::t_b15a57e20e830c 539
+docs/troubleshooting.md
+  s_c1c985d7f57ab9::t_cf0685b49cc3e3 1101-1116
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2a528a5165b4388a4c6070f3df070d9c4d70c91c",
+  "prompts": {},
+  "sessions": {
+    "s_c1c985d7f57ab9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b5256304-4a81-480d-a568-f8cf11d8ddcc",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
