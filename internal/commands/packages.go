@@ -139,20 +139,32 @@ func newPackagesValidateCmd(opts *options) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			warnings, err := packages.Warnings(dir)
+			if err != nil {
+				return err
+			}
 
 			if opts.format == formatJSON {
 				if err := writeJSON(cmd.OutOrStdout(), struct {
 					OK       bool               `json:"ok"`
 					Package  string             `json:"package"`
 					Problems []packages.Problem `json:"problems"`
-				}{len(problems) == 0, dir, problems}); err != nil {
+					Warnings []packages.Problem `json:"warnings,omitempty"`
+				}{len(problems) == 0, dir, problems, warnings}); err != nil {
 					return err
 				}
-			} else if len(problems) == 0 {
-				cmd.Printf("%s is fine\n", dir)
 			} else {
 				for _, p := range problems {
 					cmd.Printf("%s%c%s\n", dir, filepath.Separator, p.Error())
+				}
+				for _, w := range warnings {
+					cmd.Printf("warning: %s%c%s\n", dir, filepath.Separator, w.Error())
+				}
+				switch {
+				case len(problems) == 0 && len(warnings) > 0:
+					cmd.Printf("%s is fine, with %d warning(s)\n", dir, len(warnings))
+				case len(problems) == 0:
+					cmd.Printf("%s is fine\n", dir)
 				}
 			}
 

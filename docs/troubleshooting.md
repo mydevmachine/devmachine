@@ -695,6 +695,36 @@ Linux. Swap it for what a new Mac starts with:
 `devmachine packages add base --machine <name>` and
 `devmachine packages add devmachine-app --machine <name>`.
 
+## `packages validate` warns about devmachine_account
+
+```
+warning: notes/defaults/main.yml:2: reads devmachine_account, but no task in this package registers it. …
+```
+
+**What it means:** The package uses `devmachine_account` (a workspace
+account's home or group), but none of its own tasks sets it. Ansible keeps
+a registered variable after the role that set it ends. So this package
+reads the account the previous package left, which on a machine with
+several workspaces can be another workspace's. Files then land in the
+wrong home, or get the wrong group. On a machine with one workspace it
+looks fine, which is why it can go unnoticed. It is a warning, not an
+error: `validate` still passes and `sync` still runs.
+
+**What to do:** Add this as the first task of the package's
+`tasks/main.yml`, as the upstream packages do:
+
+```yaml
+- name: Read the account's home and group
+  ansible.builtin.user:
+    name: "{{ devmachine_workspace.user }}"
+  check_mode: true
+  changed_when: false
+  register: devmachine_account
+```
+
+It only reads the account and never changes it. See [one package on many
+systems](how-it-works/packages-on-many-systems.md).
+
 ## A setting is accepted, but the package still uses its default
 
 **What it means:** A setting reaches the server as
@@ -1097,6 +1127,34 @@ would have provided genuinely is not there to look at yet.
 meaningful, because there is something on the server to compare against. Use
 a dry run to preview a change to a server you already built — not to preview
 the first build itself.
+
+## "another sync is running on …: wait for it to finish, then run this again"
+
+**What it means:** Another `sync` or `sync --check` holds this machine
+right now. It can be one in another terminal, one from another computer,
+or the app's Prepare button. Two runs at once would delete each other's
+files on the machine, so the second one stops before it changes anything.
+
+**What to do:** Wait for the other run to end, then run yours again. The
+lock clears itself when that run ends, when its connection drops, and
+after a reboot, so there is nothing to remove by hand. See [one sync per
+machine](how-it-works/one-sync-per-machine.md).
+
+## `sync --check` fails on a skill with "getgrnam(): name not found: '1001'"
+
+A dry run stops on a task like `global-skills installs the workflow skill`,
+with `KeyError: "getgrnam(): name not found: '1001'"`, and a real `sync` of
+the same machine passes.
+
+**What it means:** The machine has an older Ansible (ansible-core 2.16, the
+Ubuntu 24.04 package). Its `copy` module looks a folder's group up by name
+in a dry run only, and devmachine gives the workspace's group as a number,
+because a Mac has no group named after each account. CLI versions 0.8.0 to
+0.10.0 have this problem.
+
+**What to do:** Update the CLI. From v0.10.1 a dry run leaves that one
+group out, so it does not report group changes on a skill's files. A real
+run still sets the group.
 
 ## `sync` asks and I answered nothing
 

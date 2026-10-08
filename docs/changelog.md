@@ -8,6 +8,22 @@ page](https://github.com/mydevmachine/devmachine/releases).
 
 To get the latest version, see [Upgrade](upgrade.md).
 
+## v0.10.1 — 2026-10-08
+
+### Fixed
+
+- A dry run (`sync --check`) that installs skills no longer fails with
+  `getgrnam(): name not found` on machines with an older Ansible, such as
+  the one Ubuntu 24.04 ships. A real sync was not affected.
+- Only one sync runs on a machine at a time. A second one, from another
+  terminal or the app's Prepare button, used to delete the first one's
+  files halfway through. It now stops at once with "another sync is
+  running on …". See [One sync per machine](how-it-works/one-sync-per-machine.md).
+- `packages validate` warns when one of your packages reads
+  `devmachine_account` without setting it first. Such a package can pick
+  up another workspace's account on a machine with several workspaces.
+  The warning says which task to add.
+
 ## App v0.2.0 — 2026-10-07
 
 Needs CLI v0.10.0 and packages v41. With an older CLI or packages, a banner
