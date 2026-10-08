@@ -845,6 +845,38 @@ func TestGenerateSkillTasksFailOnAnUnmanagedCollision(t *testing.T) {
 	t.Fatalf("no unmanaged collision failure:\n%s", files["site.yml"])
 }
 
+// TestGenerateSkillFolderCopyLeavesTheGroupOutOfADryRun: ansible-core 2.16's
+// copy module looks a folder copy's group up by name in check mode, so a
+// numeric gid fails the dry run. A real run still sets the gid.
+func TestGenerateSkillFolderCopyLeavesTheGroupOutOfADryRun(t *testing.T) {
+	files, err := Generate(planWith(t, "main", nil, map[string][]string{"alice": {"global-skills"}}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	group := workspaceGroup(skillAccountsVar("global-skills"))
+	gid := strings.TrimSuffix(strings.TrimPrefix(group, "{{ "), " }}")
+	folders := 0
+	for _, task := range tasksIn(t, files["site.yml"]) {
+		copied, ok := task["copy"].(map[string]any)
+		if !ok {
+			continue
+		}
+		if copied["remote_src"] != true {
+			if copied["group"] != group {
+				t.Fatalf("a single-file copy lost its group: %#v", copied)
+			}
+			continue
+		}
+		folders++
+		if want := "{{ omit if ansible_check_mode else (" + gid + ") }}"; copied["group"] != want {
+			t.Fatalf("folder copy group = %#v, want %q", copied["group"], want)
+		}
+	}
+	if folders == 0 {
+		t.Fatalf("no skill folder copy:\n%s", files["site.yml"])
+	}
+}
+
 func TestGenerateSkillTasksNeverPruneAbsentSkills(t *testing.T) {
 	files, err := Generate(planWith(t, "main", nil, map[string][]string{"alice": {"global-skills"}}))
 	if err != nil {

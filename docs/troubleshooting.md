@@ -1098,6 +1098,22 @@ meaningful, because there is something on the server to compare against. Use
 a dry run to preview a change to a server you already built — not to preview
 the first build itself.
 
+## `sync --check` fails on a skill with "getgrnam(): name not found: '1001'"
+
+A dry run stops on a task like `global-skills installs the workflow skill`,
+with `KeyError: "getgrnam(): name not found: '1001'"`, and a real `sync` of
+the same machine passes.
+
+**What it means:** The machine has an older Ansible (ansible-core 2.16, the
+Ubuntu 24.04 package). Its `copy` module looks a folder's group up by name
+in a dry run only, and devmachine gives the workspace's group as a number,
+because a Mac has no group named after each account. CLI versions 0.8.0 to
+0.10.0 have this problem.
+
+**What to do:** Update the CLI. From v0.10.1 a dry run leaves that one
+group out, so it does not report group changes on a skill's files. A real
+run still sets the group.
+
 ## `sync` asks and I answered nothing
 
 **What it means:** An empty answer counts as no, and so does closing the

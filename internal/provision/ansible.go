@@ -434,6 +434,14 @@ func workspaceGroup(accounts string) string {
 	return accountField(accounts, "group", "devmachine_workspace.user")
 }
 
+// realRunOnly drops a templated value in a dry run. ansible-core 2.16's copy
+// module looks a folder copy's group up by name in check mode (grp.getgrnam),
+// so a numeric gid fails a dry run that a real run passes.
+func realRunOnly(value string) string {
+	expression := strings.TrimSuffix(strings.TrimPrefix(value, "{{ "), " }}")
+	return "{{ omit if ansible_check_mode else (" + expression + ") }}"
+}
+
 // writeSkillAccounts reads each workspace account before any skill task
 // names its home. Check mode, so it never creates or changes an account.
 func writeSkillAccounts(out *strings.Builder, contribution contributedSkills) {
@@ -528,7 +536,7 @@ func writeSkillConvergence(out *strings.Builder, contribution contributedSkills,
 
 	fmt.Fprintf(out, "    - name: %s installs the %s skill\n", pkg, skill.Name)
 	fmt.Fprintf(out, "      copy:\n        src: %q\n        dest: %q\n", RolePath(base, contribution.found.Source, pkg, contribution.found.Manifest.Skills.Path, skill.Name)+"/", destination+"/")
-	out.WriteString("        remote_src: true\n        owner: \"{{ devmachine_workspace.user }}\"\n        group: \"" + group + "\"\n        mode: preserve\n")
+	out.WriteString("        remote_src: true\n        owner: \"{{ devmachine_workspace.user }}\"\n        group: \"" + realRunOnly(group) + "\"\n        mode: preserve\n")
 	writeSkillLoop(out, contribution.workspaces, false)
 	fmt.Fprintf(out, "      tags: [%s]\n\n", pkg)
 
