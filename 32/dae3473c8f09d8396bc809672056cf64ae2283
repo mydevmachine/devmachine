@@ -1,0 +1,37 @@
+docs/troubleshooting.md
+  s_c1c985d7f57ab9::t_6791c7a21f6e30 1101-1112
+internal/provision/lock_test.go
+  s_c1c985d7f57ab9::t_ac7a88abb33a21 1-7,9-83,85
+  s_c1c985d7f57ab9::t_d86d5c02878a8f 8,84
+internal/provision/ansible_runner.go
+  s_c1c985d7f57ab9::t_6fddf647f81b7c 54-58
+docs/index.md
+  s_c1c985d7f57ab9::t_5577b8530256ee 141-142
+internal/provision/ansible_runner_test.go
+  s_c1c985d7f57ab9::t_fd3e6a24302fb9 32-33
+  s_c1c985d7f57ab9::t_7a306444755754 34-35,87,162
+  s_c1c985d7f57ab9::t_26fef7ec05af1e 73-86,88-90
+  s_c1c985d7f57ab9::t_27585ef66d123b 142-161,163-176,179-181
+  s_c1c985d7f57ab9::t_a280c4dc8e5bc5 178
+docs/how-it-works/one-sync-per-machine.md
+  s_c1c985d7f57ab9::t_e34cdbc811ae3b 1-44
+internal/provision/lock.go
+  s_c1c985d7f57ab9::t_ddc116c1b04810 1-60,64-81
+  s_c1c985d7f57ab9::t_6fddf647f81b7c 61-63
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "32dae3473c8f09d8396bc809672056cf64ae2283",
+  "prompts": {},
+  "sessions": {
+    "s_c1c985d7f57ab9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b5256304-4a81-480d-a568-f8cf11d8ddcc",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
