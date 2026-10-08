@@ -695,6 +695,36 @@ Linux. Swap it for what a new Mac starts with:
 `devmachine packages add base --machine <name>` and
 `devmachine packages add devmachine-app --machine <name>`.
 
+## `packages validate` warns about devmachine_account
+
+```
+warning: notes/defaults/main.yml:2: reads devmachine_account, but no task in this package registers it. …
+```
+
+**What it means:** The package uses `devmachine_account` (a workspace
+account's home or group), but none of its own tasks sets it. Ansible keeps
+a registered variable after the role that set it ends. So this package
+reads the account the previous package left, which on a machine with
+several workspaces can be another workspace's. Files then land in the
+wrong home, or get the wrong group. On a machine with one workspace it
+looks fine, which is why it can go unnoticed. It is a warning, not an
+error: `validate` still passes and `sync` still runs.
+
+**What to do:** Add this as the first task of the package's
+`tasks/main.yml`, as the upstream packages do:
+
+```yaml
+- name: Read the account's home and group
+  ansible.builtin.user:
+    name: "{{ devmachine_workspace.user }}"
+  check_mode: true
+  changed_when: false
+  register: devmachine_account
+```
+
+It only reads the account and never changes it. See [one package on many
+systems](how-it-works/packages-on-many-systems.md).
+
 ## A setting is accepted, but the package still uses its default
 
 **What it means:** A setting reaches the server as

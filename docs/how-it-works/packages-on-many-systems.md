@@ -141,6 +141,10 @@ the `user` module in check mode, which reads and never creates:
 
 Then use `devmachine_account.home | default('/home/' ~ devmachine_workspace.user)`
 for the home, and `devmachine_account.group | default(omit)` for the group.
+Every package that reads `devmachine_account` registers it itself. A
+registered variable outlives the role, so a package that skips this task
+reads whatever account the previous package left, which can belong to
+another workspace. `packages validate` warns about such a package.
 macOS has no `getent`, and homes are in `/Users`.
 
 **Homebrew refuses root.** On a Mac reached over SSH the play runs as root,

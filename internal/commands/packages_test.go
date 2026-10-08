@@ -63,6 +63,51 @@ func TestPackagesValidateAsJSONCarriesEachProblemWithItsPlace(t *testing.T) {
 	}
 }
 
+func writePackageBorrowingAnAccount(t *testing.T) string {
+	t.Helper()
+	dir := filepath.Join(t.TempDir(), "notes")
+	if err := packages.WriteSkeleton(dir, "notes", packages.ScopeWorkspace, ""); err != nil {
+		t.Fatal(err)
+	}
+	body := "---\n- name: Write the notes folder\n  ansible.builtin.file:\n    path: \"{{ devmachine_account.home }}/notes\"\n    state: directory\n"
+	if err := os.WriteFile(filepath.Join(dir, "tasks", "main.yml"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return dir
+}
+
+func TestPackagesValidateWarnsButPassesOnABorrowedAccount(t *testing.T) {
+	dir := writePackageBorrowingAnAccount(t)
+
+	out, err := execute(t, "packages", "validate", dir)
+	if err != nil {
+		t.Fatalf("a warning failed validation: %v\n%s", err, out)
+	}
+	if !strings.Contains(out, "warning:") || !strings.Contains(out, "devmachine_account") {
+		t.Fatalf("no warning about devmachine_account: %s", out)
+	}
+}
+
+func TestPackagesValidateAsJSONCarriesWarningsApartFromProblems(t *testing.T) {
+	dir := writePackageBorrowingAnAccount(t)
+
+	out, err := execute(t, "--format", "json", "packages", "validate", dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got struct {
+		OK       bool               `json:"ok"`
+		Problems []packages.Problem `json:"problems"`
+		Warnings []packages.Problem `json:"warnings"`
+	}
+	if err := json.Unmarshal([]byte(out), &got); err != nil {
+		t.Fatalf("not JSON: %v (%q)", err, out)
+	}
+	if !got.OK || len(got.Problems) != 0 || len(got.Warnings) != 1 {
+		t.Fatalf("got %#v", got)
+	}
+}
+
 func TestPackagesValidateAcceptsAGoodPackage(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "sharing")
 	if err := packages.WriteSkeleton(dir, "sharing", packages.ScopeWorkspace, ""); err != nil {

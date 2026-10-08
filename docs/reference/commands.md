@@ -1733,7 +1733,10 @@ and deletes nothing. `--format json` prints `{"package", "path",
 
 `new` writes a package that already passes `validate`; refuses to
 overwrite one that exists. `validate` reports every problem at once, with
-file and line. `schema` prints the `package.yml` format this binary
+file and line. It also prints warnings, which do not fail it: today, a
+package that reads `devmachine_account` without registering it (see
+[troubleshooting](../troubleshooting.md#packages-validate-warns-about-devmachine_account)). `--format json` adds them as
+`warnings`, apart from `problems`. `schema` prints the `package.yml` format this binary
 reads. `pin` writes `packages: <release>` — with none given, the latest;
 a release is a tag such as `v8`, never a branch. `help` asks an installed
 package what it accepts, by running its own `help`.
