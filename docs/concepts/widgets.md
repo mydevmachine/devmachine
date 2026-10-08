@@ -60,7 +60,9 @@ from](../how-it-works/where-a-public-widget-comes-from.md).
 
 An area is a place in the app that holds widgets. There are five:
 
-- **Home**, a free canvas: each widget has a place and a size.
+- **Home**, a free canvas: each widget has a place and a size. A widget that
+  has a natural height (a summary, a list, some text) can follow its content
+  with `size: auto`.
 - **The sidebar**, on the left: a list, top to bottom. The workspace list
   is one widget there, so you can put others above or below it.
 - **The context sidebar**, the Context tab next to a session: a list too.
@@ -90,7 +92,18 @@ widgets:
     size: medium
     minimized: false
     z: 1
+  - id: machines
+    type: devmachine-app/machines
+    frame: {x: 352, y: 24, w: 320}
+    size: auto
+    minimized: false
+    z: 2
 ```
+
+`size: auto` has no `h`: the app draws the widget as tall as what it shows,
+so it is never taller than its content. If you resize it shorter, the
+height you chose stays, up to the content. See [why a widget is as tall as
+what it shows](../how-it-works/why-a-widget-is-as-tall-as-what-it-shows.md).
 
 A sidebar's board is just the list, in order:
 

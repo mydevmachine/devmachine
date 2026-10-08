@@ -1,11 +1,12 @@
 {
-  "engine": "1.6",
+  "engine": "1.7",
   "layouts": ["canvas", "stack", "slot", "tabs"],
   "unit": 80,
   "snap": 8,
   "presets": {"small": [2,2], "medium": [4,2], "large": [4,4], "wide": [8,2], "tall": [2,4]},
   "stack_row": 40,
   "stack_entry": {"forbids": ["frame", "z"], "size": "preset | auto", "collapsed": "bool"},
+  "canvas_entry": {"size": "preset | custom | auto", "frame": "x, y, w, h; h left out with size auto"},
   "slot_max": 3,
   "slot_entry": {"forbids": ["frame", "size", "collapsed", "z", "minimized"], "views": ["text", "number", "status", "app.brand"], "text_max": 24, "min_every": "30s"},
   "tabs_entry": {"forbids": ["frame", "z", "minimized", "collapsed"], "ignores": ["size"]},
@@ -78,9 +79,9 @@
   },
   "views": {
     "app.clock": {"accepts": ["app/clock"]},
-    "app.summary": {"accepts": ["app/summary"]},
-    "app.machines": {"accepts": ["app/machines"]},
-    "app.harness-usage": {"accepts": ["app/harness-usage"]},
+    "app.summary": {"accepts": ["app/summary"], "grows": true},
+    "app.machines": {"accepts": ["app/machines"], "grows": true},
+    "app.harness-usage": {"accepts": ["app/harness-usage"], "grows": true},
     "app.workspaces": {"accepts": ["app/workspaces"], "layouts": ["stack"], "grows": true},
     "app.shortcuts": {"accepts": ["app/shortcuts"], "layouts": ["stack"], "grows": true},
     "app.publish-port": {"accepts": ["app/publish-port"], "layouts": ["stack"], "grows": true},
@@ -95,12 +96,12 @@
     "app.usage-panel": {"accepts": ["app/usage-panel"], "layouts": ["tabs"]},
     "text": {"accepts": ["text", "lines", "ansi"], "fields": {
       "wrap": {"type": "bool", "default": true},
-      "tail": {"type": "int", "min": 1, "max": 2000}}},
+      "tail": {"type": "int", "min": 1, "max": 2000}}, "grows": true},
     "number": {"accepts": ["number", "json", "app/open-pull-requests"], "fields": {
       "value": {"type": "template"},
       "unit": {"type": "string"},
       "format": {"type": "enum", "default": "plain", "values": ["plain", "percent", "bytes", "duration"]},
-      "hide_zero": {"type": "bool", "default": false}}},
+      "hide_zero": {"type": "bool", "default": false}}, "grows": true},
     "gauge": {"accepts": ["number", "json"], "fields": {
       "value": {"type": "template"},
       "min": {"type": "number", "default": 0},
@@ -111,18 +112,18 @@
     "status": {"accepts": ["status", "number", "json", "text"], "fields": {
       "value": {"type": "template"},
       "ok": {"type": "rule"},
-      "warn": {"type": "rule"}}},
+      "warn": {"type": "rule"}}, "grows": true},
     "list": {"accepts": ["lines", "json"], "fields": {
       "item": {"type": "object", "fields": {
         "title": {"type": "template", "default": "{{item}}"},
         "subtitle": {"type": "template"},
         "status": {"type": "template"},
-        "link": {"type": "template"}}}}},
+        "link": {"type": "template"}}}}, "grows": true},
     "sparkline": {"accepts": ["number", "json"], "fields": {
       "value": {"type": "template"},
       "unit": {"type": "string"},
       "max": {"type": "number"}}},
-    "markdown": {"accepts": ["text"]},
+    "markdown": {"accepts": ["text"], "grows": true},
     "web": {"accepts": ["kind:url"], "fields": {
       "zoom": {"type": "number", "default": 1, "min": 0.5, "max": 2}}},
     "terminal": {"accepts": ["ansi", "text", "kind:session"], "fields": {

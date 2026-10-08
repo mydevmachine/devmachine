@@ -1877,7 +1877,7 @@ a `command` source with no `parse`), and a rule uses `<`, `<=`, `>` or
 output is a number, say so: `parse: number` on a `command` source, or
 leave `parse` out on a `url` source to compare its status code.
 
-## "requires engine >= 1.7, and this CLI implements engine 1.6"
+## "requires engine >= 1.8, and this CLI implements engine 1.7"
 
 **What it means:** The widget says it needs a newer engine than this CLI
 has. Nothing else in it was checked.
@@ -2264,11 +2264,36 @@ The same message comes for `minimized: false`: a stack refuses the
 ## "size auto follows the content, and the X view does not grow"
 
 **What it means:** `auto` makes a widget as tall as what it shows. Only
-the app's sidebar views (`app.workspaces`, `app.todo` and the others) work
-that way; every other view has a fixed shape and needs a preset.
+a view that has a natural height works that way: the app's sidebar views
+(`app.workspaces`, `app.todo` and the others), the summary, machines and
+harness usage views, and the generic `text`, `number`, `status`, `list`
+and `markdown`. Every other view (a clock, a gauge, a web page, a
+terminal) has a fixed shape and needs a preset. The same message comes on
+Home, from a board entry or from `widgets add --size auto`
+("`<widget>` does not grow with its content, so it takes no --size auto").
 
 **What to do:** Use one of the sizes the message lists, or leave `size`
 out to get the widget's `default_size`.
+
+## "frame needs h unless size is auto"
+
+**What it means:** A widget on Home has a `frame` with `x`, `y` and `w`
+but no `h`, and its `size` is a preset or `custom`. Only `size: auto`
+leaves the height out, because the app takes it from the content.
+Everywhere else the height is part of the box.
+
+**What to do:** Add `h` to the frame, or write `size: auto` if the view
+grows with its content.
+
+## "frame width … is narrower than …"
+
+**What it means:** On Home, a view that grows has no least height, but
+its width still has a floor: the width of the smallest preset it takes.
+Below that the content has no room to draw.
+
+**What to do:** Make `w` at least the number in the message. A view that
+does not grow has a floor on both sides and gets "frame WxH is smaller
+than …" instead.
 
 ## "size "X" in a sidebar is auto or one of …"
 

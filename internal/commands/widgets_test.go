@@ -141,6 +141,17 @@ func TestWidgetsHelpDescribesAChoice(t *testing.T) {
 
 // stackConfig is widgetConfig plus the app's workspaces and todo widgets in
 // release v40, for the boards of the two sidebars.
+const meterWidgetYAML = `format: 1
+name: meter
+summary: A number on a dial.
+requires: {engine: ">= 1.0"}
+fits: [canvas, stack]
+source: {kind: url, url: "https://example.com/level", every: 60s, parse: json}
+view: {kind: gauge, value: "{{json.used}}"}
+sizes: [small, medium]
+default_size: small
+`
+
 func stackConfig(t *testing.T) string {
 	t.Helper()
 	dir := widgetConfig(t)
@@ -307,7 +318,7 @@ func listCatalog(t *testing.T, dir string) widgets.Catalog {
 
 func TestWidgetsListReadsThePinnedRelease(t *testing.T) {
 	catalog := listCatalog(t, widgetConfig(t))
-	if catalog.Engine != "1.6" || catalog.PackagesRelease != "v40" || len(catalog.Problems) != 0 {
+	if catalog.Engine != "1.7" || catalog.PackagesRelease != "v40" || len(catalog.Problems) != 0 {
 		t.Fatalf("got %+v", catalog)
 	}
 	var names []string
@@ -669,16 +680,51 @@ func TestWidgetsAddPlacesAtTheFirstFreeSpot(t *testing.T) {
 	if err := json.Unmarshal([]byte(out), &change); err != nil {
 		t.Fatal(err)
 	}
-	if change.Widget.Frame != (widgets.Frame{X: 352, Y: 24, W: 320, H: 160}) || change.Widget.Z != 2 || change.Widget.With["harness"] != "codex" {
+	if change.Widget.Frame != (widgets.Frame{X: 352, Y: 24, W: 320}) || change.Widget.Size != "auto" || change.Widget.Z != 2 || change.Widget.With["harness"] != "codex" {
 		t.Fatalf("got %+v", change.Widget)
 	}
 
 	body := readCommandFile(t, widgets.BoardPath(dir, "home"))
 	want := "format: 1\nsurface: home\nwidgets:\n" +
 		"  - id: clock\n    type: devmachine-app/clock\n    frame: {x: 24, y: 24, w: 320, h: 160}\n    size: medium\n    minimized: false\n    z: 1\n" +
-		"  - id: usage\n    type: claude-code/usage\n    with: {harness: codex}\n    frame: {x: 352, y: 24, w: 320, h: 160}\n    size: medium\n    minimized: false\n    z: 2\n"
+		"  - id: usage\n    type: claude-code/usage\n    with: {harness: codex}\n    frame: {x: 352, y: 24, w: 320}\n    size: auto\n    minimized: false\n    z: 2\n"
 	if body != want {
 		t.Fatalf("got\n%s", body)
+	}
+}
+
+func TestWidgetsAddOnHomeTakesSizeAutoForAGrowingViewAndNoneForOthers(t *testing.T) {
+	dir := widgetConfig(t)
+	if _, err := execute(t, "--config", dir, "widgets", "add", "claude-code/usage", "--size", "auto", "--at", "40,40"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := execute(t, "--config", dir, "widgets", "add", "devmachine-app/clock", "--at", "400,40"); err != nil {
+		t.Fatal(err)
+	}
+	want := "format: 1\nsurface: home\nwidgets:\n" +
+		"  - id: usage\n    type: claude-code/usage\n    frame: {x: 40, y: 40, w: 320}\n    size: auto\n    minimized: false\n    z: 1\n" +
+		"  - id: clock\n    type: devmachine-app/clock\n    frame: {x: 400, y: 40, w: 320, h: 160}\n    size: medium\n    minimized: false\n    z: 2\n"
+	if got := readCommandFile(t, widgets.BoardPath(dir, "home")); got != want {
+		t.Fatalf("got\n%s", got)
+	}
+	if out, err := execute(t, "--config", dir, "widgets", "validate", widgets.BoardPath(dir, "home")); err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+}
+
+func TestWidgetsAddPlacesAfterAnAutoWidgetUsingItsDefaultSizeHeight(t *testing.T) {
+	dir := widgetConfig(t)
+	writeCommandFile(t, widgets.BoardPath(dir, "home"), "format: 1\nsurface: home\nwidgets:\n"+
+		"  - id: usage\n    type: claude-code/usage\n    frame: {x: 24, y: 24, w: 1280}\n    size: auto\n    minimized: false\n    z: 1\n")
+	if _, err := execute(t, "--config", dir, "widgets", "add", "devmachine-app/clock"); err != nil {
+		t.Fatal(err)
+	}
+	b, _, _, err := widgets.ReadBoard(widgets.BoardPath(dir, "home"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := b.Widgets[1].Frame; got != (widgets.Frame{X: 24, Y: 192, W: 320, H: 160}) {
+		t.Fatalf("got %+v", got)
 	}
 }
 
@@ -709,7 +755,7 @@ func TestWidgetsAddAtPlacesExactlyThereEvenOverAnotherWidget(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := b.Widgets[1].Frame; got != (widgets.Frame{X: 24, Y: 24, W: 320, H: 160}) {
+	if got := b.Widgets[1].Frame; got != (widgets.Frame{X: 24, Y: 24, W: 320}) {
 		t.Fatalf("got %+v", got)
 	}
 }
@@ -1035,8 +1081,8 @@ func TestWidgetsAddPutsAStackWidgetInOrder(t *testing.T) {
 	}
 	want := "format: 1\nsurface: context-sidebar\nwidgets:\n" +
 		"  - id: todo\n    type: devmachine-app/todo\n    size: auto\n" +
-		"  - id: usage-2\n    type: claude-code/usage\n    with: {harness: codex}\n    size: medium\n" +
-		"  - id: usage\n    type: claude-code/usage\n    size: medium\n"
+		"  - id: usage-2\n    type: claude-code/usage\n    with: {harness: codex}\n    size: auto\n" +
+		"  - id: usage\n    type: claude-code/usage\n    size: auto\n"
 	if got := readCommandFile(t, widgets.BoardPath(dir, "context-sidebar")); got != want {
 		t.Fatalf("got\n%s", got)
 	}
@@ -1095,7 +1141,6 @@ func TestWidgetsAddRefusesTheWrongPlacementFlag(t *testing.T) {
 		{"--at on a stack", []string{"claude-code/usage", "--board", "sidebar", "--at", "0,0"}, "--at places a widget on Home's canvas; in the sidebar area use --after or --before"},
 		{"--after on Home", []string{"claude-code/usage", "--after", "clock"}, "--after and --before order a sidebar's list; the home area is a canvas, so use --at"},
 		{"an unknown neighbour", []string{"claude-code/usage", "--board", "sidebar", "--after", "ghost"}, `no widget with id "ghost" on the sidebar board`},
-		{"auto on a view that does not grow", []string{"claude-code/usage", "--board", "sidebar", "--size", "auto"}, "claude-code/usage does not grow with its content, so it takes no --size auto: it takes small, medium, wide"},
 		{"a widget that does not fit a stack", []string{"devmachine-app/clock", "--board", "sidebar"}, "devmachine-app/clock does not fit the sidebar area"},
 		{"a widget that needs a session", []string{"devmachine-app/todo", "--board", "sidebar"}, "devmachine-app/todo does not fit the sidebar area"},
 		{"both neighbours", []string{"claude-code/usage", "--board", "sidebar", "--after", "a", "--before", "b"}, "[after before]"},
@@ -1113,6 +1158,18 @@ func TestWidgetsAddRefusesTheWrongPlacementFlag(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestWidgetsAddRefusesAutoOnAViewThatDoesNotGrow(t *testing.T) {
+	dir := stackConfig(t)
+	writeCommandFile(t, filepath.Join(packages.CacheDir(dir, "v40"), "packages", "devmachine-app", "widgets", "meter", "widget.yml"), meterWidgetYAML)
+	for _, board := range []string{"sidebar", "home"} {
+		_, err := execute(t, "--config", dir, "widgets", "add", "devmachine-app/meter", "--board", board, "--size", "auto")
+		want := "devmachine-app/meter does not grow with its content, so it takes no --size auto: it takes small, medium"
+		if err == nil || !strings.Contains(err.Error(), want) {
+			t.Fatalf("%s: want %q, got %v", board, want, err)
+		}
 	}
 }
 
@@ -1135,7 +1192,7 @@ func TestWidgetsAddKeepsAnInlineStackWidget(t *testing.T) {
 	if out, err := execute(t, "--config", dir, "widgets", "add", "claude-code/usage", "--board", "context-sidebar", "--before", "notes"); err != nil {
 		t.Fatalf("%v\n%s", err, out)
 	}
-	want := "format: 1\nsurface: context-sidebar\nwidgets:\n  - id: usage\n    type: claude-code/usage\n    size: medium\n" + inlineStackEntry
+	want := "format: 1\nsurface: context-sidebar\nwidgets:\n  - id: usage\n    type: claude-code/usage\n    size: auto\n" + inlineStackEntry
 	if got := readCommandFile(t, board); got != want {
 		t.Fatalf("got\n%s", got)
 	}

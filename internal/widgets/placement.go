@@ -44,6 +44,27 @@ func MinFrame(sizes []string) (int, int) {
 	return minW, minH
 }
 
+// EstimateHeights gives each auto entry the height of its widget's
+// default_size, or 160 for one written in the board. The CLI cannot measure
+// what the app draws, so placement counts that much room for it.
+func EstimateHeights(b Board, lookup Lookup) Board {
+	const inlineHeight = 160
+	widgets := slices.Clone(b.Widgets)
+	for i, w := range widgets {
+		if w.Size != SizeAuto {
+			continue
+		}
+		widgets[i].Frame.H = inlineHeight
+		if entry, ok := lookup(w.Type); ok && !w.Inline {
+			if _, h, known := FrameFor(entry.DefaultSize); known {
+				widgets[i].Frame.H = h
+			}
+		}
+	}
+	b.Widgets = widgets
+	return b
+}
+
 // FreeSpot is the first place a w×h widget fits without touching another,
 // scanning rows of the snap from the top left.
 func FreeSpot(b Board, w, h int) Frame {

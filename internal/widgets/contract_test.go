@@ -96,8 +96,15 @@ func TestAProviderNeedsOnlyContextKeysASurfaceGives(t *testing.T) {
 }
 
 func TestOnlyViewsThatGrowTakeSizeAuto(t *testing.T) {
-	if !Grows("app.todo") || Grows("app.clock") || Grows("text") || Grows("nope") {
-		t.Fatal("Grows is wrong")
+	for _, view := range []string{"app.todo", "app.summary", "app.machines", "app.harness-usage", "text", "number", "status", "list", "markdown"} {
+		if !Grows(view) {
+			t.Errorf("%s should grow", view)
+		}
+	}
+	for _, view := range []string{"app.clock", "app.pull-requests-panel", "app.usage-panel", "gauge", "sparkline", "web", "terminal", "nope"} {
+		if Grows(view) {
+			t.Errorf("%s should not grow", view)
+		}
 	}
 }
 

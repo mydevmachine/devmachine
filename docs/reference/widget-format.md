@@ -324,8 +324,8 @@ widgets:
 | `with` | Values for the widget's inputs. Left out when there are none. A choice of many takes a list: `with: {machines: [main, backup]}`; `[]` means all. |
 | `title` | Optional, on an entry with a `type`: the title this copy shows instead of the widget's own. Never empty; take the key off to go back. |
 | `every` | Optional, on an entry with a `type`: how often this copy runs, as a duration (`2m`) or, for any source but a provider, `manual`. Never below what the widget's source allows (`devmachine widgets schema` lists each minimum), and not on a stream. |
-| `frame` | Position and size in points. `x` and `y` are 0 or more; `w` and `h` are at least the smallest preset the widget takes. |
-| `size` | A preset, or `custom` after a free resize. Left out, it is `custom`. |
+| `frame` | Position and size in points. `x` and `y` are 0 or more. `w` is at least the width of the smallest preset the widget takes. `h` is the same for a view that does not grow; a view that grows has no least height, only above zero. With `size: auto` the frame is `{x, y, w}` and `h` is left out (an `h` there is ignored and dropped on the next write). Without `auto`, `h` is required. |
+| `size` | A preset, `custom` after a free resize, or `auto`. Left out, it is `custom`. `auto` makes the widget as tall as what it shows, and only a view that grows takes it (`app.summary`, `app.machines`, `app.harness-usage`, `text`, `number`, `status`, `list`, `markdown`). On a view that grows, `custom` or a preset with an `h` is a cap: the widget is never taller than its content. See [why a widget is as tall as what it shows](../how-it-works/why-a-widget-is-as-tall-as-what-it-shows.md). |
 | `minimized` | `true` draws a pill with the title instead. |
 | `z` | Higher is in front. |
 
@@ -469,13 +469,13 @@ open pull request count, and the Pull Requests and Usage tabs.
 
 <!-- generated from the engine contract by `make widget-format`: start -->
 
-Engine **1.6**. Widget format 1, board format 1.
+Engine **1.7**. Widget format 1, board format 1.
 
 ### Sizes
 
 One unit is 80pt; positions and free resizes snap to 8pt.
 
-One preset row in a sidebar is 40pt high, and a widget there is as wide as the panel. `size: auto` makes a view that grows as tall as what it shows.
+One preset row in a sidebar is 40pt high, and a widget there is as wide as the panel. `size: auto` makes a view that grows as tall as what it shows. On Home it does the same, and the frame has no `h`.
 
 The menu bar holds at most 3 widgets, left to right, each one line drawn by one of the views `text`, `number`, `status`, `app.brand`. Text shows its first line, cut at 24 characters. A widget there runs at most every 30s. A tab in the menu bar popover fills it, so a `size` there is ignored.
 
@@ -558,9 +558,9 @@ A package declares providers in its `package.yml`; a widget names one `<package>
 | --- | --- | --- | --- |
 | `app.brand` | `app/brand` | slot | none |
 | `app.clock` | `app/clock` | canvas, stack, tabs | none |
-| `app.harness-usage` | `app/harness-usage` | canvas, stack, tabs | none |
+| `app.harness-usage` | `app/harness-usage` | canvas, stack, tabs; grows with its content | none |
 | `app.links` | `app/session-context` | stack; grows with its content | none |
-| `app.machines` | `app/machines` | canvas, stack, tabs | none |
+| `app.machines` | `app/machines` | canvas, stack, tabs; grows with its content | none |
 | `app.monitors` | `app/session-context` | stack; grows with its content | none |
 | `app.publish-port` | `app/publish-port` | stack; grows with its content | none |
 | `app.pull-requests` | `app/session-context` | stack; grows with its content | none |
@@ -568,18 +568,18 @@ A package declares providers in its `package.yml`; a widget names one `<package>
 | `app.shells` | `app/session-context` | stack; grows with its content | none |
 | `app.shortcuts` | `app/shortcuts` | stack; grows with its content | none |
 | `app.sub-agents` | `app/session-context` | stack; grows with its content | none |
-| `app.summary` | `app/summary` | canvas, stack, tabs | none |
+| `app.summary` | `app/summary` | canvas, stack, tabs; grows with its content | none |
 | `app.todo` | `app/session-context` | stack; grows with its content | none |
 | `app.usage-panel` | `app/usage-panel` | tabs | none |
 | `app.workspaces` | `app/workspaces` | stack; grows with its content | none |
 | `gauge` | `number`, `json` | canvas, stack, tabs | `crit` number; `max` number, default `100`; `min` number, default `0`; `unit` string; `value` template; `warn` number |
-| `list` | `lines`, `json` | canvas, stack, tabs | `item` object (`link` template; `status` template; `subtitle` template; `title` template, default `{{item}}`) |
-| `markdown` | `text` | canvas, stack, tabs | none |
-| `number` | `number`, `json`, `app/open-pull-requests` | any layout | `format` enum, plain/percent/bytes/duration, default `plain`; `hide_zero` bool, default `false`; `unit` string; `value` template |
+| `list` | `lines`, `json` | canvas, stack, tabs; grows with its content | `item` object (`link` template; `status` template; `subtitle` template; `title` template, default `{{item}}`) |
+| `markdown` | `text` | canvas, stack, tabs; grows with its content | none |
+| `number` | `number`, `json`, `app/open-pull-requests` | any layout; grows with its content | `format` enum, plain/percent/bytes/duration, default `plain`; `hide_zero` bool, default `false`; `unit` string; `value` template |
 | `sparkline` | `number`, `json` | canvas, stack, tabs | `max` number; `unit` string; `value` template |
-| `status` | `status`, `number`, `json`, `text` | any layout | `ok` rule; `value` template; `warn` rule |
+| `status` | `status`, `number`, `json`, `text` | any layout; grows with its content | `ok` rule; `value` template; `warn` rule |
 | `terminal` | `ansi`, `text`, `kind:session` | canvas, stack, tabs | `tail` int, min 1, max 2000 |
-| `text` | `text`, `lines`, `ansi` | any layout | `tail` int, min 1, max 2000; `wrap` bool, default `true` |
+| `text` | `text`, `lines`, `ansi` | any layout; grows with its content | `tail` int, min 1, max 2000; `wrap` bool, default `true` |
 | `web` | `kind:url` | canvas, stack, tabs | `zoom` number, default `1`, min 0.5, max 2 |
 
 <!-- generated from the engine contract by `make widget-format`: end -->
@@ -591,7 +591,7 @@ A package declares providers in its `package.yml`; a widget names one `<package>
 | `format` is not 1 | `format 2, and this CLI reads widget format 1` |
 | `requires.engine` missing | `every widget needs requires.engine, for example ">= 1.0"` |
 | `requires.engine` unreadable | `requires.engine "X": write it as ">= 1.0", "> 1.0" or "= 1.0"` |
-| a newer engine is required | ``requires engine >= 1.7, and this CLI implements engine 1.6: update with `devmachine update` `` |
+| a newer engine is required | ``requires engine >= 1.8, and this CLI implements engine 1.7: update with `devmachine update` `` |
 | an unknown top-level field | `unknown field "X"` |
 | `name` malformed or not the folder | `name is "X" but the folder is "Y": a widget is found by its folder` |
 | `summary` missing | `every widget needs a one-line summary` |
@@ -615,7 +615,7 @@ A package declares providers in its `package.yml`; a widget names one `<package>
 | an `every` on an entry that its source does not take | `usage: every 1s is below claude-code/usage's minimum of 5s`, `usage: every "often" is not a duration: …`, `usage: every manual: claude-code/usage reads a provider, which runs on a schedule: …`, `tail: a stream runs while the widget is on screen, so it takes no every`, `ask: permission_mode bypassPermissions runs without any check, so it runs only when you press refresh: write every: manual` |
 | an `every` on a widget written in the board | `disk: a widget written in the board sets how often in source.every, not every` |
 | template names something undeclared | `template {{inputs.X}} in source.with.Y needs inputs.X` |
-| `source.kind` unknown | `source.kind "X": engine 1.6 knows provider, command, url, prompt, session` |
+| `source.kind` unknown | `source.kind "X": engine 1.7 knows provider, command, url, prompt, session` |
 | a key of another kind | `source.url is not a field of a command source: it takes …` |
 | no `run`/`script`, or both | `a command source needs run or script`, `a command source has run or script, not both` |
 | `run` with spaces and no `shell: true` | `source.run "df -h /" has spaces: put each argument in source.args, or set shell: true …` |
@@ -635,7 +635,7 @@ A package declares providers in its `package.yml`; a widget names one `<package>
 | `permission_mode` with an engine that allows 1.5 | `a widget with source.permission_mode needs requires.engine ">= 1.6": an app on engine 1.5 cannot run its prompt in that mode` |
 | `url` not a full address | `source.url "X": write a full address starting with https:// or http://` |
 | view does not draw the source | `view.kind "gauge" takes number, json, and this command source gives text` |
-| `source.name` unknown | `source.name "X" is not a provider engine 1.6 knows` |
+| `source.name` unknown | `source.name "X" is not a provider engine 1.7 knows` |
 | `source.with` wrong | `source.with.X is not an argument of P`, `source.with.X is required by P` |
 | an app provider with target or timeout | `source.target: app/clock is the app's own data, so it takes no target` |
 | `source.every` missing, unreadable or too short | `source.every 1s is below the P minimum of 5s` |
@@ -669,7 +669,12 @@ A package declares providers in its `package.yml`; a widget names one `<package>
 | a sidebar widget with `frame` or `z` | `todo: a widget in a sidebar has no frame; its place is its position in the list` |
 | a sidebar widget with `minimized` | `usage: a widget in a sidebar folds with collapsed: true, not minimized` |
 | a Home widget with `collapsed` | `clock: a widget on a canvas folds with minimized: true, not collapsed` |
-| `size: auto` on a view that does not grow | `usage: size auto follows the content, and the app.harness-usage view does not grow: use small, medium, wide` |
+| `size: auto` on a view that does not grow, in a sidebar or on Home | `clock: size auto follows the content, and the app.clock view does not grow: use small, medium` |
+| a Home `size` that is not a preset, `custom` or `auto` | `clock: size "huge" is a preset (small, medium, tall, large, wide), custom or auto` |
+| a Home `frame` with no `h` and a `size` other than `auto` | `clock: frame needs h unless size is auto` |
+| a Home `frame` narrower than the smallest preset width of a view that grows | `usage: frame width 100 is narrower than claude-code/usage's minimum of 160` (a widget written in the board: `disk: frame width 100 is narrower than its minimum of 320`) |
+| a Home `h` of zero on a view that grows | `usage: frame h must be above zero` |
+| a Home `frame` smaller than the smallest preset of a view that does not grow | `clock: frame 100x160 is smaller than devmachine-app/clock's minimum of 160x160` |
 | a sidebar size that is neither auto nor a preset it takes | `todo: size "custom" in a sidebar is auto or one of medium, large` |
 | `size: auto` on a widget written in a sidebar board with no view | `notes: size auto follows the content, and a widget with no view does not grow: use small, medium, tall, large, wide` |
 | a board widget whose `fits` lacks the area's layout | `todo: devmachine-app/clock does not fit the context-sidebar area: its fits has no stack` |

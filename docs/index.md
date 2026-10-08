@@ -161,6 +161,9 @@ these when something behaves in a way that surprises you.
 - [Choosing and editing a widget](how-it-works/choosing-and-editing-a-widget.md)
   — where a widget's choices come from, and why a machine you removed
   never locks a board.
+- [Why a widget is as tall as what it shows](how-it-works/why-a-widget-is-as-tall-as-what-it-shows.md)
+  — why a box is never taller than its content, why a height you set is a
+  cap, and why a growing widget only pushes the ones below it on screen.
 - [A prompt widget's permission mode](how-it-works/a-prompt-widgets-permission-mode.md)
   — why the modes are the harness's own names, and why a mode with no
   checks never runs on a timer.
