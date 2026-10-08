@@ -1,0 +1,43 @@
+docs/how-it-works/why-a-widget-is-as-tall-as-what-it-shows.md
+  s_b21bedf0bf983b::t_3ba36e802715d4 1-62
+docs/index.md
+  s_b21bedf0bf983b::t_207c78f156f6c4 164-166
+docs/reference/widget-format.md
+  s_b21bedf0bf983b::t_b7f761fdc91502 327-328,478,672-677
+docs/troubleshooting.md
+  s_b21bedf0bf983b::t_fdb1124c4d8ff8 2267-2273,2278-2297
+internal/widgets/board.go
+  s_b21bedf0bf983b::t_8cb58607f3fbb1 236,238,257-262,271,409-411
+internal/widgets/board_test.go
+  s_b21bedf0bf983b::t_2e1ac88f89c4e4 81,83
+internal/widgets/canvas.go
+  s_b21bedf0bf983b::t_3caca74aada0a9 1-34
+internal/widgets/canvas_auto_test.go
+  s_b21bedf0bf983b::t_b1ee77ae18205a 1-146
+internal/widgets/inline.go
+  s_b21bedf0bf983b::t_b13f98cdc71e73 56-58,60
+internal/widgets/inline_test.go
+  s_b21bedf0bf983b::t_b9058e35ae86e3 62
+internal/widgets/placement.go
+  s_b21bedf0bf983b::t_77260a9a81d374 47-67
+internal/widgets/reference.go
+  s_b21bedf0bf983b::t_a5ab2e7e3688e1 29
+internal/widgets/stack.go
+  s_b21bedf0bf983b::t_cae88683f9bcc6 42,49-55
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ac4a974623f0aa7db06fcfcf2e722197a04f6d95",
+  "prompts": {},
+  "sessions": {
+    "s_b21bedf0bf983b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3c5df531-ee5f-4f68-8500-62616ad94828",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
