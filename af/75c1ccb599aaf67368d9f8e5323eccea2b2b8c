@@ -1,0 +1,45 @@
+docs/concepts/widgets.md
+  s_b21bedf0bf983b::t_b01405836a3d7b 63-65,95-100,103-107
+docs/index.md
+  s_b21bedf0bf983b::t_58d6bde418a6e4 164-166
+docs/reference/commands.md
+  s_b21bedf0bf983b::t_df98f2d8eb72f9 734,872-881,939-940
+docs/reference/widget-format.md
+  s_b21bedf0bf983b::t_07002ceb3a9bdd 327-328,478,594,618,638,672-677
+docs/troubleshooting.md
+  s_b21bedf0bf983b::t_3619386974bfbc 1880,2267-2273,2278-2297
+internal/commands/widgets_board.go
+  s_b21bedf0bf983b::t_3b1550b9189f5e 85-86,122,125,129-131,150,158-159,169-180,190
+internal/commands/widgets_test.go
+  s_b21bedf0bf983b::t_af362941a9c931 144-154,683,690,696-730,758,1084-1085,1164-1175,1195
+internal/widgets/board.go
+  s_b21bedf0bf983b::t_e844bd7aefb3ff 236,238,257-262,271,409-411
+internal/widgets/board_test.go
+  s_b21bedf0bf983b::t_e1e623482d1d8e 81,83
+internal/widgets/inline.go
+  s_b21bedf0bf983b::t_8a48dbe842e988 56-58,60
+internal/widgets/inline_test.go
+  s_b21bedf0bf983b::t_dfdd4c00dd58f4 62
+internal/widgets/placement.go
+  s_b21bedf0bf983b::t_29deaa0ac9801e 47-67
+internal/widgets/reference.go
+  s_b21bedf0bf983b::t_210eb70dba528d 29
+internal/widgets/stack.go
+  s_b21bedf0bf983b::t_e23aaf7b96bfc4 42,49-55
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "af75c1ccb599aaf67368d9f8e5323eccea2b2b8c",
+  "prompts": {},
+  "sessions": {
+    "s_b21bedf0bf983b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3c5df531-ee5f-4f68-8500-62616ad94828",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
