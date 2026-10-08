@@ -469,7 +469,7 @@ open pull request count, and the Pull Requests and Usage tabs.
 
 <!-- generated from the engine contract by `make widget-format`: start -->
 
-Engine **1.6**. Widget format 1, board format 1.
+Engine **1.7**. Widget format 1, board format 1.
 
 ### Sizes
 
@@ -558,9 +558,9 @@ A package declares providers in its `package.yml`; a widget names one `<package>
 | --- | --- | --- | --- |
 | `app.brand` | `app/brand` | slot | none |
 | `app.clock` | `app/clock` | canvas, stack, tabs | none |
-| `app.harness-usage` | `app/harness-usage` | canvas, stack, tabs | none |
+| `app.harness-usage` | `app/harness-usage` | canvas, stack, tabs; grows with its content | none |
 | `app.links` | `app/session-context` | stack; grows with its content | none |
-| `app.machines` | `app/machines` | canvas, stack, tabs | none |
+| `app.machines` | `app/machines` | canvas, stack, tabs; grows with its content | none |
 | `app.monitors` | `app/session-context` | stack; grows with its content | none |
 | `app.publish-port` | `app/publish-port` | stack; grows with its content | none |
 | `app.pull-requests` | `app/session-context` | stack; grows with its content | none |
@@ -568,18 +568,18 @@ A package declares providers in its `package.yml`; a widget names one `<package>
 | `app.shells` | `app/session-context` | stack; grows with its content | none |
 | `app.shortcuts` | `app/shortcuts` | stack; grows with its content | none |
 | `app.sub-agents` | `app/session-context` | stack; grows with its content | none |
-| `app.summary` | `app/summary` | canvas, stack, tabs | none |
+| `app.summary` | `app/summary` | canvas, stack, tabs; grows with its content | none |
 | `app.todo` | `app/session-context` | stack; grows with its content | none |
 | `app.usage-panel` | `app/usage-panel` | tabs | none |
 | `app.workspaces` | `app/workspaces` | stack; grows with its content | none |
 | `gauge` | `number`, `json` | canvas, stack, tabs | `crit` number; `max` number, default `100`; `min` number, default `0`; `unit` string; `value` template; `warn` number |
-| `list` | `lines`, `json` | canvas, stack, tabs | `item` object (`link` template; `status` template; `subtitle` template; `title` template, default `{{item}}`) |
-| `markdown` | `text` | canvas, stack, tabs | none |
-| `number` | `number`, `json`, `app/open-pull-requests` | any layout | `format` enum, plain/percent/bytes/duration, default `plain`; `hide_zero` bool, default `false`; `unit` string; `value` template |
+| `list` | `lines`, `json` | canvas, stack, tabs; grows with its content | `item` object (`link` template; `status` template; `subtitle` template; `title` template, default `{{item}}`) |
+| `markdown` | `text` | canvas, stack, tabs; grows with its content | none |
+| `number` | `number`, `json`, `app/open-pull-requests` | any layout; grows with its content | `format` enum, plain/percent/bytes/duration, default `plain`; `hide_zero` bool, default `false`; `unit` string; `value` template |
 | `sparkline` | `number`, `json` | canvas, stack, tabs | `max` number; `unit` string; `value` template |
-| `status` | `status`, `number`, `json`, `text` | any layout | `ok` rule; `value` template; `warn` rule |
+| `status` | `status`, `number`, `json`, `text` | any layout; grows with its content | `ok` rule; `value` template; `warn` rule |
 | `terminal` | `ansi`, `text`, `kind:session` | canvas, stack, tabs | `tail` int, min 1, max 2000 |
-| `text` | `text`, `lines`, `ansi` | any layout | `tail` int, min 1, max 2000; `wrap` bool, default `true` |
+| `text` | `text`, `lines`, `ansi` | any layout; grows with its content | `tail` int, min 1, max 2000; `wrap` bool, default `true` |
 | `web` | `kind:url` | canvas, stack, tabs | `zoom` number, default `1`, min 0.5, max 2 |
 
 <!-- generated from the engine contract by `make widget-format`: end -->
@@ -591,7 +591,7 @@ A package declares providers in its `package.yml`; a widget names one `<package>
 | `format` is not 1 | `format 2, and this CLI reads widget format 1` |
 | `requires.engine` missing | `every widget needs requires.engine, for example ">= 1.0"` |
 | `requires.engine` unreadable | `requires.engine "X": write it as ">= 1.0", "> 1.0" or "= 1.0"` |
-| a newer engine is required | ``requires engine >= 1.7, and this CLI implements engine 1.6: update with `devmachine update` `` |
+| a newer engine is required | ``requires engine >= 1.8, and this CLI implements engine 1.7: update with `devmachine update` `` |
 | an unknown top-level field | `unknown field "X"` |
 | `name` malformed or not the folder | `name is "X" but the folder is "Y": a widget is found by its folder` |
 | `summary` missing | `every widget needs a one-line summary` |
@@ -615,7 +615,7 @@ A package declares providers in its `package.yml`; a widget names one `<package>
 | an `every` on an entry that its source does not take | `usage: every 1s is below claude-code/usage's minimum of 5s`, `usage: every "often" is not a duration: …`, `usage: every manual: claude-code/usage reads a provider, which runs on a schedule: …`, `tail: a stream runs while the widget is on screen, so it takes no every`, `ask: permission_mode bypassPermissions runs without any check, so it runs only when you press refresh: write every: manual` |
 | an `every` on a widget written in the board | `disk: a widget written in the board sets how often in source.every, not every` |
 | template names something undeclared | `template {{inputs.X}} in source.with.Y needs inputs.X` |
-| `source.kind` unknown | `source.kind "X": engine 1.6 knows provider, command, url, prompt, session` |
+| `source.kind` unknown | `source.kind "X": engine 1.7 knows provider, command, url, prompt, session` |
 | a key of another kind | `source.url is not a field of a command source: it takes …` |
 | no `run`/`script`, or both | `a command source needs run or script`, `a command source has run or script, not both` |
 | `run` with spaces and no `shell: true` | `source.run "df -h /" has spaces: put each argument in source.args, or set shell: true …` |
@@ -635,7 +635,7 @@ A package declares providers in its `package.yml`; a widget names one `<package>
 | `permission_mode` with an engine that allows 1.5 | `a widget with source.permission_mode needs requires.engine ">= 1.6": an app on engine 1.5 cannot run its prompt in that mode` |
 | `url` not a full address | `source.url "X": write a full address starting with https:// or http://` |
 | view does not draw the source | `view.kind "gauge" takes number, json, and this command source gives text` |
-| `source.name` unknown | `source.name "X" is not a provider engine 1.6 knows` |
+| `source.name` unknown | `source.name "X" is not a provider engine 1.7 knows` |
 | `source.with` wrong | `source.with.X is not an argument of P`, `source.with.X is required by P` |
 | an app provider with target or timeout | `source.target: app/clock is the app's own data, so it takes no target` |
 | `source.every` missing, unreadable or too short | `source.every 1s is below the P minimum of 5s` |

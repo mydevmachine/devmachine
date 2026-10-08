@@ -39,6 +39,10 @@ func stackLookup(name string) (Entry, bool) {
 			Name: "devmachine-app/workspaces", Fits: []string{LayoutStack}, View: ViewRef{Kind: "app.workspaces"},
 			Sizes: []string{"medium", "large"}, Single: true,
 		},
+		"claude-code/meter": {
+			Name: "claude-code/meter", Fits: []string{LayoutStack}, View: ViewRef{Kind: "gauge"},
+			Sizes: []string{"small", "medium"},
+		},
 		"devmachine-app/clock": {
 			Name: "devmachine-app/clock", Fits: []string{LayoutCanvas}, View: ViewRef{Kind: "app.clock"},
 			Sizes: []string{"small", "medium"},
@@ -107,10 +111,10 @@ func TestEachStackEntryRuleReportsItsOwnProblem(t *testing.T) {
 			`todo: size "custom" in a sidebar is auto or one of medium, large`},
 		{"a preset it does not take", "    size: auto\n", "    size: wide\n",
 			`todo: size "wide" in a sidebar is auto or one of medium, large`},
-		{"auto on a view that does not grow", "size: medium\n    collapsed", "size: auto\n    collapsed",
-			"usage: size auto follows the content, and the app.harness-usage view does not grow: use small, medium, wide"},
-		{"auto on an inline view that does not grow", "    view: {kind: list}\n    size: medium\n", "    view: {kind: list}\n    size: auto\n",
-			"notes: size auto follows the content, and the list view does not grow"},
+		{"auto on a view that does not grow", "type: claude-code/usage\n    with: {harness: claude}\n    size: medium", "type: claude-code/meter\n    size: auto",
+			"usage: size auto follows the content, and the gauge view does not grow: use small, medium"},
+		{"auto on an inline view that does not grow", "parse: lines\n    view: {kind: list}\n    size: medium\n", "parse: number\n    view: {kind: gauge}\n    size: auto\n",
+			"notes: size auto follows the content, and the gauge view does not grow: use small, medium, tall, large, wide"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

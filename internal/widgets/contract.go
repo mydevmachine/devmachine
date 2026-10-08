@@ -5,7 +5,7 @@ package widgets
 import "slices"
 
 // Engine is the version of the contract this CLI implements.
-const Engine = "1.6"
+const Engine = "1.7"
 
 // LastEngineWithoutPackageProviders is the newest engine that cannot run a
 // package provider, so a widget reading one must refuse it.
@@ -111,8 +111,8 @@ const AcceptsKind = "kind:"
 // SizeCustom is the size a board entry has after a free resize.
 const SizeCustom = "custom"
 
-// SizeAuto makes a widget in a sidebar as tall as what it shows. Only a view
-// that grows takes it.
+// SizeAuto makes a widget in a sidebar or on Home as tall as what it shows.
+// Only a view that grows takes it.
 const SizeAuto = "auto"
 
 // InputChoice is the input type a person picks from a list the app fills
@@ -179,7 +179,8 @@ type SourceKind struct {
 }
 
 // View is one way the app draws a source's output. Layouts, when set, are
-// the only layouts it is drawn in; Grows means it takes size auto in a stack.
+// the only layouts it is drawn in; Grows means it takes size auto in a stack
+// or on Home.
 type View struct {
 	Accepts []string         `json:"accepts"`
 	Fields  map[string]Field `json:"fields,omitempty"`
@@ -193,6 +194,12 @@ type StackEntry struct {
 	Forbids   []string `json:"forbids"`
 	Size      string   `json:"size"`
 	Collapsed string   `json:"collapsed"`
+}
+
+// CanvasEntry is how a widget sits on a canvas: what its size and frame take.
+type CanvasEntry struct {
+	Size  string `json:"size"`
+	Frame string `json:"frame"`
 }
 
 // SlotEntry is how a widget sits in a slot: the board keys it must not
@@ -251,6 +258,7 @@ type Contract struct {
 	Presets         map[string][2]int            `json:"presets"`
 	StackRow        int                          `json:"stack_row"`
 	StackEntry      StackEntry                   `json:"stack_entry"`
+	CanvasEntry     CanvasEntry                  `json:"canvas_entry"`
 	SlotMax         int                          `json:"slot_max"`
 	SlotEntry       SlotEntry                    `json:"slot_entry"`
 	TabsEntry       TabsEntry                    `json:"tabs_entry"`
@@ -267,7 +275,7 @@ type Contract struct {
 	Formats         map[string]int               `json:"formats"`
 }
 
-// CurrentContract returns engine 1.6, built fresh on every call so no caller
+// CurrentContract returns engine 1.7, built fresh on every call so no caller
 // can change what another one reads.
 func CurrentContract() Contract {
 	appProvider := func(args map[string]Arg, returns map[string]string) Provider {
@@ -297,6 +305,9 @@ func CurrentContract() Contract {
 		StackRow: 40,
 		StackEntry: StackEntry{
 			Forbids: []string{"frame", "z"}, Size: "preset | auto", Collapsed: "bool",
+		},
+		CanvasEntry: CanvasEntry{
+			Size: "preset | custom | auto", Frame: "x, y, w, h; h left out with size auto",
 		},
 		SlotMax: 3,
 		SlotEntry: SlotEntry{
@@ -385,9 +396,9 @@ func CurrentContract() Contract {
 		},
 		Views: map[string]View{
 			"app.clock":               {Accepts: []string{"app/clock"}},
-			"app.summary":             {Accepts: []string{"app/summary"}},
-			"app.machines":            {Accepts: []string{"app/machines"}},
-			"app.harness-usage":       {Accepts: []string{"app/harness-usage"}},
+			"app.summary":             {Accepts: []string{"app/summary"}, Grows: true},
+			"app.machines":            {Accepts: []string{"app/machines"}, Grows: true},
+			"app.harness-usage":       {Accepts: []string{"app/harness-usage"}, Grows: true},
 			"app.workspaces":          stackView("app/workspaces"),
 			"app.shortcuts":           stackView("app/shortcuts"),
 			"app.publish-port":        stackView("app/publish-port"),
@@ -403,13 +414,13 @@ func CurrentContract() Contract {
 			"text": {Accepts: []string{ParseText, ParseLines, ParseANSI}, Fields: map[string]Field{
 				"wrap": {Type: FieldBool, Default: true},
 				"tail": tail,
-			}},
+			}, Grows: true},
 			"number": {Accepts: []string{ParseNumber, ParseJSON, "app/open-pull-requests"}, Fields: map[string]Field{
 				"value":     {Type: FieldTemplate},
 				"unit":      {Type: FieldString},
 				"format":    {Type: FieldEnum, Values: []string{"plain", "percent", "bytes", "duration"}, Default: "plain"},
 				"hide_zero": {Type: FieldBool, Default: false},
-			}},
+			}, Grows: true},
 			"gauge": {Accepts: []string{ParseNumber, ParseJSON}, Fields: map[string]Field{
 				"value": {Type: FieldTemplate},
 				"min":   {Type: FieldNumber, Default: 0},
@@ -422,7 +433,7 @@ func CurrentContract() Contract {
 				"value": {Type: FieldTemplate},
 				"ok":    {Type: FieldRule},
 				"warn":  {Type: FieldRule},
-			}},
+			}, Grows: true},
 			"list": {Accepts: []string{ParseLines, ParseJSON}, Fields: map[string]Field{
 				"item": {Type: FieldObject, Fields: map[string]Field{
 					"title":    {Type: FieldTemplate, Default: "{{item}}"},
@@ -430,13 +441,13 @@ func CurrentContract() Contract {
 					"status":   {Type: FieldTemplate},
 					"link":     {Type: FieldTemplate},
 				}},
-			}},
+			}, Grows: true},
 			"sparkline": {Accepts: []string{ParseNumber, ParseJSON}, Fields: map[string]Field{
 				"value": {Type: FieldTemplate},
 				"unit":  {Type: FieldString},
 				"max":   {Type: FieldNumber},
 			}},
-			"markdown": {Accepts: []string{ParseText}},
+			"markdown": {Accepts: []string{ParseText}, Grows: true},
 			"web": {Accepts: []string{AcceptsKind + SourceURL}, Fields: map[string]Field{
 				"zoom": {Type: FieldNumber, Default: 1, Min: 0.5, Max: 2},
 			}},
