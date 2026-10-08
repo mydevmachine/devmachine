@@ -324,8 +324,8 @@ widgets:
 | `with` | Values for the widget's inputs. Left out when there are none. A choice of many takes a list: `with: {machines: [main, backup]}`; `[]` means all. |
 | `title` | Optional, on an entry with a `type`: the title this copy shows instead of the widget's own. Never empty; take the key off to go back. |
 | `every` | Optional, on an entry with a `type`: how often this copy runs, as a duration (`2m`) or, for any source but a provider, `manual`. Never below what the widget's source allows (`devmachine widgets schema` lists each minimum), and not on a stream. |
-| `frame` | Position and size in points. `x` and `y` are 0 or more; `w` and `h` are at least the smallest preset the widget takes. |
-| `size` | A preset, or `custom` after a free resize. Left out, it is `custom`. |
+| `frame` | Position and size in points. `x` and `y` are 0 or more. `w` is at least the width of the smallest preset the widget takes. `h` is the same for a view that does not grow; a view that grows has no least height, only above zero. With `size: auto` the frame is `{x, y, w}` and `h` is left out (an `h` there is ignored and dropped on the next write). Without `auto`, `h` is required. |
+| `size` | A preset, `custom` after a free resize, or `auto`. Left out, it is `custom`. `auto` makes the widget as tall as what it shows, and only a view that grows takes it (`app.summary`, `app.machines`, `app.harness-usage`, `text`, `number`, `status`, `list`, `markdown`). On a view that grows, `custom` or a preset with an `h` is a cap: the widget is never taller than its content. See [why a widget is as tall as what it shows](../how-it-works/why-a-widget-is-as-tall-as-what-it-shows.md). |
 | `minimized` | `true` draws a pill with the title instead. |
 | `z` | Higher is in front. |
 
@@ -475,7 +475,7 @@ Engine **1.7**. Widget format 1, board format 1.
 
 One unit is 80pt; positions and free resizes snap to 8pt.
 
-One preset row in a sidebar is 40pt high, and a widget there is as wide as the panel. `size: auto` makes a view that grows as tall as what it shows.
+One preset row in a sidebar is 40pt high, and a widget there is as wide as the panel. `size: auto` makes a view that grows as tall as what it shows. On Home it does the same, and the frame has no `h`.
 
 The menu bar holds at most 3 widgets, left to right, each one line drawn by one of the views `text`, `number`, `status`, `app.brand`. Text shows its first line, cut at 24 characters. A widget there runs at most every 30s. A tab in the menu bar popover fills it, so a `size` there is ignored.
 
@@ -669,7 +669,12 @@ A package declares providers in its `package.yml`; a widget names one `<package>
 | a sidebar widget with `frame` or `z` | `todo: a widget in a sidebar has no frame; its place is its position in the list` |
 | a sidebar widget with `minimized` | `usage: a widget in a sidebar folds with collapsed: true, not minimized` |
 | a Home widget with `collapsed` | `clock: a widget on a canvas folds with minimized: true, not collapsed` |
-| `size: auto` on a view that does not grow | `usage: size auto follows the content, and the app.harness-usage view does not grow: use small, medium, wide` |
+| `size: auto` on a view that does not grow, in a sidebar or on Home | `clock: size auto follows the content, and the app.clock view does not grow: use small, medium` |
+| a Home `size` that is not a preset, `custom` or `auto` | `clock: size "huge" is a preset (small, medium, tall, large, wide), custom or auto` |
+| a Home `frame` with no `h` and a `size` other than `auto` | `clock: frame needs h unless size is auto` |
+| a Home `frame` narrower than the smallest preset width of a view that grows | `usage: frame width 100 is narrower than claude-code/usage's minimum of 160` (a widget written in the board: `disk: frame width 100 is narrower than its minimum of 320`) |
+| a Home `h` of zero on a view that grows | `usage: frame h must be above zero` |
+| a Home `frame` smaller than the smallest preset of a view that does not grow | `clock: frame 100x160 is smaller than devmachine-app/clock's minimum of 160x160` |
 | a sidebar size that is neither auto nor a preset it takes | `todo: size "custom" in a sidebar is auto or one of medium, large` |
 | `size: auto` on a widget written in a sidebar board with no view | `notes: size auto follows the content, and a widget with no view does not grow: use small, medium, tall, large, wide` |
 | a board widget whose `fits` lacks the area's layout | `todo: devmachine-app/clock does not fit the context-sidebar area: its fits has no stack` |

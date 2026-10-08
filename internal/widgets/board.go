@@ -233,9 +233,9 @@ func ValidateBoard(b Board, path string, lookup Lookup) []Problem {
 			if w.Frame.X < 0 || w.Frame.Y < 0 {
 				at(w.Line, "%s: frame x and y cannot be negative", label)
 			}
-			if w.Size != SizeCustom {
+			if w.Size != SizeCustom && w.Size != SizeAuto {
 				if _, ok := c.Presets[w.Size]; !ok {
-					at(w.Line, "%s: size %q is a preset (%s) or custom", label, w.Size, strings.Join(presetNames(c), ", "))
+					at(w.Line, "%s: size %q is a preset (%s), custom or auto", label, w.Size, strings.Join(presetNames(c), ", "))
 				}
 			}
 			if w.has("collapsed") {
@@ -254,7 +254,12 @@ func ValidateBoard(b Board, path string, lookup Lookup) []Problem {
 			problems = append(problems, stackSizeProblems(w, label, path, presetNames(c), "", true)...)
 			continue
 		case !known && canvas:
-			if w.Frame.W <= 0 || w.Frame.H <= 0 {
+			switch {
+			case w.Size == SizeAuto && w.Frame.W <= 0:
+				at(w.Line, "%s: frame w must be above zero", label)
+			case omitsH(w):
+				at(w.Line, "%s: frame needs h unless size is auto", label)
+			case w.Size != SizeAuto && (w.Frame.W <= 0 || w.Frame.H <= 0):
 				at(w.Line, "%s: frame w and h must be above zero", label)
 			}
 			continue
@@ -263,10 +268,7 @@ func ValidateBoard(b Board, path string, lookup Lookup) []Problem {
 		case layout == LayoutStack:
 			problems = append(problems, stackSizeProblems(w, label, path, entry.Sizes, entry.View.Kind, Grows(entry.View.Kind))...)
 		case canvas:
-			minW, minH := MinFrame(entry.Sizes)
-			if w.Frame.W < minW || w.Frame.H < minH {
-				at(w.Line, "%s: frame %dx%d is smaller than %s's minimum of %dx%d", label, w.Frame.W, w.Frame.H, w.Type, minW, minH)
-			}
+			problems = append(problems, canvasFrameProblems(w, label, path, w.Type+"'s", entry.Sizes, entry.View.Kind, Grows(entry.View.Kind))...)
 			if _, preset := c.Presets[w.Size]; preset && !slices.Contains(entry.Sizes, w.Size) {
 				at(w.Line, "%s: %s does not come in size %s: it takes %s", label, w.Type, w.Size, strings.Join(entry.Sizes, ", "))
 			}
@@ -404,7 +406,9 @@ func EncodeBoard(b Board) ([]byte, error) {
 			put(frame, "x", intNode(w.Frame.X))
 			put(frame, "y", intNode(w.Frame.Y))
 			put(frame, "w", intNode(w.Frame.W))
-			put(frame, "h", intNode(w.Frame.H))
+			if w.Size != SizeAuto {
+				put(frame, "h", intNode(w.Frame.H))
+			}
 			put(entry, "frame", frame)
 			put(entry, "size", scalarNode(w.Size))
 			put(entry, "minimized", boolNode(w.Minimized))

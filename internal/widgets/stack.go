@@ -38,14 +38,19 @@ func stackSizeProblems(w Instance, label, path string, sizes []string, view stri
 	at := entryReporter(&problems, w, label, path)
 	switch {
 	case w.Size == "", w.Size == SizeAuto && grows:
-	case w.Size == SizeAuto && view == "":
-		at("size", "size auto follows the content, and a widget with no view does not grow: use %s", strings.Join(sizes, ", "))
 	case w.Size == SizeAuto:
-		at("size", "size auto follows the content, and the %s view does not grow: use %s", view, strings.Join(sizes, ", "))
+		at("size", "%s", noGrowMessage(view, sizes))
 	case !slices.Contains(sizes, w.Size):
 		at("size", "size %q in a sidebar is auto or one of %s", w.Size, strings.Join(sizes, ", "))
 	}
 	return problems
+}
+
+func noGrowMessage(view string, sizes []string) string {
+	if view == "" {
+		return fmt.Sprintf("size auto follows the content, and a widget with no view does not grow: use %s", strings.Join(sizes, ", "))
+	}
+	return fmt.Sprintf("size auto follows the content, and the %s view does not grow: use %s", view, strings.Join(sizes, ", "))
 }
 
 // fitProblems says whether a catalog widget may sit on an area: its fits

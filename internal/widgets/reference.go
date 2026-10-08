@@ -26,7 +26,7 @@ func ReferenceTables() string {
 	line("One unit is %dpt; positions and free resizes snap to %dpt.", c.Unit, c.Snap)
 	line("")
 	line("One preset row in a sidebar is %dpt high, and a widget there is as wide as the panel. "+
-		"`size: auto` makes a view that grows as tall as what it shows.", c.StackRow)
+		"`size: auto` makes a view that grows as tall as what it shows. On Home it does the same, and the frame has no `h`.", c.StackRow)
 	line("")
 	line("The menu bar holds at most %d widgets, left to right, each one line drawn by one of the views %s. "+
 		"Text shows its first line, cut at %d characters. A widget there runs at most every %s. "+

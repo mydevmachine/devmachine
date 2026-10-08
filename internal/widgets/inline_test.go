@@ -59,7 +59,7 @@ func TestEachInlineRuleReportsItsOwnProblem(t *testing.T) {
 		{"a source rule", []string{"every: 60s", "every: 1s"}, "disk: source.every 1s is below the command minimum of 5s"},
 		{"a view rule", []string{"tail: 20", "tail: 9000"}, "disk: view.tail 9000 is outside 1 to 2000 lines"},
 		{"a size it does not take", []string{"sizes: [medium, wide]", "sizes: [small, wide]"}, "disk: size medium is not one of its sizes: small, wide"},
-		{"below its smallest size", []string{"sizes: [medium, wide]\n    frame: {x: 24, y: 24, w: 320", "sizes: [medium, wide]\n    frame: {x: 24, y: 24, w: 100"}, "disk: frame 100x160 is smaller than its minimum of 320x160"},
+		{"below its smallest size", []string{"sizes: [medium, wide]\n    frame: {x: 24, y: 24, w: 320", "sizes: [medium, wide]\n    frame: {x: 24, y: 24, w: 100"}, "disk: frame width 100 is narrower than its minimum of 320"},
 		{"fits another layout", []string{"    sizes: [medium, wide]\n", "    sizes: [medium, wide]\n    fits: [stack]\n"}, "disk: fits stack, and this board's area is laid out as canvas"},
 	}
 	for _, tc := range cases {
