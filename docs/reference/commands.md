@@ -869,8 +869,16 @@ choice of many, `--set machines=main,backup` writes a list, and
 (`devmachine widgets list --board <area>` shows which do), and a widget
 marked `single` is refused when the board already has it.
 
-On Home (the default), `--size` is a preset the widget takes, default its
-`default_size`. `--at x,y` is the top-left corner in points, snapped to
+On Home (the default), `--size` is a preset the widget takes or `auto`.
+Without it the widget gets `auto` when its view grows with its content
+(the summary, machines and harness usage views, and the generic `text`,
+`number`, `status`, `list` and `markdown`) and its `default_size`
+otherwise. `--size auto` on a view that does not grow is refused. An
+`auto` widget is written as `frame: {x, y, w}` with no `h`: `w` is the
+width of its `default_size`, and the app works out the height from the
+content. The CLI cannot measure, so when it looks for a free spot it
+counts an `auto` widget at the height of its `default_size` (160pt for
+one written in the board). `--at x,y` is the top-left corner in points, snapped to
 8pt; the widget goes exactly there, even on top of another, because
 widgets may overlap on Home. Without it the widget takes the first free
 spot, scanning rows of 8pt from 24,24 across a band 1280pt wide and
@@ -928,7 +936,8 @@ when the CLI rewrites it. `--format json` prints
 there are some; for a widget in a list, which is a sidebar, the menu bar
 or its popover, `frame`, `minimized` and `z` are zero and mean nothing,
 and in the menu bar and its popover `size` is `""`; `collapsed` appears
-when true), `{"board", "path", "removed"}` for `remove`,
+when true; an `auto` widget on Home has `"h": 0`, which means it follows its
+content), `{"board", "path", "removed"}` for `remove`,
 `{"board", "path", "moved", "order"}` for `move`, `order` being every id
 after the move, and `{"board", "path", "widget", "warnings"}` for `set`.
 

@@ -82,11 +82,8 @@ func newWidgetsAddCmd(opts *options) *cobra.Command {
 				return fmt.Errorf("%s goes on a board once, and the %s board has it as %s", entry.Name, board, other)
 			}
 
-			switch {
-			case layout == widgets.LayoutStack:
-				size, err = stackSize(entry, size)
-			case !ordered:
-				size, err = canvasSize(entry, size)
+			if layout == widgets.LayoutStack || !ordered {
+				size, err = entrySize(entry, size)
 			}
 			if err != nil {
 				return err
@@ -122,12 +119,15 @@ func newWidgetsAddCmd(opts *options) *cobra.Command {
 					where = "before " + before
 				}
 			} else {
-				w, h, _ := widgets.FrameFor(size)
+				w, h, _ := widgets.FrameFor(sizeToFrame(entry, size))
 				instance.Frame = widgets.Frame{W: w, H: h}
 				if at == "" {
-					instance.Frame = widgets.FreeSpot(b, w, h)
+					instance.Frame = widgets.FreeSpot(widgets.EstimateHeights(b, catalog.Find), w, h)
 				} else if instance.Frame.X, instance.Frame.Y, err = parsePoint(at); err != nil {
 					return err
+				}
+				if size == widgets.SizeAuto {
+					instance.Frame.H = 0
 				}
 				instance.Z = widgets.NextZ(b)
 				b.Widgets = append(b.Widgets, instance)
@@ -147,7 +147,7 @@ func newWidgetsAddCmd(opts *options) *cobra.Command {
 	c.Flags().StringVar(&board, "board", "home", "the board to place it on: home, sidebar, context-sidebar, menubar or menubar-panel")
 	c.Flags().StringVar(&id, "id", "", "the instance id (default: the widget's name, made unique)")
 	c.Flags().StringArrayVar(&sets, "set", nil, "an input value, as name=value, or name=a,b for a choice of many (repeatable)")
-	c.Flags().StringVar(&size, "size", "", "a preset the widget takes, or auto in a sidebar (default: auto when its view grows, else its default_size); none in the menu bar")
+	c.Flags().StringVar(&size, "size", "", "a preset the widget takes, or auto for a view that grows (default: auto when its view grows, else its default_size); none in the menu bar")
 	c.Flags().StringVar(&at, "at", "", "on Home, the top-left corner in points, as x,y (default: the first free spot)")
 	c.Flags().StringVar(&after, "after", "", "in a sidebar or the menu bar, the id it goes right after")
 	c.Flags().StringVar(&before, "before", "", "in a sidebar or the menu bar, the id it goes right before")
@@ -155,8 +155,8 @@ func newWidgetsAddCmd(opts *options) *cobra.Command {
 	return c
 }
 
-// canvasSize is the preset a widget on Home gets: --size, or its default_size.
-func canvasSize(entry widgets.Entry, size string) (string, error) {
+// presetSize is the preset a widget gets: --size, or its default_size.
+func presetSize(entry widgets.Entry, size string) (string, error) {
 	if size == "" {
 		size = entry.DefaultSize
 	}
@@ -166,9 +166,18 @@ func canvasSize(entry widgets.Entry, size string) (string, error) {
 	return size, nil
 }
 
-// stackSize is the size a widget in a sidebar gets: --size, else auto when
-// its view grows with its content, else its default_size.
-func stackSize(entry widgets.Entry, size string) (string, error) {
+// sizeToFrame is the preset whose width a widget starts at: its own, or the
+// default_size of one that follows its content.
+func sizeToFrame(entry widgets.Entry, size string) string {
+	if size == widgets.SizeAuto {
+		return entry.DefaultSize
+	}
+	return size
+}
+
+// entrySize is the size a widget in a sidebar or on Home gets: --size, else
+// auto when its view grows with its content, else its default_size.
+func entrySize(entry widgets.Entry, size string) (string, error) {
 	grows := widgets.Grows(entry.View.Kind)
 	switch {
 	case size == "" && grows:
@@ -178,7 +187,7 @@ func stackSize(entry widgets.Entry, size string) (string, error) {
 	case size == widgets.SizeAuto:
 		return "", fmt.Errorf("%s does not grow with its content, so it takes no --size auto: it takes %s", entry.Name, strings.Join(entry.Sizes, ", "))
 	}
-	return canvasSize(entry, size)
+	return presetSize(entry, size)
 }
 
 func newWidgetsRemoveCmd(opts *options) *cobra.Command {
