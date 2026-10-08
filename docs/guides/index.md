@@ -24,6 +24,8 @@ session. Only a reboot stops it.
 
 - [Keep your sessions running](keep-sessions-running.md) — close the laptop,
   and Claude Code keeps working on the server.
+- [Share a session](share-a-session.md) — let someone watch, or type into,
+  one of your tmux sessions for an hour, then they are out.
 - [One consultant, three startups](one-consultant-three-startups.md) — a
   sandbox per client, each with its own stack and its own logins.
 - [Contribute to a Ruby on Rails project](ruby-on-rails.md) — a Rails

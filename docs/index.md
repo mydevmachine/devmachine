@@ -50,6 +50,7 @@ list](guides/index.md).
 - [Start Claude from your phone](guides/start-claude-from-your-phone.md)
 - [OpenClaw, in its own sandbox](guides/openclaw-in-its-own-sandbox.md)
 - [Keep your sessions running](guides/keep-sessions-running.md)
+- [Share a session](guides/share-a-session.md)
 - [A Claude that never sleeps](guides/claude-that-never-sleeps.md)
 - [One consultant, three startups](guides/one-consultant-three-startups.md)
 - [Hermes Agent, in its own sandbox](guides/hermes-agent-in-its-own-sandbox.md)
