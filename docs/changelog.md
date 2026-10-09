@@ -8,6 +8,18 @@ page](https://github.com/mydevmachine/devmachine/releases).
 
 To get the latest version, see [Upgrade](upgrade.md).
 
+## v0.11.0 — 2026-10-08
+
+### Added
+
+- Widget engine 1.7: a widget can be as tall as what it shows. On Home,
+  `size: auto` keeps the frame to `{x, y, w}` and the height follows the
+  content; a set height is a cap. `widgets add` gives a growing widget
+  `size: auto` on Home. See [the widget format](reference/widget-format.md).
+- A guide to [sharing a session](guides/share-a-session.md) with the
+  `session-share` package: someone watches, or types into, one of your
+  tmux sessions for a limited time, in a browser or over SSH.
+
 ## v0.10.1 — 2026-10-08
 
 ### Fixed
