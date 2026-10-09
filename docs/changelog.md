@@ -8,6 +8,28 @@ page](https://github.com/mydevmachine/devmachine/releases).
 
 To get the latest version, see [Upgrade](upgrade.md).
 
+## v0.11.0 — 2026-10-08
+
+Widget engine 1.7. App v0.3.0 needs it.
+
+### Added
+
+- A widget on Home can be as tall as what it shows. A view that grows with
+  its content (summary, machines, harness usage, text, number, status, list,
+  markdown) takes `size: auto` with `frame: {x, y, w}` and no `h`.
+  `widgets add` gives these widgets `size: auto` on Home. See
+  [Widgets](concepts/widgets.md).
+- A guide to sharing a workspace's tmux session for a limited time with the
+  `session-share` package: [Share a session](guides/share-a-session.md).
+
+### Changed
+
+- A growing view on Home has no least height, only a least width. A set `h`
+  next to it is a cap. `--size auto` on a view that does not grow is refused
+  with the sizes it takes.
+- `--at x,y` on Home is a place on the canvas with the app's sidebar open.
+  With the sidebar hidden, the app spreads the widgets over the wider canvas.
+
 ## v0.10.1 — 2026-10-08
 
 ### Fixed
