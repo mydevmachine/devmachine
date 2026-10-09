@@ -8,6 +8,40 @@ page](https://github.com/mydevmachine/devmachine/releases).
 
 To get the latest version, see [Upgrade](upgrade.md).
 
+## App v0.3.0 — 2026-10-09
+
+Needs CLI v0.11.0 and packages v49. With an older CLI or packages, a banner
+in the corner says what to update.
+
+### Added
+
+- Share a session. Right-click a workspace session and choose Share…: pick a
+  name, how long (15 minutes to 8 hours) and whether guests only watch or
+  can type. The app publishes the workspace's share server at
+  `share-<workspace>.<your domain>` the first time, so the link works for
+  anyone; the password shows once, beside it. Needs the `session-share`
+  package on the workspace. See [Share a session](guides/share-a-session.md).
+- A shared session has a mark beside its name in the sidebar, orange when
+  guests can type. Its menu has Open chat, Copy share link, Add 30 minutes
+  and Stop sharing.
+- Chat with the people watching. A Chat tab in the context panel shows what
+  guests write on the shared page, and you answer there; new messages show
+  as a count on the session's mark.
+- Settings → Shares lists every session this Mac shared, with Stop and Copy
+  link for the ones still open.
+- ⌘K: "Share <session>…".
+- Widgets can be as tall as what they show (engine 1.7): on Home, a widget
+  set to auto height follows its content.
+
+### Fixed
+
+- Home widgets keep their place, in proportion, when the sidebar hides.
+- A sidebar row that fits its height no longer widens the panel on every
+  pass and hangs the app.
+- A widget card in a sidebar keeps the inset of its title instead of
+  touching the edges.
+- Durations and list errors in a board read exactly as the CLI reads them.
+
 ## v0.11.0 — 2026-10-08
 
 ### Added
