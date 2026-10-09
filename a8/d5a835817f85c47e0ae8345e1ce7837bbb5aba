@@ -1,0 +1,25 @@
+docs/index.md
+  s_0f105d87334789::t_3d14a24646272f 174-175
+docs/troubleshooting.md
+  s_0f105d87334789::t_766ba41f585e4d 2732-2752
+docs/reference/commands.md
+  s_0f105d87334789::t_fd8b1c7df490f5 1068-1131
+docs/how-it-works/session-indicators.md
+  s_0f105d87334789::t_af212a1af5fa48 1-40
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a8d5a835817f85c47e0ae8345e1ce7837bbb5aba",
+  "prompts": {},
+  "sessions": {
+    "s_0f105d87334789": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3a5d445d-a266-4f47-9d99-dffda990876e",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
