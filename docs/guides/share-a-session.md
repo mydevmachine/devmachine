@@ -33,6 +33,19 @@ devmachine sync
 Already have a machine? Skip `setup`. Already have the workspace? Skip the
 last two.
 
+## From the app
+
+With the `session-share` package on the workspace (step 1 below), right-click
+the session in the sidebar and choose **Share…**. Pick how long, and whether
+they only watch or can type. The first share of a workspace publishes its
+share server at `share-<workspace>.<your domain>`, so the link works for
+anyone. Copy the link and the password: the password shows only there.
+
+While it is shared, the session has a mark beside its name. Right-click it
+for **Open chat**, **Add 30 minutes** and **Stop sharing**. The chat opens
+in the context panel: guests write from the shared page, you answer there.
+Settings → Shares lists every share this Mac started.
+
 ## By hand
 
 ### 1. Add the package
@@ -103,7 +116,19 @@ land straight in the shared session: no shell, no tunnels, no other
 command. They connect with `ssh -t` to the account and the machine's
 address.
 
-### 6. Stop, or give them more time
+### 6. Talk to them
+
+The shared page has a chat beside the session. Up to five people can be
+there at once; `--max-viewers` changes it. Answer from your terminal:
+
+```
+devmachine run --package session-share --workspace acme -- chat k3j2abcdwxyz --message "I'll push the fix now"
+devmachine run --package session-share --workspace acme -- chat k3j2abcdwxyz --follow
+```
+
+The chat is text only. Nothing written there reaches the session.
+
+### 7. Stop, or give them more time
 
 ```
 devmachine run --package session-share --workspace acme -- list
