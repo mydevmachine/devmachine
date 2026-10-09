@@ -165,7 +165,7 @@ func TestFetchStreamsAFileUnderItsOwnName(t *testing.T) {
 	file := filepath.Join(remote, "photo ção.png")
 	write(t, file, "png bytes")
 
-	got, err := Fetch(context.Background(), &shellClient{}, Source{Path: file, Size: 9}, local)
+	got, err := Fetch(context.Background(), &shellClient{}, Source{Path: file, Size: 9}, local, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -179,6 +179,32 @@ func TestFetchStreamsAFileUnderItsOwnName(t *testing.T) {
 	}
 }
 
+func TestFetchReportsAFewRunningTotalsEndingWithTheWholeFile(t *testing.T) {
+	remote := machineDir(t)
+	local := machineDir(t)
+	file := filepath.Join(remote, "big.bin")
+	const size = 4 << 20
+	write(t, file, strings.Repeat("x", size))
+
+	var reports []int64
+	_, err := Fetch(context.Background(), &shellClient{}, Source{Path: file, Size: size}, local,
+		func(done int64) { reports = append(reports, done) })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(reports) < 2 || len(reports) > 101 {
+		t.Fatalf("got %d reports, want a running total without one per write", len(reports))
+	}
+	for i := 1; i < len(reports); i++ {
+		if reports[i] <= reports[i-1] {
+			t.Fatalf("reports go backwards or repeat: %v", reports)
+		}
+	}
+	if reports[len(reports)-1] != size {
+		t.Fatalf("the last report is %d, want %d", reports[len(reports)-1], size)
+	}
+}
+
 func TestFetchNumbersACollisionInsteadOfOverwriting(t *testing.T) {
 	remote := machineDir(t)
 	local := machineDir(t)
@@ -187,7 +213,7 @@ func TestFetchNumbersACollisionInsteadOfOverwriting(t *testing.T) {
 	write(t, filepath.Join(local, "report.pdf"), "old")
 	write(t, filepath.Join(local, "report-2.pdf"), "older")
 
-	got, err := Fetch(context.Background(), &shellClient{}, Source{Path: file, Size: 3}, local)
+	got, err := Fetch(context.Background(), &shellClient{}, Source{Path: file, Size: 3}, local, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -208,7 +234,7 @@ func TestFetchPacksAFolderIntoATarball(t *testing.T) {
 	write(t, filepath.Join(folder, "index.html"), "<h1>hi</h1>")
 	write(t, filepath.Join(folder, "css", "a.css"), "body{}")
 
-	got, err := Fetch(context.Background(), &shellClient{}, Source{Path: folder, Folder: true}, local)
+	got, err := Fetch(context.Background(), &shellClient{}, Source{Path: folder, Folder: true}, local, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -230,7 +256,7 @@ func TestFetchLeavesNothingBehindWhenTheStreamFails(t *testing.T) {
 	local := machineDir(t)
 	missing := filepath.Join(machineDir(t), "gone.txt")
 
-	_, err := Fetch(context.Background(), &shellClient{}, Source{Path: missing, Size: 1}, local)
+	_, err := Fetch(context.Background(), &shellClient{}, Source{Path: missing, Size: 1}, local, nil)
 	if err == nil {
 		t.Fatal("a file that vanished was reported as downloaded")
 	}
@@ -246,7 +272,7 @@ func TestFetchRefusesADestinationThatIsNotAFolder(t *testing.T) {
 	file := filepath.Join(remote, "a.txt")
 	write(t, file, "x")
 
-	_, err := Fetch(context.Background(), &shellClient{}, Source{Path: file, Size: 1}, filepath.Join(remote, "nope"))
+	_, err := Fetch(context.Background(), &shellClient{}, Source{Path: file, Size: 1}, filepath.Join(remote, "nope"), nil)
 	if err == nil || !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("got %v, want a missing folder", err)
 	}

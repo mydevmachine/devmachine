@@ -133,8 +133,10 @@ func Stat(ctx context.Context, c remote.Client, p string) (Source, error) {
 // Fetch streams s into dir, under its own name, or with -2, -3 and so on
 // before the extension when that name is taken: nothing is overwritten. The
 // bytes go to a hidden temporary file first, so a failed or cut transfer
-// never leaves a partial file under the real name.
-func Fetch(ctx context.Context, c remote.Client, s Source, dir string) (Result, error) {
+// never leaves a partial file under the real name. A non-nil report gets the
+// running total of bytes written, a few times along the way and once at the
+// end.
+func Fetch(ctx context.Context, c remote.Client, s Source, dir string, report func(done int64)) (Result, error) {
 	info, err := os.Stat(dir)
 	if err != nil {
 		return Result{}, fmt.Errorf("the destination folder: %w", err)
@@ -158,10 +160,13 @@ func Fetch(ctx context.Context, c remote.Client, s Source, dir string) (Result, 
 		}
 	}()
 
-	counted := &countingWriter{w: tmp}
+	counted := &countingWriter{w: tmp, report: report, step: reportStep(s)}
 	var stderr bytes.Buffer
 	streamErr := c.Stream(ctx, streamCommand(s), counted, &stderr)
 	closeErr := tmp.Close()
+	if streamErr == nil {
+		counted.flush()
+	}
 	if streamErr != nil {
 		if errors.Is(streamErr, remote.ErrHostKeyRejected) {
 			return Result{}, streamErr
@@ -234,13 +239,41 @@ func Numbered(name string, n int) string {
 	return stem + "-" + strconv.Itoa(n) + ext
 }
 
+const (
+	minReportStep    = 64 << 10
+	folderReportStep = 256 << 10
+)
+
+// reportStep keeps a file to about a hundred reports. A folder's archive has
+// no size until it ends, so it reports every fixed number of bytes.
+func reportStep(s Source) int64 {
+	if s.Folder {
+		return folderReportStep
+	}
+	return max(s.Size/100, minReportStep)
+}
+
 type countingWriter struct {
-	w io.Writer
-	n int64
+	w        io.Writer
+	n        int64
+	report   func(int64)
+	step     int64
+	reported int64
 }
 
 func (c *countingWriter) Write(p []byte) (int, error) {
 	n, err := c.w.Write(p)
 	c.n += int64(n)
+	if c.report != nil && c.n-c.reported >= c.step {
+		c.reported = c.n
+		c.report(c.n)
+	}
 	return n, err
+}
+
+func (c *countingWriter) flush() {
+	if c.report != nil && c.n != c.reported {
+		c.reported = c.n
+		c.report(c.n)
+	}
 }

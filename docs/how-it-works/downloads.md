@@ -55,3 +55,16 @@ so many downloads in a row share one login. If that connection drops
 after part of the file arrived, the CLI does not try the machine's next
 address: the next address would send the whole file again after the
 part already written. It stops and says so instead.
+
+## Progress knows the whole size before it starts
+
+With `--progress`, the CLI asks the machine about every path before it
+reads a byte of any of them, and prints a line with each size first. A
+reader that adds the sizes up has the real total from the start, so its
+bar never runs to the end for the first file and then jumps back when
+the second one appears.
+
+A folder has no size to give. Its archive is packed while it travels,
+and how well it compresses is not known until it ends, so its `total` is
+`0` and only `done` grows. The lines go to stderr, so stdout stays the
+same list of paths, or the same JSON, with or without the flag.

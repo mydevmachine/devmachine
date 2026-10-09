@@ -1286,7 +1286,7 @@ upload is one line in [the command log](#the-command-log). See
 ## download
 
 ```
-devmachine download <remote-path>... [--workspace w] [--to dir]
+devmachine download <remote-path>... [--workspace w] [--to dir] [--progress]
 ```
 
 Brings files or folders from a home on a machine to this computer and
@@ -1313,6 +1313,12 @@ path that failed has an `error` field instead of `local`.
 - **Failures.** With several paths, every one is tried; the command exits
   non-zero if any failed, and names each on stderr. A failed or cut
   transfer leaves nothing behind.
+- **Progress.** `--progress` writes JSON lines to stderr as each file
+  arrives, about a hundred at most: `{"remote": "...", "done": N, "total": N}`,
+  with `done` in bytes. Every path is sized first, so a line with
+  `"done": 0` for each one comes before any bytes move. A folder's
+  `total` is `0`: its archive is packed as it travels. A path that does
+  not exist gets no line.
 
 stdout holds only the paths, so a script or an app can read them. Each
 download is one line in [the command log](#the-command-log). See
