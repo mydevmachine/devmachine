@@ -236,3 +236,97 @@ func TestDownloadRecordsEachPathInTheCommandLog(t *testing.T) {
 		}
 	}
 }
+
+type progressLine struct {
+	Remote string `json:"remote"`
+	Done   int64  `json:"done"`
+	Total  int64  `json:"total"`
+}
+
+func progressLines(t *testing.T, stderr string) []progressLine {
+	t.Helper()
+	var lines []progressLine
+	for _, raw := range strings.Split(strings.TrimSpace(stderr), "\n") {
+		var l progressLine
+		if err := json.Unmarshal([]byte(raw), &l); err != nil {
+			t.Fatalf("stderr line %q is not a progress line: %v", raw, err)
+		}
+		lines = append(lines, l)
+	}
+	return lines
+}
+
+func TestDownloadProgressSizesEveryFileBeforeTheFirstByte(t *testing.T) {
+	machine, _, _ := downloadingFrom(t)
+	dir := configWith(t, oneMachineConfig)
+	a := onMachine(t, machine, "a.txt", "four")
+	b := onMachine(t, machine, "b.txt", "seven!!")
+
+	out, stderr, err := executeSplit(t, "--config", dir, "--format", "json", "download", "--progress", a, b)
+	if err != nil {
+		t.Fatalf("download returned %v (%s)", err, stderr)
+	}
+	var results []map[string]any
+	if err := json.Unmarshal([]byte(out), &results); err != nil || len(results) != 2 {
+		t.Fatalf("stdout is not the usual result: %v\n%s", err, out)
+	}
+	lines := progressLines(t, stderr)
+	start := []progressLine{{Remote: a, Total: 4}, {Remote: b, Total: 7}}
+	if len(lines) < 4 {
+		t.Fatalf("got %+v, want a start and an end line per file", lines)
+	}
+	for i, want := range start {
+		if lines[i] != want {
+			t.Fatalf("line %d = %+v, want %+v", i, lines[i], want)
+		}
+	}
+	last := map[string]progressLine{}
+	for _, l := range lines {
+		last[l.Remote] = l
+	}
+	if last[a].Done != 4 || last[b].Done != 7 {
+		t.Fatalf("final lines %+v, want each file whole", last)
+	}
+}
+
+func TestDownloadProgressGivesAFolderNoTotal(t *testing.T) {
+	machine, _, _ := downloadingFrom(t)
+	dir := configWith(t, oneMachineConfig)
+	onMachine(t, machine, "site/index.html", "hi")
+	site := filepath.Join(machine, "site")
+
+	_, stderr, err := executeSplit(t, "--config", dir, "download", "--progress", site)
+	if err != nil {
+		t.Fatalf("download returned %v (%s)", err, stderr)
+	}
+	lines := progressLines(t, stderr)
+	end := lines[len(lines)-1]
+	if lines[0] != (progressLine{Remote: site}) || end.Total != 0 || end.Done == 0 {
+		t.Fatalf("got %+v, want a zero total and the archive's bytes at the end", lines)
+	}
+}
+
+func TestDownloadProgressLeavesOutAPathThatFailed(t *testing.T) {
+	machine, _, _ := downloadingFrom(t)
+	dir := configWith(t, oneMachineConfig)
+	good := onMachine(t, machine, "a.txt", "four")
+	missing := filepath.Join(machine, "missing.txt")
+
+	_, stderr, _ := executeSplit(t, "--config", dir, "--format", "json", "download", "--progress", missing, good)
+	for _, l := range progressLines(t, stderr) {
+		if l.Remote != good {
+			t.Fatalf("progress for %q, which was never read", l.Remote)
+		}
+	}
+}
+
+func TestDownloadWithoutProgressKeepsStderrEmpty(t *testing.T) {
+	machine, _, _ := downloadingFrom(t)
+	dir := configWith(t, oneMachineConfig)
+	a := onMachine(t, machine, "a.txt", "four")
+
+	_, stderr, err := executeSplit(t, "--config", dir, "--format", "json", "download", a)
+	if err != nil || stderr != "" {
+		t.Fatalf("err %v, stderr %q", err, stderr)
+	}
+}
