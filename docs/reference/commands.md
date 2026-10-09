@@ -1065,6 +1065,72 @@ A mosh client needs an IP for its UDP connection: this is where to get it.
 Refused for a `self: true` machine, which has no address. See
 [addresses and fallback](../how-it-works/addresses-and-fallback.md).
 
+## sessions
+
+```
+devmachine sessions [--workspace name]... [--json | --format json]
+```
+
+Prints the tmux sessions of every workspace: name, window count, folder,
+git branch, age, which coding agents run in it, and whether it is busy or
+needs attention. It asks all workspaces at once, each with a 5 second limit.
+`--workspace` limits the answer to the workspaces you name, and can repeat.
+A name that is not in the configuration gets its own `not-configured` error,
+so one stale name never hides the workspaces that do answer.
+
+```
+WORKSPACE  SESSION   BRANCH            AGE  STATE
+alice      checkout  feature/checkout  3h   busy
+bob        -         -                 -    error: machine "main": no address answered: ...
+```
+
+`--json` is the same as `--format json`. The JSON is what the macOS app
+reads, and its shape is stable:
+
+```json
+{
+  "workspaces": [
+    {
+      "name": "alice",
+      "machine": "main",
+      "sessions": [
+        {
+          "name": "checkout-flow",
+          "windows": 2,
+          "path": "/home/alice/acme-web",
+          "branch": "feature/checkout-flow",
+          "created_at": "2026-10-08T12:00:00Z",
+          "age_seconds": 10800,
+          "last_activity_at": "2026-10-08T14:59:58Z",
+          "harnesses": ["claude"],
+          "busy": true,
+          "attention": false
+        }
+      ]
+    },
+    {
+      "name": "bob",
+      "machine": "main",
+      "sessions": [],
+      "error": {"kind": "unreachable", "message": "machine \"main\": no address answered: ..."}
+    }
+  ]
+}
+```
+
+- `sessions` is `[]` when empty, never missing.
+- `error` appears only on a workspace that could not answer; the others still
+  answer, and the command exits 0.
+- `error.kind` is one of `unreachable` (no address answered, or the 5 seconds
+  ran out), `host-key-rejected` (the machine's key is not the one pinned),
+  `tmux-missing` (tmux is not installed there), `not-configured` (the name
+  given to `--workspace` is not in the configuration) or `other`.
+- The table shows `busy`, `attention` or nothing under `STATE`, and the
+  folder's name when a session has no branch.
+
+See [session indicators](../how-it-works/session-indicators.md) for how
+`busy` and `attention` are decided.
+
 ## ssh-proxy
 
 ```

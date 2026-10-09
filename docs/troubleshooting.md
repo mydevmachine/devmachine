@@ -2729,3 +2729,24 @@ was written by hand. `devmachine --format json packages list` shows each
 variable's type, and [the settings reference](reference/settings.md) names the
 fields a list's entries take. A field the list does not take is usually a typo
 of one it does: the message lists the ones it accepts.
+
+## "No attention dot when the agent waits"
+
+**What it means:** The attention dot comes from the terminal bell, and the
+agent never rang it. tmux marks a window only when a bell reaches it, so a
+waiting agent that stays silent leaves no mark.
+
+**What to do:** Make the agent ring the bell when it waits. For Claude Code, set
+`"preferredNotifChannel": "terminal_bell"` in `~/.claude.json` on the machine, or
+run `claude config set --global preferredNotifChannel terminal_bell` as the
+workspace user. See [session indicators](how-it-works/session-indicators.md).
+
+## "The spinner stops while the agent is still thinking"
+
+**What it means:** Busy means the screen changed in the last 5 seconds. An agent
+that thinks without drawing anything looks idle until it prints again. The
+agent is still working.
+
+**What to do:** Nothing is broken. Wait for the next change on the screen, or
+open the session to see what the agent does. See
+[session indicators](how-it-works/session-indicators.md).

@@ -130,6 +130,7 @@ func NewRootCmd() *cobra.Command {
 		newCredentialsCmd(opts),
 		newLoginCmd(opts),
 		newResolveCmd(opts),
+		newSessionsCmd(opts),
 		newSSHProxyCmd(opts),
 	)
 	return root

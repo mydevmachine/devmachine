@@ -8,6 +8,34 @@ page](https://github.com/mydevmachine/devmachine/releases).
 
 To get the latest version, see [Upgrade](upgrade.md).
 
+## App v0.5.0 — 2026-10-09
+
+Remote session indicators need CLI v0.13.0. With an older CLI, sessions
+are listed as before, without them.
+
+### Added
+
+- Each session in the sidebar shows its git branch (or folder) under its
+  name and how long it has run. A remote session shows a spinner while
+  its agent works, and an orange dot when the agent rings the terminal
+  bell to ask for you. Settings → Sidebar turns each one on or off. See
+  [session indicators](how-it-works/session-indicators.md).
+
+### Changed
+
+- Every workspace's session list refreshes every 5 seconds through one
+  `devmachine sessions` call, not only the selected workspace.
+
+## v0.13.0 — 2026-10-09
+
+### Added
+
+- `devmachine sessions` lists every workspace's tmux sessions with their
+  folder, git branch, age, coding agents, and whether each is busy or
+  asks for attention. All workspaces are asked at once; one that cannot
+  answer carries its own error and the others still answer. See
+  [sessions](reference/commands.md#sessions).
+
 ## App v0.4.0 — 2026-10-09
 
 Shows download progress with CLI v0.12.0. With an older CLI, downloads
