@@ -58,6 +58,7 @@ devmachine secrets example
 devmachine secrets list
 devmachine secrets rm
 devmachine secrets set
+devmachine sessions
 devmachine setup
 devmachine setup git
 devmachine skills
