@@ -55,7 +55,8 @@ func TestCollectAgainstTheTestMachine(t *testing.T) {
 	setup := "rm -rf /tmp/dm-sess-repo && git init -q -b feature/x /tmp/dm-sess-repo && " +
 		"git -C /tmp/dm-sess-repo -c user.name=alice -c user.email=alice@example.com commit -q --allow-empty -m init && " +
 		"{ tmux kill-session -t dm-sess-test 2>/dev/null; true; } && " +
-		"tmux new-session -d -s dm-sess-test -c /tmp/dm-sess-repo && " +
+		"{ for i in 1 2 3 4 5; do tmux new-session -d -s dm-sess-test -c /tmp/dm-sess-repo && break; sleep 0.3; done; } && " +
+		"tmux has-session -t dm-sess-test && " +
 		"tmux new-window -d -t dm-sess-test && " +
 		`tmux send-keys -t dm-sess-test:1 "printf '\\a'" Enter`
 	if _, err := client.Run(ctx, setup); err != nil {
