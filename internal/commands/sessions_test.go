@@ -10,6 +10,7 @@ import (
 
 	"github.com/mydevmachine/devmachine/internal/config"
 	"github.com/mydevmachine/devmachine/internal/remote"
+	"github.com/mydevmachine/devmachine/internal/sessions"
 )
 
 const sessionsConfig = "machines:\n  - name: main\n    hosts: [203.0.113.10]\n" +
@@ -135,14 +136,17 @@ func TestSessionsOtherError(t *testing.T) {
 	}
 }
 
-func TestSessionsUnknownWorkspaceFails(t *testing.T) {
+func TestSessionsUnknownWorkspaceAnswersWithItsOwnError(t *testing.T) {
 	dir := configWith(t, sessionsConfig)
 	dialByUser(t, nil, nil)
 
-	_, err := execute(t, "--config", dir, "sessions", "--workspace", "carol", "--json")
+	got, raw := sessionsJSON(t, "--config", dir, "sessions", "--workspace", "carol", "--json")
 
-	if err == nil || !strings.Contains(err.Error(), "carol") {
-		t.Fatalf("error = %v, want it to name carol", err)
+	if len(got) != 1 || got[0].Name != "carol" || got[0].Error == nil || got[0].Error.Kind != "not-configured" {
+		t.Fatalf("output:\n%s", raw)
+	}
+	if !strings.Contains(got[0].Error.Message, "carol") {
+		t.Fatalf("message = %q, want it to name carol", got[0].Error.Message)
 	}
 }
 
@@ -196,6 +200,23 @@ func TestSessionsTable(t *testing.T) {
 	for _, want := range []string{"WORKSPACE", "SESSION", "BRANCH", "AGE", "STATE", "feature/checkout", "3h", "busy", "error: no address answered"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("table is missing %q:\n%s", want, out)
+		}
+	}
+}
+
+func TestSessionBranchColumn(t *testing.T) {
+	cases := []struct {
+		session sessions.Session
+		want    string
+	}{
+		{sessions.Session{Branch: "main", Path: "/home/alice/acme-web"}, "main"},
+		{sessions.Session{Path: "/home/alice/acme-web"}, "acme-web"},
+		{sessions.Session{Path: "/"}, "-"},
+		{sessions.Session{}, "-"},
+	}
+	for _, c := range cases {
+		if got := sessionBranch(c.session); got != c.want {
+			t.Errorf("sessionBranch(%+v) = %q, want %q", c.session, got, c.want)
 		}
 	}
 }

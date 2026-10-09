@@ -1075,7 +1075,8 @@ Prints the tmux sessions of every workspace: name, window count, folder,
 git branch, age, which coding agents run in it, and whether it is busy or
 needs attention. It asks all workspaces at once, each with a 5 second limit.
 `--workspace` limits the answer to the workspaces you name, and can repeat.
-A name that is not in the configuration fails before any machine is asked.
+A name that is not in the configuration gets its own `not-configured` error,
+so one stale name never hides the workspaces that do answer.
 
 ```
 WORKSPACE  SESSION   BRANCH            AGE  STATE
@@ -1122,7 +1123,8 @@ reads, and its shape is stable:
   answer, and the command exits 0.
 - `error.kind` is one of `unreachable` (no address answered, or the 5 seconds
   ran out), `host-key-rejected` (the machine's key is not the one pinned),
-  `tmux-missing` (tmux is not installed there) or `other`.
+  `tmux-missing` (tmux is not installed there), `not-configured` (the name
+  given to `--workspace` is not in the configuration) or `other`.
 - The table shows `busy`, `attention` or nothing under `STATE`, and the
   folder's name when a session has no branch.
 

@@ -7,6 +7,7 @@ import (
 	"time"
 )
 
+// Session is one tmux session as `devmachine sessions` prints it.
 type Session struct {
 	Name           string    `json:"name"`
 	Windows        int       `json:"windows"`
@@ -35,6 +36,7 @@ var harnessPrograms = map[string][]string{
 
 var shells = map[string]bool{"bash": true, "zsh": true, "sh": true, "fish": true, "dash": true}
 
+// Build applies the busy, attention, branch and age rules to a snapshot.
 func Build(s Snapshot) []Session {
 	harnesses := harnessesBySession(s)
 	out := make([]Session, 0, len(s.Sessions))

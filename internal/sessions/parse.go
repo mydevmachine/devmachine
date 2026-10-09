@@ -7,6 +7,7 @@ import (
 	"strings"
 )
 
+// Snapshot is what Script printed, split into its sections.
 type Snapshot struct {
 	Now      int64
 	NoTmux   bool
@@ -36,6 +37,7 @@ type proc struct {
 
 var errNoClock = errors.New("missing machine clock")
 
+// Parse reads Script's output; it fails only when the machine clock is missing.
 func Parse(output string) (Snapshot, error) {
 	snap := Snapshot{Branches: map[string]string{}}
 	section := ""

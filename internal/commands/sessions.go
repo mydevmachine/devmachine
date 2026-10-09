@@ -60,11 +60,8 @@ func newSessionsCmd(opts *options) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			chosen, err := chooseSessionWorkspaces(cfg, names)
-			if err != nil {
-				return err
-			}
-			results := collectSessions(cmd.Context(), cfg, chosen)
+			chosen, unknown := chooseSessionWorkspaces(cfg, names)
+			results := append(collectSessions(cmd.Context(), cfg, chosen), unknown...)
 			if asJSON || opts.format == formatJSON {
 				return writeJSON(cmd.OutOrStdout(), struct {
 					Workspaces []sessionsWorkspace `json:"workspaces"`
@@ -78,13 +75,18 @@ func newSessionsCmd(opts *options) *cobra.Command {
 	return c
 }
 
-func chooseSessionWorkspaces(cfg config.Config, names []string) ([]config.Workspace, error) {
+func chooseSessionWorkspaces(cfg config.Config, names []string) ([]config.Workspace, []sessionsWorkspace) {
 	if len(names) == 0 {
 		return cfg.Workspaces, nil
 	}
+	var unknown []sessionsWorkspace
 	for _, name := range names {
 		if _, err := cfg.Workspace(name); err != nil {
-			return nil, err
+			unknown = append(unknown, sessionsWorkspace{
+				Name:     name,
+				Sessions: []sessions.Session{},
+				Error:    &sessionsError{Kind: "not-configured", Message: err.Error()},
+			})
 		}
 	}
 	var chosen []config.Workspace
@@ -96,7 +98,7 @@ func chooseSessionWorkspaces(cfg config.Config, names []string) ([]config.Worksp
 			}
 		}
 	}
-	return chosen, nil
+	return chosen, unknown
 }
 
 func collectSessions(ctx context.Context, cfg config.Config, chosen []config.Workspace) []sessionsWorkspace {
@@ -146,17 +148,24 @@ func writeSessionsTable(out io.Writer, results []sessionsWorkspace) error {
 			continue
 		}
 		for _, s := range w.Sessions {
-			branch := s.Branch
-			if branch == "" {
-				branch = path.Base(s.Path)
-			}
-			fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n", w.Name, s.Name, branch, sessionAge(s.AgeSeconds), sessionState(s))
+			fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n", w.Name, s.Name, sessionBranch(s), sessionAge(s.AgeSeconds), sessionState(s))
 		}
 	}
 	if err := tw.Flush(); err != nil {
 		return fmt.Errorf("writing the output: %w", err)
 	}
 	return nil
+}
+
+func sessionBranch(s sessions.Session) string {
+	switch {
+	case s.Branch != "":
+		return s.Branch
+	case s.Path != "" && s.Path != "/":
+		return path.Base(s.Path)
+	default:
+		return "-"
+	}
 }
 
 func sessionAge(seconds int64) string {
@@ -174,10 +183,10 @@ func sessionAge(seconds int64) string {
 
 func sessionState(s sessions.Session) string {
 	switch {
-	case s.Busy:
-		return "busy"
 	case s.Attention:
 		return "attention"
+	case s.Busy:
+		return "busy"
 	default:
 		return ""
 	}
