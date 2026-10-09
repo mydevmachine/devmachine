@@ -8,6 +8,16 @@ page](https://github.com/mydevmachine/devmachine/releases).
 
 To get the latest version, see [Upgrade](upgrade.md).
 
+## v0.12.0 — 2026-10-09
+
+### Added
+
+- `download --progress` writes the bytes received so far to stderr, one
+  JSON line at a time: `{"remote": "...", "done": N, "total": N}`. Every
+  path is sized before the first byte moves, so the first lines carry
+  each total. A folder's `total` is 0. See
+  [download](reference/commands.md#download).
+
 ## App v0.3.0 — 2026-10-09
 
 Needs CLI v0.11.0 and packages v49. With an older CLI or packages, a banner
