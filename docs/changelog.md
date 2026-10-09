@@ -8,6 +8,18 @@ page](https://github.com/mydevmachine/devmachine/releases).
 
 To get the latest version, see [Upgrade](upgrade.md).
 
+## App v0.4.0 — 2026-10-09
+
+Shows download progress with CLI v0.12.0. With an older CLI, downloads
+work as before, without the progress bar.
+
+### Added
+
+- Downloading from the Files tab, or dragging a file to Finder, shows a
+  card with the download's progress until the "Saved to" or error notice
+  takes its place. A folder has no size until its archive ends, so its
+  card says how much has arrived instead.
+
 ## v0.12.0 — 2026-10-09
 
 ### Added
