@@ -509,8 +509,6 @@ func TestMuxClientTriesTheNextAddressWhenOneDoesNotConnect(t *testing.T) {
 		"Connection closed by 203.0.113.10 port 22",
 		"Connection reset by 203.0.113.10 port 22",
 		"kex_exchange_identification: read: Connection reset by peer",
-		"alice@203.0.113.10: Permission denied (publickey).",
-		"Warning: Permanently added '203.0.113.10' (ED25519) to the list of known hosts.\nalice@203.0.113.10: Permission denied (publickey,password).",
 	} {
 		fakeCacheDir(t)
 		m := muxTestMachine(t)
@@ -524,6 +522,30 @@ func TestMuxClientTriesTheNextAddressWhenOneDoesNotConnect(t *testing.T) {
 		_, err = client.Run(context.Background(), "true")
 		if err == nil || !strings.Contains(err.Error(), "no address answered") {
 			t.Errorf("%s: got %v", reason, err)
+		}
+		if n := sshRuns(t, calls); n != 2 {
+			t.Errorf("%s: ssh ran %d times, want 2", reason, n)
+		}
+	}
+}
+
+func TestMuxClientReportsARefusedLoginAsAuthRefused(t *testing.T) {
+	for _, reason := range []string{
+		"alice@203.0.113.10: Permission denied (publickey).",
+		"Warning: Permanently added '203.0.113.10' (ED25519) to the list of known hosts.\nalice@203.0.113.10: Permission denied (publickey,password).",
+	} {
+		fakeCacheDir(t)
+		m := muxTestMachine(t)
+		m.Hosts = append(m.Hosts, config.Host{Address: "203.0.113.11"})
+		_, calls := countingSSH(t, "printf '%s\\n' '"+strings.ReplaceAll(reason, "\n", "' '")+"' >&2\nexit 255")
+
+		client, _, err := DialMux(context.Background(), m, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = client.Run(context.Background(), "true")
+		if !errors.Is(err, ErrAuthRefused) {
+			t.Errorf("%s: got %v, want ErrAuthRefused", reason, err)
 		}
 		if n := sshRuns(t, calls); n != 2 {
 			t.Errorf("%s: ssh ran %d times, want 2", reason, n)
