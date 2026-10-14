@@ -77,7 +77,7 @@ An area is a place in the app that holds widgets. There are five:
 
 The sidebar's top bar and footer, and the Context panel's other tabs
 (Preview, Files, Git, Chat), stay as they are: they are not widgets. Neither
-is the popover's footer (Open, Stats, Published sites, the color picker, Quit).
+is the popover's footer (Open, Stats, Published apps, the color picker, Quit).
 
 Each area has a board in `<config>/boards/`: `home.yml`, `sidebar.yml`,
 `context-sidebar.yml`, `menubar.yml` and `menubar-panel.yml`. Home's board

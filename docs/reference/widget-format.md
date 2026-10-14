@@ -443,7 +443,7 @@ widget is one tab, titled with the widget's title. A tab fills the
 popover, so a `size` there is kept but ignored, and `widgets validate`
 warns about it; `frame`, `minimized`, `collapsed` and `z` are refused. A
 widget fits it when `tabs` is in its `fits`. Its widgets run only while
-the popover is open. The footer (Open, Stats, Published sites, the color
+the popover is open. The footer (Open, Stats, Published apps, the color
 picker, Quit) is not a widget.
 
 ```yaml

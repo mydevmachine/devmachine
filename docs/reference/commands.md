@@ -1412,7 +1412,7 @@ get a yes. `--publish` is the non-interactive way past that.
   refused with the machines that have it. See
   [publishing through another machine](../how-it-works/published-sites.md#publishing-through-another-machine).
 
-See [why a published site lives in the configuration](../how-it-works/published-sites.md).
+See [why a published app lives in the configuration](../how-it-works/published-sites.md).
 
 `list` prints every host the machine's Caddy serves — those sent to it
 with `--via` too, naming the machine they come from — with its port,

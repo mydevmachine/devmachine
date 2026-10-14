@@ -135,7 +135,7 @@ these when something behaves in a way that surprises you.
   with no location is `external`, and why `create-local` writes `local`.
 - [Versioning your configuration](how-it-works/versioning-your-configuration.md)
   — keeping your setup in git safely.
-- [Why a published site lives in the configuration](how-it-works/published-sites.md)
+- [Why a published app lives in the configuration](how-it-works/published-sites.md)
   — why `expose` writes to your configuration, not straight to the server.
 - [What sync removes](how-it-works/what-sync-removes.md) — what `sync` cleans
   up, and what it leaves alone.

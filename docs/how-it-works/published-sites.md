@@ -1,4 +1,4 @@
-# Why a published site lives in the configuration
+# Why a published app lives in the configuration
 
 `expose add` used to write a Caddy file straight onto the machine and
 reload Caddy. It worked, but it left the only record of the site on the

@@ -10,7 +10,7 @@ A workspace's routes and a package's `extends` both write into `sites.d`,
 and `sync` removes both the same way: it keeps a list of exactly what it
 wrote, and takes away whatever is no longer on that list.
 
-- **Routes** come from `expose`. See [why a published site lives in the
+- **Routes** come from `expose`. See [why a published app lives in the
   configuration](published-sites.md).
 - **Extension files** come from `extends: caddy.sites.d: <file>`, a
   package's way of adding to a place another package opened. `sync`
