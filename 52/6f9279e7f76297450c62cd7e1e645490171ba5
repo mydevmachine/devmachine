@@ -1,0 +1,31 @@
+docs/concepts/publishing.md
+  s_0f105d87334789::t_446199952dc97e 29,36
+docs/concepts/widgets.md
+  s_0f105d87334789::t_64ca5ae959aa17 80
+docs/how-it-works/published-sites.md
+  s_0f105d87334789::t_a0ebee48d5900e 1
+docs/how-it-works/what-sync-removes.md
+  s_0f105d87334789::t_2cf2ecbacab5d6 13
+docs/index.md
+  s_0f105d87334789::t_c635af09e0d5e3 138
+docs/reference/commands.md
+  s_0f105d87334789::t_cd43db85cf6fc4 1415
+docs/reference/widget-format.md
+  s_0f105d87334789::t_b943c2dd702168 446
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "526f9279e7f76297450c62cd7e1e645490171ba5",
+  "prompts": {},
+  "sessions": {
+    "s_0f105d87334789": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3a5d445d-a266-4f47-9d99-dffda990876e",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
