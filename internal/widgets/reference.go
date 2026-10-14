@@ -40,9 +40,9 @@ func ReferenceTables() string {
 		line("| `%s` | %d×%d | %d×%d |", name, p[0], p[1], p[0]*c.Unit, p[1]*c.Unit)
 	}
 	line("")
-	line("### Surfaces")
+	line("### Areas")
 	line("")
-	line("| Surface | Layout | Status | Context it gives |")
+	line("| Area | Layout | Status | Context it gives |")
 	line("| --- | --- | --- | --- |")
 	for _, name := range surfaceNames(c) {
 		s := c.Surfaces[name]
