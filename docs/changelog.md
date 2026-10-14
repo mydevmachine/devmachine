@@ -8,23 +8,37 @@ page](https://github.com/mydevmachine/devmachine/releases).
 
 To get the latest version, see [Upgrade](upgrade.md).
 
-## App v0.5.0 — 2026-10-09
+## App v0.5.0 — 2026-10-14
 
-Remote session indicators need CLI v0.13.0. With an older CLI, sessions
-are listed as before, without them.
+Needs CLI v0.13.0 for the remote session indicators and packages v52 for
+the remote Claude to-do. With older ones, sessions are listed as before,
+without indicators.
 
 ### Added
 
 - Each session in the sidebar shows its git branch (or folder) under its
   name and how long it has run. A remote session shows a spinner while
-  its agent works, and an orange dot when the agent rings the terminal
-  bell to ask for you. Settings → Sidebar turns each one on or off. See
+  its coding agent works, and an orange dot when the agent rings the
+  terminal bell to ask for you. Settings → Coding agents → Sidebar turns
+  each one on or off. See
   [session indicators](how-it-works/session-indicators.md).
+- Auto-connect on startup, off by default: Settings → Workspaces → Edit →
+  App settings. When on, the app connects that workspace's sessions in
+  the background as it starts, three at a time, so they open at once.
 
 ### Changed
 
 - Every workspace's session list refreshes every 5 seconds through one
   `devmachine sessions` call, not only the selected workspace.
+- Names now match across the app and these docs: the session grid (was
+  "Workspace home"), the context panel, coding agents (was "harnesses"),
+  End session (was "Delete") and Published apps (was "Subdomains").
+
+### Fixed
+
+- A Claude session's To-do shows the session's own tasks. It no longer
+  shows the checklist of a plan file the session happened to edit.
+- The sidebar's + menu lists only the workspaces shown in the sidebar.
 
 ## v0.13.0 — 2026-10-09
 

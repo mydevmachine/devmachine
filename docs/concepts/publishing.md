@@ -26,14 +26,14 @@ speak HTTP, none has its own login, and none should go through `expose`.
 Use `tunnel` for those — it looks at the thing from your computer,
 without ever making it public.
 
-## Where a published site is recorded
+## Where a published app is recorded
 
 In `config.yml`, on the workspace, under `routes:`. `expose add` records
 it there and puts it on Caddy at once, in seconds; `expose rm` takes it off
 the same way. `sync` writes the same file, so it is also what brings the
 site back after a rebuild, or publishes it when the machine was out of
 reach. See
-[why a published site lives in the configuration](../how-it-works/published-sites.md).
+[why a published app lives in the configuration](../how-it-works/published-sites.md).
 
 ## A machine the internet cannot reach
 

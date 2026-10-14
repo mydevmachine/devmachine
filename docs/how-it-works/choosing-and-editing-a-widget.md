@@ -1,14 +1,14 @@
 # Choosing and editing a widget
 
 A widget can let you pick what it shows: which machines, which coding
-harness. The widget only declares the input; the app draws the chooser.
+agent. The widget only declares the input; the app draws the chooser.
 This page says where the choices come from and why a wrong one never
 breaks a board.
 
 ## Where the options come from
 
 A `choice` input names one of three lists: `machines` and `workspaces`,
-read from your `config.yml`, and `harnesses`, the coding harnesses that
+read from your `config.yml`, and `harnesses`, the coding agents that
 report usage. The app fills the list from what it already knows, so any
 widget with a choice gets a checklist (`many: true`) or a picker, with
 no code written for that widget.

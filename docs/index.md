@@ -135,7 +135,7 @@ these when something behaves in a way that surprises you.
   with no location is `external`, and why `create-local` writes `local`.
 - [Versioning your configuration](how-it-works/versioning-your-configuration.md)
   — keeping your setup in git safely.
-- [Why a published site lives in the configuration](how-it-works/published-sites.md)
+- [Why a published app lives in the configuration](how-it-works/published-sites.md)
   — why `expose` writes to your configuration, not straight to the server.
 - [What sync removes](how-it-works/what-sync-removes.md) — what `sync` cleans
   up, and what it leaves alone.
@@ -166,7 +166,7 @@ these when something behaves in a way that surprises you.
   — why a box is never taller than its content, why a height you set is a
   cap, and why a growing widget only pushes the ones below it on screen.
 - [A prompt widget's permission mode](how-it-works/a-prompt-widgets-permission-mode.md)
-  — why the modes are the harness's own names, and why a mode with no
+  — why the modes are the coding agent's own names, and why a mode with no
   checks never runs on a timer.
 - [Updating](how-it-works/updating.md) — why `update` stops before your
   machines, hands over to the new CLI, and goes through Homebrew when

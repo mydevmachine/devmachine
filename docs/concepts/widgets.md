@@ -1,7 +1,7 @@
 # Widgets
 
 The app's Home is a canvas of widgets: a clock, a summary of your sessions,
-your machines, the usage of each coding harness. You move them, resize
+your machines, the usage of each coding agent. You move them, resize
 them, minimize them, and add or remove them. Where each one sits is kept in
 a plain file, so the app, the CLI and your coding agent can all change it.
 
@@ -20,19 +20,19 @@ says what one widget takes.
 
 ## Widgets come in packages
 
-Every widget ships inside a [package](packages.md), next to the recipe
+Every widget ships inside a [package](packages.md), next to the role
 that installs the tool behind it. `claude-code/usage` is the `usage`
 widget of the `claude-code` package. The app's own widgets, such as the
 clock, are in the `devmachine-app` package.
 
 A widget that only shows what the app already knows — the clock, your
-machines, harness usage — works without adding its package anywhere. A
+machines, coding agent usage — works without adding its package anywhere. A
 widget that reads something a package installs needs that package added
 to a machine and synced first; `widgets list` says so, and names the
 command. See [why widgets come from packages](../how-it-works/widgets-come-from-packages.md).
 
 From engine 1.1 a widget can also show the output of a command, a web
-address, an answer from a coding harness, or a live copy of a session —
+address, an answer from a coding agent, or a live copy of a session —
 on your computer, a machine or a workspace. A command, prompt or session
 widget runs what its package installs, so it needs the package added and
 synced; a web address needs nothing. See [the widget
@@ -65,8 +65,9 @@ An area is a place in the app that holds widgets. There are five:
   with `size: auto`.
 - **The sidebar**, on the left: a list, top to bottom. The workspace list
   is one widget there, so you can put others above or below it.
-- **The context sidebar**, the Context tab next to a session: a list too.
-  Each of its sections (shortcuts, publish a port, monitors, shells,
+- **The Context tab**, the first tab of the Context panel (the right-hand
+  panel next to a session, with the tabs Context, Preview, Files, Git and
+  Chat): a list too. Each of its sections (shortcuts, publish a port, monitors, shells,
   sub-agents, to-do, pull requests, links) is one widget.
 - **The menu bar title**, at the top of the screen: up to three short
   widgets in a row, "❯_" and the number of open pull requests unless you
@@ -74,9 +75,9 @@ An area is a place in the app that holds widgets. There are five:
 - **The menu bar popover**, what opens when you click it: each widget is
   a tab, Pull Requests and Usage unless you change it.
 
-The sidebar's top bar and footer, and the context panel's other tabs
-(Preview, Files, Git), stay as they are: they are not widgets. Neither
-is the popover's footer (Open, Stats, Subdomains, the color picker, Quit).
+The sidebar's top bar and footer, and the Context panel's other tabs
+(Preview, Files, Git, Chat), stay as they are: they are not widgets. Neither
+is the popover's footer (Open, Stats, Published apps, the color picker, Quit).
 
 Each area has a board in `<config>/boards/`: `home.yml`, `sidebar.yml`,
 `context-sidebar.yml`, `menubar.yml` and `menubar-panel.yml`. Home's board
@@ -120,9 +121,9 @@ When a sidebar or menu bar board is missing, the app writes the board
 that draws that area as it always looked, and the CLI reads a missing one
 the same way. Settings → Appearance can reset each one.
 
-The context sidebar hands its widgets the selected session's context:
+The Context tab hands its widgets the selected session's context:
 `machine`, `session`, `workspace`, `path` (the session's folder), `repo`
-and `branch` (from Git), and `harness`. Switching sessions runs each
+and `branch` (from Git), and `harness` (the coding agent). Switching sessions runs each
 widget again with the new values. A widget written in place that uses
 them, such as a command reading `{{context.path}}`, asks you to allow it
 again for each new set of values.

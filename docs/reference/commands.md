@@ -4,7 +4,7 @@ Every command accepts:
 
 | Flag | Meaning |
 | --- | --- |
-| `--config <dir>` | the configuration directory to use |
+| `--config <dir>` | the configuration folder to use |
 | `--format table\|json` | how to print; JSON is the stable contract |
 | `--machine <name>` | which machine to act on, for commands that act on a server |
 | `--help` | what this command does |
@@ -154,7 +154,7 @@ involved.
 devmachine setup git [--yes] [--check]
 ```
 
-Turns your configuration directory into a git repository, so you can push
+Turns your configuration folder into a git repository, so you can push
 it to a private remote. `config.yml`, `packages.lock`, `known_hosts` and
 `AGENTS.md` are committed — see [versioning your
 configuration](../how-it-works/versioning-your-configuration.md) for what
@@ -742,11 +742,11 @@ prints:
       "trust": "official",
       "version": "v40",
       "path": "/Users/alice/.config/devmachine/cache/packages/v40/packages/claude-code/widgets/usage",
-      "summary": "Coding-harness usage windows.",
+      "summary": "Coding-agent usage windows.",
       "requires_engine": ">= 1.0",
       "fits": ["canvas", "stack", "slot"],
       "context": {},
-      "inputs": {"harness": {"type": "string", "default": "claude", "summary": "Which harness."}},
+      "inputs": {"harness": {"type": "string", "default": "claude", "summary": "Which coding agent."}},
       "source": {"kind": "provider", "name": "app/harness-usage", "with": {"harness": "{{inputs.harness}}"}, "every": "60s"},
       "view": {"kind": "app.harness-usage"},
       "sizes": ["small", "medium", "wide"],
@@ -871,7 +871,7 @@ marked `single` is refused when the board already has it.
 
 On Home (the default), `--size` is a preset the widget takes or `auto`.
 Without it the widget gets `auto` when its view grows with its content
-(the summary, machines and harness usage views, and the generic `text`,
+(the summary, machines and coding agent usage views, and the generic `text`,
 `number`, `status`, `list` and `markdown`) and its `default_size`
 otherwise. `--size auto` on a view that does not grow is refused. An
 `auto` widget is written as `frame: {x, y, w}` with no `h`: `w` is the
@@ -887,7 +887,7 @@ The point is on Home with the app's sidebar open. With the sidebar hidden,
 the app spreads the widgets over the wider canvas: one at an edge stays at
 that edge, and any other keeps its share of the space between the edges.
 
-In the sidebar or the context sidebar, the widget goes at the end of the
+In the sidebar or the Context tab, the widget goes at the end of the
 list, or right after `--after <id>`, or right before `--before <id>` (one
 of the two at most). `--size` is a preset or `auto`; without it the widget
 gets `auto` when its view grows with its content and its `default_size`
@@ -1412,7 +1412,7 @@ get a yes. `--publish` is the non-interactive way past that.
   refused with the machines that have it. See
   [publishing through another machine](../how-it-works/published-sites.md#publishing-through-another-machine).
 
-See [why a published site lives in the configuration](../how-it-works/published-sites.md).
+See [why a published app lives in the configuration](../how-it-works/published-sites.md).
 
 `list` prints every host the machine's Caddy serves — those sent to it
 with `--via` too, naming the machine they come from — with its port,
