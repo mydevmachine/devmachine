@@ -38,6 +38,8 @@ func classifySessionsError(err error) sessionsError {
 		kind = "tmux-missing"
 	case errors.Is(err, remote.ErrHostKeyRejected):
 		kind = "host-key-rejected"
+	case errors.Is(err, remote.ErrAuthRefused):
+		kind = "login-refused"
 	case errors.Is(err, context.DeadlineExceeded), strings.Contains(err.Error(), "no address answered"):
 		kind = "unreachable"
 	}

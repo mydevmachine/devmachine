@@ -66,6 +66,21 @@ or the key is the problem.
   is not created on the server until you run `sync`.
 - Check the key is allowed to log in to that account.
 
+## A new workspace shows as unreachable until sync
+
+**What it means:** A workspace you just added is in your configuration, but
+its account on the machine does not exist until `sync` finishes. Until then,
+the machine refuses every login to it. `devmachine sessions` reports this as
+`login-refused`, not `unreachable`: the machine is fine, and the other
+workspaces on it still answer.
+
+Each refused login is a failed login in the machine's SSH log. With fail2ban
+on, enough of them in a short time block your address for the whole machine,
+so do not keep asking about a workspace that is not synced yet.
+
+**What to do:** Run `devmachine sync`. When it finishes, the workspace
+answers.
+
 ## "no key in the configuration and no SSH agent"
 
 **What it means:** devmachine has nothing to log in with.

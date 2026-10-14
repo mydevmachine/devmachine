@@ -1123,7 +1123,9 @@ reads, and its shape is stable:
   answer, and the command exits 0.
 - `error.kind` is one of `unreachable` (no address answered, or the 5 seconds
   ran out), `host-key-rejected` (the machine's key is not the one pinned),
-  `tmux-missing` (tmux is not installed there), `not-configured` (the name
+  `login-refused` (the machine answered but refused the workspace's login,
+  most often because the workspace is not synced yet, so its account does not
+  exist), `tmux-missing` (tmux is not installed there), `not-configured` (the name
   given to `--workspace` is not in the configuration) or `other`.
 - The table shows `busy`, `attention` or nothing under `STATE`, and the
   folder's name when a session has no branch.

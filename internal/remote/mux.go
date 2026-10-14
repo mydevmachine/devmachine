@@ -152,7 +152,10 @@ func (c *muxClient) Close() error { return nil }
 // same way sshClient.Run returns one: the error wraps it, and stdout still
 // holds whatever the command printed before it failed.
 func (c *muxClient) exec(ctx context.Context, command string, stdin io.Reader, stdout, stderr io.Writer) error {
-	var failures []string
+	var (
+		failures []string
+		authErr  error
+	)
 	var sent countingReader
 	if stdin != nil {
 		sent.r = stdin
@@ -201,6 +204,10 @@ func (c *muxClient) exec(ctx context.Context, command string, stdin io.Reader, s
 					c.machine, address, strings.TrimSpace(errBuf.String()))
 			}
 			if connectFailed(errBuf.String()) {
+				if authErr == nil && loginRefused(errBuf.String()) {
+					authErr = fmt.Errorf("%w: machine %q answered on %s but refused the login for %q: %s",
+						ErrAuthRefused, c.machine, address, c.user, strings.TrimSpace(errBuf.String()))
+				}
 				failures = append(failures, fmt.Sprintf("%s (%s)", address, strings.TrimSpace(errBuf.String())))
 				continue
 			}
@@ -209,6 +216,9 @@ func (c *muxClient) exec(ctx context.Context, command string, stdin io.Reader, s
 			return fmt.Errorf("running %q: %w: %s", command, runErr, reason)
 		}
 		return fmt.Errorf("running %q: %w", command, runErr)
+	}
+	if authErr != nil {
+		return authErr
 	}
 	return fmt.Errorf("machine %q: no address answered: %s", c.machine, strings.Join(failures, "; "))
 }
@@ -222,9 +232,20 @@ var preSessionLines = []*regexp.Regexp{
 	regexp.MustCompile(`^ssh: Could not resolve hostname \S+: .+$`),
 	regexp.MustCompile(`^kex_exchange_identification: .+$`),
 	regexp.MustCompile(`^Connection (closed|reset) by \S+ port \d+$`),
-	regexp.MustCompile(`^(\S+@\S+: )?Permission denied \([a-z,-]+\)\.$`),
+	authRefusedLine,
 	regexp.MustCompile(`^Received disconnect from \S+ port \d+:\d+: .+$`),
 	regexp.MustCompile(`^Disconnected from \S+ port \d+$`),
+}
+
+var authRefusedLine = regexp.MustCompile(`^(\S+@\S+: )?Permission denied \([a-z,-]+\)\.$`)
+
+func loginRefused(stderr string) bool {
+	for _, line := range strings.Split(stderr, "\n") {
+		if authRefusedLine.MatchString(strings.TrimSpace(line)) {
+			return true
+		}
+	}
+	return false
 }
 
 // sshNotice is a line ssh writes before a session that says nothing failed.

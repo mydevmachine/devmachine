@@ -124,6 +124,38 @@ func TestSessionsHostKeyRejected(t *testing.T) {
 	}
 }
 
+func TestSessionsLoginRefusedIsItsOwnKind(t *testing.T) {
+	dir := configWith(t, sessionsConfig)
+	refused := fmt.Errorf("%w: machine %q answered on 203.0.113.10 but refused the login for %q: alice@203.0.113.10: Permission denied (publickey).",
+		remote.ErrAuthRefused, "main", "alice")
+	dialByUser(t, map[string]remote.Client{
+		"alice": fakeRemote{err: refused},
+		"bob":   fakeRemote{out: busySessionOutput},
+	}, nil)
+
+	got, _ := sessionsJSON(t, "--config", dir, "sessions", "--json")
+
+	if got[0].Error == nil || got[0].Error.Kind != "login-refused" || !strings.Contains(got[0].Error.Message, "Permission denied") {
+		t.Fatalf("alice = %+v", got[0])
+	}
+	if got[1].Error != nil || len(got[1].Sessions) != 1 {
+		t.Fatalf("bob = %+v", got[1])
+	}
+}
+
+func TestSessionsLoginRefusedAtDial(t *testing.T) {
+	dir := configWith(t, sessionsConfig)
+	refused := fmt.Errorf("%w: machine %q answered but refused the login", remote.ErrAuthRefused, "main")
+	dialByUser(t, map[string]remote.Client{"bob": fakeRemote{out: busySessionOutput}},
+		map[string]error{"alice": refused})
+
+	got, _ := sessionsJSON(t, "--config", dir, "sessions", "--json")
+
+	if got[0].Error == nil || got[0].Error.Kind != "login-refused" {
+		t.Fatalf("alice = %+v", got[0])
+	}
+}
+
 func TestSessionsOtherError(t *testing.T) {
 	dir := configWith(t, sessionsConfig)
 	dialByUser(t, map[string]remote.Client{"bob": fakeRemote{out: busySessionOutput}},
