@@ -746,7 +746,7 @@ is the name a setting has to match.
 
 **What it means:** The setting's first part, before the dot, names a
 package that machine or workspace does not have. Nothing would read the
-value: the recipe would keep its default, so the CLI refuses it instead.
+value: the role would keep its default, so the CLI refuses it instead.
 It is usually a typo in the package name, or a package added to the
 workspace when the setting is on the machine (or the other way round).
 
@@ -776,10 +776,10 @@ devmachine config path
 
 ## `secrets list` shows nothing after storing one
 
-**What it means:** The list of names lives in your configuration directory,
+**What it means:** The list of names lives in your configuration folder,
 even though the values themselves live in your keychain.
 
-**What to do:** Check you are using the same configuration directory you used
+**What to do:** Check you are using the same configuration folder you used
 when storing it — see `devmachine config path` above.
 
 ## `secrets set --env-file` refuses the path
@@ -1886,20 +1886,20 @@ has. Nothing else in it was checked.
 
 ## "source.permission_mode X: a claude prompt takes …"
 
-**What it means:** Each harness has its own names for what it may do, and
+**What it means:** Each coding agent has its own names for what it may do, and
 `permission_mode` takes only those of the widget's `harness`. A Codex
 name on a Claude prompt, or the other way round, is refused, and so is a
 template: the mode is what you approve, so it cannot change when the
 widget runs.
 
 **What to do:** Pick a name from the list in the message, or take the key
-off to run the harness as it does by default. If your harness has a mode
+off to run the coding agent as it does by default. If your coding agent has a mode
 the list lacks, `devmachine update`: a CLI release adds new modes.
 
 ## "permission_mode X runs without any check, so it runs only when you press refresh"
 
 **What it means:** `bypassPermissions` (Claude), `danger-full-access` and
-`dangerously-bypass-approvals-and-sandbox` (Codex) let the harness change
+`dangerously-bypass-approvals-and-sandbox` (Codex) let the coding agent change
 files and run commands without asking. Such a widget never runs on a
 timer, so its `every` must be `manual`. A board entry's `every` and
 `widgets set --every` follow the same rule.
@@ -1919,7 +1919,7 @@ old then says it needs an update.
 ## "input X is a choice, and needs from"
 
 **What it means:** A `choice` input is picked from a list, and `from`
-says which list: `machines`, `workspaces` or `harnesses`. Without it, or
+says which list: `machines`, `workspaces` or `harnesses` (the coding agents). Without it, or
 with another name, the app has nothing to offer.
 
 **What to do:** Add `from: machines` (or one of the other two). Add
@@ -1982,7 +1982,7 @@ writes the right shape.
 ## "warning: … names machine "X", which config.yml does not have"
 
 **What it means:** A widget on the board picked a machine (or workspace)
-that is not in `config.yml` any more, or a harness the engine does not
+that is not in `config.yml` any more, or a coding agent the engine does not
 know. The app leaves that name out and draws the rest. Nothing is
 refused.
 
@@ -2080,15 +2080,15 @@ not fit the menubar area: the X view cannot be drawn in the menu bar".
 
 **What to do:** Pick a widget that fits the area, or, for your own widget,
 add the layout to `fits`. A widget that needs `session` fits only the
-context sidebar.
+Context tab.
 
 ## "X needs context.session, which the sidebar area does not give"
 
 **What it means:** The widget reads the selected session, and only the
-context sidebar has one. The same goes for a widget written in a board
+Context tab has one. The same goes for a widget written in a board
 whose provider needs it ("which this board's area does not give").
 
-**What to do:** Put it on the context sidebar instead.
+**What to do:** Put it on the Context tab instead.
 
 ## "X goes on a board once"
 
@@ -2156,11 +2156,11 @@ is drawn anywhere, such as `list` or `text`.
 ## "source.name app/session-context needs context.session"
 
 **What it means:** The provider reads the session that is selected in the
-app, so it only works in the context sidebar, which hands every widget
+app, so it only works in the Context tab, which hands every widget
 there that session. A widget only sees the context keys it declares.
 
 **What to do:** Add `context: {session: required}` to the `widget.yml`.
-The widget then fits only the context sidebar, which is right: there is
+The widget then fits only the Context tab, which is right: there is
 no session to read anywhere else.
 
 ## "fits canvas, and the X view is drawn only in stack"
@@ -2176,7 +2176,7 @@ tall as their content, so they have no shape on Home's canvas.
 **What it means:** `places` asks the app to add the widget to an area
 once. The widget cannot sit there: its `fits` lacks the area's layout, or
 it requires a context key the area does not give (`session`, for example,
-only the context sidebar gives). The app would skip it without a word.
+only the Context tab gives). The app would skip it without a word.
 
 **What to do:** Remove the area from `places`, or change `fits` or
 `context` so the widget fits it. `devmachine widgets validate` lists the
@@ -2218,7 +2218,7 @@ the app has not saved a layout yet. `widgets add` creates the file;
 `remove` never does on Home. A missing sidebar board is different: it is
 read as the default board, so `remove` and `move` work on it.
 
-**What to do:** Check `--board` and the config directory the path names.
+**What to do:** Check `--board` and the configuration folder the path names.
 To see what is on a board, open `<config>/boards/<board>.yml`.
 
 ## "a widget written in the board needs a title"
@@ -2266,7 +2266,7 @@ The same message comes for `minimized: false`: a stack refuses the
 **What it means:** `auto` makes a widget as tall as what it shows. Only
 a view that has a natural height works that way: the app's sidebar views
 (`app.workspaces`, `app.todo` and the others), the summary, machines and
-harness usage views, and the generic `text`, `number`, `status`, `list`
+coding agent usage views, and the generic `text`, `number`, `status`, `list`
 and `markdown`. Every other view (a clock, a gauge, a web page, a
 terminal) has a fixed shape and needs a preset. The same message comes on
 Home, from a board entry or from `widgets add --size auto`

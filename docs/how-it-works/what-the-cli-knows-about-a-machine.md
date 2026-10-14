@@ -20,13 +20,13 @@ which `devmachine setup git` keeps out of the repository. A repository
 made before this release gets the `.gitignore` line the next time you run
 `devmachine setup git`.
 
-It lives in the configuration directory, like `known_hosts`, and not in
+It lives in the configuration folder, like `known_hosts`, and not in
 `~/.local/state`, because a machine name is unique only inside one
 configuration: two configurations can each have a machine called `vps`.
 
 ## Why it is written only when it changes
 
-The macOS app watches the configuration directory and reloads on every
+The macOS app watches the configuration folder and reloads on every
 change. A `doctor` that rewrote the file on each run would make the app
 reload for nothing. So the file is written only when something other than
 the time differs, and `observed_at` is when the machine was first seen as

@@ -36,10 +36,11 @@ server connected, and a workspace to code in.
    devmachine workspaces new acme && devmachine sync
    ```
 
-   It shows up in the app's sidebar. Click it to open a terminal in it.
+   It shows up in the app's sidebar. Click it to open a terminal in it. The session grid shows all the
+   sessions of a workspace side by side.
 
-A step failed? Click **Try again**, or, if Claude Code or Codex is on your
-Mac, ask it to fix the step for you. More about the app:
+A step failed? Click **Try again**, or, if a coding agent such as Claude Code
+or Codex is on your Mac, ask it to fix the step for you. More about the app:
 [mydevmachine.sh/app](https://mydevmachine.sh/app/).
 
 ## With the CLI

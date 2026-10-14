@@ -3,8 +3,8 @@
 Every variable the published packages accept, and what each one defaults to.
 
 A setting is written `<package>.<name>` under a machine's or a workspace's
-`settings:`, and it reaches the recipe as the variable it already reads.
-**A setting is a default somebody overrode, not a new mechanism** — the recipe
+`settings:`, and it reaches the role as the variable it already reads.
+**A setting is a default somebody overrode, not a new mechanism** — the role
 cannot tell the difference and does not have to.
 
 ```yaml
@@ -25,7 +25,7 @@ devmachine machines edit main --set caddy.email=someone@example.com
 
 A setting for a package the target does not install is refused. A typo in a
 package name would otherwise be silent: the value would reach nothing, the
-recipe would keep its default, and the machine would not be what the
+role would keep its default, and the machine would not be what the
 configuration says it is.
 
 **This page is generated** by `make settings`. Do not edit it by hand.

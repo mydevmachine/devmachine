@@ -46,6 +46,6 @@ actually installed and refuse content that changed. Without that,
 
 A package runs as root on a machine you own. Fetching one from anywhere
 and running it is the shape of a supply-chain attack, so a third-party
-source is not supported. Your own configuration directory is the
+source is not supported. Your own configuration folder is the
 exception, and not really one: a package you wrote is a package you
 already trust.

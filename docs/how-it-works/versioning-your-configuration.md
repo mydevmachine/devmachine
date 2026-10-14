@@ -60,7 +60,7 @@ that matters.
 The check is a closed list of paths — `keys/`, `secrets.json`, `cache/`,
 `history.log`, `*.env`, `packages/.install-*` — not a scan for things that look like a token,
 because the CLI wrote every one of these paths itself: nothing else
-lands in the configuration directory.
+lands in the configuration folder.
 
 ## Why the CLI writes its own commit messages
 
@@ -79,7 +79,7 @@ configuration change stands.
 
 ## Secrets never enter this history, by a different route
 
-A secret's value never lives in the configuration directory — it is kept
+A secret's value never lives in the configuration folder — it is kept
 in the OS keychain (`devmachine secrets set`), with `secrets.json` as the
 fallback with no keychain, already in the first `.gitignore` this command
 writes.

@@ -174,7 +174,7 @@ refuses a setting that does not fit before it reaches the machine, and
 `packages validate` refuses a default that does not fit its own type. That
 is the whole reason for a type: without one, a mistyped field such as
 `nmae:` is carried to the machine and fails in Ansible halfway through a
-sync, or worse, is quietly ignored by the recipe.
+sync, or worse, is quietly ignored by the role.
 
 ```console
 $ devmachine workspaces edit alice --set 'workspace.repos=[{name: app}]'

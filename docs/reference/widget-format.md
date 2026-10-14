@@ -25,12 +25,12 @@ full name is `<package>/<folder>`, for example `claude-code/usage`.
 ```yaml
 format: 1
 name: usage
-summary: Coding-harness usage windows.
+summary: Coding-agent usage windows.
 requires: {engine: ">= 1.0"}
 fits: [canvas, stack, slot]
 context: {}
 inputs:
-  harness: {type: string, default: claude, summary: Which harness.}
+  harness: {type: string, default: claude, summary: Which coding agent.}
 source:
   kind: provider
   name: app/harness-usage
@@ -55,7 +55,7 @@ places: [home]
 | `view` | yes | How it is drawn: `kind` and that view's fields. See [Views](#views). |
 | `sizes` | yes | The presets it takes. |
 | `default_size` | yes | The preset a new copy gets. One of `sizes`. |
-| `places` | no | Surfaces the app adds it to once, the first time it is available. Each must be an area the widget fits. Removing it from there is final. |
+| `places` | no | Areas the app adds it to once, the first time it is available. Each must be an area the widget fits. Removing it from there is final. |
 | `single` | no | `true`: a board holds it at most once. The app's workspace list is one. |
 
 A value in `source.with` can hold `{{inputs.<name>}}` or
@@ -74,7 +74,7 @@ inputs:
 
 - `from` says where the options come from: `machines` (the machines in
   `config.yml`), `workspaces` (the workspaces in `config.yml`) or
-  `harnesses` (the coding harnesses that report usage: `claude`, `codex`).
+  `harnesses` (the coding agents that report usage: `claude`, `codex`).
 - `many: true` makes the value a list of names; left out, or `[]`, it
   means all of them. Without `many` the value is one name; left out, it
   means the first option.
@@ -91,7 +91,7 @@ is a mistake, for example `source.url is not a field of a command source`.
 
 ### `provider`
 
-Data the app already has: the clock, your sessions, your machines, harness
+Data the app already has: the clock, your sessions, your machines, coding agent
 usage. `name`, `with` (the provider's arguments) and `every` (at least the
 provider's minimum). It works without adding its package. An app provider
 (`app/…`) takes no `target` and no `timeout`: it is the app's own data.
@@ -219,14 +219,14 @@ source:
   target: {workspace: alice}
 ```
 
-Asks a coding harness, `claude` or `codex`, without a conversation, on the
+Asks a coding agent, `claude` or `codex`, without a conversation, on the
 target, and shows the answer as Markdown. `every` is `manual` unless you
 set one, at least `5m`: every run costs tokens. `timeout` is `5m` by
 default. Only one run of a widget happens at a time.
 
-`permission_mode` sets what the harness may do while it answers, such as
-search the web or change files, in the harness's own words. Leave it out
-and the harness runs as it does by default.
+`permission_mode` sets what the coding agent may do while it answers, such as
+search the web or change files, in the coding agent's own words. Leave it out
+and the coding agent runs as it does by default.
 
 ```yaml
 source:
@@ -236,7 +236,7 @@ source:
   prompt: Search the web for this week's Go release notes and summarise them.
 ```
 
-| Harness | `permission_mode` | The app runs it as |
+| Coding agent | `permission_mode` | The app runs it as |
 | --- | --- | --- |
 | `claude` | `manual`, `dontAsk`, `plan`, `acceptEdits`, `auto`, `bypassPermissions` | `claude -p --permission-mode <value> -- <prompt>` |
 | `codex` | `read-only`, `workspace-write`, `danger-full-access` | `codex exec … --sandbox <value> -- <prompt>` |
@@ -302,7 +302,7 @@ nothing here and is refused.
 
 ## A board
 
-Where the widgets sit is a board: `<config>/boards/<surface>.yml`. The app,
+Where the widgets sit is a board: `<config>/boards/<area>.yml`. The app,
 the CLI and an agent all read and write it.
 
 ```yaml
@@ -369,7 +369,7 @@ after you press **Allow** on it, and asks again whenever it changes. See
 
 ### A board in a sidebar
 
-The sidebar (`sidebar.yml`) and the context sidebar (`context-sidebar.yml`)
+The sidebar (`sidebar.yml`) and the Context tab (`context-sidebar.yml`)
 are stacks: a list, drawn top to bottom in the order it is written. A
 widget there has no `frame`, no `minimized` and no `z`.
 
@@ -443,7 +443,7 @@ widget is one tab, titled with the widget's title. A tab fills the
 popover, so a `size` there is kept but ignored, and `widgets validate`
 warns about it; `frame`, `minimized`, `collapsed` and `z` are refused. A
 widget fits it when `tabs` is in its `fits`. Its widgets run only while
-the popover is open. The footer (Open, Stats, Subdomains, the color
+the popover is open. The footer (Open, Stats, Published sites, the color
 picker, Quit) is not a widget.
 
 ```yaml
@@ -487,9 +487,9 @@ The menu bar holds at most 3 widgets, left to right, each one line drawn by one 
 | `large` | 4×4 | 320×320 |
 | `wide` | 8×2 | 640×160 |
 
-### Surfaces
+### Areas
 
-| Surface | Layout | Status | Context it gives |
+| Area | Layout | Status | Context it gives |
 | --- | --- | --- | --- |
 | `context-sidebar` | stack | available | `branch` (string, optional), `harness` (string, optional), `machine` (machine, always), `path` (path, optional), `repo` (repo, optional), `session` (session, always), `workspace` (workspace, optional) |
 | `home` | canvas | available | none |
@@ -630,7 +630,7 @@ A package declares providers in its `package.yml`; a widget names one `<package>
 | `keep` without a stream, or out of 1–2000 | `source.keep only applies to mode: stream` |
 | `target` malformed | `source.target "X": write local, {machine: <name>} or {workspace: <name>}` |
 | `parse`, `mode` or `harness` unknown | `source.parse "yaml": a command source takes text, lines, number, json, ansi` |
-| a `permission_mode` its harness does not have | `source.permission_mode "yolo": a claude prompt takes manual, dontAsk, plan, acceptEdits, auto, bypassPermissions` |
+| a `permission_mode` its coding agent does not have | `source.permission_mode "yolo": a claude prompt takes manual, dontAsk, plan, acceptEdits, auto, bypassPermissions` |
 | a mode with no checks on a timer | `permission_mode bypassPermissions runs without any check, so it runs only when you press refresh: write every: manual` |
 | `permission_mode` with an engine that allows 1.5 | `a widget with source.permission_mode needs requires.engine ">= 1.6": an app on engine 1.5 cannot run its prompt in that mode` |
 | `url` not a full address | `source.url "X": write a full address starting with https:// or http://` |
@@ -684,7 +684,7 @@ A package declares providers in its `package.yml`; a widget names one `<package>
 | a widget written in a board whose view is drawn only in a stack, on Home | `port: the app.publish-port view is drawn only in stack, and this board's area is laid out as canvas` |
 
 A choice that names a machine or workspace your `config.yml` does not
-have, or a harness the engine does not know, is a warning (`warning: …`),
+have, or a coding agent the engine does not know, is a warning (`warning: …`),
 never a problem: see [choosing and editing a
 widget](../how-it-works/choosing-and-editing-a-widget.md).
 

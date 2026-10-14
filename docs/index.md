@@ -166,7 +166,7 @@ these when something behaves in a way that surprises you.
   — why a box is never taller than its content, why a height you set is a
   cap, and why a growing widget only pushes the ones below it on screen.
 - [A prompt widget's permission mode](how-it-works/a-prompt-widgets-permission-mode.md)
-  — why the modes are the harness's own names, and why a mode with no
+  — why the modes are the coding agent's own names, and why a mode with no
   checks never runs on a timer.
 - [Updating](how-it-works/updating.md) — why `update` stops before your
   machines, hands over to the new CLI, and goes through Homebrew when

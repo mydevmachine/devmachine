@@ -18,7 +18,7 @@ are listed as before, without them.
 - Each session in the sidebar shows its git branch (or folder) under its
   name and how long it has run. A remote session shows a spinner while
   its agent works, and an orange dot when the agent rings the terminal
-  bell to ask for you. Settings → Sidebar turns each one on or off. See
+  bell to ask for you. Settings → Coding agents → Sidebar turns each one on or off. See
   [session indicators](how-it-works/session-indicators.md).
 
 ### Changed

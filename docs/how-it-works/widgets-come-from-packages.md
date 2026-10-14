@@ -9,8 +9,8 @@ which is how you or your agent make a one-off; one that runs something
 
 ## One place for a tool and its widget
 
-The usage widget for Claude Code belongs next to the recipe that installs
-Claude Code. When the recipe changes, the widget can change in the same
+The usage widget for Claude Code belongs next to the role that installs
+Claude Code. When the role changes, the widget can change in the same
 release, and both arrive together on the next update. A second source of
 widgets would be a second thing to pin, fetch, check and explain.
 
