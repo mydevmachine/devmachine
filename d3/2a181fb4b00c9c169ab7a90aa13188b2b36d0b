@@ -1,0 +1,19 @@
+docs/changelog.md
+  s_0f105d87334789::t_53d672c0102ee8 11,13-15,21-23,25-27,33-41
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d32a181fb4b00c9c169ab7a90aa13188b2b36d0b",
+  "prompts": {},
+  "sessions": {
+    "s_0f105d87334789": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3a5d445d-a266-4f47-9d99-dffda990876e",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
