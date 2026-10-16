@@ -1,0 +1,39 @@
+internal/chat/run.go
+  s_46e69727c17321::t_42d5f4d9f29b76 24-25,57
+internal/chat/run_test.go
+  s_46e69727c17321::t_016ac75177798d 105,109,111,114,117-121
+  s_46e69727c17321::t_7b04951910cb55 122
+docs/how-it-works/chats.md
+  s_46e69727c17321::t_10b11298dbee06 39-40,46-77
+docs/reference/commands.md
+  s_46e69727c17321::t_10b11298dbee06 1278,1298-1302,1348-1349,1354
+docs/troubleshooting.md
+  s_46e69727c17321::t_10b11298dbee06 2911-2921
+internal/chat/store.go
+  s_46e69727c17321::t_f33a36f2f57ab3 54-59
+internal/commands/chat_test.go
+  s_46e69727c17321::t_44e02200ba4a4b 144-179
+internal/chat/harness.go
+  s_46e69727c17321::t_42d5f4d9f29b76 10-22,26-28,44,46-50,52-58,60,70,72-76,78
+internal/commands/chat.go
+  s_46e69727c17321::t_f33a36f2f57ab3 56-95,97,99,117-118,127-128,144,148,150-151,163,165
+internal/chat/harness_test.go
+  s_46e69727c17321::t_ed7f23816a561d 49-59,67-68,75-76,78-79
+  s_46e69727c17321::t_42d5f4d9f29b76 61-65
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ba649a9870a64432ff4981a802b2de4ac1bb37dd",
+  "prompts": {},
+  "sessions": {
+    "s_46e69727c17321": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "057eb95b-b600-40da-9c82-ac29c62bf791",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
