@@ -22,9 +22,10 @@ reads each control's name and current value.
 | --- | --- |
 | ⌘1 | Code: workspaces, sessions and their terminals. |
 | ⌘2 | Chats: conversations with Claude or Codex. |
+| ⌘3 | Schedule: tasks that run on their own in a workspace. |
 
-The title at the top of the sidebar ("CODE WORKSPACES ▾", "CHAT WORKSPACES ▾")
-opens the same choice as a menu.
+The title at the top of the sidebar ("CODE WORKSPACES ▾", "CHAT WORKSPACES ▾",
+"SCHEDULE ▾") opens the same choice as a menu.
 
 ## Window and layout
 
@@ -32,7 +33,7 @@ opens the same choice as a menu.
 | --- | --- |
 | ⌘K | Command palette: sessions, chats, pages and actions. |
 | ⌘P | Find a file in the session on screen. |
-| ⌘B | Show or hide the sidebar. |
+| ⌘B | Show or hide the sidebar. The button beside the window buttons does the same. |
 | ⌘J | Show or hide the Context panel. |
 | ⌘0 | Home. |
 | ⌘, | Settings. |
@@ -43,7 +44,7 @@ opens the same choice as a menu.
 
 | Keys | What it does |
 | --- | --- |
-| ⌘N | New session in the current folder. In Chats, a new chat. |
+| ⌘N | New session in the current folder. In Chats, a new chat; in Schedule, a new task. |
 | ⌘W | End the session on screen. It asks first. |
 | ⌘⇧↑ / ⌘⇧↓ | Previous / next session. |
 | ⌘⇧← / ⌘⇧→ | Back / forward. |
@@ -52,6 +53,12 @@ opens the same choice as a menu.
 | ⇧-click | Select a range of sessions. |
 
 In a terminal, the find bar takes ⇧↩ for the previous match and Esc to close.
+
+## Schedule
+
+| Keys | What it does |
+| --- | --- |
+| ↑ / ↓ | In the task list, moves to the previous or next task. |
 
 ## Chats
 
