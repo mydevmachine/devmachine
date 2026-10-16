@@ -36,6 +36,9 @@ session. Only a reboot stops it.
 
 ## Agents
 
+- [Scheduled tasks: work that runs on its own](scheduled-tasks.md) — a
+  monthly briefing, your standup or release notes, written by Claude or Codex
+  in your workspace on a schedule.
 - [Claude Code, controlled from your phone](claude-code-remote-control.md) —
   start a session on your server, drive it from the Claude app.
 - [Start Claude from your phone](start-claude-from-your-phone.md) — a session

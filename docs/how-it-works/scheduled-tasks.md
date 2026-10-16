@@ -3,7 +3,8 @@
 `devmachine scheduled` runs a shell command, or a prompt for a coding agent,
 in a folder of a workspace, on a schedule: once, every hour, every day, on
 weekdays, every week or every month. The macOS app shows the same tasks on
-its Scheduled page.
+its Scheduled page. For examples and how to set one up, see the
+[scheduled tasks guide](../guides/scheduled-tasks.md).
 
 ## Each workspace runs its own tasks
 

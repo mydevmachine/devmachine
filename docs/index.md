@@ -52,6 +52,7 @@ list](guides/index.md).
 - [Keep your sessions running](guides/keep-sessions-running.md)
 - [Share a session](guides/share-a-session.md)
 - [A Claude that never sleeps](guides/claude-that-never-sleeps.md)
+- [Scheduled tasks: work that runs on its own](guides/scheduled-tasks.md)
 - [One consultant, three startups](guides/one-consultant-three-startups.md)
 - [Hermes Agent, in its own sandbox](guides/hermes-agent-in-its-own-sandbox.md)
 - [Agno AgentOS with a control plane](guides/agno-agentos-with-control-plane.md)
