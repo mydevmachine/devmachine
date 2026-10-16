@@ -229,6 +229,29 @@ func TestScheduledEditChangesOnlyGivenFlags(t *testing.T) {
 	}
 }
 
+func TestScheduledEditHarnessDropsTheOldAgentsModeAndModel(t *testing.T) {
+	dir := configWith(t, scheduledConfig)
+	withMode := strings.Replace(aliceTasks, `"prompt":"hi"`, `"prompt":"hi","model":"sonnet","permission_mode":"acceptEdits"`, 1)
+	alice := &scheduledFake{reply: func(script string) (string, error) {
+		if strings.Contains(script, "scheduled local 'list'") {
+			return withMode, nil
+		}
+		task := decodePutBody(t, script)
+		body, _ := json.Marshal(map[string]any{"protocol": 1, "task": task})
+		return string(body), nil
+	}}
+	dialByUser(t, map[string]remote.Client{"alice": alice}, nil)
+
+	out, err := execute(t, "--config", dir, "scheduled", "edit", "t_000001", "--workspace", "alice", "--harness", "codex")
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	task := decodePutBody(t, alice.last())
+	if task.Action.Harness != "codex" || task.Action.PermissionMode != "" || task.Action.Model != "" || task.Action.Prompt != "hi" {
+		t.Fatalf("action = %+v", task.Action)
+	}
+}
+
 func TestScheduledRmAsks(t *testing.T) {
 	dir := configWith(t, scheduledConfig)
 	alice := &scheduledFake{reply: replyWith(aliceTasks)}

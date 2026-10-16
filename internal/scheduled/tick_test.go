@@ -140,3 +140,25 @@ func TestTickMissedOnceIsDone(t *testing.T) {
 		t.Fatal("a missed one-off task is not done")
 	}
 }
+
+func TestTickAfterDowntimeStillStartsWhatIsDueNow(t *testing.T) {
+	_, s := setupHome(t)
+	m := 0
+	task := commandTask("true")
+	task.Schedule = Schedule{Every: "hourly", Minute: &m, Timezone: "UTC"}
+	mustPut(t, s, task)
+	if err := s.SetLastTick(at(15, 6, 59, 0)); err != nil {
+		t.Fatal(err)
+	}
+	var st starts
+
+	res, err := Tick(s, at(15, 10, 0, 30), st.start)
+
+	if err != nil || !slices.Equal(st.ids, []string{task.ID}) || !slices.Equal(res.Missed, []string{task.ID}) {
+		t.Fatalf("res = %+v starts = %v err = %v", res, st.ids, err)
+	}
+	runs, _ := s.Runs(task.ID)
+	if len(runs) != 1 || runs[0].Status != StatusMissed || !runs[0].StartedAt.Equal(at(15, 9, 0, 0)) {
+		t.Fatalf("want one missed run for the latest gap fire, got %+v", runs)
+	}
+}

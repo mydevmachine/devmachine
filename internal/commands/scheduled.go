@@ -252,8 +252,14 @@ func (f *taskFlags) apply(c *cobra.Command, t *scheduled.Task) error {
 		if set("prompt") {
 			t.Action.Prompt = f.prompt
 		}
-		if set("harness") {
+		if set("harness") && f.harness != t.Action.Harness {
 			t.Action.Harness = f.harness
+			if !set("model") {
+				t.Action.Model = ""
+			}
+			if !set("permission-mode") {
+				t.Action.PermissionMode = ""
+			}
 		}
 	}
 	if t.Action.Kind == "" {

@@ -38,15 +38,14 @@ func Tick(s Store, now time.Time, start Starter) (TickResult, error) {
 		if t.Paused || t.Done {
 			continue
 		}
-		next := t.Schedule.Next(last)
-		if next.IsZero() || next.After(now) {
-			continue
-		}
-		if now.Sub(next) > MissedAfter {
-			if err := recordMissed(s, t, next); err != nil {
+		late, due := firesSince(t.Schedule, last, now)
+		if !late.IsZero() {
+			if err := recordMissed(s, t, late); err != nil {
 				return res, err
 			}
 			res.Missed = append(res.Missed, t.ID)
+		}
+		if due.IsZero() {
 			continue
 		}
 		runID := NewRunID(now)
@@ -61,6 +60,22 @@ func Tick(s Store, now time.Time, start Starter) (TickResult, error) {
 		res.Started = append(res.Started, t.ID)
 	}
 	return res, s.SetLastTick(now)
+}
+
+// maxFiresPerTick bounds the walk over a long gap: a year of an hourly task.
+const maxFiresPerTick = 24 * 400
+
+// firesSince walks the fires in (last, now]. late is the newest one found
+// too late to run, zero when none; due is one still in time, zero when none.
+func firesSince(s Schedule, last, now time.Time) (late, due time.Time) {
+	for fire, i := s.Next(last), 0; !fire.IsZero() && !fire.After(now) && i < maxFiresPerTick; fire, i = s.Next(fire), i+1 {
+		if now.Sub(fire) > MissedAfter {
+			late = fire
+		} else {
+			due = fire
+		}
+	}
+	return late, due
 }
 
 func recordMissed(s Store, t Task, at time.Time) error {
