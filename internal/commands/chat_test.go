@@ -279,7 +279,7 @@ func TestChatSendCancelled(t *testing.T) {
 	}
 }
 
-func TestChatListRenameContinueDelete(t *testing.T) {
+func TestChatListRenameDelete(t *testing.T) {
 	env := newChatEnv(t, "")
 	out, _ := env.run(t, "chat", "send", "--", "first question")
 	id := events(t, out)[0].Chat.ID
@@ -287,8 +287,7 @@ func TestChatListRenameContinueDelete(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ask, err := store.Create(chat.Record{Title: "an ask", Kind: chat.KindAsk, Session: "checkout"})
-	if err != nil {
+	if _, err := store.Create(chat.Record{Title: "an ask", Kind: chat.KindAsk, Session: "checkout"}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -302,11 +301,8 @@ func TestChatListRenameContinueDelete(t *testing.T) {
 	if out, err = env.run(t, "chat", "rename", id, "Billing", "notes"); err != nil {
 		t.Fatal(err, out)
 	}
-	if out, err = env.run(t, "chat", "continue", ask.ID, "--json"); err != nil || !strings.Contains(out, `"kind": "chat"`) {
-		t.Fatalf("continue = %s, %v", out, err)
-	}
 	out, _ = env.run(t, "chat", "list")
-	if !strings.Contains(out, "Billing notes") || !strings.Contains(out, "an ask") {
+	if !strings.Contains(out, "Billing notes") || strings.Contains(out, "an ask") {
 		t.Fatalf("list = %s", out)
 	}
 	if out, err = env.run(t, "chat", "delete", id); err != nil {
@@ -470,25 +466,19 @@ func TestChatAskRebuildsTheCodexContextEachTime(t *testing.T) {
 	}
 }
 
-func TestChatSendContinuesAnAskWithItsThread(t *testing.T) {
+func TestChatSendRefusesAnAsk(t *testing.T) {
 	env := newChatEnv(t, "")
 	project, _ := filepath.EvalSymlinks(t.TempDir())
 	writeAged(t, filepath.Join(os.Getenv("HOME"), ".claude/projects", chat.ClaudeSlug(project), "s.jsonl"), claudeLine(project, "user", "x"), time.Minute)
 	rec := askOnce(t, env, "--local", "--session", "checkout", "--folder", project, "--", "why ChargeService?")
 
-	if out, err := env.run(t, "chat", "continue", rec.ID); err != nil {
-		t.Fatal(err, out)
-	}
 	out, err := env.run(t, "chat", "send", "--chat", rec.ID, "--", "go on")
-	if err != nil {
-		t.Fatal(err, out)
+	want := rec.ID + " is an ask; use `devmachine chat ask --chat " + rec.ID + "`"
+	if err == nil || err.Error() != want || strings.Contains(out, `"type"`) {
+		t.Fatalf("err = %v, out = %s", err, out)
 	}
-	args := env.fake.Read(t, "args")
-	if !strings.Contains(args, "Earlier in this side conversation:\n\nQ: why ChargeService?") || strings.Contains(args, "--resume") {
-		t.Fatalf("the first send of a continued ask does not carry its thread: %q", args)
-	}
-	if got := events(t, out); got[len(got)-1].Chat.HarnessSessionID == "" {
-		t.Fatalf("the continued chat keeps no session to resume: %+v", got[len(got)-1].Chat)
+	if help, _ := env.run(t, "chat", "--help"); strings.Contains(help, "continue") {
+		t.Fatalf("chat continue still exists:\n%s", help)
 	}
 }
 

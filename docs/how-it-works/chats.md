@@ -134,8 +134,7 @@ comes from the part of the session that matters for the question, and it
 is always the session as it is now. A lean run answers a short question in
 about 2 to 3 seconds.
 
-Other harnesses get `harness-unsupported`. An ask is a chat with
-`kind: "ask"`, left out of `chat list` until `chat continue` makes it a
-chat of its own. The first message sent to a continued ask carries its
-earlier questions and answers, because an ask keeps no harness session to
-resume.
+Other harnesses get `harness-unsupported`. An ask is kept like a chat,
+with `kind: "ask"`, and `chat list` leaves it out unless `--all`. It stays
+an ask: it goes on only with `chat ask --chat`, and `chat send` refuses it,
+because it has no harness session to send to.

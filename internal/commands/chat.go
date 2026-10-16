@@ -24,7 +24,7 @@ func newChatCmd(opts *options) *cobra.Command {
 			"read only, one process per message. No API key: it uses that CLI's own login.",
 	}
 	c.AddCommand(newChatSendCmd(opts), newChatAskCmd(opts), newChatListCmd(opts), newChatShowCmd(opts),
-		newChatRenameCmd(opts), newChatDeleteCmd(opts), newChatContinueCmd(opts))
+		newChatRenameCmd(opts), newChatDeleteCmd(opts))
 	return c
 }
 
@@ -82,6 +82,9 @@ func newChatSendCmd(opts *options) *cobra.Command {
 				if rec, err = store.Get(chatID); err != nil {
 					return err
 				}
+				if rec.Kind == chat.KindAsk {
+					return fmt.Errorf("%s is an ask; use `devmachine chat ask --chat %s`", rec.ID, rec.ID)
+				}
 				if err := sameTarget(rec, flags); err != nil {
 					return err
 				}
@@ -99,10 +102,6 @@ func newChatSendCmd(opts *options) *cobra.Command {
 					return err
 				}
 			}
-			prompt, err := withThread(store, rec, message)
-			if err != nil {
-				return err
-			}
 			s := chatSession{store: store, emit: chat.NewEmitter(cmd.OutOrStdout()), rec: rec}
 			if err := s.start(message); err != nil {
 				return err
@@ -113,7 +112,7 @@ func newChatSendCmd(opts *options) *cobra.Command {
 			}
 			defer client.Close()
 			return s.finish(chat.Run(ctx, client, chat.Request{
-				Harness: harness, Folder: rec.Folder, Message: prompt,
+				Harness: harness, Folder: rec.Folder, Message: message,
 				Resume: rec.HarnessSessionID, PathPrefix: prefix,
 			}, s.relay))
 		},
@@ -123,20 +122,6 @@ func newChatSendCmd(opts *options) *cobra.Command {
 	c.Flags().StringVar(&chatID, "chat", "", "continue this conversation")
 	c.Flags().Bool("json", false, "accepted for symmetry: send always prints NDJSON")
 	return c
-}
-
-// withThread puts a conversation's earlier messages in front of a message
-// that has no harness session to resume: an ask continued as a chat, which
-// kept none.
-func withThread(store *chat.Store, rec chat.Record, message string) (string, error) {
-	if rec.HarnessSessionID != "" {
-		return message, nil
-	}
-	messages, err := store.Messages(rec.ID)
-	if err != nil {
-		return "", err
-	}
-	return chat.Earlier(messages) + message, nil
 }
 
 func addChatTargetFlags(c *cobra.Command, flags *chatTargetFlags) {
@@ -382,20 +367,6 @@ func newChatRenameCmd(opts *options) *cobra.Command {
 				return errors.New("the title is empty")
 			}
 			return changeChat(cmd, opts, args[0], asJSON, func(r *chat.Record) { r.Title = title })
-		},
-	}
-	c.Flags().BoolVar(&asJSON, "json", false, "print the record as JSON")
-	return c
-}
-
-func newChatContinueCmd(opts *options) *cobra.Command {
-	var asJSON bool
-	c := &cobra.Command{
-		Use:   "continue ID",
-		Short: "Make an ask about a session a chat of its own, listed with the others",
-		Args:  cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return changeChat(cmd, opts, args[0], asJSON, func(r *chat.Record) { r.Kind = chat.KindChat })
 		},
 	}
 	c.Flags().BoolVar(&asJSON, "json", false, "print the record as JSON")

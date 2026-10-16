@@ -1280,7 +1280,6 @@ devmachine chat ask (--workspace W | --local) --session S [--folder DIR] [--harn
 devmachine chat list [--all] [--json]
 devmachine chat show ID [--json]
 devmachine chat rename ID TITLE
-devmachine chat continue ID [--json]
 devmachine chat delete ID
 ```
 
@@ -1293,7 +1292,8 @@ runs the CLI and not an API.
 workspace, else this computer) and `chat.folder` (`~/chats`); set them with
 [`config set`](#config). With `--chat` it continues that conversation, on
 its own harness, workspace and folder. A flag that disagrees with them is
-an error, printed before any output.
+an error, printed before any output. `send --chat` on an ask is refused:
+an ask goes on with `chat ask --chat`.
 
 `ask` asks about a coding session without writing to it. `--session` names
 the tmux session on the workspace. For a session on this computer that is
@@ -1358,8 +1358,7 @@ without asks unless `--all`. `show --json` prints `{"chat": {...},
 "messages": [...]}`, each message `{"role": "user" | "assistant", "text",
 "tools": [{"name", "summary"}], "at"}`, plus `denied: [{"name", "summary"}]`
 on an answer where claude was refused a tool, and `error: {kind, message}`
-on an answer that failed. `continue` turns an ask into a chat listed with the
-others. `delete` forgets the local copy; the harness's own transcript stays
+on an answer that failed. `delete` forgets the local copy; the harness's own transcript stays
 on the workspace.
 
 ## ssh-proxy

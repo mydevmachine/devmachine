@@ -2,7 +2,6 @@ devmachine
 devmachine aliases
 devmachine chat
 devmachine chat ask
-devmachine chat continue
 devmachine chat delete
 devmachine chat list
 devmachine chat rename
