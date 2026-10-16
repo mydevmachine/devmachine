@@ -1,0 +1,37 @@
+docs/how-it-works/scheduled-tasks.md
+  s_46e69727c17321::t_3ebf28ec7fb1a8 44-62
+docs/troubleshooting.md
+  s_46e69727c17321::t_c740ad3bdb3c63 2792-2827
+internal/commands/scheduled.go
+  s_46e69727c17321::t_0000adf5eb813c 122,347-353
+internal/commands/scheduled_install.go
+  s_46e69727c17321::t_5aec6531d2b07d 33-34,46,48-53,58,75-78
+internal/commands/scheduled_remote.go
+  s_46e69727c17321::t_12b1f54e2a86ad 21-24,38,78-79,100-101,115-137
+internal/commands/scheduled_test.go
+  s_46e69727c17321::t_e75aadad65d749 9,125-126,398-523
+internal/commands/scheduled_vps_test.go
+  s_46e69727c17321::t_f7d0711955e039 172-189
+internal/provision/ansible_runner.go
+  s_46e69727c17321::t_0d1b2de9506d4f 88-91
+internal/provision/failure.go
+  s_46e69727c17321::t_d2090ceae696a7 1-75
+internal/provision/failure_test.go
+  s_46e69727c17321::t_45877c0c5774e1 1-98
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "057319e6970c75a3422bbdb6db209a6477a0f3c2",
+  "prompts": {},
+  "sessions": {
+    "s_46e69727c17321": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "057eb95b-b600-40da-9c82-ac29c62bf791",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
