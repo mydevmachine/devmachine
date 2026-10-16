@@ -2,6 +2,8 @@ package chat
 
 import (
 	"context"
+	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -9,6 +11,7 @@ import (
 	"time"
 
 	"github.com/mydevmachine/devmachine/internal/chat/chattest"
+	"github.com/mydevmachine/devmachine/internal/remote"
 )
 
 func writeFile(t *testing.T, path, body string, age time.Duration) {
@@ -55,6 +58,65 @@ func TestLocateClaudePicksTheNewestTranscript(t *testing.T) {
 	}
 	if loc.SessionID != "new-session" || loc.Folder != project || filepath.Base(filepath.Dir(loc.Transcript)) != slug+"--claude-worktrees-x" {
 		t.Fatalf("loc = %+v", loc)
+	}
+}
+
+func TestLocateReadsTheTailAndTheLinesThatMatch(t *testing.T) {
+	home := chattest.Isolate(t)
+	project := realDir(t)
+	var body strings.Builder
+	body.WriteString(`{"type":"user","message":{"content":"the ZEBRA plan"}}` + "\n")
+	for i := range 50 {
+		fmt.Fprintf(&body, `{"type":"user","message":{"content":"filler %02d"}}`+"\n", i)
+	}
+	body.WriteString(`{"type":"user","message":{"content":"zebra again, at the end"}}` + "\n")
+	writeFile(t, filepath.Join(home, ".claude/projects", ClaudeSlug(project), "s.jsonl"), body.String(), time.Minute)
+	orig := transcriptTail
+	transcriptTail = 120
+	t.Cleanup(func() { transcriptTail = orig })
+
+	loc, f := Locate(context.Background(), localClient(t), Target{Session: "s", Folder: project, Harness: "claude", Question: "what about the zebra?"})
+	if f != nil {
+		t.Fatal(f)
+	}
+	got := string(loc.Body)
+	if !strings.Contains(got, "the ZEBRA plan") || strings.Contains(got, "filler 10") || strings.Count(got, "zebra again") != 1 {
+		t.Fatalf("body = %q", got)
+	}
+	if strings.Index(got, "the ZEBRA plan") > strings.Index(got, "zebra again") {
+		t.Fatalf("the matches do not come before the tail: %q", got)
+	}
+}
+
+type countingClient struct {
+	remote.Client
+	calls int
+}
+
+func (c *countingClient) RunInput(ctx context.Context, command string, stdin io.Reader) (string, error) {
+	c.calls++
+	return c.Client.RunInput(ctx, command, stdin)
+}
+
+func TestLocateTakesOneTripWhenTheHarnessIsKnown(t *testing.T) {
+	home := chattest.Isolate(t)
+	for name, c := range map[string]struct {
+		folder string
+		trips  int
+	}{"plain path": {"plain", 1}, "accented path": {"café", 2}} {
+		project := filepath.Join(realDir(t), c.folder)
+		if err := os.MkdirAll(project, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		writeFile(t, filepath.Join(home, ".claude/projects", ClaudeSlug(project), name+".jsonl"), `{"type":"user","message":{"content":"hello"}}`+"\n", time.Minute)
+		client := &countingClient{Client: localClient(t)}
+		loc, f := Locate(context.Background(), client, Target{Session: "s", Folder: project, Harness: "claude", Question: "hello?"})
+		if f != nil {
+			t.Fatalf("%s: %+v", name, f)
+		}
+		if client.calls != c.trips || loc.SessionID != name || !strings.Contains(string(loc.Body), "hello") || loc.Folder != project {
+			t.Errorf("%s: %d trips, loc = %+v", name, client.calls, loc)
+		}
 	}
 }
 

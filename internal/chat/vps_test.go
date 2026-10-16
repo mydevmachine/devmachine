@@ -105,18 +105,14 @@ func TestAskReadsASessionOnTheTestMachine(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	loc, failure := Locate(ctx, client, Target{Session: "dm-chat-ask", PathPrefix: []string{vpsFakeDir}})
+	loc, failure := Locate(ctx, client, Target{Session: "dm-chat-ask", PathPrefix: []string{vpsFakeDir}, Question: "why ChargeService?"})
 	if failure != nil {
 		t.Fatalf("Locate: %+v", failure)
 	}
 	if loc.Harness != "claude" || loc.SessionID != sid || loc.Folder != "/tmp/dm-ask-repo" {
 		t.Fatalf("loc = %+v", loc)
 	}
-	body, failure := ReadTranscript(ctx, client, loc.Transcript, TranscriptLimit)
-	if failure != nil {
-		t.Fatalf("ReadTranscript: %+v", failure)
-	}
-	prompt := BuildContext(body, loc.Harness, loc.Folder, "", "why ChargeService?").Prompt
+	prompt := BuildContext(loc.Body, loc.Harness, loc.Folder, "", "why ChargeService?").Prompt
 	out := Run(ctx, client, Request{
 		Harness: Claude, Folder: "~/dm-chat-test", Message: prompt, Ask: true, PathPrefix: []string{vpsFakeDir},
 	}, func(Event) {})

@@ -24,6 +24,9 @@ type Target struct {
 	// Harness is the harness the caller already knows runs there.
 	Harness    string
 	PathPrefix []string
+	// Question picks, besides the transcript's tail, the older lines worth
+	// sending: those that hold one of its words.
+	Question string
 }
 
 // Located is where a session's transcript is.
@@ -33,6 +36,9 @@ type Located struct {
 	Transcript string
 	// SessionID is the harness's own id for the session.
 	SessionID string
+	// Body is what was read of the transcript: the older lines that match
+	// the question, then the tail.
+	Body []byte
 }
 
 const (
@@ -43,6 +49,9 @@ const (
 	claudeSentinel    = "@@CLAUDE@@"
 	codexSentinel     = "@@CODEX@@"
 	newestSentinel    = "@@NEWEST@@"
+	hitsSentinel      = "@@HITS@@"
+	slowSentinel      = "@@SLOW@@"
+	tailSentinel      = "@@TAIL@@"
 )
 
 // AskHarnesses are the harnesses Ask can answer about.
@@ -60,7 +69,13 @@ var versionName = regexp.MustCompile(`^\d+\.\d+\.\d+$`)
 // Locate finds the session's folder, its harness and its newest transcript.
 // It only reads: nothing of the session is written.
 func Locate(ctx context.Context, client remote.Client, t Target) (Located, *Failure) {
-	out, err := client.RunInput(ctx, remote.ShellOnInput, strings.NewReader(locateScript(t)))
+	words := keywords(t.Question)
+	script := locateScript(t)
+	oneTrip := t.Harness != ""
+	if oneTrip {
+		script += shellSlug + transcriptScript(t.Harness, `"$dm_slug"`, `"$dm_needle"`, t.PathPrefix, words)
+	}
+	out, err := client.RunInput(ctx, remote.ShellOnInput, strings.NewReader(script))
 	if f := ClassifyConnection(err); f != nil {
 		return Located{}, f
 	}
@@ -82,14 +97,18 @@ func Locate(ctx context.Context, client remote.Client, t Target) (Located, *Fail
 		return loc, fail(KindHarnessUnsupported, "Ask is not available for %s yet", loc.Harness)
 	}
 
-	out, err = client.RunInput(ctx, remote.ShellOnInput, strings.NewReader(transcriptScript(loc.Folder, loc.Harness, t.PathPrefix)))
-	if f := ClassifyConnection(err); f != nil {
-		return loc, f
+	found := sections
+	if _, slow := sections[slowSentinel]; !oneTrip || slow {
+		script := transcriptScript(loc.Harness, quote(ClaudeSlug(loc.Folder)), quote(`"cwd":`+jsonString(loc.Folder)), t.PathPrefix, words)
+		out, err = client.RunInput(ctx, remote.ShellOnInput, strings.NewReader(script))
+		if f := ClassifyConnection(err); f != nil {
+			return loc, f
+		}
+		if err != nil {
+			return loc, fail(KindTranscriptNotFound, "looking for the transcript of session %q: %v", t.Session, err)
+		}
+		found = splitSections(out)
 	}
-	if err != nil {
-		return loc, fail(KindTranscriptNotFound, "looking for the transcript of session %q: %v", t.Session, err)
-	}
-	found := splitSections(out)
 	claudeFile := firstLine(found[claudeSentinel])
 	codexLines := strings.SplitN(found[codexSentinel], "\n", 2)
 	codexFile := strings.TrimSpace(codexLines[0])
@@ -124,20 +143,30 @@ func Locate(ctx context.Context, client remote.Client, t Target) (Located, *Fail
 		}
 		return loc, fail(KindTranscriptNotFound, "no %s transcript was written from %s", harness, loc.Folder)
 	}
+	loc.Body = matchesThenTail(found[hitsSentinel], found[tailSentinel])
 	return loc, nil
 }
 
-// ReadTranscript is the end of a transcript, at most limit bytes of it.
-func ReadTranscript(ctx context.Context, client remote.Client, file string, limit int) ([]byte, *Failure) {
-	out, err := client.RunInput(ctx, remote.ShellOnInput,
-		strings.NewReader("tail -c "+strconv.Itoa(limit)+" "+quote(file)+"\n"))
-	if f := ClassifyConnection(err); f != nil {
-		return nil, f
+// transcriptTail is how much of a transcript's end is read: the turns an
+// ask always sends live there, and a 20 MB transcript need not cross the
+// network for them. A variable so a test can make it small.
+var transcriptTail = 1 << 20
+
+// matchesThenTail drops the matching lines the tail holds anyway, so a line
+// is not sent twice.
+func matchesThenTail(hits, tail string) []byte {
+	inTail := map[string]bool{}
+	for _, line := range strings.Split(tail, "\n") {
+		inTail[line] = true
 	}
-	if err != nil {
-		return nil, fail(KindTranscriptNotFound, "reading %s: %v", file, err)
+	var b strings.Builder
+	for _, line := range strings.Split(hits, "\n") {
+		if line != "" && !inTail[line] {
+			b.WriteString(line + "\n")
+		}
 	}
-	return []byte(out), nil
+	b.WriteString(tail)
+	return []byte(b.String())
 }
 
 func pathPrelude(prefix []string) string {
@@ -151,9 +180,15 @@ func pathPrelude(prefix []string) string {
 	return b.String()
 }
 
+// toolPath is enough PATH for tmux, ps and the coreutils a locate needs,
+// without paying for a login shell.
+func toolPath(prefix []string) string {
+	return "PATH=" + quote(strings.Join(append(append([]string{}, prefix...), "/opt/homebrew/bin", "/usr/local/bin"), ":")) + `:"$PATH"; export PATH` + "\n"
+}
+
 func locateScript(t Target) string {
 	var b strings.Builder
-	b.WriteString(pathPrelude(t.PathPrefix))
+	b.WriteString(toolPath(t.PathPrefix))
 	if t.Folder != "" {
 		b.WriteString("dm_dir=" + folderWord(t.Folder) + "\n")
 	} else {
@@ -165,13 +200,21 @@ func locateScript(t Target) string {
 		b.WriteString(`printf '%s\n' "$dm_info"` + "\n")
 	}
 	b.WriteString(`cd "$dm_dir" 2>/dev/null || { echo ` + noFolderSentinel + "; exit 0; }\n")
-	b.WriteString("echo " + realSentinel + "\npwd -P\n")
+	b.WriteString("dm_real=$(pwd -P)\necho " + realSentinel + "\n" + `printf '%s\n' "$dm_real"` + "\n")
 	if t.Folder == "" && t.Harness == "" {
 		b.WriteString("echo " + psSentinel + "\nps -A -o pid=,ppid=,args= 2>/dev/null\n")
 	}
-	b.WriteString("exit 0\n")
 	return b.String()
 }
+
+// shellSlug computes ClaudeSlug and the codex cwd needle in the shell, so
+// a locate whose harness is known takes one trip. sed works on bytes and
+// claude on characters, so a path with anything but plain ASCII, or a
+// character JSON escapes, asks for the second trip instead.
+const shellSlug = `if printf '%s' "$dm_real" | LC_ALL=C grep -q '[^A-Za-z0-9/._ -]'; then echo ` + slowSentinel + `; exit 0; fi
+dm_slug=$(printf '%s' "$dm_real" | sed 's/[^A-Za-z0-9]/-/g')
+dm_needle="\"cwd\":\"$dm_real\""
+`
 
 // ClaudeSlug is the folder Claude Code keeps a project's transcripts in:
 // every character that is not an ASCII letter or digit becomes "-".
@@ -187,24 +230,39 @@ func ClaudeSlug(folder string) string {
 	return b.String()
 }
 
-func transcriptScript(folder, harness string, prefix []string) string {
+// transcriptScript finds the newest transcript and reads it. slug and
+// needle are shell words: quoted values, or variables set by shellSlug.
+func transcriptScript(harness, slug, needle string, prefix, words []string) string {
 	var b strings.Builder
-	b.WriteString(pathPrelude(prefix))
+	b.WriteString(toolPath(prefix))
 	if harness == "" || harness == "claude" {
-		slug := quote(ClaudeSlug(folder))
 		b.WriteString(`dm_claude=$(ls -t "$HOME"/.claude/projects/` + slug + `/*.jsonl "$HOME"/.claude/projects/` + slug + `-*/*.jsonl 2>/dev/null | head -n 1)` + "\n")
 		b.WriteString("echo " + claudeSentinel + "\n" + `printf '%s\n' "$dm_claude"` + "\n")
 	}
 	if harness == "" || harness == "codex" {
-		needle := quote(`"cwd":` + jsonString(folder))
 		b.WriteString(`dm_codex=$(ls -t "$HOME"/.codex/sessions/*/*/*/rollout-*.jsonl 2>/dev/null | head -n 300 | while IFS= read -r f; do head -n 1 "$f" | grep -qF -- ` +
 			needle + ` && { printf '%s\n' "$f"; break; }; done)` + "\n")
 		b.WriteString("echo " + codexSentinel + "\n" + `printf '%s\n' "$dm_codex"` + "\n")
 		b.WriteString(`[ -n "$dm_codex" ] && head -n 1 "$dm_codex" | head -c 1048576` + "\n")
 	}
-	if harness == "" {
-		b.WriteString("echo " + newestSentinel + "\n" + `ls -t $dm_claude $dm_codex 2>/dev/null | head -n 1` + "\n")
+	switch harness {
+	case "claude":
+		b.WriteString(`dm_file=$dm_claude` + "\n")
+	case "codex":
+		b.WriteString(`dm_file=$dm_codex` + "\n")
+	default:
+		b.WriteString(`dm_file=$(ls -t $dm_claude $dm_codex 2>/dev/null | head -n 1)` + "\n")
+		b.WriteString("echo " + newestSentinel + "\n" + `printf '%s\n' "$dm_file"` + "\n")
 	}
+	b.WriteString(`[ -n "$dm_file" ] || exit 0` + "\n")
+	if len(words) > 0 {
+		b.WriteString("echo " + hitsSentinel + "\ngrep -i -F")
+		for _, w := range words {
+			b.WriteString(" -e " + quote(w))
+		}
+		b.WriteString(` "$dm_file" 2>/dev/null | awk 'length($0) <= 65536' | tail -n 200` + "\n")
+	}
+	b.WriteString("echo " + tailSentinel + "\n" + `tail -c ` + strconv.Itoa(transcriptTail) + ` "$dm_file"` + "\n")
 	b.WriteString("exit 0\n")
 	return b.String()
 }

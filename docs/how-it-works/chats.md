@@ -126,6 +126,13 @@ keeps the last six turns, plus the lines that share a word with the
 question, up to about 28 KB. The record's `excerpts` says how many pieces
 went in.
 
+A transcript can be tens of megabytes, so it is not copied whole. The
+machine sends the last megabyte, plus the older lines that hold a word of
+the question, which `grep` finds there. When the caller names the harness,
+as the app does, finding the session and reading its transcript take one
+trip over the connection. On a workspace with a 22 MB transcript this part
+went from 1.5 s to 0.55 s.
+
 Before the question it adds the earlier questions and answers of this ask,
 the last six or about 8 KB, so a follow-up such as "and the tests?" makes
 sense.

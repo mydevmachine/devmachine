@@ -117,6 +117,7 @@ func newAskRecord(cfg config.Config, flags chatTargetFlags, session, question st
 // whole session on every question and stopped seeing what the session did
 // after it was made.
 func askSession(ctx context.Context, s *chatSession, client remote.Client, target chat.Target, runFolder, question, earlier string) error {
+	target.Question = question
 	loc, failure := chat.Locate(ctx, client, target)
 	if failure != nil {
 		return s.finishWith(chat.Outcome{Failure: failure}, func(r *chat.Record) {
@@ -125,11 +126,7 @@ func askSession(ctx context.Context, s *chatSession, client remote.Client, targe
 			}
 		})
 	}
-	body, failure := chat.ReadTranscript(ctx, client, loc.Transcript, chat.TranscriptLimit)
-	if failure != nil {
-		return s.finish(chat.Outcome{Failure: failure})
-	}
-	built := chat.BuildContext(body, loc.Harness, loc.Folder, earlier, question)
+	built := chat.BuildContext(loc.Body, loc.Harness, loc.Folder, earlier, question)
 	harness, _ := chat.Lookup(loc.Harness)
 	out := chat.Run(ctx, client, chat.Request{
 		Harness: harness, Folder: runFolder, Message: built.Prompt, Ask: true, PathPrefix: target.PathPrefix,

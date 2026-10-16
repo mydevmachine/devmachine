@@ -12,11 +12,10 @@ import (
 
 // The limits of the context an ask sends.
 const (
-	recentTurns     = 6
-	unitMax         = 2000
-	toolOutputMax   = 400
-	contextMax      = 28 * 1024
-	TranscriptLimit = 8 * 1024 * 1024
+	recentTurns   = 6
+	unitMax       = 2000
+	toolOutputMax = 400
+	contextMax    = 28 * 1024
 )
 
 const roleTool, roleToolOutput = "tool", "tool output"
