@@ -1,0 +1,21 @@
+docs/reference/commands.md
+  s_be9ca8cef925d9::t_28a0623f0c746c 1181-1183
+docs/troubleshooting.md
+  s_be9ca8cef925d9::t_05303023b66771 2792-2800
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "bc4af96e5698b8fc5660a7b923afdf62efd155fd",
+  "prompts": {},
+  "sessions": {
+    "s_be9ca8cef925d9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9f277d6-7db0-48b4-8122-c76a3ca3c439",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
