@@ -8,6 +8,25 @@ page](https://github.com/mydevmachine/devmachine/releases).
 
 To get the latest version, see [Upgrade](upgrade.md).
 
+## App v0.7.3 — 2026-10-16
+
+Needs CLI v0.16.0 and packages v55 for Finish setup. v0.7.1 and v0.7.2
+were never published.
+
+### Fixed
+
+- The quick chat panel (⌃⌥Space) grows with the app's font size, instead
+  of cutting its card at both sides.
+- Scheduled: Run now shows the task as running in the list and the
+  sidebar right away, and its result when it ends, without a refresh.
+- Scheduled: setting up a workspace for the first time shows its real
+  steps above the New task sheet, and says it only happens once.
+- Scheduled: a setup that fails shows what failed, with Try again, and a
+  workspace whose setup did not finish offers Finish setup.
+- A workspace whose first sync is running shows one quiet line in the
+  sidebar instead of the card asking for a sync.
+- An update could lose part of the command's output while reading it.
+
 ## v0.16.0 — 2026-10-16
 
 ### Added
