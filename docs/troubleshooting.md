@@ -2848,5 +2848,7 @@ to give it. With a mode that asks first, such as Claude's `manual`, the agent
 stops at the first tool it needs.
 
 **What to do:** Read what it said with `devmachine scheduled log`. Then pick a
-mode that lets it work, such as `acceptEdits` or `auto`:
-`devmachine scheduled edit <id> --workspace <w> --permission-mode acceptEdits`.
+mode that lets it work. `acceptEdits` approves file edits only, so a prompt
+that uses a connector (Linear, email) is refused with "permission … denied";
+use `auto`:
+`devmachine scheduled edit <id> --workspace <w> --permission-mode auto`.

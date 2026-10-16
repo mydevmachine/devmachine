@@ -57,7 +57,9 @@ hand, is a shell line, and the shell reads it as one.
 
 A prompt runs with nobody there to approve a tool. A mode that asks before
 it acts, such as Claude's `manual`, stops at the first tool it needs and the
-run ends with nothing done. `acceptEdits` or `auto` let the agent work. A mode
+run ends with nothing done. `acceptEdits` approves file edits only, so a call
+to a connector such as Linear or email is refused; `auto` lets the agent use
+its tools and connectors, and is what the app picks. A mode
 that never asks at all, `bypassPermissions` for Claude or
 `danger-full-access` for Codex, needs `--allow-dangerous`, so it is always a
 choice somebody made.
