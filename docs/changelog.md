@@ -8,6 +8,43 @@ page](https://github.com/mydevmachine/devmachine/releases).
 
 To get the latest version, see [Upgrade](upgrade.md).
 
+## App v0.7.0 — 2026-10-16
+
+Needs CLI v0.15.0 for chats and Ask, and packages v54 for the Ask widget.
+With an older CLI the app asks you to update it.
+
+### Added
+
+- Chats: a fast chat with the Claude or Codex you are already logged in to,
+  on any workspace or this Mac. No API key: it uses your own subscription.
+  Chats are read only. Pick the coding agent and the workspace for each
+  chat; the list keeps them by day, with search, rename and delete.
+- Quick chat from any app: press ⌃⌥Space for a floating panel, type, and
+  the answer streams right there. ⌘↩ opens it in the app. The shortcut can
+  be changed in Settings → Chats.
+- Ask, in a session's Context tab after Links: ask a side question about
+  the running session without typing into it. Each question reads what the
+  session just did. Clear deletes the thread.
+- The sidebar title is now a menu: Code (⌘1), Chats (⌘2) and Schedule
+  (⌘3). Schedule lists your scheduled tasks in the sidebar.
+- New session and New chat rows at the top of the sidebar (⌘N).
+- Chats start Claude in the background while you type, and show what is
+  happening ("Connecting to…", "Starting Claude…", "Claude is thinking…").
+  MCP servers are off by default for speed; the MCP chip turns them on.
+- A tool Claude refused for lack of approval shows as a blocked line.
+- [Keyboard shortcuts](reference/app-keyboard-shortcuts.md) for the whole
+  app, also listed under ⌘? in the app.
+
+### Changed
+
+- A taller title bar: the sidebar toggle sits on the window buttons' line,
+  and Home's wallpaper runs to the top edge.
+- The Context, Preview, Files and Git tabs sit on the window buttons' line.
+- Scroll bars are thin and show only while scrolling, everywhere in the
+  app.
+- Menus for the mode, coding agent and workspace work with the keyboard and
+  VoiceOver.
+
 ## v0.15.0 — 2026-10-16
 
 ### Added
