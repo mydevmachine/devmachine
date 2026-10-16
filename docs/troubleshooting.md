@@ -2789,6 +2789,15 @@ and syncs the machine first. Or do it by hand:
 `devmachine sync --machine <m> --tags scheduled --yes`. See
 [scheduled tasks](how-it-works/scheduled-tasks.md).
 
+## "the scheduled package is not in packages release …"
+
+**What it means:** Your configuration syncs from a packages release that
+came out before the `scheduled` package. Adding it anyway would leave the
+workspace with a package every later sync refuses, so nothing was changed.
+
+**What to do:** `devmachine update` once a packages release with `scheduled`
+is out, then create the task again.
+
 ## "the devmachine on … is older than this one"
 
 **What it means:** The workspace runs an older devmachine than your computer,

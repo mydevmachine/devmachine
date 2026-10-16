@@ -1178,7 +1178,9 @@ devmachine scheduled add --workspace alice --name "Daily briefing" --folder ~/de
   hours.
 - The first task in a workspace without the `scheduled` package asks to set it
   up: it adds the package to the workspace and runs `sync` for its machine,
-  then creates the task. `--yes` does that without asking.
+  then creates the task. `--yes` does that without asking. It refuses, and
+  changes nothing, when the packages release your configuration uses has no
+  `scheduled` package yet.
 - `edit` changes only the flags you give. Changing `--command` or `--prompt`
   switches what the task runs. Changing `--harness` drops the old agent's
   model and permission mode, unless you give new ones.
