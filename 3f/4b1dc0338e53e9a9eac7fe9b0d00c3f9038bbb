@@ -1,0 +1,26 @@
+internal/scheduled/tick_test.go
+  s_be9ca8cef925d9::t_33ba79348e5e41 143-164
+internal/commands/scheduled_test.go
+  s_be9ca8cef925d9::t_4bac31d34ebf93 232-254
+internal/scheduled/tick.go
+  s_be9ca8cef925d9::t_5e5686abe2c3f7 65-80
+  s_be9ca8cef925d9::t_8440465cb7dc5d 41-43,47-48
+internal/commands/scheduled.go
+  s_be9ca8cef925d9::t_b8f030f1bbaffc 255,257-262
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3f4b1dc0338e53e9a9eac7fe9b0d00c3f9038bbb",
+  "prompts": {},
+  "sessions": {
+    "s_be9ca8cef925d9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9f277d6-7db0-48b4-8122-c76a3ca3c439",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
