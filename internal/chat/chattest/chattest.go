@@ -98,3 +98,11 @@ func Isolate(t *testing.T) string {
 	t.Setenv("SHELL", "/bin/sh")
 	return home
 }
+
+// Script is the fake harness of that name, to copy onto another machine.
+func Script(name string) string {
+	if name == "codex" {
+		return codexScript
+	}
+	return claudeScript
+}

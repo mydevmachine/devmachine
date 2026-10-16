@@ -165,11 +165,12 @@ func locateScript(t Target) string {
 	if t.Folder != "" {
 		b.WriteString("dm_dir=" + folderWord(t.Folder) + "\n")
 	} else {
-		b.WriteString("dm_info=$(tmux display-message -p -t " + quote(t.Session) +
-			` '#{pane_current_path}	#{pane_current_command}	#{pane_pid}' 2>/dev/null) || { echo ` + noSessionSentinel + "; exit 0; }\n")
-		b.WriteString(`[ -n "$dm_info" ] || { echo ` + noSessionSentinel + "; exit 0; }\n")
-		b.WriteString(`printf '%s\n' "$dm_info"` + "\n")
+		b.WriteString("tmux has-session -t " + quote("="+t.Session) + " 2>/dev/null || { echo " + noSessionSentinel + "; exit 0; }\n")
+		b.WriteString("dm_info=$(tmux display-message -p -t " + quote("="+t.Session+":") +
+			` '#{pane_current_path}	#{pane_current_command}	#{pane_pid}' 2>/dev/null)` + "\n")
 		b.WriteString(`dm_dir=$(printf '%s' "$dm_info" | cut -f 1)` + "\n")
+		b.WriteString(`[ -n "$dm_dir" ] || { echo ` + noSessionSentinel + "; exit 0; }\n")
+		b.WriteString(`printf '%s\n' "$dm_info"` + "\n")
 	}
 	b.WriteString(`cd "$dm_dir" 2>/dev/null || { echo ` + noFolderSentinel + "; exit 0; }\n")
 	b.WriteString("echo " + realSentinel + "\npwd -P\n")
