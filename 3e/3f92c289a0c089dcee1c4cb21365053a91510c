@@ -1,0 +1,24 @@
+internal/chat/locate.go
+  s_46e69727c17321::t_cee8c5c89cea68 168-170,172-173
+internal/chat/vps_test.go
+  s_46e69727c17321::t_e723b01504092a 80
+  s_46e69727c17321::t_7ad87b830932ab 1-79,81-133
+internal/chat/chattest/chattest.go
+  s_46e69727c17321::t_e723b01504092a 101-108
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3e3f92c289a0c089dcee1c4cb21365053a91510c",
+  "prompts": {},
+  "sessions": {
+    "s_46e69727c17321": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "057eb95b-b600-40da-9c82-ac29c62bf791",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
