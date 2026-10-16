@@ -1,0 +1,23 @@
+internal/harness/harness_test.go
+  s_be9ca8cef925d9::t_f32d80b34f2992 1-72
+internal/widgets/contract.go
+  s_be9ca8cef925d9::t_e758ecd80f3357 5-9,490-495
+internal/harness/harness.go
+  s_be9ca8cef925d9::t_0e0c3c629d6727 1-113
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "978401d0960e7fa2b016a41d52f87bd232a68b47",
+  "prompts": {},
+  "sessions": {
+    "s_be9ca8cef925d9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9f277d6-7db0-48b4-8122-c76a3ca3c439",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
