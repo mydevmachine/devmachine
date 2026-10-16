@@ -1275,7 +1275,7 @@ is.
 ## chat
 
 ```
-devmachine chat send [--chat ID] [--workspace W | --local] [--harness claude|codex] [--folder DIR] -- MESSAGE
+devmachine chat send [--chat ID] [--workspace W | --local] [--harness claude|codex] [--folder DIR] [--mcp] -- MESSAGE
 devmachine chat ask (--workspace W | --local) --session S [--folder DIR] [--harness claude|codex] [--chat ID] -- QUESTION
 devmachine chat list [--all] [--json]
 devmachine chat show ID [--json]
@@ -1294,6 +1294,11 @@ workspace, else this computer) and `chat.folder` (`~/chats`); set them with
 its own harness, workspace and folder. A flag that disagrees with them is
 an error, printed before any output. `send --chat` on an ask is refused:
 an ask goes on with `chat ask --chat`.
+
+A chat runs without the account's MCP servers, hooks and plugins, which
+are most of a harness's start-up. `--mcp` turns them on; the choice is kept
+on the chat, and `--mcp=false` turns them off again. See [MCP servers are
+off unless you ask](../how-it-works/chats.md#mcp-servers-are-off-unless-you-ask).
 
 `ask` asks about a coding session without writing to it. `--session` names
 the tmux session on the workspace. For a session on this computer that is
@@ -1340,11 +1345,13 @@ A record, as `started`, `done`, `list` and `show` print it:
   "harness_session_id": "22222222-aaaa-4bbb-8ccc-000000000001",
   "created_at": "2026-10-15T12:00:00Z",
   "updated_at": "2026-10-15T12:00:09Z",
-  "kind": "chat"
+  "kind": "chat",
+  "mcp": false
 }
 ```
 
 - `workspace` is `"local"` for this computer.
+- `mcp` says whether the harness runs with the account's MCP servers.
 - `harness_session_id` is empty until the harness answered once.
 - `title` is the first line of the first message, cut to 60 characters.
 - An ask adds `session`, `session_folder` (the session's folder),

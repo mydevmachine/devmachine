@@ -36,16 +36,45 @@ Read only is the harness's own rule, so it is worth knowing where it stops.
 
 - claude runs in `--permission-mode plan`, so its own tools that edit files
   are refused.
-- Every other tool follows the workspace's own Claude settings: its MCP
-  servers, which load on their own, and its permission allow list. On
+- Every other tool follows the workspace's own Claude settings and its
+  permission allow list. With `--mcp` that includes its MCP servers: on
   2026-10-16 an MCP tool that only reads (Linear's list_teams) ran in a
   chat, and so did a Bash command that only reads.
 - A tool that would need your approval is refused, since a chat has nobody
   to ask. claude lists those at the end of its answer; the chat passes them
   on as `denied` lines and the app shows them as blocked.
-- codex runs with `--sandbox read-only` and the MCP servers from its own
-  config. A command the sandbox blocks fails inside codex, which reports no
-  list of refusals, so it shows only as a tool line that failed.
+- codex runs with `--sandbox read-only`, and with `--mcp` the MCP servers
+  from its own config. A command the sandbox blocks fails inside codex,
+  which reports no list of refusals, so it shows only as a tool line that
+  failed.
+
+## MCP servers are off unless you ask
+
+Most of the time a harness takes to answer goes into starting up, and most
+of the start-up is the account's MCP servers, hooks and plugins. Measured on
+a workspace with 14 MCP servers (claude 2.1.300), "ok" took:
+
+| How claude ran | Time |
+| --- | --- |
+| `claude -p`, everything on | 12.5 s |
+| `--strict-mcp-config --setting-sources project` | 5.5 s |
+| the same, on haiku with no tools (an ask) | 3.6 s |
+| a reused ssh connection running `true` | 0.2 s |
+
+So a chat runs without them: claude gets `--strict-mcp-config
+--setting-sources project`, which starts no MCP server and reads no user
+settings, so no user hooks or plugins run. The login is not a setting and
+still works.
+
+`--mcp` on `chat send` or `chat session` turns them on, for a chat that
+needs a tool from an MCP server. The choice is kept on the chat (`"mcp":
+true`): later messages use it until `--mcp` or `--mcp=false` changes it.
+
+codex has no flag that skips only its MCP servers: `-c mcp_servers={}` did
+not stop them. Without `--mcp` it runs with `--ignore-user-config`, which
+skips all of `~/.codex/config.toml` and keeps the login. A chat then uses
+codex's default model, not the one your config chooses; `--mcp` brings
+your config back, with its MCP servers.
 
 ## Where a chat runs
 

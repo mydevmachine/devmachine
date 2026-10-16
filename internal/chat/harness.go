@@ -7,10 +7,25 @@ import (
 	"strings"
 )
 
+// Options are how one run of a harness is asked for.
+type Options struct {
+	Message string
+	// Resume is the harness's own session id to continue.
+	Resume string
+	// MCP starts the MCP servers, hooks and plugins of the account's own
+	// settings. Off, a run skips them: they are most of a harness's start-up.
+	MCP bool
+	// Stream keeps claude reading messages on stdin, one JSON line each,
+	// instead of answering one message and exiting.
+	Stream bool
+}
+
 // Harness is a coding CLI a chat talks through.
 type Harness struct {
 	Name string
-	Args func(message, resume string, fork bool) []string
+	Args func(Options) []string
+	// Streams says whether the harness can stay running between messages.
+	Streams bool
 	// AskArgs answer one prompt read from stdin, as fast as the harness
 	// starts: no tools, no MCP servers, nothing kept on disk.
 	AskArgs []string
@@ -26,16 +41,23 @@ type parser interface {
 // Claude is Claude Code, always in plan mode so it cannot change a file.
 var Claude = Harness{
 	Name: "claude",
-	Args: func(message, resume string, fork bool) []string {
+	Args: func(o Options) []string {
 		args := []string{"-p", "--output-format", "stream-json", "--verbose", "--include-partial-messages", "--permission-mode", "plan"}
-		if resume != "" {
-			args = append(args, "--resume", resume)
-			if fork {
-				args = append(args, "--fork-session")
-			}
+		if !o.MCP {
+			args = append(args, "--strict-mcp-config", "--setting-sources", "project")
 		}
-		return append(args, "--", message)
+		if o.Stream {
+			args = append(args, "--input-format", "stream-json")
+		}
+		if o.Resume != "" {
+			args = append(args, "--resume", o.Resume)
+		}
+		if o.Stream {
+			return args
+		}
+		return append(args, "--", o.Message)
 	},
+	Streams: true,
 	AskArgs: []string{"-p", "--output-format", "stream-json", "--verbose", "--include-partial-messages",
 		"--strict-mcp-config", "--setting-sources", "project", "--disable-slash-commands", "--tools", "",
 		"--no-session-persistence", "--model", "haiku"},
@@ -45,12 +67,15 @@ var Claude = Harness{
 // Codex is the Codex CLI, always in a read-only sandbox. It has no fork.
 var Codex = Harness{
 	Name: "codex",
-	Args: func(message, resume string, _ bool) []string {
+	Args: func(o Options) []string {
 		args := []string{"exec", "--json", "--skip-git-repo-check", "--sandbox", "read-only"}
-		if resume != "" {
-			args = append(args, "resume", resume)
+		if !o.MCP {
+			args = append(args, "--ignore-user-config")
 		}
-		return append(args, "--", message)
+		if o.Resume != "" {
+			args = append(args, "resume", o.Resume)
+		}
+		return append(args, "--", o.Message)
 	},
 	AskArgs: []string{"exec", "--json", "--ephemeral", "--ignore-user-config", "--skip-git-repo-check", "--sandbox", "read-only", "-"},
 	parser:  func() parser { return &codexParser{} },

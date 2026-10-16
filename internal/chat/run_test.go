@@ -102,17 +102,23 @@ func TestRunAskReadsThePromptFromStdin(t *testing.T) {
 	}
 }
 
-func TestRunResumesAndForks(t *testing.T) {
+func TestRunResumesWithoutMCPUnlessAsked(t *testing.T) {
 	chattest.Isolate(t)
 	fake := chattest.Install(t)
 	out := Run(context.Background(), localClient(t), Request{
-		Harness: Claude, Folder: t.TempDir(), Message: "q", Resume: "abc", Fork: true, PathPrefix: []string{fake.Dir},
+		Harness: Claude, Folder: t.TempDir(), Message: "q", Resume: "abc", PathPrefix: []string{fake.Dir},
 	}, func(Event) {})
-	if out.Failure != nil || out.SessionID != "33333333-aaaa-4bbb-8ccc-000000000001" {
+	if out.Failure != nil || out.SessionID != "abc" {
 		t.Fatalf("out = %+v", out)
 	}
-	if args := fake.Read(t, "args"); !strings.Contains(args, "--resume\nabc\n--fork-session\n") {
+	if args := fake.Read(t, "args"); !strings.Contains(args, "--strict-mcp-config\n--setting-sources\nproject\n--resume\nabc\n") {
 		t.Fatalf("args = %q", args)
+	}
+	Run(context.Background(), localClient(t), Request{
+		Harness: Claude, Folder: t.TempDir(), Message: "q", MCP: true, PathPrefix: []string{fake.Dir},
+	}, func(Event) {})
+	if args := fake.Read(t, "args"); strings.Contains(args, "--strict-mcp-config") {
+		t.Fatalf("MCP on still skips the servers: %q", args)
 	}
 }
 

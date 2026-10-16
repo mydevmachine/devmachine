@@ -53,13 +53,50 @@ func openChats(opts *options) (*chat.Store, string, error) {
 	return store, dir, err
 }
 
+// chatFlags are what send and session are told about the conversation.
+type chatFlags struct {
+	chatTargetFlags
+	chatID string
+	mcp    bool
+}
+
+// resolveChat is the conversation a send or a session talks through: the
+// stored record for --chat, or a new one not stored yet, which takes its
+// title from the first message. --mcp given on an existing chat changes it.
+func resolveChat(cmd *cobra.Command, cfg config.Config, store *chat.Store, f chatFlags) (chat.Record, error) {
+	if f.chatID == "" {
+		rec, err := newChatRecord(cfg, f.chatTargetFlags)
+		rec.MCP = f.mcp
+		return rec, err
+	}
+	rec, err := store.Get(f.chatID)
+	if err != nil {
+		return rec, err
+	}
+	if rec.Kind == chat.KindAsk {
+		return rec, fmt.Errorf("%s is an ask; use `devmachine chat ask --chat %s`", rec.ID, rec.ID)
+	}
+	if err := sameTarget(rec, f.chatTargetFlags); err != nil {
+		return rec, err
+	}
+	if cmd.Flags().Changed("mcp") && f.mcp != rec.MCP {
+		if err := store.Update(rec.ID, func(r *chat.Record) { r.MCP = f.mcp }); err != nil {
+			return rec, err
+		}
+		rec.MCP = f.mcp
+	}
+	return rec, nil
+}
+
+func addMCPFlag(c *cobra.Command, mcp *bool) {
+	c.Flags().BoolVar(mcp, "mcp", false,
+		"run the harness with the account's MCP servers, hooks and plugins (slower to start); kept on the chat")
+}
+
 func newChatSendCmd(opts *options) *cobra.Command {
-	var (
-		flags  chatTargetFlags
-		chatID string
-	)
+	var flags chatFlags
 	c := &cobra.Command{
-		Use:   "send [--chat ID] [--workspace W | --local] [--harness claude|codex] [--folder DIR] -- MESSAGE",
+		Use:   "send [--chat ID] [--workspace W | --local] [--harness claude|codex] [--folder DIR] [--mcp] -- MESSAGE",
 		Short: "Send a message and stream the answer as NDJSON",
 		Long: "Without --chat it starts a conversation; with --chat it continues one, on the harness, " +
 			"workspace and folder the conversation started with. The output is one JSON object per line: " +
@@ -77,18 +114,8 @@ func newChatSendCmd(opts *options) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			var rec chat.Record
-			if chatID != "" {
-				if rec, err = store.Get(chatID); err != nil {
-					return err
-				}
-				if rec.Kind == chat.KindAsk {
-					return fmt.Errorf("%s is an ask; use `devmachine chat ask --chat %s`", rec.ID, rec.ID)
-				}
-				if err := sameTarget(rec, flags); err != nil {
-					return err
-				}
-			} else if rec, err = newChatRecord(cfg, flags, message); err != nil {
+			rec, err := resolveChat(cmd, cfg, store, flags)
+			if err != nil {
 				return err
 			}
 			harness, err := chat.Lookup(rec.Harness)
@@ -97,7 +124,8 @@ func newChatSendCmd(opts *options) *cobra.Command {
 			}
 			ctx, stop := stopSignals(cmd.Context())
 			defer stop()
-			if chatID == "" {
+			if rec.ID == "" {
+				rec.Title = chat.Title(message)
 				if rec, err = store.Create(rec); err != nil {
 					return err
 				}
@@ -113,13 +141,14 @@ func newChatSendCmd(opts *options) *cobra.Command {
 			defer client.Close()
 			return s.finish(chat.Run(ctx, client, chat.Request{
 				Harness: harness, Folder: rec.Folder, Message: message,
-				Resume: rec.HarnessSessionID, PathPrefix: prefix,
+				Resume: rec.HarnessSessionID, MCP: rec.MCP, PathPrefix: prefix,
 			}, s.relay))
 		},
 	}
-	addChatTargetFlags(c, &flags)
+	addChatTargetFlags(c, &flags.chatTargetFlags)
 	c.Flags().StringVar(&flags.folder, "folder", "", "the folder the harness runs in on the target (default: chat.folder, ~/chats)")
-	c.Flags().StringVar(&chatID, "chat", "", "continue this conversation")
+	c.Flags().StringVar(&flags.chatID, "chat", "", "continue this conversation")
+	addMCPFlag(c, &flags.mcp)
 	c.Flags().Bool("json", false, "accepted for symmetry: send always prints NDJSON")
 	return c
 }
@@ -131,9 +160,9 @@ func addChatTargetFlags(c *cobra.Command, flags *chatTargetFlags) {
 	c.MarkFlagsMutuallyExclusive("workspace", "local")
 }
 
-func newChatRecord(cfg config.Config, flags chatTargetFlags, message string) (chat.Record, error) {
+func newChatRecord(cfg config.Config, flags chatTargetFlags) (chat.Record, error) {
 	rec := chat.Record{
-		Title: chat.Title(message), Harness: cfg.ChatHarness(), Workspace: cfg.ChatWorkspace(),
+		Harness: cfg.ChatHarness(), Workspace: cfg.ChatWorkspace(),
 		Folder: cfg.ChatFolder(), Kind: chat.KindChat,
 	}
 	if flags.harness != "" {

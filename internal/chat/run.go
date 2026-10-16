@@ -21,8 +21,8 @@ type Request struct {
 	Message string
 	// Resume is the harness's own session id to continue; empty starts one.
 	Resume string
-	// Fork asks claude for a new session that starts from Resume.
-	Fork bool
+	// MCP runs the harness with the account's MCP servers, hooks and plugins.
+	MCP bool
 	// PathPrefix goes in front of PATH, for a machine whose package manager
 	// installs outside the default PATH.
 	PathPrefix []string
@@ -54,7 +54,7 @@ func Script(r Request) string {
 	name := quote(r.Harness.Name)
 	b.WriteString("command -v " + name + " >/dev/null 2>&1 || { echo " + missingSentinel + " >&2; exit 127; }\n")
 	b.WriteString("exec " + name)
-	args := r.Harness.Args(r.Message, r.Resume, r.Fork)
+	args := r.Harness.Args(Options{Message: r.Message, Resume: r.Resume, MCP: r.MCP})
 	if r.Ask {
 		args = r.Harness.AskArgs
 	}

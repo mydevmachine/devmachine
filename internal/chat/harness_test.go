@@ -46,28 +46,37 @@ func tools(events []Event) []Tool {
 
 func TestClaudeArgs(t *testing.T) {
 	base := []string{"-p", "--output-format", "stream-json", "--verbose", "--include-partial-messages", "--permission-mode", "plan"}
-	for _, c := range []struct {
-		resume string
-		fork   bool
-		want   []string
+	noMCP := []string{"--strict-mcp-config", "--setting-sources", "project"}
+	join := func(parts ...[]string) []string {
+		var out []string
+		for _, p := range parts {
+			out = append(out, p...)
+		}
+		return out
+	}
+	for name, c := range map[string]struct {
+		opts Options
+		want []string
 	}{
-		{"", false, append(append([]string{}, base...), "--", "hi")},
-		{"sid", false, append(append([]string{}, base...), "--resume", "sid", "--", "hi")},
-		{"sid", true, append(append([]string{}, base...), "--resume", "sid", "--fork-session", "--", "hi")},
+		"new, no MCP":    {Options{Message: "hi"}, join(base, noMCP, []string{"--", "hi"})},
+		"resume, no MCP": {Options{Message: "hi", Resume: "sid"}, join(base, noMCP, []string{"--resume", "sid", "--", "hi"})},
+		"new, MCP":       {Options{Message: "hi", MCP: true}, join(base, []string{"--", "hi"})},
+		"warm, no MCP":   {Options{Stream: true}, join(base, noMCP, []string{"--input-format", "stream-json"})},
+		"warm, resume":   {Options{Stream: true, Resume: "sid", MCP: true}, join(base, []string{"--input-format", "stream-json", "--resume", "sid"})},
 	} {
-		if got := Claude.Args("hi", c.resume, c.fork); !reflect.DeepEqual(got, c.want) {
-			t.Errorf("Args(%q, %v) = %v", c.resume, c.fork, got)
+		if got := Claude.Args(c.opts); !reflect.DeepEqual(got, c.want) {
+			t.Errorf("%s: %q", name, got)
 		}
 	}
 }
 
 func TestCodexArgs(t *testing.T) {
 	base := []string{"exec", "--json", "--skip-git-repo-check", "--sandbox", "read-only"}
-	if got := Codex.Args("hi", "", false); !reflect.DeepEqual(got, append(append([]string{}, base...), "--", "hi")) {
-		t.Errorf("new = %v", got)
+	if got := Codex.Args(Options{Message: "hi"}); !reflect.DeepEqual(got, append(append([]string{}, base...), "--ignore-user-config", "--", "hi")) {
+		t.Errorf("new = %q", got)
 	}
-	if got := Codex.Args("hi", "tid", false); !reflect.DeepEqual(got, append(append([]string{}, base...), "resume", "tid", "--", "hi")) {
-		t.Errorf("resume = %v", got)
+	if got := Codex.Args(Options{Message: "hi", Resume: "tid", MCP: true}); !reflect.DeepEqual(got, append(append([]string{}, base...), "resume", "tid", "--", "hi")) {
+		t.Errorf("resume with MCP = %q", got)
 	}
 }
 

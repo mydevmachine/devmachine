@@ -51,9 +51,12 @@ type Record struct {
 	CreatedAt        time.Time `json:"created_at"`
 	UpdatedAt        time.Time `json:"updated_at"`
 	Kind             string    `json:"kind"`
-	Session          string    `json:"session,omitempty"`
-	SourceSessionID  string    `json:"source_session_id,omitempty"`
-	Mode             string    `json:"mode,omitempty"`
+	// MCP says whether the harness runs with the account's MCP servers,
+	// hooks and plugins. Off by default: they are most of its start-up.
+	MCP             bool   `json:"mcp"`
+	Session         string `json:"session,omitempty"`
+	SourceSessionID string `json:"source_session_id,omitempty"`
+	Mode            string `json:"mode,omitempty"`
 	// SessionFolder is the session's own folder, where its transcript is
 	// looked for again on the next question.
 	SessionFolder string `json:"session_folder,omitempty"`

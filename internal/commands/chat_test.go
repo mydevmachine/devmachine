@@ -141,6 +141,42 @@ func TestChatSendReportsTheToolsClaudeWasRefused(t *testing.T) {
 	}
 }
 
+func TestChatSendKeepsTheMCPChoice(t *testing.T) {
+	env := newChatEnv(t, "")
+	out, err := env.run(t, "chat", "send", "--", "hi")
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	rec := events(t, out)[0].Chat
+	if rec.MCP || !strings.Contains(env.fake.Read(t, "args"), "--strict-mcp-config\n") || !strings.Contains(out, `"mcp":false`) {
+		t.Fatalf("a new chat runs MCP servers: %+v\n%s", rec, env.fake.Read(t, "args"))
+	}
+
+	out, err = env.run(t, "chat", "send", "--chat", rec.ID, "--mcp", "--", "now with them")
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	got := events(t, out)
+	if !got[len(got)-1].Chat.MCP || strings.Contains(env.fake.Read(t, "args"), "--strict-mcp-config") {
+		t.Fatalf("--mcp was not used or not stored: %+v", got[len(got)-1].Chat)
+	}
+
+	if out, err = env.run(t, "chat", "send", "--chat", rec.ID, "--", "and again"); err != nil {
+		t.Fatal(err, out)
+	}
+	if strings.Contains(env.fake.Read(t, "args"), "--strict-mcp-config") {
+		t.Fatal("the stored mcp choice was not reused")
+	}
+
+	if out, err = env.run(t, "chat", "send", "--chat", rec.ID, "--mcp=false", "--", "off again"); err != nil {
+		t.Fatal(err, out)
+	}
+	got = events(t, out)
+	if got[len(got)-1].Chat.MCP || !strings.Contains(env.fake.Read(t, "args"), "--strict-mcp-config\n") {
+		t.Fatalf("--mcp=false did not turn them off: %+v", got[len(got)-1].Chat)
+	}
+}
+
 func TestChatSendRefusesToSwitchAConversation(t *testing.T) {
 	env := newChatEnv(t, "")
 	out, err := env.run(t, "chat", "send", "--", "hi")

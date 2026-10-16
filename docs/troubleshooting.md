@@ -2908,3 +2908,14 @@ scroll, whatever System Settings → Appearance → "Show scroll bars" says. Its
 sidebars and panels are narrow, and the "Always" bar's track would take
 their width. Scroll with the trackpad, the mouse wheel or the keyboard; the
 bar appears while the list moves.
+
+## A chat does not use a tool from my MCP server
+
+**What it means:** chats start without the account's MCP servers, hooks
+and plugins, because they are most of the harness's start-up time. The
+harness cannot see the tool at all.
+
+**What to do:** send with `--mcp` (`devmachine chat send --chat <id> --mcp
+-- …`). The chat keeps the choice for its later messages. For codex, `--mcp`
+also brings back the model and settings of `~/.codex/config.toml`. See
+[MCP servers are off unless you ask](how-it-works/chats.md#mcp-servers-are-off-unless-you-ask).
