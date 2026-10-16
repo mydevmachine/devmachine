@@ -360,6 +360,33 @@ func TestApplyFailsWhenTheRecapSaysSo(t *testing.T) {
 	}
 }
 
+func TestApplyNamesTheFailedTaskWithoutTheCommand(t *testing.T) {
+	runErr := errors.New(`running "sudo -n -H sh -c 'ansible-playbook site.yml'": Process exited with status 2`)
+	c := &fakeClient{
+		output: "TASK [scheduled : Unpack the release] ****\n" +
+			`fatal: [devmachine]: FAILED! => {"changed": false, "msg": "the archive could not be read"}` + "\n" +
+			"devmachine : ok=3 changed=0 unreachable=0 failed=1 skipped=0 rescued=0 ignored=0\n",
+		err: runErr,
+	}
+	a := &Ansible{Client: c}
+
+	_, err := a.Apply(context.Background(), planWith(t, "main", []string{"base"}, nil), Options{Out: io.Discard})
+	if err == nil {
+		t.Fatal("a failed run was reported as success")
+	}
+	for _, want := range []string{"scheduled : Unpack the release", "the archive could not be read", "main"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("the error leaves out %q: %v", want, err)
+		}
+	}
+	if strings.Contains(err.Error(), "ansible-playbook") {
+		t.Fatalf("the error repeats the whole command: %v", err)
+	}
+	if !errors.Is(err, runErr) {
+		t.Fatalf("the run's own error is no longer reachable: %v", err)
+	}
+}
+
 // The output is streamed, never collected and printed at the end: a run that
 // looks stuck when it is not has already cost this project an afternoon.
 func TestApplyStreamsToTheCallersWriter(t *testing.T) {
