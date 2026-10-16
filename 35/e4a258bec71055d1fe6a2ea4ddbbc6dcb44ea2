@@ -1,0 +1,34 @@
+internal/widgets/contract.go
+  s_46e69727c17321::t_fe3871423db823 8,278,377,412
+internal/widgets/testdata/contract.json
+  s_46e69727c17321::t_fe3871423db823 2,61,95
+internal/widgets/stack.go
+  s_46e69727c17321::t_fe3871423db823 83
+docs/reference/widget-format.md
+  s_46e69727c17321::t_34f469c560e23f 412,415-423,605,629,649
+  s_46e69727c17321::t_fe3871423db823 481,544,569
+internal/widgets/widget_test.go
+  s_46e69727c17321::t_dfd577e0a09d57 129,188,191
+internal/widgets/stack_test.go
+  s_46e69727c17321::t_fe3871423db823 238-240
+docs/concepts/widgets.md
+  s_46e69727c17321::t_34f469c560e23f 71-73
+internal/commands/widgets_test.go
+  s_46e69727c17321::t_dfd577e0a09d57 321,1108,1236,1320
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "35e4a258bec71055d1fe6a2ea4ddbbc6dcb44ea2",
+  "prompts": {},
+  "sessions": {
+    "s_46e69727c17321": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "057eb95b-b600-40da-9c82-ac29c62bf791",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
