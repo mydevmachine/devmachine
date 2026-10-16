@@ -1,0 +1,67 @@
+internal/chat/earlier.go
+  s_46e69727c17321::t_f8ae6f2014ab4c 1-37
+internal/chat/excerpt_test.go
+  s_46e69727c17321::t_3cb656b4b2d481 100-101
+  s_46e69727c17321::t_d70a38550bbbc0 9,11,18-19,46-78,84,87,89-90,98-99,102-103
+  s_46e69727c17321::t_db44ec5b5b4000 104
+internal/chat/store.go
+  s_46e69727c17321::t_fad5345b2127a9 57-59
+  s_46e69727c17321::t_7bea349174f36b 60
+internal/chat/vps_test.go
+  s_46e69727c17321::t_eaf34647946bbc 84,96,115-119,121,123-124,127-131
+internal/chat/harness_test.go
+  s_46e69727c17321::t_ecfc64f02c1284 74-86
+internal/chat/chattest/chattest.go
+  s_46e69727c17321::t_55195966ea3daa 11-14,37,56-62
+internal/chat/run.go
+  s_46e69727c17321::t_060175767c9618 9,29-31,57-61,64-69,73-80
+  s_46e69727c17321::t_27cde735546a28 81-82
+internal/commands/chat.go
+  s_46e69727c17321::t_e848d2aa5db2fe 102-105,116,128-139
+  s_46e69727c17321::t_09f30d0f4bc77a 140-141
+docs/how-it-works/chats.md
+  s_46e69727c17321::t_a66dc810691703 92-135,139-141
+internal/chat/locate.go
+  s_46e69727c17321::t_54fd5b150f5b65 115
+docs/reference/commands.md
+  s_46e69727c17321::t_a66dc810691703 1303-1305,1350-1354
+internal/commands/chat_test.go
+  s_46e69727c17321::t_d34fc132e06e61 356-357,360-363,366,371-372,374-377,380-383,385-386,388-389,391,394-403,405-407,409-415,423,428,432,435,441-442,446,454-457,459,461-462,465-467,473-479,482-484,487-488,490-491
+  s_46e69727c17321::t_7f10943dea845e 337-347,349-351,358-359,364-365,367-370,373,384,408,416,426-427,429-431,433-434,436-440,450-452,458,460,463-464,468-472
+  s_46e69727c17321::t_a7e06d01312120 417-420,424
+internal/chat/testdata/claude-session.jsonl
+  s_46e69727c17321::t_7937bc0f614388 1-7
+internal/chat/harness.go
+  s_46e69727c17321::t_060175767c9618 12-17,39-41,55-56
+internal/chat/run_test.go
+  s_46e69727c17321::t_9855b8345a4c03 79-104
+internal/chat/excerpt.go
+  s_46e69727c17321::t_abd2c1cdd2da60 55-59
+  s_46e69727c17321::t_ced667fb0f4b8c 71
+  s_46e69727c17321::t_df5a1d3344755b 109,111-112,153,155,157
+  s_46e69727c17321::t_10b1c079772a4a 13,16-18,22-23,28-29,44-53,63-66,96-97,101,110,144-152,154,156,158-237,253,255,257-258,267-269,271,273,275,277,290,292
+  s_46e69727c17321::t_3cb656b4b2d481 105
+internal/commands/chat_ask.go
+  s_46e69727c17321::t_b0964d7f0d2565 22-25,62-65,75-77,79-80,82,102,113-119,128-130,133-134,136-138,140-141
+  s_46e69727c17321::t_a9bb6daf21b8d9 132,135,139
+internal/chat/locate_test.go
+  s_46e69727c17321::t_54fd5b150f5b65 56
+internal/chat/earlier_test.go
+  s_46e69727c17321::t_a038bf16973e54 1-44
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b8b462ab0ff8a73d7cc92b82e82960d5339edcf3",
+  "prompts": {},
+  "sessions": {
+    "s_46e69727c17321": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "057eb95b-b600-40da-9c82-ac29c62bf791",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
