@@ -120,6 +120,9 @@ these when something behaves in a way that surprises you.
 - [Password login, account by account](how-it-works/password-login.md) — why
   password login goes off for every account by default, how some keep it,
   and why the exceptions live in one file.
+- [Scheduled tasks](how-it-works/scheduled-tasks.md) — why each workspace
+  runs its own tasks from one timer, and what happens to a run that was
+  missed.
 - [Your computer as a machine](how-it-works/your-computer-as-a-machine.md) —
   using your own computer instead of a server.
 - [What the CLI knows about a machine](how-it-works/what-the-cli-knows-about-a-machine.md)

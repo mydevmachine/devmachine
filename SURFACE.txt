@@ -53,6 +53,17 @@ devmachine packages update
 devmachine packages validate
 devmachine resolve
 devmachine run
+devmachine scheduled
+devmachine scheduled add
+devmachine scheduled edit
+devmachine scheduled harnesses
+devmachine scheduled list
+devmachine scheduled log
+devmachine scheduled pause
+devmachine scheduled resume
+devmachine scheduled rm
+devmachine scheduled run
+devmachine scheduled runs
 devmachine secrets
 devmachine secrets example
 devmachine secrets list

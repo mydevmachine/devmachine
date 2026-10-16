@@ -85,6 +85,9 @@ type MachinePlan struct {
 	// ResolveMachine never sets it; the caller reads the lock and carries it
 	// over, which keeps Generate pure.
 	PreviousExtensions []string
+	// CLIVersion is the version of the CLI that resolved the plan, which a
+	// package can install on the machine to match it.
+	CLIVersion string
 }
 
 // Route is a workspace's port answering to a public host.
@@ -104,7 +107,7 @@ type Route struct {
 // workspaces' packages, the order `needs` puts them in, and where every
 // declared extension writes.
 func ResolveMachine(store *Store, cfg config.Config, machine config.Machine, cliVersion string) (MachinePlan, error) {
-	plan := MachinePlan{Machine: machine}
+	plan := MachinePlan{Machine: machine, CLIVersion: cliVersion}
 
 	resolved, err := resolveTarget(store, Target{
 		Kind: ScopeMachine, Name: machine.Name, Packages: machine.Packages,

@@ -330,6 +330,22 @@ func TestGenerateHostVarsCarryTheAccountsThatKeepPasswordLogin(t *testing.T) {
 	}
 }
 
+func TestGenerateHostVarsCarryAReleasedCLIVersion(t *testing.T) {
+	cases := map[string]string{"0.14.0": "devmachine_cli_version: 0.14.0\n", "v0.14.0": "devmachine_cli_version: 0.14.0\n", "dev": ""}
+	for cli, want := range cases {
+		plan := planWith(t, "main", nil, nil)
+		plan.CLIVersion = cli
+		files, err := Generate(plan)
+		if err != nil {
+			t.Fatal(err)
+		}
+		vars := string(files["host_vars/devmachine.yml"])
+		if want == "" && strings.Contains(vars, "devmachine_cli_version") || want != "" && !strings.Contains(vars, want) {
+			t.Fatalf("%s: got:\n%s", cli, vars)
+		}
+	}
+}
+
 // kind, entrypoint and commands are inert until v0.4. A generator that started
 // treating them specially would be a surprise nobody asked for.
 func TestGenerateTreatsACallablePackageAsAnOrdinaryRole(t *testing.T) {
