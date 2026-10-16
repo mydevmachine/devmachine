@@ -1,0 +1,229 @@
+package chat
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/mydevmachine/devmachine/internal/chat/chattest"
+	"github.com/mydevmachine/devmachine/internal/config"
+	"github.com/mydevmachine/devmachine/internal/remote"
+)
+
+func localClient(t *testing.T) remote.Client {
+	t.Helper()
+	c, _, err := remote.Dial(context.Background(), config.Machine{Name: "here", Self: true}, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return c
+}
+
+func collect(events *[]Event) func(Event) {
+	return func(e Event) { *events = append(*events, e) }
+}
+
+func TestScriptKeepsTheMessageAwayFromAnyShellButSh(t *testing.T) {
+	script := Script(Request{Harness: Claude, Folder: "~/chats", Message: "it's $HOME `x` \\n"})
+	if !strings.Contains(script, `'it'\''s $HOME `+"`x`"+` \n'`) {
+		t.Fatalf("message not quoted:\n%s", script)
+	}
+	if !strings.Contains(script, `"$HOME"/'chats'`) {
+		t.Fatalf("folder not expanded:\n%s", script)
+	}
+	if !strings.Contains(script, "</dev/null") {
+		t.Fatalf("stdin not closed:\n%s", script)
+	}
+}
+
+func TestRunStreamsTheAnswer(t *testing.T) {
+	home := chattest.Isolate(t)
+	fake := chattest.Install(t)
+	message := "it's \"quoted\" $HOME `x` back\\slash"
+	var events []Event
+	out := Run(context.Background(), localClient(t), Request{
+		Harness: Claude, Folder: "~/chats", Message: message, PathPrefix: []string{fake.Dir},
+	}, collect(&events))
+
+	if out.Failure != nil {
+		t.Fatalf("failure = %+v", out.Failure)
+	}
+	if out.SessionID != "22222222-aaaa-4bbb-8ccc-000000000001" {
+		t.Fatalf("session = %q", out.SessionID)
+	}
+	if out.Text != "echo: "+message {
+		t.Fatalf("text = %q", out.Text)
+	}
+	if len(out.Tools) != 1 || out.Tools[0].Summary != "notes.md" {
+		t.Fatalf("tools = %+v", out.Tools)
+	}
+	args := strings.Split(strings.TrimSuffix(fake.Read(t, "args"), "\n"), "\n")
+	if args[len(args)-1] != message || args[len(args)-2] != "--" {
+		t.Fatalf("args = %q", args)
+	}
+	if got := strings.TrimSpace(fake.Read(t, "cwd")); got != filepath.Join(home, "chats") {
+		real, _ := filepath.EvalSymlinks(filepath.Join(home, "chats"))
+		if got != real {
+			t.Fatalf("cwd = %q", got)
+		}
+	}
+	if len(events) != 5 || events[4].Type != EventTool {
+		t.Fatalf("events = %+v", events)
+	}
+}
+
+func TestAskScriptSendsThePromptOnStdin(t *testing.T) {
+	prompt := "line one\n'quoted' $HOME `x`\nDM_PROMPT\n"
+	script := Script(Request{Harness: Claude, Folder: "~/chats", Message: prompt, Ask: true})
+	if strings.Contains(script, "--resume") || !strings.Contains(script, "'--no-session-persistence'") {
+		t.Fatalf("script:\n%s", script)
+	}
+	if !strings.Contains(script, "<<'DM_PROMPT_1'\n"+prompt+"DM_PROMPT_1\n") {
+		t.Fatalf("the prompt is not a quoted here-document:\n%s", script)
+	}
+}
+
+func TestRunAskReadsThePromptFromStdin(t *testing.T) {
+	chattest.Isolate(t)
+	fake := chattest.Install(t)
+	prompt := "context with 'quotes' and $HOME\nQuestion: why?"
+	out := Run(context.Background(), localClient(t), Request{
+		Harness: Claude, Folder: t.TempDir(), Message: prompt, Ask: true, PathPrefix: []string{fake.Dir},
+	}, func(Event) {})
+	if out.Failure != nil {
+		t.Fatalf("failure = %+v", out.Failure)
+	}
+	if got := fake.Read(t, "stdin"); got != prompt+"\n" {
+		t.Fatalf("stdin = %q", got)
+	}
+}
+
+func stages(events []Event) string {
+	var out []string
+	for _, e := range events {
+		if e.Type == EventStatus {
+			out = append(out, e.Stage+"="+e.Message)
+		}
+	}
+	return strings.Join(out, ",")
+}
+
+func TestRunReportsItsStagesBeforeTheText(t *testing.T) {
+	chattest.Isolate(t)
+	fake := chattest.Install(t)
+	for _, h := range []Harness{Claude, Codex} {
+		var events []Event
+		out := Run(context.Background(), localClient(t), Request{Harness: h, Folder: t.TempDir(), Message: "q", PathPrefix: []string{fake.Dir}}, collect(&events))
+		if out.Failure != nil {
+			t.Fatalf("%s: %+v", h.Name, out.Failure)
+		}
+		title := strings.ToUpper(h.Name[:1]) + h.Name[1:]
+		if got := stages(events); got != "starting=Starting "+title+"…,waiting="+title+" is thinking…" {
+			t.Errorf("%s stages = %s", h.Name, got)
+		}
+		if events[0].Type != EventStatus || events[1].Type != EventStatus || events[2].Type != EventText {
+			t.Errorf("%s: the stages do not come before the text: %+v", h.Name, events)
+		}
+	}
+}
+
+func TestRunResumesWithoutMCPUnlessAsked(t *testing.T) {
+	chattest.Isolate(t)
+	fake := chattest.Install(t)
+	out := Run(context.Background(), localClient(t), Request{
+		Harness: Claude, Folder: t.TempDir(), Message: "q", Resume: "abc", PathPrefix: []string{fake.Dir},
+	}, func(Event) {})
+	if out.Failure != nil || out.SessionID != "abc" {
+		t.Fatalf("out = %+v", out)
+	}
+	if args := fake.Read(t, "args"); !strings.Contains(args, "--strict-mcp-config\n--setting-sources\nproject\n--resume\nabc\n") {
+		t.Fatalf("args = %q", args)
+	}
+	Run(context.Background(), localClient(t), Request{
+		Harness: Claude, Folder: t.TempDir(), Message: "q", MCP: true, PathPrefix: []string{fake.Dir},
+	}, func(Event) {})
+	if args := fake.Read(t, "args"); strings.Contains(args, "--strict-mcp-config") {
+		t.Fatalf("MCP on still skips the servers: %q", args)
+	}
+}
+
+func TestRunCodexClosesStdin(t *testing.T) {
+	chattest.Isolate(t)
+	fake := chattest.Install(t)
+	out := Run(context.Background(), localClient(t), Request{
+		Harness: Codex, Folder: t.TempDir(), Message: "q", Resume: "tid-1", PathPrefix: []string{fake.Dir},
+	}, func(Event) {})
+	if out.Failure != nil || out.Text != "codex says hi" || out.SessionID != "tid-1" {
+		t.Fatalf("out = %+v", out)
+	}
+}
+
+func TestRunFailures(t *testing.T) {
+	chattest.Isolate(t)
+	fake := chattest.Install(t)
+	for mode, kind := range map[string]string{
+		"missing-login": KindHarnessLoggedOut,
+		"crash":         KindHarnessFailed,
+		"fail":          KindHarnessFailed,
+	} {
+		fake.Mode(t, mode)
+		out := Run(context.Background(), localClient(t), Request{
+			Harness: Claude, Folder: t.TempDir(), Message: "q", PathPrefix: []string{fake.Dir},
+		}, func(Event) {})
+		if out.Failure == nil || out.Failure.Kind != kind {
+			t.Errorf("%s: failure = %+v", mode, out.Failure)
+		}
+	}
+}
+
+func TestRunHarnessMissing(t *testing.T) {
+	chattest.Isolate(t)
+	t.Setenv("PATH", "/usr/bin:/bin")
+	out := Run(context.Background(), localClient(t), Request{Harness: Codex, Folder: t.TempDir(), Message: "q"}, func(Event) {})
+	if out.Failure == nil || out.Failure.Kind != KindHarnessMissing || !strings.Contains(out.Failure.Message, "codex") {
+		t.Fatalf("failure = %+v", out.Failure)
+	}
+}
+
+func TestRunCancelledKillsTheHarness(t *testing.T) {
+	chattest.Isolate(t)
+	fake := chattest.Install(t)
+	fake.Mode(t, "slow")
+	ctx, cancel := context.WithCancel(context.Background())
+	time.AfterFunc(time.Second, cancel)
+	started := time.Now()
+	out := Run(ctx, localClient(t), Request{
+		Harness: Claude, Folder: t.TempDir(), Message: "q", PathPrefix: []string{fake.Dir},
+	}, func(Event) {})
+	if out.Failure == nil || out.Failure.Kind != KindCancelled {
+		t.Fatalf("failure = %+v", out.Failure)
+	}
+	if out.SessionID == "" {
+		t.Fatal("the session id seen before the stop was lost")
+	}
+	if time.Since(started) > 10*time.Second {
+		t.Fatalf("the harness outlived the cancel: %s", time.Since(started))
+	}
+}
+
+func TestClassifyConnection(t *testing.T) {
+	for want, err := range map[string]error{
+		KindHostKeyRejected: fmt.Errorf("machine %q at 203.0.113.10: %w", "main", remote.ErrHostKeyRejected),
+		KindLoginRefused:    fmt.Errorf("%w: machine main answered", remote.ErrAuthRefused),
+		KindUnreachable:     errors.New(`machine "main": no address answered: 203.0.113.10 (timeout)`),
+	} {
+		if got := ClassifyConnection(err); got == nil || got.Kind != want {
+			t.Errorf("%v: got %+v, want %s", err, got, want)
+		}
+	}
+	if got := ClassifyConnection(errors.New("exit status 1")); got != nil {
+		t.Errorf("a command failure classified as %+v", got)
+	}
+	if got := ClassifyConnection(context.DeadlineExceeded); got == nil || got.Kind != KindUnreachable {
+		t.Errorf("deadline = %+v", got)
+	}
+}

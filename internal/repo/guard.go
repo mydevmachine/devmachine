@@ -9,12 +9,13 @@ import (
 // IgnoreHeading explains why the file exists, so a later reader does not
 // mistake it for something to prune.
 const IgnoreHeading = "# Written by `devmachine setup git`. Everything here is a private key, a\n" +
-	"# secret, a record of which host was touched, or a package fetch left\n" +
-	"# half done. None of it belongs in a repository, not even a private one.\n"
+	"# secret, a record of which host was touched, a package fetch left\n" +
+	"# half done, or a private conversation. None of it belongs in a\n" +
+	"# repository, not even a private one.\n"
 
 // Ignored is what a configuration directory's .gitignore must hold.
 func Ignored() []string {
-	return []string{"keys/", "secrets.json", "cache/", "history.log", "*.env", "state/", "packages/.install-*"}
+	return []string{"keys/", "secrets.json", "cache/", "history.log", "*.env", "state/", "packages/.install-*", "chats/"}
 }
 
 // GitIgnore renders the file.
@@ -57,6 +58,8 @@ func isUnsafe(p string) bool {
 	case strings.HasSuffix(p, ".env"):
 		return true
 	case strings.HasPrefix(p, "packages/.install-"):
+		return true
+	case strings.HasPrefix(p, "chats/"):
 		return true
 	default:
 		return false

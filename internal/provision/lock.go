@@ -51,11 +51,11 @@ cat > /dev/null
 func holdMachine(ctx context.Context, client remote.Client, machine, lock string, self bool) (func(), error) {
 	input, hold := io.Pipe()
 	answers, answer := io.Pipe()
-	done := make(chan error, 1)
+	done := make(chan struct{})
 	go func() {
 		err := remote.StreamInput(ctx, client, asRootUnlessSelf(lockScript(lock), self), input, answer, io.Discard)
 		answer.CloseWithError(err)
-		done <- err
+		close(done)
 	}()
 
 	reader := bufio.NewReader(answers)

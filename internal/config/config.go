@@ -258,6 +258,7 @@ type Config struct {
 	// writer and every check reads it from here, so the aliases are never in
 	// two places at once.
 	SSHAliasesPath string `yaml:"ssh_aliases_path,omitempty"`
+	Chat           Chat   `yaml:"chat,omitempty"`
 }
 
 // CredentialsFor is the operator's answer about each credential for one
@@ -594,6 +595,9 @@ func (c Config) Validate() error {
 	}
 
 	if err := validateCredentials("the configuration", "", c.Credentials); err != nil {
+		return err
+	}
+	if err := c.validateChat(); err != nil {
 		return err
 	}
 

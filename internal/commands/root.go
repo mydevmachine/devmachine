@@ -132,6 +132,7 @@ func NewRootCmd() *cobra.Command {
 		newResolveCmd(opts),
 		newSessionsCmd(opts),
 		newScheduledCmd(opts),
+		newChatCmd(opts),
 		newSSHProxyCmd(opts),
 	)
 	return root

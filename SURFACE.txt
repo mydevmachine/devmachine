@@ -1,8 +1,18 @@
 devmachine
 devmachine aliases
+devmachine chat
+devmachine chat ask
+devmachine chat delete
+devmachine chat list
+devmachine chat rename
+devmachine chat send
+devmachine chat session
+devmachine chat show
 devmachine config
 devmachine config path
+devmachine config set
 devmachine config show
+devmachine config unset
 devmachine credentials
 devmachine credentials list
 devmachine credentials push

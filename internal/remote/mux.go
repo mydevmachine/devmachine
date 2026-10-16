@@ -175,7 +175,12 @@ func (c *muxClient) exec(ctx context.Context, command string, stdin io.Reader, s
 		controlPath := controlSocketPath(c.controlDir, c.user, address, c.port)
 		argv := append(append(append([]string{}, c.args...), muxArgs(controlPath)...), c.user+"@"+address, command)
 		cmd := exec.CommandContext(ctx, c.sshPath, argv...)
-		if stdin != nil {
+		if f, ok := stdin.(*os.File); ok {
+			// A file goes to ssh as it is. Wrapped, exec would copy it in a
+			// goroutine that Wait waits for, and an input kept open for a
+			// long-lived harness would keep Wait from ever returning.
+			cmd.Stdin = f
+		} else if stdin != nil {
 			cmd.Stdin = &sent
 		}
 		if stdout != nil {

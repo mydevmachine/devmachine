@@ -1,0 +1,3 @@
+{"type":"system","subtype":"init","cwd":"/home/alice/chats","session_id":"11111111-aaaa-4bbb-8ccc-000000000002","tools":[]}
+{"type":"assistant","message":{"id":"msg_1","role":"assistant","content":[{"type":"text","text":"Invalid API key · Please run /login"}]},"parent_tool_use_id":null,"session_id":"11111111-aaaa-4bbb-8ccc-000000000002","error":"authentication_failed"}
+{"type":"result","subtype":"success","is_error":true,"result":"Invalid API key · Please run /login","session_id":"11111111-aaaa-4bbb-8ccc-000000000002"}

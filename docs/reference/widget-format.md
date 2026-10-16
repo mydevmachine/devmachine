@@ -409,8 +409,17 @@ widgets:
 
 and a `context-sidebar.yml` with, in this order, `shortcuts`,
 `publish-port`, `monitors`, `shells`, `sub-agents`, `todo`,
-`pull-requests` and `links`, each `type: devmachine-app/<id>` and
+`pull-requests`, `links` and `ask`, each `type: devmachine-app/<id>` and
 `size: auto`.
+
+`ask` (engine 1.8) asks a question about the session without writing to it,
+through [`devmachine chat ask`](commands.md#chat). It reads the area's
+`session`, `machine`, `workspace` and `harness`, and its provider
+`app/session-ask` returns the session's latest ask: `chat`, the record, and
+`messages`. A `context-sidebar.yml` written before engine 1.8 lists its
+widgets itself, so it does not gain `ask`: add it with `devmachine widgets
+add devmachine-app/ask --board context-sidebar`. A board that was never
+written uses the default and has it.
 
 ### A board in the menu bar
 
@@ -469,7 +478,7 @@ open pull request count, and the Pull Requests and Usage tabs.
 
 <!-- generated from the engine contract by `make widget-format`: start -->
 
-Engine **1.7**. Widget format 1, board format 1.
+Engine **1.8**. Widget format 1, board format 1.
 
 ### Sizes
 
@@ -532,6 +541,7 @@ An entry with a `type` may also set `every` every; `title` string on a board: th
 | `app/open-pull-requests` | none | none | 5s | `count` number |
 | `app/publish-port` | none | none | 5s | `available` bool |
 | `app/pull-requests-panel` | none | none | 5s | `error` string?, `owners` list, `pull_requests` list |
+| `app/session-ask` | none | `session` required | 5s | `chat` object?, `messages` list |
 | `app/session-context` | none | `session` required | 5s | `agents` list, `cwd` path, `harness` string?, `links` list, `monitors` list, `plan` plan?, `prs` list, `shells` list |
 | `app/shortcuts` | none | `session` required | 5s | `shortcuts` list |
 | `app/summary` | none | none | 5s | `harness_sessions` int, `sessions` int, `workspaces` int |
@@ -556,6 +566,7 @@ A package declares providers in its `package.yml`; a widget names one `<package>
 
 | View | Draws | Drawn in | Fields besides `kind` |
 | --- | --- | --- | --- |
+| `app.ask` | `app/session-ask` | stack; grows with its content | none |
 | `app.brand` | `app/brand` | slot | none |
 | `app.clock` | `app/clock` | canvas, stack, tabs | none |
 | `app.harness-usage` | `app/harness-usage` | canvas, stack, tabs; grows with its content | none |
@@ -591,7 +602,7 @@ A package declares providers in its `package.yml`; a widget names one `<package>
 | `format` is not 1 | `format 2, and this CLI reads widget format 1` |
 | `requires.engine` missing | `every widget needs requires.engine, for example ">= 1.0"` |
 | `requires.engine` unreadable | `requires.engine "X": write it as ">= 1.0", "> 1.0" or "= 1.0"` |
-| a newer engine is required | ``requires engine >= 1.8, and this CLI implements engine 1.7: update with `devmachine update` `` |
+| a newer engine is required | ``requires engine >= 1.9, and this CLI implements engine 1.8: update with `devmachine update` `` |
 | an unknown top-level field | `unknown field "X"` |
 | `name` malformed or not the folder | `name is "X" but the folder is "Y": a widget is found by its folder` |
 | `summary` missing | `every widget needs a one-line summary` |
@@ -615,7 +626,7 @@ A package declares providers in its `package.yml`; a widget names one `<package>
 | an `every` on an entry that its source does not take | `usage: every 1s is below claude-code/usage's minimum of 5s`, `usage: every "often" is not a duration: …`, `usage: every manual: claude-code/usage reads a provider, which runs on a schedule: …`, `tail: a stream runs while the widget is on screen, so it takes no every`, `ask: permission_mode bypassPermissions runs without any check, so it runs only when you press refresh: write every: manual` |
 | an `every` on a widget written in the board | `disk: a widget written in the board sets how often in source.every, not every` |
 | template names something undeclared | `template {{inputs.X}} in source.with.Y needs inputs.X` |
-| `source.kind` unknown | `source.kind "X": engine 1.7 knows provider, command, url, prompt, session` |
+| `source.kind` unknown | `source.kind "X": engine 1.8 knows provider, command, url, prompt, session` |
 | a key of another kind | `source.url is not a field of a command source: it takes …` |
 | no `run`/`script`, or both | `a command source needs run or script`, `a command source has run or script, not both` |
 | `run` with spaces and no `shell: true` | `source.run "df -h /" has spaces: put each argument in source.args, or set shell: true …` |
@@ -635,7 +646,7 @@ A package declares providers in its `package.yml`; a widget names one `<package>
 | `permission_mode` with an engine that allows 1.5 | `a widget with source.permission_mode needs requires.engine ">= 1.6": an app on engine 1.5 cannot run its prompt in that mode` |
 | `url` not a full address | `source.url "X": write a full address starting with https:// or http://` |
 | view does not draw the source | `view.kind "gauge" takes number, json, and this command source gives text` |
-| `source.name` unknown | `source.name "X" is not a provider engine 1.7 knows` |
+| `source.name` unknown | `source.name "X" is not a provider engine 1.8 knows` |
 | `source.with` wrong | `source.with.X is not an argument of P`, `source.with.X is required by P` |
 | an app provider with target or timeout | `source.target: app/clock is the app's own data, so it takes no target` |
 | `source.every` missing, unreadable or too short | `source.every 1s is below the P minimum of 5s` |

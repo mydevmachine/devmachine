@@ -2866,3 +2866,74 @@ session and what runs in it are untouched on the machine.
 compare `LC_ALL=C tmux list-sessions -F '#{session_name}<Tab>#{session_windows}'`
 with the same command under `tmux -u`; the first shows `_` where the second
 shows a tab. See [session indicators](how-it-works/session-indicators.md).
+
+## Chat error kinds
+
+`devmachine chat send` and `chat ask` end a failed answer with
+`{"type":"error","kind":"…","message":"…"}`. What each kind really means:
+
+- **`unreachable`** — the workspace's machine did not answer, or the
+  connection dropped mid-answer. Same as in `devmachine sessions`: see
+  ["no address answered"](#no-address-answered).
+- **`login-refused`** — the machine answered but refused the workspace's
+  login. Most often the workspace is not synced yet. See
+  ["answered on … but refused the login"](#answered-on--but-refused-the-login).
+- **`host-key-rejected`** — the machine's key is not the one pinned. See
+  [it used to connect, and now it does not](#it-used-to-connect-and-now-it-does-not).
+- **`harness-missing`** — `claude` or `codex` is not installed for that
+  account, or not on its login shell's `PATH`. Add the `claude-code` or
+  `codex` package to the workspace and run `devmachine sync`.
+- **`harness-logged-out`** — the harness is installed but not logged in for
+  that account. Open a session on the workspace, run `claude` (or `codex
+  login`) once and log in; the next message works.
+- **`harness-failed`** — the harness ran and reported an error. The message
+  is the harness's own, passed through: an overloaded API, a usage limit, a
+  session id it no longer has. Retrying later often works; for a lost
+  session, start a new chat.
+- **`cancelled`** — the answer was stopped (Esc in the app, Ctrl-C, or
+  SIGTERM). What arrived before the stop is kept.
+- **`session-not-found`** — `chat ask` found no tmux session by that name on
+  the workspace, or the `--folder` given does not exist. The session may
+  have ended.
+- **`transcript-not-found`** — the session exists but its harness wrote no
+  transcript for that folder yet: nothing was asked in it so far, or it
+  runs in a folder other than the pane's.
+- **`harness-unsupported`** — the session runs a harness Ask cannot answer
+  about yet. Ask works on claude and codex sessions.
+
+## The app shows no scroll bar, even with "Show scroll bars: Always"
+
+The macOS app always uses the thin scroll bar that shows only while you
+scroll, whatever System Settings → Appearance → "Show scroll bars" says. Its
+sidebars and panels are narrow, and the "Always" bar's track would take
+their width. Scroll with the trackpad, the mouse wheel or the keyboard; the
+bar appears while the list moves.
+
+## A chat does not use a tool from my MCP server
+
+**What it means:** chats start without the account's MCP servers, hooks
+and plugins, because they are most of the harness's start-up time. The
+harness cannot see the tool at all.
+
+**What to do:** send with `--mcp` (`devmachine chat send --chat <id> --mcp
+-- …`). The chat keeps the choice for its later messages. For codex, `--mcp`
+also brings back the model and settings of `~/.codex/config.toml`. See
+[MCP servers are off unless you ask](how-it-works/chats.md#mcp-servers-are-off-unless-you-ask).
+
+## A chat session ends with `"type":"closed","reason":"idle"`
+
+**What it means:** nobody sent a message for 10 minutes, so the session
+stopped its harness instead of keeping it running for nothing. The chat
+and its local copy are kept.
+
+**What to do:** start another session with `devmachine chat session --chat
+<id>`; it resumes the same conversation.
+
+## A chat session ends with `"reason":"error"` before `ready`
+
+**What it means:** the harness could not start. The `error` line before it
+says why, with the same kinds as `chat send`: `harness-missing`,
+`harness-logged-out`, `unreachable` and the others under [chat error
+kinds](#chat-error-kinds).
+
+**What to do:** fix what the kind says and start the session again.
