@@ -1,0 +1,25 @@
+docs/how-it-works/scheduled-tasks.md
+  s_be9ca8cef925d9::t_14e1baa3c74106 1-106
+docs/reference/commands.md
+  s_be9ca8cef925d9::t_3eb0beaccc04d0 1136-1255
+docs/troubleshooting.md
+  s_be9ca8cef925d9::t_98afc705425d59 2779-2843
+docs/index.md
+  s_be9ca8cef925d9::t_3eb0beaccc04d0 123-125
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "be8fa5034ef8deb34e8c2473b53c0018f2322f0a",
+  "prompts": {},
+  "sessions": {
+    "s_be9ca8cef925d9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9f277d6-7db0-48b4-8122-c76a3ca3c439",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
