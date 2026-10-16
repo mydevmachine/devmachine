@@ -86,6 +86,27 @@ func TestClaudeAnswer(t *testing.T) {
 	}
 }
 
+func TestClaudeReportsTheToolsItWasRefused(t *testing.T) {
+	p := Claude.parser()
+	events := feedFixture(t, p, "claude-denied.jsonl")
+	var denied []Tool
+	for _, e := range events {
+		if e.Type == EventDenied {
+			denied = append(denied, Tool{Name: e.Name, Summary: e.Summary})
+		}
+	}
+	want := []Tool{{Name: "Edit", Summary: "acme/billing.go"}, {Name: "Bash", Summary: "rm -rf build"}}
+	if !reflect.DeepEqual(denied, want) {
+		t.Fatalf("denied = %+v", denied)
+	}
+	if events[len(events)-1].Type != EventDenied {
+		t.Fatalf("the denials do not come last: %+v", events)
+	}
+	if _, ended, failure := p.result(); !ended || failure != nil {
+		t.Fatalf("result = %v %+v", ended, failure)
+	}
+}
+
 func TestClaudeLoggedOut(t *testing.T) {
 	p := Claude.parser()
 	feedFixture(t, p, "claude-logged-out.jsonl")

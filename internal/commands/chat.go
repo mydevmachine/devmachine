@@ -238,9 +238,10 @@ func (s *chatSession) finishWith(out chat.Outcome, change func(*chat.Record)) er
 	if err != nil {
 		return err
 	}
-	if out.Text != "" || len(out.Tools) > 0 || out.Failure != nil {
+	if out.Text != "" || len(out.Tools) > 0 || len(out.Denied) > 0 || out.Failure != nil {
 		if err := s.store.AppendMessage(s.rec.ID, chat.Message{
-			Role: chat.RoleAssistant, Text: out.Text, Tools: out.Tools, At: time.Now().UTC(), Error: out.Failure,
+			Role: chat.RoleAssistant, Text: out.Text, Tools: out.Tools, Denied: out.Denied,
+			At: time.Now().UTC(), Error: out.Failure,
 		}); err != nil {
 			return err
 		}
@@ -336,6 +337,9 @@ func newChatShowCmd(opts *options) *cobra.Command {
 				}
 				if m.Text != "" {
 					fmt.Fprintln(out, m.Text)
+				}
+				for _, t := range m.Denied {
+					fmt.Fprintf(out, "  blocked: %s %s\n", t.Name, t.Summary)
 				}
 				if m.Error != nil {
 					fmt.Fprintf(out, "error (%s): %s\n", m.Error.Kind, m.Error.Message)

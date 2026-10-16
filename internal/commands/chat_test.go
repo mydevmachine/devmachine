@@ -110,6 +110,37 @@ func TestChatSendStartsAndContinuesAConversation(t *testing.T) {
 	}
 }
 
+func TestChatSendReportsTheToolsClaudeWasRefused(t *testing.T) {
+	env := newChatEnv(t, "")
+	env.fake.Mode(t, "denied")
+	out, err := env.run(t, "chat", "send", "--", "fix it")
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	got := events(t, out)
+	n := len(got)
+	if got[n-1].Type != chat.EventDone || got[n-2].Type != chat.EventDenied || got[n-3].Type != chat.EventDenied ||
+		got[n-3].Name != "Edit" || got[n-3].Summary != "notes.md" || got[n-2].Summary != "make deploy" {
+		t.Fatalf("events = %+v", got)
+	}
+	out, err = env.run(t, "chat", "show", got[0].Chat.ID, "--json")
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	var shown struct {
+		Messages []chat.Message `json:"messages"`
+	}
+	if err := json.Unmarshal([]byte(out), &shown); err != nil {
+		t.Fatal(err, out)
+	}
+	if d := shown.Messages[1].Denied; len(d) != 2 || d[1] != (chat.Tool{Name: "Bash", Summary: "make deploy"}) {
+		t.Fatalf("stored denied = %+v", d)
+	}
+	if !strings.Contains(out, `"denied": [`) {
+		t.Fatalf("show does not print denied:\n%s", out)
+	}
+}
+
 func TestChatSendRefusesToSwitchAConversation(t *testing.T) {
 	env := newChatEnv(t, "")
 	out, err := env.run(t, "chat", "send", "--", "hi")

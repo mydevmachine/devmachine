@@ -32,6 +32,7 @@ type Outcome struct {
 	SessionID string
 	Text      string
 	Tools     []Tool
+	Denied    []Tool
 	Failure   *Failure
 }
 
@@ -93,6 +94,8 @@ func Run(ctx context.Context, client remote.Client, r Request, on func(Event)) O
 					text.WriteString(ev.Delta)
 				case EventTool:
 					out.Tools = append(out.Tools, Tool{Name: ev.Name, Summary: ev.Summary})
+				case EventDenied:
+					out.Denied = append(out.Denied, Tool{Name: ev.Name, Summary: ev.Summary})
 				}
 				on(ev)
 			}

@@ -66,11 +66,14 @@ type Tool struct {
 
 // Message is one line of a conversation's local copy.
 type Message struct {
-	Role  string    `json:"role"`
-	Text  string    `json:"text"`
-	Tools []Tool    `json:"tools"`
-	At    time.Time `json:"at"`
-	Error *Failure  `json:"error,omitempty"`
+	Role  string `json:"role"`
+	Text  string `json:"text"`
+	Tools []Tool `json:"tools"`
+	// Denied are the tools the harness refused because nobody was there
+	// to approve them.
+	Denied []Tool    `json:"denied,omitempty"`
+	At     time.Time `json:"at"`
+	Error  *Failure  `json:"error,omitempty"`
 }
 
 // Store is the folder that holds every conversation's local copy.

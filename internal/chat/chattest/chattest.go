@@ -36,6 +36,10 @@ for a in "$@"; do last="$a"; done
 msg=$(printf '%s' "$last" | sed 's/\\/\\\\/g; s/"/\\"/g' | tr '\n' ' ')
 printf '%s\n' '{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"'"$msg"'"}},"parent_tool_use_id":null}'
 echo '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Read","input":{"file_path":"notes.md"}}]},"parent_tool_use_id":null}'
+if [ "$mode" = "denied" ]; then
+  echo '{"type":"result","is_error":false,"result":"done","session_id":"'$sid'","permission_denials":[{"tool_name":"Edit","tool_use_id":"t1","tool_input":{"file_path":"notes.md"}},{"tool_name":"Bash","tool_use_id":"t2","tool_input":{"command":"make deploy"}}]}'
+  exit 0
+fi
 if [ "$mode" = "fail" ]; then
   echo '{"type":"result","is_error":true,"result":"API Error: 529 overloaded","session_id":"'$sid'"}'
   exit 1
@@ -71,8 +75,8 @@ func Install(t *testing.T) Bin {
 	return Bin{Dir: dir}
 }
 
-// Mode makes the next runs answer another way: missing-login, crash, slow
-// or fail.
+// Mode makes the next runs answer another way: missing-login, crash, slow,
+// fail or denied.
 func (f Bin) Mode(t *testing.T, mode string) {
 	t.Helper()
 	if err := os.WriteFile(filepath.Join(f.Dir, "mode"), []byte(mode), 0o600); err != nil {

@@ -83,15 +83,19 @@ type claudeParser struct {
 }
 
 type claudeLine struct {
-	Type            string          `json:"type"`
-	Subtype         string          `json:"subtype"`
-	SessionID       string          `json:"session_id"`
-	Cwd             string          `json:"cwd"`
-	ParentToolUseID *string         `json:"parent_tool_use_id"`
-	IsError         bool            `json:"is_error"`
-	Result          string          `json:"result"`
-	Event           json.RawMessage `json:"event"`
-	Message         struct {
+	Type            string  `json:"type"`
+	Subtype         string  `json:"subtype"`
+	SessionID       string  `json:"session_id"`
+	Cwd             string  `json:"cwd"`
+	ParentToolUseID *string `json:"parent_tool_use_id"`
+	IsError         bool    `json:"is_error"`
+	Result          string  `json:"result"`
+	Denials         []struct {
+		ToolName  string         `json:"tool_name"`
+		ToolInput map[string]any `json:"tool_input"`
+	} `json:"permission_denials"`
+	Event   json.RawMessage `json:"event"`
+	Message struct {
 		Content []struct {
 			Type  string         `json:"type"`
 			Name  string         `json:"name"`
@@ -147,6 +151,11 @@ func (p *claudeParser) feed(raw []byte) []Event {
 			}
 			p.failure = &Failure{Kind: kind, Message: strings.TrimSpace(line.Result)}
 		}
+		var out []Event
+		for _, d := range line.Denials {
+			out = append(out, Event{Type: EventDenied, Name: d.ToolName, Summary: toolSummary(d.ToolInput, p.cwd)})
+		}
+		return out
 	}
 	return nil
 }

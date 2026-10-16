@@ -30,6 +30,23 @@ A chat cannot change your files. claude runs with `--permission-mode plan`
 and codex with `--sandbox read-only`. This is fixed, not a setting: coding
 happens in a session, and a chat is for questions.
 
+## What read only means
+
+Read only is the harness's own rule, so it is worth knowing where it stops.
+
+- claude runs in `--permission-mode plan`, so its own tools that edit files
+  are refused.
+- Every other tool follows the workspace's own Claude settings: its MCP
+  servers, which load on their own, and its permission allow list. On
+  2026-10-16 an MCP tool that only reads (Linear's list_teams) ran in a
+  chat, and so did a Bash command that only reads.
+- A tool that would need your approval is refused, since a chat has nobody
+  to ask. claude lists those at the end of its answer; the chat passes them
+  on as `denied` lines and the app shows them as blocked.
+- codex runs with `--sandbox read-only` and the MCP servers from its own
+  config. A command the sandbox blocks fails inside codex, which reports no
+  list of refusals, so it shows only as a tool line that failed.
+
 ## Where a chat runs
 
 A new chat runs on `--workspace`, or `--local` for this computer. With

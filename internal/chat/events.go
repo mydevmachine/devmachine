@@ -26,6 +26,7 @@ const (
 	EventStarted = "started"
 	EventText    = "text"
 	EventTool    = "tool"
+	EventDenied  = "denied"
 	EventDone    = "done"
 	EventError   = "error"
 )

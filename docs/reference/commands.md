@@ -1309,6 +1309,7 @@ it.
 {"type":"text","delta":"It charges "}
 {"type":"tool","name":"Read","summary":"acme/billing.go"}
 {"type":"text","delta":"in cents."}
+{"type":"denied","name":"Edit","summary":"acme/billing.go"}
 {"type":"done","chat":{...record...}}
 ```
 
@@ -1317,6 +1318,11 @@ it.
   and the exit code is 1. See [the error kinds](../troubleshooting.md#chat-error-kinds).
 - `text` carries the answer as it arrives; claude streams it in small
   pieces, codex one paragraph at a time.
+- `denied` is a tool claude wanted and was refused, because a chat has
+  nobody to approve it. They come right before `done`, one per tool, with
+  the same `summary` as a `tool` line. codex reports no such list: a
+  command its sandbox blocks shows only as a `tool` that failed. See
+  [what read only means](../how-it-works/chats.md#what-read-only-means).
 - SIGINT or SIGTERM stops the harness (on a workspace, the ssh session) and
   ends with `cancelled`. The part of the answer that arrived is kept.
 
@@ -1346,8 +1352,9 @@ A record, as `started`, `done`, `list` and `show` print it:
 `list --json` prints `{"chats": [...]}`, the most recently updated first,
 without asks unless `--all`. `show --json` prints `{"chat": {...},
 "messages": [...]}`, each message `{"role": "user" | "assistant", "text",
-"tools": [{"name", "summary"}], "at"}`, plus `error: {kind, message}` on an
-answer that failed. `continue` turns an ask into a chat listed with the
+"tools": [{"name", "summary"}], "at"}`, plus `denied: [{"name", "summary"}]`
+on an answer where claude was refused a tool, and `error: {kind, message}`
+on an answer that failed. `continue` turns an ask into a chat listed with the
 others. `delete` forgets the local copy; the harness's own transcript stays
 on the workspace.
 
