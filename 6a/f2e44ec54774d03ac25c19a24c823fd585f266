@@ -1,0 +1,20 @@
+internal/chat/warm_test.go
+  s_46e69727c17321::t_15beddd0f97fde 66,68-72
+  s_46e69727c17321::t_456117989fd8da 6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6af2e44ec54774d03ac25c19a24c823fd585f266",
+  "prompts": {},
+  "sessions": {
+    "s_46e69727c17321": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "057eb95b-b600-40da-9c82-ac29c62bf791",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
