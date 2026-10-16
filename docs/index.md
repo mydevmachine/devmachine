@@ -194,6 +194,8 @@ these when something behaves in a way that surprises you.
   `widget.yml` and a board, and what the engine offers.
 - [Settings](reference/settings.md) — every option the built-in packages
   accept.
+- [App keyboard shortcuts](reference/app-keyboard-shortcuts.md) — every
+  shortcut in the macOS app, and how to use it from the keyboard alone.
 
 ## Fixing things
 
