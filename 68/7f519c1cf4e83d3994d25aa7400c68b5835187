@@ -1,0 +1,19 @@
+docs/troubleshooting.md
+  s_46e69727c17321::t_eb142da5ffdde6 2903-2910
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "687f519c1cf4e83d3994d25aa7400c68b5835187",
+  "prompts": {},
+  "sessions": {
+    "s_46e69727c17321": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "057eb95b-b600-40da-9c82-ac29c62bf791",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
