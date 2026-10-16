@@ -71,7 +71,7 @@ func installScheduled(cmd *cobra.Command, opts *options, cfg config.Config, w co
 	}
 	sync := edit
 	sync.machine = machine
-	if err := runSyncFn(cmd, &sync, false, true, []string{scheduledPackage}); err != nil {
+	if err := runSyncFn(cmd, &sync, false, true, []string{scheduledPackage}, ""); err != nil {
 		return cfg, w, &scheduledError{Kind: "setup-failed", Message: fmt.Sprintf(
 			"setting up scheduled on %s failed: %v. The scheduled package stays on %s: once the cause is fixed, "+
 				"run devmachine sync --machine %s --tags scheduled, or add the task again",

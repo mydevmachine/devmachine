@@ -2156,7 +2156,7 @@ stderr). Exits 0 whether or not a newer release is out.
 ## sync
 
 ```
-devmachine sync [--machine m] [--check] [--yes] [--tags a,b]
+devmachine sync [--machine m | --workspace w] [--check] [--yes] [--tags a,b]
 ```
 
 Applies your configuration to a machine — installs what is missing,
@@ -2172,6 +2172,7 @@ streaming output.
 | `--check` | dry run: reports what would change, changes nothing |
 | `--yes` | apply without asking |
 | `--tags a,b` | only the packages named |
+| `--workspace w` | only that workspace, on the machine it lives on ([how](../how-it-works/syncing-one-workspace.md)) |
 
 One tag beyond package names: `credentials`, which only copies shared
 logins — run after `devmachine login` instead of a full sync.
@@ -2202,6 +2203,12 @@ the pinned release. It also refreshes
 `~/.ssh/config`'s managed block, when `ssh_aliases: true` is set, and
 prints how to reach each workspace on that machine: `devmachine ssh <ws>`
 always, and `ssh <ws>-devmachine` when aliases are on.
+
+With `--workspace`, the machine's own packages and every other workspace
+are left alone, and so is their part of the lock. It writes extension
+files and never removes one: the next full sync does that. Naming a
+`--machine` the workspace does not live on stops the sync before it
+connects ([troubleshooting](../troubleshooting.md#workspace-x-lives-on-y-not-z)).
 
 ## update
 

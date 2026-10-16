@@ -726,7 +726,7 @@ func (u *updater) syncStep(ctx context.Context) stepResult {
 func (u *updater) checkMachine(ctx context.Context, machine string) (int, error) {
 	machineOpts := *u.opts
 	machineOpts.machine = machine
-	prep, err := prepareSync(ctx, &machineOpts)
+	prep, err := prepareSync(ctx, &machineOpts, "")
 	if err != nil {
 		return 0, err
 	}
@@ -770,7 +770,7 @@ func (u *updater) approve() (bool, error) {
 func (u *updater) applyMachine(ctx context.Context, machine string) error {
 	machineOpts := *u.opts
 	machineOpts.machine = machine
-	prep, err := prepareSync(ctx, &machineOpts)
+	prep, err := prepareSync(ctx, &machineOpts, "")
 	if err != nil {
 		return err
 	}

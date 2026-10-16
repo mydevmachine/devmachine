@@ -89,7 +89,7 @@ func GenerateAt(plan packages.MachinePlan, base string) (map[string][]byte, erro
 		"host_vars/devmachine.yml": vars,
 		"site.yml":                 []byte(site),
 	}
-	for _, f := range routeFiles(plan) {
+	for _, f := range routeFiles(runPlan(plan)) {
 		if f.change.Content != nil && !f.unresolved {
 			files["routes/"+f.workspace+".caddy"] = f.change.Content
 		}
@@ -298,7 +298,24 @@ func ansibleVariable(key string) string {
 	return "devmachine_" + strings.NewReplacer("-", "_", ".", "_").Replace(key)
 }
 
-func playbook(plan packages.MachinePlan, base string) (string, error) {
+// runPlan is the part of a plan a run applies. A run narrowed to one
+// workspace drops the machine's own packages, every other workspace, and the
+// removal of extension files, whose owner a full run alone can tell.
+func runPlan(plan packages.MachinePlan) packages.MachinePlan {
+	if plan.OnlyWorkspace == "" {
+		return plan
+	}
+	run := plan
+	run.OnMachine = packages.Resolved{Target: plan.OnMachine.Target}
+	run.Workspaces = plan.RunWorkspaces()
+	run.Extensions = plan.RunExtensions()
+	run.OtherWorkspaces = nil
+	run.PreviousExtensions = nil
+	return run
+}
+
+func playbook(full packages.MachinePlan, base string) (string, error) {
+	plan := runPlan(full)
 	var out strings.Builder
 	out.WriteString("---\n" + header)
 	if plan.Machine.Self {

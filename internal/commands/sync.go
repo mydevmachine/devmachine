@@ -28,9 +28,10 @@ var provisionerFor = ansibleProvisioner
 
 func newSyncCmd(opts *options) *cobra.Command {
 	var (
-		check bool
-		yes   bool
-		tags  []string
+		check     bool
+		yes       bool
+		tags      []string
+		workspace string
 	)
 
 	c := &cobra.Command{
@@ -41,20 +42,24 @@ func newSyncCmd(opts *options) *cobra.Command {
 			"output as it arrives.\n\n" +
 			"The plan is printed before anything happens. With --check the " +
 			"machine reports what would change and changes nothing, and " +
-			"nothing is written to the lock.",
+			"nothing is written to the lock.\n\n" +
+			"With --workspace only that workspace's packages, routes and extensions " +
+			"run, on the machine it lives on. The machine's own packages and every " +
+			"other workspace are left as they are, and so is their part of the lock.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runSync(cmd, opts, check, yes, tags)
+			return runSync(cmd, opts, check, yes, tags, workspace)
 		},
 	}
 	c.Flags().BoolVar(&check, "check", false, "a dry run: the machine reports what would change and changes nothing")
 	c.Flags().BoolVar(&yes, "yes", false, "apply without asking")
 	c.Flags().StringSliceVar(&tags, "tags", nil, "only the packages named, by name")
+	c.Flags().StringVar(&workspace, "workspace", "", "only this workspace, on the machine it lives on")
 	return c
 }
 
-func runSync(cmd *cobra.Command, opts *options, check, yes bool, tags []string) error {
-	prep, err := prepareSync(cmd.Context(), opts)
+func runSync(cmd *cobra.Command, opts *options, check, yes bool, tags []string, workspace string) error {
+	prep, err := prepareSync(cmd.Context(), opts, workspace)
 	if err != nil {
 		return err
 	}
@@ -101,7 +106,9 @@ type preparedSync struct {
 	summary []string
 }
 
-func prepareSync(ctx context.Context, opts *options) (preparedSync, error) {
+// prepareSync works out a sync of the machine opts names, or, when workspace
+// is not empty, of that one workspace on the machine it lives on.
+func prepareSync(ctx context.Context, opts *options, workspace string) (preparedSync, error) {
 	dir, _, err := config.Dir(opts.configDir)
 	if err != nil {
 		return preparedSync{}, err
@@ -110,7 +117,7 @@ func prepareSync(ctx context.Context, opts *options) (preparedSync, error) {
 	if err != nil {
 		return preparedSync{}, err
 	}
-	machine, err := cfg.Machine(opts.machine)
+	machine, err := syncMachine(cfg, opts.machine, workspace)
 	if err != nil {
 		return preparedSync{}, err
 	}
@@ -140,6 +147,7 @@ func prepareSync(ctx context.Context, opts *options) (preparedSync, error) {
 	// Generate stays pure: it never reads the lock itself, so the previous
 	// extensions come in on the plan.
 	plan.PreviousExtensions = lock.Extensions[machine.Name]
+	plan.OnlyWorkspace = workspace
 	plan, failures := withUpstreams(ctx, cfg, plan, "")
 	if err := validateLocalPackages(plan); err != nil {
 		return preparedSync{}, err
@@ -160,6 +168,23 @@ func prepareSync(ctx context.Context, opts *options) (preparedSync, error) {
 	}
 	return preparedSync{dir: dir, cfg: cfg, machine: machine, store: store, lock: lock,
 		plan: plan, summary: summary}, nil
+}
+
+// syncMachine is the machine a sync acts on: the one named, or the one the
+// workspace lives on. Naming both is fine as long as they agree.
+func syncMachine(cfg config.Config, machine, workspace string) (config.Machine, error) {
+	if workspace == "" {
+		return cfg.Machine(machine)
+	}
+	home, _, err := cfg.MachineFor(workspace)
+	if err != nil {
+		return config.Machine{}, err
+	}
+	if machine != "" && machine != home.Name {
+		return config.Machine{}, fmt.Errorf("workspace %q lives on %s, not %s: drop --machine, or name %s",
+			workspace, home.Name, machine, home.Name)
+	}
+	return home, nil
 }
 
 func oneLine(err error) string {
@@ -187,7 +212,7 @@ func (p preparedSync) apply(ctx context.Context, opts *options, check bool, tags
 	result, runErr := provisionerFor(client).Apply(ctx, p.plan, provision.Options{
 		Check: check, Tags: tags, Out: out, AnsiblePlaybook: ansiblePlaybookFor(p.machine, observed),
 	})
-	record(opts, target{machine: p.machine}, syncCommandLine(check, tags), runErr == nil)
+	record(opts, target{machine: p.machine}, syncCommandLine(check, tags, p.plan.OnlyWorkspace), runErr == nil)
 	if runErr != nil {
 		return result, runErr
 	}
@@ -324,10 +349,13 @@ func refuseForeignPackages(plan packages.MachinePlan, machine, platform string) 
 
 // syncCommandLine is what the command log records, so a line in it can be read
 // back as the command somebody ran.
-func syncCommandLine(check bool, tags []string) string {
+func syncCommandLine(check bool, tags []string, workspace string) string {
 	command := "sync"
 	if check {
 		command += " --check"
+	}
+	if workspace != "" {
+		command += " --workspace " + workspace
 	}
 	if len(tags) > 0 {
 		command += " --tags " + strings.Join(tags, ",")
