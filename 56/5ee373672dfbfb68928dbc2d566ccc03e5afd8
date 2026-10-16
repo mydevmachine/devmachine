@@ -1,0 +1,19 @@
+internal/provision/lock.go
+  s_46e69727c17321::t_acebb7f9980ba2 54,58,66
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "565ee373672dfbfb68928dbc2d566ccc03e5afd8",
+  "prompts": {},
+  "sessions": {
+    "s_46e69727c17321": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "057eb95b-b600-40da-9c82-ac29c62bf791",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
