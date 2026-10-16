@@ -1,0 +1,22 @@
+internal/provision/ansible_runner_test.go
+  s_46e69727c17321::t_f83f519fb3934a 363-389
+internal/provision/ansible_runner.go
+  s_46e69727c17321::t_6c61b0ef55c732 102-118
+  s_46e69727c17321::t_248836251b84cf 89-92
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "063ef116c990af9f8035e05801910f68f7296ab4",
+  "prompts": {},
+  "sessions": {
+    "s_46e69727c17321": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "057eb95b-b600-40da-9c82-ac29c62bf791",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
