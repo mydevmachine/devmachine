@@ -3,8 +3,8 @@
 Every variable the published packages accept, and what each one defaults to.
 
 A setting is written `<package>.<name>` under a machine's or a workspace's
-`settings:`, and it reaches the role as the variable it already reads.
-**A setting is a default somebody overrode, not a new mechanism** — the role
+`settings:`, and it reaches the recipe as the variable it already reads.
+**A setting is a default somebody overrode, not a new mechanism** — the recipe
 cannot tell the difference and does not have to.
 
 ```yaml
@@ -25,7 +25,7 @@ devmachine machines edit main --set caddy.email=someone@example.com
 
 A setting for a package the target does not install is refused. A typo in a
 package name would otherwise be silent: the value would reach nothing, the
-role would keep its default, and the machine would not be what the
+recipe would keep its default, and the machine would not be what the
 configuration says it is.
 
 **This page is generated** by `make settings`. Do not edit it by hand.
@@ -91,11 +91,16 @@ configuration says it is.
 | `mise.home` | Where the account's home is. | `<the account's own home>` |
 | `opencode.home` | Where the account's home is. | `<the account's own home>` |
 | `pi.home` | Where the account's home is. | `<the account's own home>` |
+| `scheduled.home` | Where the account's home is. | `<the account's own home>` |
+| `scheduled.version` | The devmachine release the workspace runs its tasks with. Empty means the release of the CLI that syncs, so both sides speak the same version; a CLI built from source falls back to 0.14.0. | *(empty)* |
 | `sentry.home` | Where the account's home is. | `<the account's own home>` |
+| `session-share.home` | Where the account's home is. | `<the account's own home>` |
+| `session-share.port` | The local port this account's share server listens on. Every workspace on a machine needs its own. | `7690` |
+| `session-share.version` | The session-share release to install. A sync replaces an installed binary of another version. | `0.1.7` |
 | `ssh_hardening.service` | What systemd calls sshd. Empty means the name this distribution family uses, which is `ssh` on Debian and Ubuntu and `sshd` elsewhere. macOS ignores it: launchd starts sshd for each connection, so there is nothing to reload. | *(empty)* |
 | `tailscale.exit_node` | Advertise this machine as an exit node. Off unless asked for. | `false` |
 | `tailscale.login_server` | The control server `devmachine login tailscale` joins. Empty means Tailscale's own; a URL means your own, such as Headscale. | *(empty)* |
-| `workspace.admin_home` | The home of the account the CLI provisions with. Whatever reaches that account over SSH is what reaches this workspace. On macOS it is the admin login's own home, read from the system. | `/root` |
+| `workspace.admin_home` | The home of the account the CLI provisions with. Whatever reaches that account over SSH is what reaches this workspace. It is read from the system: root's home, or the admin login's own when that is not root. | `<the admin login's own home>` |
 | `workspace.git_email` | The address on this workspace's commits. | *(empty)* |
 | `workspace.git_name` | The name on this workspace's commits. | *(empty)* |
 | `workspace.groups` | Extra groups the account joins. The docker group is one of them and it is effectively root, so nobody joins it by accident. | `[]` |
