@@ -29,6 +29,16 @@ const (
 	EventDenied  = "denied"
 	EventDone    = "done"
 	EventError   = "error"
+	EventReady   = "ready"
+	EventStatus  = "status"
+	EventClosed  = "closed"
+)
+
+// Why a session closed.
+const (
+	ClosedIdle  = "idle"
+	ClosedEOF   = "eof"
+	ClosedError = "error"
 )
 
 // Failure is why a stream ended without an answer.
@@ -52,6 +62,8 @@ type Event struct {
 	Summary string  `json:"summary,omitempty"`
 	Kind    string  `json:"kind,omitempty"`
 	Message string  `json:"message,omitempty"`
+	Reason  string  `json:"reason,omitempty"`
+	Stage   string  `json:"stage,omitempty"`
 }
 
 // Emitter writes events as NDJSON, one object per line.
@@ -63,8 +75,21 @@ type Emitter struct {
 // NewEmitter writes to out.
 func NewEmitter(out io.Writer) *Emitter { return &Emitter{out: out} }
 
+// Ready says a session is running. chat is null for a conversation that
+// does not exist yet: the first message creates it.
+func (e *Emitter) Ready(chat *Record) error {
+	return e.write(struct {
+		Type string  `json:"type"`
+		Chat *Record `json:"chat"`
+	}{EventReady, chat})
+}
+
 // Emit writes one event.
 func (e *Emitter) Emit(ev Event) error {
+	return e.write(ev)
+}
+
+func (e *Emitter) write(ev any) error {
 	line, err := json.Marshal(ev)
 	if err != nil {
 		return fmt.Errorf("encoding an event: %w", err)

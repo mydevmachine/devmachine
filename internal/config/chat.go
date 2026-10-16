@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -20,6 +21,9 @@ type Chat struct {
 	DefaultWorkspace string `yaml:"default_workspace,omitempty" json:"default_workspace"`
 	Folder           string `yaml:"folder,omitempty" json:"folder"`
 	Harness          string `yaml:"harness,omitempty" json:"harness"`
+	// MCP is whether a new chat starts the account's MCP servers, hooks and
+	// plugins. Off by default: they are most of a harness's start-up.
+	MCP bool `yaml:"mcp,omitempty" json:"mcp"`
 }
 
 // The defaults of the chat settings.
@@ -29,7 +33,7 @@ const (
 )
 
 // ChatKeys are the settings `devmachine config set` accepts.
-var ChatKeys = []string{"chat.default_workspace", "chat.folder", "chat.harness"}
+var ChatKeys = []string{"chat.default_workspace", "chat.folder", "chat.harness", "chat.mcp"}
 
 // ChatFolder is chat.folder, or its default.
 func (c Config) ChatFolder() string {
@@ -76,6 +80,14 @@ func SetChat(dir, key, value string) error {
 	if !ok || !slices.Contains(ChatKeys, key) {
 		return fmt.Errorf("unknown setting %q: the settings are %s", key, strings.Join(ChatKeys, ", "))
 	}
+	node := stringNode(value)
+	if name == "mcp" && value != "" {
+		on, err := strconv.ParseBool(value)
+		if err != nil {
+			return fmt.Errorf("chat.mcp is true or false, not %q", value)
+		}
+		node = boolNode(on)
+	}
 	return locked(dir, func() error {
 		return editDocument(dir, func(root *yaml.Node) error {
 			chat := field(root, "chat")
@@ -86,7 +98,7 @@ func SetChat(dir, key, value string) error {
 				chat = &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
 				setField(root, "chat", chat)
 			}
-			setField(chat, name, stringNode(value))
+			setField(chat, name, node)
 			if len(chat.Content) == 0 {
 				setField(root, "chat", nil)
 			}

@@ -23,7 +23,7 @@ func newChatCmd(opts *options) *cobra.Command {
 		Long: "A chat runs the coding CLI already logged in on a workspace (or on this computer), " +
 			"read only, one process per message. No API key: it uses that CLI's own login.",
 	}
-	c.AddCommand(newChatSendCmd(opts), newChatAskCmd(opts), newChatListCmd(opts), newChatShowCmd(opts),
+	c.AddCommand(newChatSendCmd(opts), newChatSessionCmd(opts), newChatAskCmd(opts), newChatListCmd(opts), newChatShowCmd(opts),
 		newChatRenameCmd(opts), newChatDeleteCmd(opts))
 	return c
 }
@@ -66,7 +66,10 @@ type chatFlags struct {
 func resolveChat(cmd *cobra.Command, cfg config.Config, store *chat.Store, f chatFlags) (chat.Record, error) {
 	if f.chatID == "" {
 		rec, err := newChatRecord(cfg, f.chatTargetFlags)
-		rec.MCP = f.mcp
+		rec.MCP = cfg.Chat.MCP
+		if cmd.Flags().Changed("mcp") {
+			rec.MCP = f.mcp
+		}
 		return rec, err
 	}
 	rec, err := store.Get(f.chatID)
@@ -90,7 +93,7 @@ func resolveChat(cmd *cobra.Command, cfg config.Config, store *chat.Store, f cha
 
 func addMCPFlag(c *cobra.Command, mcp *bool) {
 	c.Flags().BoolVar(mcp, "mcp", false,
-		"run the harness with the account's MCP servers, hooks and plugins (slower to start); kept on the chat")
+		"run the harness with the account's MCP servers, hooks and plugins (slower to start); kept on the chat (default: chat.mcp, false)")
 }
 
 func newChatSendCmd(opts *options) *cobra.Command {
@@ -134,6 +137,7 @@ func newChatSendCmd(opts *options) *cobra.Command {
 			if err := s.start(message); err != nil {
 				return err
 			}
+			connecting(rec.Workspace, s.relay)
 			client, prefix, failure := chatClient(ctx, cfg, dir, rec.Workspace)
 			if failure != nil {
 				return s.finish(chat.Outcome{Failure: failure})

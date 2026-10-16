@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestStreamInputFeedsTheLocalClientsCommand(t *testing.T) {
@@ -42,6 +43,41 @@ func TestStreamInputFeedsTheMuxClientsCommand(t *testing.T) {
 	}
 	if out.String() != "exec 'true'\n" {
 		t.Fatalf("got %q", out.String())
+	}
+}
+
+func TestStreamInputReturnsWhenSSHExitsWithAFileStillOpenOnItsInput(t *testing.T) {
+	fakeCacheDir(t)
+	m := muxTestMachine(t)
+	fakeSSH := filepath.Join(t.TempDir(), "ssh")
+	if err := os.WriteFile(fakeSSH, []byte("#!/bin/sh\nhead -n 1\n"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	origLookPath := lookPath
+	lookPath = func(string) (string, error) { return fakeSSH, nil }
+	t.Cleanup(func() { lookPath = origLookPath })
+	client, _, err := DialMux(context.Background(), m, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = r.Close(); _ = w.Close() }()
+	if _, err := io.WriteString(w, "one line\n"); err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan error, 1)
+	var out bytes.Buffer
+	go func() { done <- StreamInput(context.Background(), client, "/bin/sh -s", r, &out, io.Discard) }()
+	select {
+	case err := <-done:
+		if err != nil || out.String() != "one line\n" {
+			t.Fatalf("err = %v, out = %q", err, out.String())
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("the run waited on an input that stays open after ssh exited")
 	}
 }
 

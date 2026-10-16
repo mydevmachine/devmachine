@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/mydevmachine/devmachine/internal/chat/chattest"
 	"github.com/mydevmachine/devmachine/internal/config"
@@ -134,5 +135,53 @@ func TestAskReadsASessionOnTheTestMachine(t *testing.T) {
 
 	if _, failure := Locate(ctx, client, Target{Session: "dm-chat-no-such-session"}); failure == nil || failure.Kind != KindSessionNotFound {
 		t.Fatalf("missing session: %+v", failure)
+	}
+}
+
+func TestWarmOnTheTestMachine(t *testing.T) {
+	client := vpsClient(t)
+	uploadFakes(t, client)
+	ctx := context.Background()
+	t.Cleanup(func() { _, _ = client.Run(context.Background(), "rm -rf ~/dm-chat-warm "+vpsFakeDir+"/mode") })
+	w, failure := StartWarm(ctx, client, Request{Harness: Claude, Folder: "~/dm-chat-warm", PathPrefix: []string{vpsFakeDir}}, func(Event) {})
+	if failure != nil {
+		t.Fatalf("StartWarm: %+v", failure)
+	}
+	defer w.Close()
+	first := w.Turn("one", nil, func(Event) {})
+	second := w.Turn("two", nil, func(Event) {})
+	if first.Failure != nil || first.Text != "turn 1: one" || second.Failure != nil || second.Text != "turn 2: two" {
+		t.Fatalf("first = %+v, second = %+v", first, second)
+	}
+	if _, err := client.Run(ctx, "echo slow > "+vpsFakeDir+"/mode"); err != nil {
+		t.Fatal(err)
+	}
+	stop := make(chan struct{})
+	time.AfterFunc(time.Second, func() { close(stop) })
+	started := time.Now()
+	if out := w.Turn("three", stop, func(Event) {}); out.Failure == nil || out.Failure.Kind != KindCancelled {
+		t.Fatalf("stopped turn = %+v", out)
+	}
+	if time.Since(started) > 10*time.Second || !w.Dead() {
+		t.Fatal("the stop did not end the remote process")
+	}
+}
+
+func TestRunCancelStopsTheHarnessOnTheTestMachine(t *testing.T) {
+	client := vpsClient(t)
+	uploadFakes(t, client)
+	t.Cleanup(func() { _, _ = client.Run(context.Background(), "rm -rf ~/dm-chat-cancel "+vpsFakeDir+"/mode") })
+	if _, err := client.Run(context.Background(), "echo slow > "+vpsFakeDir+"/mode"); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	time.AfterFunc(time.Second, cancel)
+	started := time.Now()
+	out := Run(ctx, client, Request{Harness: Claude, Folder: "~/dm-chat-cancel", Message: "q", PathPrefix: []string{vpsFakeDir}}, func(Event) {})
+	if out.Failure == nil || out.Failure.Kind != KindCancelled {
+		t.Fatalf("out = %+v", out)
+	}
+	if time.Since(started) > 10*time.Second {
+		t.Fatalf("the remote harness outlived the cancel: %s", time.Since(started))
 	}
 }

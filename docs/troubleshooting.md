@@ -2919,3 +2919,21 @@ harness cannot see the tool at all.
 -- …`). The chat keeps the choice for its later messages. For codex, `--mcp`
 also brings back the model and settings of `~/.codex/config.toml`. See
 [MCP servers are off unless you ask](how-it-works/chats.md#mcp-servers-are-off-unless-you-ask).
+
+## A chat session ends with `"type":"closed","reason":"idle"`
+
+**What it means:** nobody sent a message for 10 minutes, so the session
+stopped its harness instead of keeping it running for nothing. The chat
+and its local copy are kept.
+
+**What to do:** start another session with `devmachine chat session --chat
+<id>`; it resumes the same conversation.
+
+## A chat session ends with `"reason":"error"` before `ready`
+
+**What it means:** the harness could not start. The `error` line before it
+says why, with the same kinds as `chat send`: `harness-missing`,
+`harness-logged-out`, `unreachable` and the others under [chat error
+kinds](#chat-error-kinds).
+
+**What to do:** fix what the kind says and start the session again.

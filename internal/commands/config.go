@@ -192,7 +192,7 @@ func asJSON(dir string, cfg config.Config) configJSON {
 		Credentials: credentialsOrNone(cfg.Credentials),
 		Domain:      cfg.Domain, DNSProvider: cfg.DNSProvider,
 		Chat: config.Chat{
-			DefaultWorkspace: cfg.ChatWorkspace(), Folder: cfg.ChatFolder(), Harness: cfg.ChatHarness(),
+			DefaultWorkspace: cfg.ChatWorkspace(), Folder: cfg.ChatFolder(), Harness: cfg.ChatHarness(), MCP: cfg.Chat.MCP,
 		},
 	}
 

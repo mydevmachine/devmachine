@@ -177,6 +177,45 @@ func TestChatSendKeepsTheMCPChoice(t *testing.T) {
 	}
 }
 
+func TestChatSendTakesTheMCPDefaultFromTheConfiguration(t *testing.T) {
+	env := newChatEnv(t, chatConfig)
+	dialHere(t, nil)
+	if out, err := env.run(t, "config", "set", "chat.mcp", "true"); err != nil {
+		t.Fatal(err, out)
+	}
+	out, err := env.run(t, "config", "show", "--format", "json")
+	if err != nil || !strings.Contains(out, `"mcp": true`) {
+		t.Fatalf("config show = %s, %v", out, err)
+	}
+	out, err = env.run(t, "chat", "send", "--local", "--", "hi")
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	if rec := events(t, out)[0].Chat; !rec.MCP || strings.Contains(env.fake.Read(t, "args"), "--strict-mcp-config") {
+		t.Fatalf("the default was not used: %+v", rec)
+	}
+	out, err = env.run(t, "chat", "send", "--local", "--mcp=false", "--", "hi")
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	if rec := events(t, out)[0].Chat; rec.MCP {
+		t.Fatalf("--mcp=false did not win over the default: %+v", rec)
+	}
+	if out, err := env.run(t, "config", "unset", "chat.mcp"); err != nil {
+		t.Fatal(err, out)
+	}
+	if out, _ := env.run(t, "config", "show", "--format", "json"); !strings.Contains(out, `"mcp": false`) {
+		t.Fatalf("config show after unset:\n%s", out)
+	}
+}
+
+func TestChatSessionUnknownFlagIsCobrasOwnError(t *testing.T) {
+	env := newChatEnv(t, "")
+	if _, err := env.run(t, "chat", "session", "--local", "--no-such-flag"); err == nil || !strings.Contains(err.Error(), "unknown flag: --no-such-flag") {
+		t.Fatalf("err = %v", err)
+	}
+}
+
 func TestChatSendRefusesToSwitchAConversation(t *testing.T) {
 	env := newChatEnv(t, "")
 	out, err := env.run(t, "chat", "send", "--", "hi")
@@ -214,7 +253,7 @@ func TestChatSendUsesTheConfiguredDefaults(t *testing.T) {
 	if c := got[0].Chat; c.Workspace != "bob" || c.Harness != "codex" {
 		t.Fatalf("record = %+v", c)
 	}
-	if len(users) != 1 || users[0] != "bob" || got[len(got)-1].Delta != "" || got[1].Delta != "codex says hi" {
+	if len(users) != 1 || users[0] != "bob" || !strings.Contains(out, `"type":"text","delta":"codex says hi"`) {
 		t.Fatalf("users = %v, events = %+v", users, got)
 	}
 

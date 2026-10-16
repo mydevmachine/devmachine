@@ -163,6 +163,9 @@ func (p *claudeParser) feed(raw []byte) []Event {
 	case "system":
 		if line.Subtype == "init" {
 			p.sessionID, p.cwd = line.SessionID, line.Cwd
+			if !p.wroteText {
+				return []Event{waitingStatus(Claude.Name)}
+			}
 		}
 	case "stream_event":
 		return p.streamEvent(line.Event)
@@ -266,6 +269,10 @@ func (p *codexParser) feed(raw []byte) []Event {
 	switch line.Type {
 	case "thread.started":
 		p.threadID = line.ThreadID
+	case "turn.started":
+		if !p.wroteText {
+			return []Event{waitingStatus(Codex.Name)}
+		}
 	case "item.started":
 		if line.Item.Type == "command_execution" {
 			command := line.Item.Command

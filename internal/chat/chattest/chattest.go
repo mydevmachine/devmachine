@@ -25,6 +25,24 @@ for a in "$@"; do
   [ "$a" = "--fork-session" ] && sid=33333333-aaaa-4bbb-8ccc-000000000001
   prev="$a"
 done
+case " $* " in *" --input-format stream-json "*)
+  n=0
+  while IFS= read -r line; do
+    n=$((n+1))
+    mode=$(cat "$here/mode" 2>/dev/null)
+    printf '%s\n' "$line" >> "$here/stdin"
+    content=$(printf '%s' "$line" | sed 's/^.*"content":"//; s/"}}$//')
+    echo '{"type":"system","subtype":"init","session_id":"'$sid'","cwd":"'"$(pwd)"'"}'
+    [ "$mode" = slow ] && sleep 30
+    printf '%s\n' '{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"turn '$n': '"$content"'"}},"parent_tool_use_id":null}'
+    if [ "$mode" = fail ]; then
+      echo '{"type":"result","is_error":true,"result":"API Error: 529 overloaded","session_id":"'$sid'"}'
+    else
+      echo '{"type":"result","is_error":false,"result":"done","session_id":"'$sid'"}'
+    fi
+  done
+  exit 0 ;;
+esac
 case "$mode" in
   missing-login) echo "Invalid API key · Please run /login" >&2; exit 1 ;;
   crash) echo "segmentation fault" >&2; exit 139 ;;
@@ -64,6 +82,7 @@ tid=0199aaaa-bbbb-7ccc-8ddd-000000000009
 prev=""
 for a in "$@"; do [ "$prev" = "resume" ] && tid="$a"; prev="$a"; done
 echo '{"type":"thread.started","thread_id":"'$tid'"}'
+echo '{"type":"turn.started"}'
 echo '{"type":"item.completed","item":{"type":"agent_message","text":"codex says hi"}}'
 echo '{"type":"turn.completed","usage":{}}'
 `

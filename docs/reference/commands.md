@@ -322,6 +322,7 @@ list --format json`) wins over it.
 | `chat.default_workspace` | the first workspace, else this computer | where a new chat runs; `local` means this computer |
 | `chat.folder` | `~/chats` | the folder a new chat runs in, created on first use |
 | `chat.harness` | `claude` | `claude` or `codex` |
+| `chat.mcp` | `false` | `true` starts new chats with the account's MCP servers, hooks and plugins |
 
 A value that would not load (a harness other than these, a workspace not in
 `config.yml`) is refused and the file is left as it was. `show --format
@@ -1276,7 +1277,9 @@ is.
 
 ```
 devmachine chat send [--chat ID] [--workspace W | --local] [--harness claude|codex] [--folder DIR] [--mcp] -- MESSAGE
+devmachine chat session (--chat ID | [--workspace W | --local] [--harness claude|codex] [--folder DIR]) [--mcp]
 devmachine chat ask (--workspace W | --local) --session S [--folder DIR] [--harness claude|codex] [--chat ID] -- QUESTION
+devmachine chat ask (--workspace W | --local) --session S [--folder DIR] [--harness claude|codex] [--chat ID] --serve
 devmachine chat list [--all] [--json]
 devmachine chat show ID [--json]
 devmachine chat rename ID TITLE
@@ -1297,7 +1300,8 @@ an ask goes on with `chat ask --chat`.
 
 A chat runs without the account's MCP servers, hooks and plugins, which
 are most of a harness's start-up. `--mcp` turns them on; the choice is kept
-on the chat, and `--mcp=false` turns them off again. See [MCP servers are
+on the chat, and `--mcp=false` turns them off again. A new chat without
+either flag takes `chat.mcp` (`false`). See [MCP servers are
 off unless you ask](../how-it-works/chats.md#mcp-servers-are-off-unless-you-ask).
 
 `ask` asks about a coding session without writing to it. `--session` names
@@ -1313,6 +1317,9 @@ session](../how-it-works/chats.md#asking-about-a-session).
 
 ```json
 {"type":"started","chat":{...record...}}
+{"type":"status","stage":"connecting","message":"Connecting to alice…"}
+{"type":"status","stage":"starting","message":"Starting Claude…"}
+{"type":"status","stage":"waiting","message":"Claude is thinking…"}
 {"type":"text","delta":"It charges "}
 {"type":"tool","name":"Read","summary":"acme/billing.go"}
 {"type":"text","delta":"in cents."}
@@ -1321,6 +1328,17 @@ session](../how-it-works/chats.md#asking-about-a-session).
 ```
 
 - `started` is always the first line, `done` the last on success.
+- `status` says what the wait before the answer is spent on, each stage
+  when it really starts, and only the stages that apply:
+  `connecting` ("Connecting to <workspace>…", not for `--local`),
+  `reading-transcript` ("Reading the session…", `ask` only: finding the
+  session and building its excerpt), `starting` ("Starting Claude…" or
+  "Starting Codex…": the harness was launched) and `waiting` ("Claude is
+  thinking…": the harness is up, claude's `system/init` or codex's
+  `turn.started`, and no text came yet). There is no stage for loading MCP
+  servers: claude prints nothing that says it is doing that. A caller
+  clears the status at the first `text`, `tool` or `denied`, and on `done`
+  or `error`. `status` lines are never stored with the messages.
 - On failure the last line is `{"type":"error","kind":"…","message":"…"}`
   and the exit code is 1. See [the error kinds](../troubleshooting.md#chat-error-kinds).
 - `text` carries the answer as it arrives; claude streams it in small
@@ -1332,6 +1350,62 @@ session](../how-it-works/chats.md#asking-about-a-session).
   [what read only means](../how-it-works/chats.md#what-read-only-means).
 - SIGINT or SIGTERM stops the harness (on a workspace, the ssh session) and
   ends with `cancelled`. The part of the answer that arrived is kept.
+
+### chat session and ask --serve
+
+`chat session` keeps a chat's harness running and answers messages read on
+stdin; `chat ask --serve` does the same for an ask, with questions instead
+of messages. `send` stays for scripts. The harness starts before the first
+message, so a message pays only for its answer; see [warm
+sessions](../how-it-works/chats.md#warm-sessions).
+
+Stdin takes one JSON object per line:
+
+```json
+{"type":"send","text":"why is the build slow?"}
+{"type":"cancel"}
+```
+
+Stdout, one JSON object per line:
+
+```json
+{"type":"ready","chat":null}
+{"type":"started","chat":{...record...}}
+{"type":"text","delta":"…"}
+{"type":"done","chat":{...record...}}
+{"type":"closed","reason":"eof"}
+```
+
+- Before `ready` come the start-up stages: `connecting` (on a workspace),
+  `reading-transcript` (`--serve` without `--harness`) and `starting`.
+  Each turn then has its own `waiting`; `ask --serve` also reads the
+  session again, with `reading-transcript`, on every question.
+- `ready` comes once, when the harness is running. `chat` is the record
+  for `--chat`, or `null` for a new conversation: the first `send` creates
+  it, and its `started` carries it.
+- Each `send` then prints the events of `chat send`: `started`, `text`,
+  `tool`, `denied`, then `done` or `error`. The process stays running after
+  either. A `send` that arrives during an answer waits for it.
+- `cancel` stops the answer that runs; it ends with `error` `cancelled`.
+  claude's process cannot drop an answer, so it is stopped and started
+  again with `--resume`, and the next message works as before. A `cancel`
+  with no answer running is ignored.
+- `closed` is the last line: `reason` is `eof` (stdin ended, or SIGINT or
+  SIGTERM), `idle` (no message for 10 minutes) or `error` (the harness
+  could not start; an `error` line with its kind comes first, and the exit
+  code is 1).
+- A line that is not one of the two commands is ignored, with a note on
+  stderr.
+- An unknown flag or command fails before `ready` with cobra's own
+  `unknown flag` or `unknown command`, which is how a caller tells an older
+  CLI.
+- claude runs as one process for the whole session. codex has no such
+  mode: each message runs `codex exec`, with `resume` after the first, and
+  `ready` comes at once.
+- With `--serve`, every question still finds the session and reads its
+  transcript again; only the lean harness that answers stays running. When
+  `--harness` is left out, the session is looked up before `ready`, and a
+  missing session closes with `session-not-found`.
 
 A record, as `started`, `done`, `list` and `show` print it:
 

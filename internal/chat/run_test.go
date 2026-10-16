@@ -71,7 +71,7 @@ func TestRunStreamsTheAnswer(t *testing.T) {
 			t.Fatalf("cwd = %q", got)
 		}
 	}
-	if len(events) != 3 || events[2].Type != EventTool {
+	if len(events) != 5 || events[4].Type != EventTool {
 		t.Fatalf("events = %+v", events)
 	}
 }
@@ -99,6 +99,35 @@ func TestRunAskReadsThePromptFromStdin(t *testing.T) {
 	}
 	if got := fake.Read(t, "stdin"); got != prompt+"\n" {
 		t.Fatalf("stdin = %q", got)
+	}
+}
+
+func stages(events []Event) string {
+	var out []string
+	for _, e := range events {
+		if e.Type == EventStatus {
+			out = append(out, e.Stage+"="+e.Message)
+		}
+	}
+	return strings.Join(out, ",")
+}
+
+func TestRunReportsItsStagesBeforeTheText(t *testing.T) {
+	chattest.Isolate(t)
+	fake := chattest.Install(t)
+	for _, h := range []Harness{Claude, Codex} {
+		var events []Event
+		out := Run(context.Background(), localClient(t), Request{Harness: h, Folder: t.TempDir(), Message: "q", PathPrefix: []string{fake.Dir}}, collect(&events))
+		if out.Failure != nil {
+			t.Fatalf("%s: %+v", h.Name, out.Failure)
+		}
+		title := strings.ToUpper(h.Name[:1]) + h.Name[1:]
+		if got := stages(events); got != "starting=Starting "+title+"…,waiting="+title+" is thinking…" {
+			t.Errorf("%s stages = %s", h.Name, got)
+		}
+		if events[0].Type != EventStatus || events[1].Type != EventStatus || events[2].Type != EventText {
+			t.Errorf("%s: the stages do not come before the text: %+v", h.Name, events)
+		}
 	}
 }
 

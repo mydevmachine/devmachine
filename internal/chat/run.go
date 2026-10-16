@@ -53,6 +53,7 @@ func Script(r Request) string {
 	b.WriteString(`mkdir -p "$dm_folder" && cd "$dm_folder" || exit 3` + "\n")
 	name := quote(r.Harness.Name)
 	b.WriteString("command -v " + name + " >/dev/null 2>&1 || { echo " + missingSentinel + " >&2; exit 127; }\n")
+	b.WriteString(startedEcho + "\n")
 	b.WriteString("exec " + name)
 	args := r.Harness.Args(Options{Message: r.Message, Resume: r.Resume, MCP: r.MCP})
 	if r.Ask {
@@ -99,6 +100,9 @@ func Run(ctx context.Context, client remote.Client, r Request, on func(Event)) O
 	reader, writer := io.Pipe()
 	stderr := &tailBuffer{max: 16 * 1024}
 	done := make(chan error, 1)
+	proc := &remoteProcess{client: client}
+	stopWatching := context.AfterFunc(ctx, proc.stop)
+	defer stopWatching()
 	go func() {
 		err := remote.StreamInput(remote.OwnProcessGroup(ctx), client, remote.ShellOnInput, strings.NewReader(Script(r)), writer, stderr)
 		_ = writer.Close()
@@ -110,7 +114,10 @@ func Run(ctx context.Context, client remote.Client, r Request, on func(Event)) O
 	lines := bufio.NewReader(reader)
 	for {
 		line, readErr := lines.ReadBytes('\n')
-		if len(bytes.TrimSpace(line)) > 0 {
+		if pid, ok := startedPID(bytes.TrimSpace(line)); ok {
+			proc.pid.Store(int64(pid))
+			on(startingStatus(r.Harness))
+		} else if len(bytes.TrimSpace(line)) > 0 {
 			for _, ev := range p.feed(bytes.TrimSpace(line)) {
 				switch ev.Type {
 				case EventText:

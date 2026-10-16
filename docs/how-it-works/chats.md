@@ -48,6 +48,39 @@ Read only is the harness's own rule, so it is worth knowing where it stops.
   which reports no list of refusals, so it shows only as a tool line that
   failed.
 
+## Warm sessions
+
+`chat send` starts the harness for every message, and the start-up is most
+of the wait. `chat session` (and `chat ask --serve`) start it once, before
+the first message, and keep it running: claude reads one message after
+another on its stdin (`--input-format stream-json`) and keeps the same
+session id and context. On a workspace the harness runs over one ssh
+session that stays open.
+
+Measured on 2026-10-16 (claude 2.1.301 on this computer, 2.1.300 on a
+workspace), time from sending "Reply with exactly: …" to the first word of
+the answer:
+
+| | This computer | Workspace |
+| --- | --- | --- |
+| `chat send`, one process per message | 4.6 s | 3.2 s |
+| `chat send --mcp` | 6.7 s | 6.9 s |
+| `chat session`, first message | 2.0 s | 2.3 s |
+| `chat session`, next message | 1.2 s | 2.1 s |
+
+`ready` itself comes back in well under a second; the harness goes on
+starting while the person types. On a workspace session, `chat ask
+--serve` answered the first question in 4.1 s and the next in 2.0 s,
+against 8.6 s for a one-off ask before the changes on this page.
+
+A session closes after 10 minutes with no message, or when its stdin ends,
+so nothing is left running for a window nobody looks at. codex has no mode
+that keeps reading messages, so its sessions still run `codex exec` per
+message.
+
+A stop in the middle of an answer cannot be sent to claude: the process is
+stopped and started again with `--resume`, which keeps the conversation.
+
 ## MCP servers are off unless you ask
 
 Most of the time a harness takes to answer goes into starting up, and most
@@ -69,6 +102,8 @@ still works.
 `--mcp` on `chat send` or `chat session` turns them on, for a chat that
 needs a tool from an MCP server. The choice is kept on the chat (`"mcp":
 true`): later messages use it until `--mcp` or `--mcp=false` changes it.
+`devmachine config set chat.mcp true` makes it the default for new chats;
+the app's Settings → Chats switch writes the same key.
 
 codex has no flag that skips only its MCP servers: `-c mcp_servers={}` did
 not stop them. Without `--mcp` it runs with `--ignore-user-config`, which

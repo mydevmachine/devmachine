@@ -62,6 +62,33 @@ func TestSetChatWritesAndClears(t *testing.T) {
 	}
 }
 
+func TestSetChatMCP(t *testing.T) {
+	dir := chatDir(t, chatBase)
+	if err := SetChat(dir, "chat.mcp", "true"); err != nil {
+		t.Fatal(err)
+	}
+	c, err := Load(dir)
+	if err != nil || !c.Chat.MCP {
+		t.Fatalf("chat = %+v, %v", c.Chat, err)
+	}
+	if err := SetChat(dir, "chat.mcp", "maybe"); err == nil || !strings.Contains(err.Error(), "true or false") {
+		t.Fatalf("err = %v", err)
+	}
+	if err := SetChat(dir, "chat.mcp", "false"); err != nil {
+		t.Fatal(err)
+	}
+	if c, _ := Load(dir); c.Chat.MCP {
+		t.Fatal("false did not turn it off")
+	}
+	if err := SetChat(dir, "chat.mcp", ""); err != nil {
+		t.Fatal(err)
+	}
+	body, _ := os.ReadFile(filepath.Join(dir, FileName))
+	if strings.Contains(string(body), "mcp") {
+		t.Fatalf("unset left the key:\n%s", body)
+	}
+}
+
 func TestSetChatRefusesWhatWouldNotLoad(t *testing.T) {
 	dir := chatDir(t, chatBase)
 	for key, value := range map[string]string{
