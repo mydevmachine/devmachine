@@ -53,6 +53,7 @@ devmachine packages update
 devmachine packages validate
 devmachine resolve
 devmachine run
+devmachine scheduled
 devmachine secrets
 devmachine secrets example
 devmachine secrets list
