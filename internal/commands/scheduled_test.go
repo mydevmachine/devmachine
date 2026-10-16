@@ -10,6 +10,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/mydevmachine/devmachine/internal/config"
 	"github.com/mydevmachine/devmachine/internal/remote"
 	"github.com/mydevmachine/devmachine/internal/scheduled"
 	"github.com/spf13/cobra"
@@ -315,7 +316,10 @@ func TestScheduledAddInstallsOnFirstUse(t *testing.T) {
 	dir := configWith(t, scheduledConfig)
 	var order []string
 	origEdit, origSync := editPackageFn, runSyncFn
-	editPackageFn = func(_ *cobra.Command, _ *options, name, workspace string, add, _, yes bool) error {
+	editPackageFn = func(_ *cobra.Command, o *options, name, workspace string, add, _, yes bool) error {
+		if o.machine != "" {
+			t.Errorf("packages add got --machine %q with --workspace, which it refuses", o.machine)
+		}
 		order = append(order, fmt.Sprintf("edit %s %s %v %v", name, workspace, add, yes))
 		return nil
 	}
@@ -323,7 +327,9 @@ func TestScheduledAddInstallsOnFirstUse(t *testing.T) {
 		order = append(order, fmt.Sprintf("sync %s %v %v", o.machine, yes, tags))
 		return nil
 	}
-	t.Cleanup(func() { editPackageFn, runSyncFn = origEdit, origSync })
+	origAvail := scheduledPackageAvailable
+	scheduledPackageAvailable = func(context.Context, *options, config.Config) (bool, error) { return true, nil }
+	t.Cleanup(func() { editPackageFn, runSyncFn, scheduledPackageAvailable = origEdit, origSync, origAvail })
 	bob := &scheduledFake{reply: func(script string) (string, error) {
 		order = append(order, "put")
 		task := decodePutBody(t, script)
@@ -344,6 +350,26 @@ func TestScheduledAddInstallsOnFirstUse(t *testing.T) {
 	}
 }
 
+func TestScheduledAddRefusesWhenThePinnedReleaseHasNoPackage(t *testing.T) {
+	dir := configWith(t, scheduledConfig)
+	edited := false
+	origEdit, origAvail := editPackageFn, scheduledPackageAvailable
+	editPackageFn = func(*cobra.Command, *options, string, string, bool, bool, bool) error {
+		edited = true
+		return nil
+	}
+	scheduledPackageAvailable = func(context.Context, *options, config.Config) (bool, error) { return false, nil }
+	t.Cleanup(func() { editPackageFn, scheduledPackageAvailable = origEdit, origAvail })
+	dialByUser(t, map[string]remote.Client{}, nil)
+
+	out, err := execute(t, "--config", dir, "scheduled", "add", "--workspace", "bob", "--name", "x",
+		"--folder", "~", "--command", "date", "--every", "daily", "--at", "09:00", "--yes")
+	var se *scheduledError
+	if !errors.As(err, &se) || se.Kind != "not-available" || edited {
+		t.Fatalf("err = %v edited = %v out = %q", err, edited, out)
+	}
+}
+
 func TestScheduledAddWithoutYesOnUninstalledRefuses(t *testing.T) {
 	dir := configWith(t, scheduledConfig)
 	called := false
@@ -352,7 +378,9 @@ func TestScheduledAddWithoutYesOnUninstalledRefuses(t *testing.T) {
 		called = true
 		return nil
 	}
-	t.Cleanup(func() { editPackageFn = origEdit })
+	origAvail := scheduledPackageAvailable
+	scheduledPackageAvailable = func(context.Context, *options, config.Config) (bool, error) { return true, nil }
+	t.Cleanup(func() { editPackageFn, scheduledPackageAvailable = origEdit, origAvail })
 	dialByUser(t, map[string]remote.Client{}, nil)
 
 	out, err := executeIn(t, "", "--config", dir, "scheduled", "add", "--workspace", "bob", "--name", "x",
