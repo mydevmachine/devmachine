@@ -86,8 +86,10 @@ func (a *Ansible) Apply(ctx context.Context, plan packages.MachinePlan, opts Opt
 
 	if runErr != nil {
 		if failed, ok := readFailure(seen.String()); ok {
-			return result, fmt.Errorf("%d task(s) failed on %s, first %q: %s: %w",
-				max(result.Failed, 1), plan.Machine.Name, failed.Task, failed.Message, runErr)
+			return result, &TaskFailedError{
+				Count: max(result.Failed, 1), Machine: plan.Machine.Name,
+				Task: failed.Task, Message: failed.Message, Err: runErr,
+			}
 		}
 		if result.Failed > 0 {
 			return result, fmt.Errorf("%d task(s) failed on %s: %w", result.Failed, plan.Machine.Name, runErr)
@@ -96,6 +98,23 @@ func (a *Ansible) Apply(ctx context.Context, plan packages.MachinePlan, opts Opt
 	}
 	return result, nil
 }
+
+// TaskFailedError names the first task that failed. The run's own error is
+// kept for errors.Is but left out of the text: it repeats the whole shell
+// command, which buries the task and its message.
+type TaskFailedError struct {
+	Count   int
+	Machine string
+	Task    string
+	Message string
+	Err     error
+}
+
+func (e *TaskFailedError) Error() string {
+	return fmt.Sprintf("%d task(s) failed on %s, first %q: %s", e.Count, e.Machine, e.Task, e.Message)
+}
+
+func (e *TaskFailedError) Unwrap() error { return e.Err }
 
 // asRootUnlessSelf runs a command as root on a machine reached over SSH,
 // whatever account the admin login is. A self machine is the operator's own
