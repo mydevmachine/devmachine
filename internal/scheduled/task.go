@@ -13,6 +13,7 @@ import (
 	"github.com/mydevmachine/devmachine/internal/harness"
 )
 
+// How long a run may take: the default, and the most a task may ask for.
 const (
 	DefaultTimeout = 30 * time.Minute
 	MaxTimeout     = 6 * time.Hour
