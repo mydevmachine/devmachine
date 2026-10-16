@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -91,6 +92,13 @@ func TestLocateFailures(t *testing.T) {
 		if f == nil || f.Kind != c.kind {
 			t.Errorf("%s: failure = %+v, want %s", name, f, c.kind)
 		}
+	}
+}
+
+func TestLocateReadsTmuxInUTF8(t *testing.T) {
+	script := locateScript(Target{Session: "checkout"})
+	if !strings.Contains(script, "tmux -u display-message -p -t '=checkout:'") {
+		t.Fatalf("without -u a Mac's ssh login prints each tab as _:\n%s", script)
 	}
 }
 
