@@ -1,0 +1,34 @@
+internal/chat/locate.go
+  s_46e69727c17321::t_e916a1ef84c9c1 27-29,39-41,52,54,146,150-160,162-166,168-169,183-188,191,237,248-263,265
+  s_46e69727c17321::t_7295cefcaf4c6f 53,72-78,100-110,203,210-218,233-235
+internal/chat/excerpt.go
+  s_46e69727c17321::t_53412309e3ecb9 15-18
+internal/commands/chat_ask.go
+  s_46e69727c17321::t_7af56d10fc1c5a 129
+  s_46e69727c17321::t_e916a1ef84c9c1 120
+internal/chat/vps_test.go
+  s_46e69727c17321::t_53412309e3ecb9 108,115
+internal/chat/locate_test.go
+  s_46e69727c17321::t_664e5f5dd4e9fd 6,14
+  s_46e69727c17321::t_973899e3f6dd60 64-90
+  s_46e69727c17321::t_c12b1fe51334be 91-122
+  s_46e69727c17321::t_b113b61b32d8b6 5
+docs/how-it-works/chats.md
+  s_46e69727c17321::t_2227e36534aba2 129-135
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8eec588ce73300343c86561a6c420cc95a726c2e",
+  "prompts": {},
+  "sessions": {
+    "s_46e69727c17321": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "057eb95b-b600-40da-9c82-ac29c62bf791",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
