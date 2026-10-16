@@ -8,6 +8,25 @@ page](https://github.com/mydevmachine/devmachine/releases).
 
 To get the latest version, see [Upgrade](upgrade.md).
 
+## v0.16.0 — 2026-10-16
+
+### Added
+
+- `devmachine sync --workspace <name>` applies one workspace — its
+  packages, skills, shared logins, extensions and routes — on the machine it
+  lives on, and leaves the machine's own packages and the other workspaces
+  alone. On a machine with many workspaces it takes minutes instead of half
+  an hour. See [syncing one workspace](how-it-works/syncing-one-workspace.md).
+
+### Fixed
+
+- `scheduled` reports a setup that did not finish (the package is on the
+  workspace but its program is not on the machine) as `setup-incomplete`,
+  with the command that finishes it, instead of a raw shell error. `scheduled
+  add` finishes such a setup on its own.
+- A failed sync names the first task that failed and its message, without
+  repeating the whole shell command.
+
 ## App v0.7.0 — 2026-10-16
 
 Needs CLI v0.15.0 for chats and Ask, and packages v54 for the Ask widget.
