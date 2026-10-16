@@ -1,0 +1,21 @@
+docs/reference/app-keyboard-shortcuts.md
+  s_46e69727c17321::t_610b5f744d4351 1-86
+docs/index.md
+  s_46e69727c17321::t_aa569b4167517e 197-198
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b76066d2fe656e5259bd2d2d90bb8b05ee0d4574",
+  "prompts": {},
+  "sessions": {
+    "s_46e69727c17321": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "057eb95b-b600-40da-9c82-ac29c62bf791",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
