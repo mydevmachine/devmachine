@@ -8,9 +8,10 @@ import (
 	"testing"
 )
 
-// fakeClaude is a stand-in for the claude binary: it records its arguments
-// next to itself and prints a fixture stream, choosing it by FAKE_MODE in a
-// file beside it, so the test drives it without its environment.
+// claudeScript is a stand-in for the claude binary: it records its
+// arguments (and, for an ask, its stdin) next to itself and prints a fixture
+// stream, chosen by a mode file beside it, so a test drives it without its
+// environment. It echoes the message, or an ask prompt's last line.
 const claudeScript = `#!/bin/sh
 here=$(cd "$(dirname "$0")" && pwd)
 for a in "$@"; do printf '%s\n' "$a"; done > "$here/args.$$"
@@ -33,6 +34,7 @@ echo '{"type":"system","subtype":"init","session_id":"'$sid'","cwd":"'"$(pwd)"'"
 echo '{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"echo: "}},"parent_tool_use_id":null}'
 last=""
 for a in "$@"; do last="$a"; done
+if [ "$last" = "haiku" ]; then cat > "$here/stdin"; last=$(tail -n 1 "$here/stdin"); fi
 msg=$(printf '%s' "$last" | sed 's/\\/\\\\/g; s/"/\\"/g' | tr '\n' ' ')
 printf '%s\n' '{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"'"$msg"'"}},"parent_tool_use_id":null}'
 echo '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Read","input":{"file_path":"notes.md"}}]},"parent_tool_use_id":null}'
@@ -51,7 +53,13 @@ const codexScript = `#!/bin/sh
 here=$(cd "$(dirname "$0")" && pwd)
 for a in "$@"; do printf '%s\n' "$a"; done > "$here/args.$$"
 mv "$here/args.$$" "$here/args"
-if read -r line; then echo "stdin was open" >&2; exit 9; fi
+last=""
+for a in "$@"; do last="$a"; done
+if [ "$last" = "-" ]; then
+  cat > "$here/stdin"
+elif read -r line; then
+  echo "stdin was open" >&2; exit 9
+fi
 tid=0199aaaa-bbbb-7ccc-8ddd-000000000009
 prev=""
 for a in "$@"; do [ "$prev" = "resume" ] && tid="$a"; prev="$a"; done

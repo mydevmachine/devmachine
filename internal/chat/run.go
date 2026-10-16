@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -25,6 +26,9 @@ type Request struct {
 	// PathPrefix goes in front of PATH, for a machine whose package manager
 	// installs outside the default PATH.
 	PathPrefix []string
+	// Ask runs the harness's AskArgs with Message on stdin instead of in an
+	// argument, which an ask's context would outgrow.
+	Ask bool
 }
 
 // Outcome is how a run ended.
@@ -50,11 +54,30 @@ func Script(r Request) string {
 	name := quote(r.Harness.Name)
 	b.WriteString("command -v " + name + " >/dev/null 2>&1 || { echo " + missingSentinel + " >&2; exit 127; }\n")
 	b.WriteString("exec " + name)
-	for _, arg := range r.Harness.Args(r.Message, r.Resume, r.Fork) {
+	args := r.Harness.Args(r.Message, r.Resume, r.Fork)
+	if r.Ask {
+		args = r.Harness.AskArgs
+	}
+	for _, arg := range args {
 		b.WriteString(" " + quote(arg))
 	}
-	b.WriteString(" </dev/null\n")
+	if !r.Ask {
+		b.WriteString(" </dev/null\n")
+		return b.String()
+	}
+	end := hereDocEnd(r.Message)
+	b.WriteString(" <<'" + end + "'\n" + strings.TrimSuffix(r.Message, "\n") + "\n" + end + "\n")
 	return b.String()
+}
+
+// hereDocEnd is a here-document's last line that no line of body is.
+func hereDocEnd(body string) string {
+	for n := 1; ; n++ {
+		end := "DM_PROMPT_" + strconv.Itoa(n)
+		if !strings.Contains(body, end) {
+			return end
+		}
+	}
 }
 
 func quote(s string) string { return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'" }

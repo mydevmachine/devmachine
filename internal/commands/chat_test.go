@@ -334,71 +334,161 @@ func writeAged(t *testing.T, path, body string, age time.Duration) {
 	}
 }
 
-func TestChatAskForksAClaudeSessionAndLeavesItAlone(t *testing.T) {
-	env := newChatEnv(t, "")
-	project, _ := filepath.EvalSymlinks(t.TempDir())
-	transcript := filepath.Join(os.Getenv("HOME"), ".claude/projects", chat.ClaudeSlug(project), "44444444-aaaa-4bbb-8ccc-000000000001.jsonl")
-	body := `{"type":"user","cwd":"` + project + `","message":{"content":"change ChargeService"}}` + "\n"
-	writeAged(t, transcript, body, time.Minute)
+func appendTo(t *testing.T, path, line string) {
+	t.Helper()
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0o600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = f.Close() }()
+	if _, err := f.WriteString(line); err != nil {
+		t.Fatal(err)
+	}
+}
 
-	out, err := env.run(t, "chat", "ask", "--local", "--session", "checkout", "--folder", project, "--", "why?")
+func askOnce(t *testing.T, env chatEnv, args ...string) chat.Record {
+	t.Helper()
+	out, err := env.run(t, append([]string{"chat", "ask"}, args...)...)
 	if err != nil {
 		t.Fatal(err, out)
 	}
 	got := events(t, out)
-	done := got[len(got)-1].Chat
-	if done == nil || done.Kind != chat.KindAsk || done.Mode != chat.ModeFork || done.Session != "checkout" ||
-		done.SourceSessionID != "44444444-aaaa-4bbb-8ccc-000000000001" || done.HarnessSessionID != "33333333-aaaa-4bbb-8ccc-000000000001" || done.Harness != "claude" {
-		t.Fatalf("done = %+v", done)
+	if got[0].Type != chat.EventStarted || got[len(got)-1].Chat == nil {
+		t.Fatalf("events:\n%s", out)
+	}
+	return *got[len(got)-1].Chat
+}
+
+func claudeLine(project, role, text string) string {
+	return `{"type":"` + role + `","cwd":"` + project + `","message":{"role":"` + role + `","content":"` + text + `"}}` + "\n"
+}
+
+func TestChatAskReadsAClaudeSessionAndLeavesItAlone(t *testing.T) {
+	env := newChatEnv(t, "")
+	project, _ := filepath.EvalSymlinks(t.TempDir())
+	const source = "44444444-aaaa-4bbb-8ccc-000000000001"
+	transcript := filepath.Join(os.Getenv("HOME"), ".claude/projects", chat.ClaudeSlug(project), source+".jsonl")
+	body := claudeLine(project, "user", "change ChargeService")
+	writeAged(t, transcript, body, time.Minute)
+
+	rec := askOnce(t, env, "--local", "--session", "checkout", "--folder", project, "--", "why?")
+	if rec.Kind != chat.KindAsk || rec.Mode != chat.ModeTranscript || rec.Session != "checkout" || rec.SourceSessionID != source ||
+		rec.HarnessSessionID != "" || rec.Harness != "claude" || rec.Excerpts != 1 || rec.SessionFolder != project || rec.Folder != "~/chats" {
+		t.Fatalf("record = %+v", rec)
 	}
 	args := env.fake.Read(t, "args")
-	if !strings.Contains(args, "--resume\n44444444-aaaa-4bbb-8ccc-000000000001\n--fork-session\n") || !strings.Contains(args, "--permission-mode\nplan\n") {
-		t.Fatalf("args = %q", args)
+	for _, want := range []string{"--no-session-persistence\n", "--strict-mcp-config\n", "--tools\n\n", "--model\nhaiku\n"} {
+		if !strings.Contains(args, want) {
+			t.Errorf("args lack %q: %q", want, args)
+		}
 	}
-	if cwd := strings.TrimSpace(env.fake.Read(t, "cwd")); cwd != project {
-		t.Fatalf("fork ran in %q, want %q", cwd, project)
+	if strings.Contains(args, "--resume") || strings.Contains(args, "--fork-session") {
+		t.Fatalf("an ask resumed or forked: %q", args)
 	}
-	after, _ := os.ReadFile(transcript)
-	if string(after) != body {
+	if stdin := env.fake.Read(t, "stdin"); !strings.Contains(stdin, "[user] change ChargeService") || !strings.HasSuffix(stdin, "Question: why?\n") {
+		t.Fatalf("stdin = %q", stdin)
+	}
+	if after, _ := os.ReadFile(transcript); string(after) != body {
 		t.Fatal("the session's transcript changed")
 	}
-
-	if out, err = env.run(t, "chat", "ask", "--chat", done.ID, "--", "and then?"); err != nil {
-		t.Fatal(err, out)
-	}
-	args = env.fake.Read(t, "args")
-	if !strings.Contains(args, "--resume\n33333333-aaaa-4bbb-8ccc-000000000001\n") || strings.Contains(args, "--fork-session") {
-		t.Fatalf("follow-up args = %q", args)
-	}
-	if out, _ = env.run(t, "chat", "list"); strings.Contains(out, "why?") {
+	if out, _ := env.run(t, "chat", "list"); strings.Contains(out, "why?") {
 		t.Fatalf("an ask is listed:\n%s", out)
 	}
 }
 
-func TestChatAskReadsACodexTranscript(t *testing.T) {
+func TestChatAskSeesWhatTheSessionDidSince(t *testing.T) {
+	env := newChatEnv(t, "")
+	project, _ := filepath.EvalSymlinks(t.TempDir())
+	transcript := filepath.Join(os.Getenv("HOME"), ".claude/projects", chat.ClaudeSlug(project), "44444444-aaaa-4bbb-8ccc-000000000001.jsonl")
+	writeAged(t, transcript, claudeLine(project, "user", "change ChargeService"), time.Minute)
+
+	first := askOnce(t, env, "--local", "--session", "checkout", "--folder", project, "--", "why ChargeService?")
+	appendTo(t, transcript, claudeLine(project, "user", "remember KESTREL"))
+	askOnce(t, env, "--chat", first.ID, "--", "what new word?")
+
+	stdin := env.fake.Read(t, "stdin")
+	if !strings.Contains(stdin, "[user] remember KESTREL") {
+		t.Fatalf("the second ask does not see the new line: %q", stdin)
+	}
+	if !strings.Contains(stdin, "Earlier in this side conversation:\n\nQ: why ChargeService?\nA: echo: Question: why ChargeService?") {
+		t.Fatalf("the earlier questions are missing: %q", stdin)
+	}
+	out, _ := env.run(t, "chat", "show", first.ID, "--json")
+	var shown struct {
+		Messages []chat.Message `json:"messages"`
+	}
+	if err := json.Unmarshal([]byte(out), &shown); err != nil {
+		t.Fatal(err, out)
+	}
+	if len(shown.Messages) != 4 || shown.Messages[2].Text != "what new word?" {
+		t.Fatalf("the local copy holds the prompt, not the question: %+v", shown.Messages)
+	}
+}
+
+func TestChatAskFollowsANewSessionID(t *testing.T) {
+	env := newChatEnv(t, "")
+	project, _ := filepath.EvalSymlinks(t.TempDir())
+	dir := filepath.Join(os.Getenv("HOME"), ".claude/projects", chat.ClaudeSlug(project))
+	writeAged(t, filepath.Join(dir, "44444444-aaaa-4bbb-8ccc-000000000001.jsonl"), claudeLine(project, "user", "before the clear"), time.Hour)
+
+	first := askOnce(t, env, "--local", "--session", "checkout", "--folder", project, "--", "q1")
+	writeAged(t, filepath.Join(dir, "66666666-aaaa-4bbb-8ccc-000000000001.jsonl"), claudeLine(project, "user", "after the clear"), 0)
+	second := askOnce(t, env, "--chat", first.ID, "--", "q2")
+
+	if second.SourceSessionID != "66666666-aaaa-4bbb-8ccc-000000000001" {
+		t.Fatalf("source_session_id = %q", second.SourceSessionID)
+	}
+	if stdin := env.fake.Read(t, "stdin"); !strings.Contains(stdin, "after the clear") || strings.Contains(stdin, "before the clear") {
+		t.Fatalf("stdin = %q", stdin)
+	}
+}
+
+func TestChatAskRebuildsTheCodexContextEachTime(t *testing.T) {
 	env := newChatEnv(t, chatConfig)
 	dialHere(t, nil)
 	project, _ := filepath.EvalSymlinks(t.TempDir())
-	rollout := `{"type":"session_meta","payload":{"id":"0199-source","cwd":"` + project + `"}}` + "\n" +
-		`{"type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"refactor ChargeService"}]}}` + "\n"
-	writeAged(t, filepath.Join(os.Getenv("HOME"), ".codex/sessions/2026/10/15/rollout-x.jsonl"), rollout, time.Minute)
+	rollout := filepath.Join(os.Getenv("HOME"), ".codex/sessions/2026/10/16/rollout-y.jsonl")
+	writeAged(t, rollout, `{"type":"session_meta","payload":{"id":"0199-source","cwd":"`+project+`"}}`+"\n"+
+		`{"type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"first step"}]}}`+"\n", time.Minute)
 
-	out, err := env.run(t, "chat", "ask", "--workspace", "alice", "--session", "checkout", "--folder", project, "--harness", "codex", "--", "why ChargeService?")
+	first := askOnce(t, env, "--workspace", "alice", "--session", "s", "--folder", project, "--harness", "codex", "--", "what happened?")
+	if first.SourceSessionID != "0199-source" || first.Workspace != "alice" || first.Excerpts != 1 {
+		t.Fatalf("first = %+v", first)
+	}
+	appendTo(t, rollout, `{"type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"second step"}]}}`+"\n")
+	second := askOnce(t, env, "--chat", first.ID, "--folder", project, "--", "and since?")
+
+	args, stdin := env.fake.Read(t, "args"), env.fake.Read(t, "stdin")
+	if !strings.Contains(args, "--ephemeral\n--ignore-user-config\n") || strings.Contains(args, "\nresume\n") {
+		t.Fatalf("args = %q", args)
+	}
+	if !strings.Contains(stdin, "[user] second step") || !strings.Contains(stdin, "Q: what happened?\nA: codex says hi") {
+		t.Fatalf("stdin = %q", stdin)
+	}
+	if second.Excerpts != 2 || second.Mode != chat.ModeTranscript {
+		t.Fatalf("second = %+v", second)
+	}
+}
+
+func TestChatSendContinuesAnAskWithItsThread(t *testing.T) {
+	env := newChatEnv(t, "")
+	project, _ := filepath.EvalSymlinks(t.TempDir())
+	writeAged(t, filepath.Join(os.Getenv("HOME"), ".claude/projects", chat.ClaudeSlug(project), "s.jsonl"), claudeLine(project, "user", "x"), time.Minute)
+	rec := askOnce(t, env, "--local", "--session", "checkout", "--folder", project, "--", "why ChargeService?")
+
+	if out, err := env.run(t, "chat", "continue", rec.ID); err != nil {
+		t.Fatal(err, out)
+	}
+	out, err := env.run(t, "chat", "send", "--chat", rec.ID, "--", "go on")
 	if err != nil {
 		t.Fatal(err, out)
 	}
-	got := events(t, out)
-	done := got[len(got)-1].Chat
-	if done.Mode != chat.ModeTranscript || done.Excerpts != 1 || done.SourceSessionID != "0199-source" || done.Workspace != "alice" {
-		t.Fatalf("done = %+v", done)
-	}
 	args := env.fake.Read(t, "args")
-	if !strings.Contains(args, "[user] refactor ChargeService") || !strings.Contains(args, "Question: why ChargeService?") || !strings.Contains(args, "read-only") {
-		t.Fatalf("args = %q", args)
+	if !strings.Contains(args, "Earlier in this side conversation:\n\nQ: why ChargeService?") || strings.Contains(args, "--resume") {
+		t.Fatalf("the first send of a continued ask does not carry its thread: %q", args)
 	}
-	out, _ = env.run(t, "chat", "show", done.ID, "--json")
-	if strings.Contains(out, "<transcript>") {
-		t.Fatalf("the local copy holds the excerpt, not the question:\n%s", out)
+	if got := events(t, out); got[len(got)-1].Chat.HarnessSessionID == "" {
+		t.Fatalf("the continued chat keeps no session to resume: %+v", got[len(got)-1].Chat)
 	}
 }
 

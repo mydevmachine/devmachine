@@ -6,17 +6,17 @@ import (
 	"testing"
 )
 
-func rollout(t *testing.T) []byte {
+func fixture(t *testing.T, name string) []byte {
 	t.Helper()
-	body, err := os.ReadFile("testdata/codex-rollout.jsonl")
+	body, err := os.ReadFile("testdata/" + name)
 	if err != nil {
 		t.Fatal(err)
 	}
 	return body
 }
 
-func TestExcerptHoldsTheLastTurnsAndTheMatches(t *testing.T) {
-	e := BuildExcerpt(rollout(t), "/home/alice/acme-web", "Why did it change chargeservice?")
+func TestContextOfACodexRollout(t *testing.T) {
+	e := BuildContext(fixture(t, "codex-rollout.jsonl"), "codex", "/home/alice/acme-web", "", "Why did it change chargeservice?")
 	for _, want := range []string{
 		"The session ran in /home/alice/acme-web",
 		"[user] turn 2", "[assistant] answer 4",
@@ -43,24 +43,62 @@ func TestExcerptHoldsTheLastTurnsAndTheMatches(t *testing.T) {
 	}
 }
 
-func TestExcerptWithoutMatchesIsTheLastTurns(t *testing.T) {
-	e := BuildExcerpt(rollout(t), "/w", "zzzz?")
+func TestContextOfAClaudeTranscript(t *testing.T) {
+	e := BuildContext(fixture(t, "claude-session.jsonl"), "claude", "/home/alice/acme-web", "", "what changed in ChargeService?")
+	for _, want := range []string{
+		"[user] Make ChargeService round to cents",
+		"[assistant] I will look at ChargeService first.",
+		"[tool] Read app/charge_service.rb",
+		"[tool] Edit app/charge_service.rb",
+		"[assistant] ChargeService now rounds to cents.",
+		"[tool output] class ChargeService HUGE_START",
+	} {
+		if !strings.Contains(e.Prompt, want) {
+			t.Errorf("prompt is missing %q:\n%s", want, e.Prompt)
+		}
+	}
+	for _, unwanted := range []string{"secret reasoning", "sub-agent's private note", "<command-name>", "HUGE_END", "queue-operation"} {
+		if strings.Contains(e.Prompt, unwanted) {
+			t.Errorf("prompt holds %q:\n%s", unwanted, e.Prompt)
+		}
+	}
+}
+
+func TestContextReflectsWhatTheSessionDidSince(t *testing.T) {
+	body := fixture(t, "claude-session.jsonl")
+	before := BuildContext(body, "claude", "/w", "", "and now?")
+	body = append(body, []byte(`{"type":"user","message":{"role":"user","content":"remember KESTREL"}}`+"\n")...)
+	after := BuildContext(body, "claude", "/w", "", "and now?")
+	if strings.Contains(before.Prompt, "KESTREL") || !strings.Contains(after.Prompt, "[user] remember KESTREL") {
+		t.Fatalf("after = %s", after.Prompt)
+	}
+}
+
+func TestContextWithoutMatchesIsTheLastTurns(t *testing.T) {
+	e := BuildContext(fixture(t, "codex-rollout.jsonl"), "codex", "/w", "", "zzzz?")
 	if e.Count != 6 || strings.Contains(e.Prompt, "ChargeService") {
 		t.Fatalf("count = %d\n%s", e.Count, e.Prompt)
 	}
 }
 
-func TestExcerptStaysUnderItsSize(t *testing.T) {
+func TestContextStaysUnderItsSize(t *testing.T) {
 	var b strings.Builder
 	for range 200 {
-		b.WriteString(`{"type":"response_item","payload":{"type":"function_call_output","output":"needle ` + strings.Repeat("x", 3000) + `"}}` + "\n")
+		b.WriteString(`{"type":"response_item","payload":{"type":"message","role":"assistant","content":[{"text":"needle ` + strings.Repeat("x", 3000) + `"}]}}` + "\n")
 	}
-	e := BuildExcerpt([]byte(b.String()), "/w", "where is the needle")
-	if len(e.Prompt) > excerptTotalMax+1024 {
+	e := BuildContext([]byte(b.String()), "codex", "/w", "", "where is the needle")
+	if len(e.Prompt) > contextMax+2048 {
 		t.Fatalf("prompt is %d bytes", len(e.Prompt))
 	}
 	if e.Count == 0 {
 		t.Fatal("no excerpt taken")
+	}
+}
+
+func TestContextCarriesTheSideConversation(t *testing.T) {
+	e := BuildContext(fixture(t, "codex-rollout.jsonl"), "codex", "/w", "Earlier in this side conversation:\n\nQ: a\nA: b\n\n", "and now?")
+	if !strings.HasSuffix(e.Prompt, "</transcript>\n\nEarlier in this side conversation:\n\nQ: a\nA: b\n\nQuestion: and now?") {
+		t.Fatalf("prompt ends with %q", e.Prompt[len(e.Prompt)-120:])
 	}
 }
 

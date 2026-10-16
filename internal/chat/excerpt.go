@@ -10,19 +10,23 @@ import (
 	"unicode"
 )
 
-// The limits of the context block an ask on a Codex session sends.
+// The limits of the context an ask sends.
 const (
 	recentTurns     = 6
-	excerptUnitMax  = 2000
-	excerptTotalMax = 24 * 1024
+	unitMax         = 2000
+	toolOutputMax   = 400
+	contextMax      = 28 * 1024
 	TranscriptLimit = 8 * 1024 * 1024
 )
+
+const roleTool, roleToolOutput = "tool", "tool output"
 
 type unit struct {
 	role, text string
 }
 
-// Excerpt is the context block built from a Codex transcript.
+// Excerpt is the prompt an ask sends: the context built from the session's
+// transcript, the side conversation so far, and the question.
 type Excerpt struct {
 	Prompt string
 	// Count is how many pieces of the transcript went into the prompt.
@@ -37,29 +41,34 @@ var stopWords = map[string]bool{
 	"just": true, "than": true, "then": true, "some": true, "session": true, "doing": true,
 }
 
-// BuildExcerpt reads a Codex rollout and builds the prompt that asks the
-// question about it: the last turns, plus the lines that share a word with
-// the question, within a fixed size.
-func BuildExcerpt(rollout []byte, folder, question string) Excerpt {
-	units := rolloutUnits(rollout)
+// BuildContext reads a session's transcript, a claude jsonl or a codex
+// rollout, and builds the prompt that asks the question about it: the last
+// turns, plus the lines that share a word with the question, within a fixed
+// size. earlier, the side conversation so far, goes right before the
+// question.
+func BuildContext(transcript []byte, harness, folder, earlier, question string) Excerpt {
+	units := codexUnits(transcript)
+	if harness == Claude.Name {
+		units = claudeUnits(transcript)
+	}
 	chosen := map[int]bool{}
-	var turns []int
-	for i := len(units) - 1; i >= 0 && len(turns) < recentTurns; i-- {
-		if units[i].role == RoleUser || units[i].role == RoleAssistant {
-			turns = append(turns, i)
+	start, turns := len(units), 0
+	for start > 0 && turns < recentTurns {
+		start--
+		if units[start].role == RoleUser || units[start].role == RoleAssistant {
+			turns++
 		}
 	}
 	size := 0
-	take := func(i int) bool {
-		n := len(clip(units[i].text))
-		if size+n > excerptTotalMax {
-			return false
+	take := func(i int) {
+		n := len(units[i].text)
+		if size+n > contextMax {
+			return
 		}
 		chosen[i] = true
 		size += n
-		return true
 	}
-	for _, i := range turns {
+	for i := len(units) - 1; i >= start; i-- {
 		take(i)
 	}
 	words := keywords(question)
@@ -84,22 +93,23 @@ func BuildExcerpt(rollout []byte, folder, question string) Excerpt {
 	}
 
 	var b strings.Builder
-	fmt.Fprintf(&b, "Here is a coding session transcript excerpt. The session ran in %s. "+
-		"It is context only: answer the question about it, and do not continue the session's work.\n\n<transcript>\n", folder)
+	fmt.Fprintf(&b, "Here is an excerpt of a coding session's transcript. The session ran in %s. "+
+		"Answer the question from it; you have no tools, and you must not continue the session's work.\n\n<transcript>\n", folder)
 	count := 0
 	for i, u := range units {
 		if chosen[i] {
-			fmt.Fprintf(&b, "[%s] %s\n\n", u.role, clip(u.text))
+			fmt.Fprintf(&b, "[%s] %s\n\n", u.role, u.text)
 			count++
 		}
 	}
-	fmt.Fprintf(&b, "</transcript>\n\nQuestion: %s", question)
+	fmt.Fprintf(&b, "</transcript>\n\n%sQuestion: %s", earlier, question)
 	return Excerpt{Prompt: b.String(), Count: count}
 }
 
-func clip(s string) string {
-	if r := []rune(s); len(r) > excerptUnitMax {
-		return string(r[:excerptUnitMax]) + "…"
+func clip(s string, limit int) string {
+	s = strings.TrimSpace(s)
+	if r := []rune(s); len(r) > limit {
+		return string(r[:limit]) + "…"
 	}
 	return s
 }
@@ -131,6 +141,100 @@ func matchScore(text string, words []string) int {
 	return score
 }
 
+func eachLine(transcript []byte, read func([]byte)) {
+	scanner := bufio.NewScanner(bytes.NewReader(transcript))
+	scanner.Buffer(make([]byte, 0, 64*1024), 16*1024*1024)
+	for scanner.Scan() {
+		read(scanner.Bytes())
+	}
+}
+
+func appendUnit(units []unit, role, text string) []unit {
+	limit := unitMax
+	if role == roleToolOutput {
+		limit = toolOutputMax
+	}
+	if text = clip(text, limit); text == "" {
+		return units
+	}
+	return append(units, unit{role: role, text: text})
+}
+
+type claudeEntry struct {
+	Type        string `json:"type"`
+	IsSidechain bool   `json:"isSidechain"`
+	IsMeta      bool   `json:"isMeta"`
+	Cwd         string `json:"cwd"`
+	Message     struct {
+		Content json.RawMessage `json:"content"`
+	} `json:"message"`
+}
+
+type claudeBlock struct {
+	Type    string          `json:"type"`
+	Text    string          `json:"text"`
+	Name    string          `json:"name"`
+	Input   map[string]any  `json:"input"`
+	Content json.RawMessage `json:"content"`
+}
+
+func claudeUnits(transcript []byte) []unit {
+	var units []unit
+	cwd := ""
+	eachLine(transcript, func(line []byte) {
+		var e claudeEntry
+		if json.Unmarshal(line, &e) != nil || e.IsSidechain || e.IsMeta || (e.Type != "user" && e.Type != "assistant") {
+			return
+		}
+		if cwd == "" {
+			cwd = e.Cwd
+		}
+		var text string
+		if json.Unmarshal(e.Message.Content, &text) == nil {
+			if e.Type == "user" && !strings.HasPrefix(strings.TrimSpace(text), "<") {
+				units = appendUnit(units, RoleUser, text)
+			}
+			return
+		}
+		var blocks []claudeBlock
+		if json.Unmarshal(e.Message.Content, &blocks) != nil {
+			return
+		}
+		for _, block := range blocks {
+			switch block.Type {
+			case "text":
+				if e.Type == "user" && strings.HasPrefix(strings.TrimSpace(block.Text), "<") {
+					continue
+				}
+				units = appendUnit(units, e.Type, block.Text)
+			case "tool_use":
+				units = appendUnit(units, roleTool, strings.TrimSpace(block.Name+" "+toolSummary(block.Input, cwd)))
+			case "tool_result":
+				units = appendUnit(units, roleToolOutput, resultText(block.Content))
+			}
+		}
+	})
+	return units
+}
+
+func resultText(raw json.RawMessage) string {
+	var s string
+	if json.Unmarshal(raw, &s) == nil {
+		return s
+	}
+	var parts []struct {
+		Text string `json:"text"`
+	}
+	if json.Unmarshal(raw, &parts) != nil {
+		return ""
+	}
+	var texts []string
+	for _, p := range parts {
+		texts = append(texts, p.Text)
+	}
+	return strings.Join(texts, "\n")
+}
+
 type rolloutLine struct {
 	Type    string `json:"type"`
 	Payload struct {
@@ -146,38 +250,31 @@ type rolloutLine struct {
 	} `json:"payload"`
 }
 
-func rolloutUnits(rollout []byte) []unit {
+func codexUnits(rollout []byte) []unit {
 	var units []unit
-	scanner := bufio.NewScanner(bytes.NewReader(rollout))
-	scanner.Buffer(make([]byte, 0, 64*1024), 16*1024*1024)
-	for scanner.Scan() {
+	eachLine(rollout, func(raw []byte) {
 		var line rolloutLine
-		if json.Unmarshal(scanner.Bytes(), &line) != nil || line.Type != "response_item" {
-			continue
+		if json.Unmarshal(raw, &line) != nil || line.Type != "response_item" {
+			return
 		}
 		p := line.Payload
-		var role, text string
 		switch {
 		case p.Type == "message" && (p.Role == RoleUser || p.Role == RoleAssistant):
 			var parts []string
 			for _, c := range p.Content {
 				parts = append(parts, c.Text)
 			}
-			role, text = p.Role, strings.TrimSpace(strings.Join(parts, "\n"))
-			if role == RoleUser && strings.HasPrefix(text, "<") {
-				continue
+			text := strings.TrimSpace(strings.Join(parts, "\n"))
+			if p.Role == RoleUser && strings.HasPrefix(text, "<") {
+				return
 			}
+			units = appendUnit(units, p.Role, text)
 		case strings.HasSuffix(p.Type, "_call_output"):
-			role, text = "tool output", outputText(p.Output)
+			units = appendUnit(units, roleToolOutput, outputText(p.Output))
 		case strings.HasSuffix(p.Type, "_call"):
-			role, text = "tool", strings.TrimSpace(p.Name+" "+p.Arguments+p.Input)
-		default:
-			continue
+			units = appendUnit(units, roleTool, p.Name+" "+p.Arguments+p.Input)
 		}
-		if text != "" {
-			units = append(units, unit{role: role, text: text})
-		}
-	}
+	})
 	return units
 }
 
@@ -190,7 +287,7 @@ func outputText(raw json.RawMessage) string {
 		Output string `json:"output"`
 	}
 	if json.Unmarshal(raw, &v) == nil && v.Output != "" {
-		return strings.TrimSpace(v.Output)
+		return v.Output
 	}
-	return strings.TrimSpace(s)
+	return s
 }

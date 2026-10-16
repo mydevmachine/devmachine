@@ -89,16 +89,53 @@ It first finds the session's folder (from tmux, or `--folder`), the harness
 running there, and its newest transcript: the same signals the Context tab
 uses.
 
-- **claude: a fork.** It runs `claude --resume <session> --fork-session`.
-  The fork starts with the whole session in context and gets a new id; the
-  session's own transcript is not written to. Follow-up questions continue
-  the fork.
-- **codex: a transcript excerpt.** codex has no fork for a command run, so
-  the CLI reads the session's rollout file and sends a new read-only codex
-  an excerpt: the last six turns, plus the lines that share a word with the
-  question, up to 24 KB. The record's `excerpts` says how many pieces went
-  in. Follow-ups continue that new codex thread.
+Then, on every question, it reads that transcript as it is now (a claude
+`.jsonl`, or a codex rollout) and turns it into plain text: what you
+asked, what the agent answered, and one line per tool it used, with long
+tool output cut short and its private reasoning left out. From that it
+keeps the last six turns, plus the lines that share a word with the
+question, up to about 28 KB. The record's `excerpts` says how many pieces
+went in.
+
+Before the question it adds the earlier questions and answers of this ask,
+the last six or about 8 KB, so a follow-up such as "and the tests?" makes
+sense.
+
+That prompt goes on stdin to the session's own harness, set up to answer
+fast and touch nothing:
+
+- claude: `claude -p --strict-mcp-config --setting-sources project
+  --disable-slash-commands --tools "" --no-session-persistence --model
+  haiku`. No MCP server starts and no tool can run, and nothing is saved.
+- codex: `codex exec --ephemeral --ignore-user-config --sandbox read-only`.
+  It keeps its login but skips `config.toml`, so none of its MCP servers
+  start, and it saves no rollout.
+
+Each question also finds the session again. A claude session can move to
+a new id, after `/clear` for example, and the next question then reads the
+newest transcript, not the one the ask started with. `source_session_id`
+follows it.
+
+### Why not a fork
+
+The first version asked claude to fork the session (`claude --resume
+<session> --fork-session`) and resumed that fork for follow-ups. That had
+two problems:
+
+- A fork re-sends the whole session to the model on every question. On a
+  17 MB session that was 639,041 tokens of cache writes for one question:
+  slow, and a big bite of your usage limit.
+- A fork knows only what the session had done when it was made. Anything
+  the session did after the first question was invisible to every later
+  one.
+
+Reading the transcript again on each question fixes both. The answer
+comes from the part of the session that matters for the question, and it
+is always the session as it is now. A lean run answers a short question in
+about 2 to 3 seconds.
 
 Other harnesses get `harness-unsupported`. An ask is a chat with
 `kind: "ask"`, left out of `chat list` until `chat continue` makes it a
-chat of its own.
+chat of its own. The first message sent to a continued ask carries its
+earlier questions and answers, because an ask keeps no harness session to
+resume.

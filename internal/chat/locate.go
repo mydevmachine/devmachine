@@ -33,9 +33,6 @@ type Located struct {
 	Transcript string
 	// SessionID is the harness's own id for the session.
 	SessionID string
-	// RunFolder is where a fork must run for claude to find the session:
-	// the folder its transcript was written from.
-	RunFolder string
 }
 
 const (
@@ -44,7 +41,6 @@ const (
 	realSentinel      = "@@REAL@@"
 	psSentinel        = "@@PS@@"
 	claudeSentinel    = "@@CLAUDE@@"
-	claudeCwdSentinel = "@@CLAUDE_CWD@@"
 	codexSentinel     = "@@CODEX@@"
 	newestSentinel    = "@@NEWEST@@"
 )
@@ -112,15 +108,11 @@ func Locate(ctx context.Context, client remote.Client, t Target) (Located, *Fail
 		}
 		loc.Transcript = claudeFile
 		loc.SessionID = strings.TrimSuffix(path.Base(claudeFile), ".jsonl")
-		loc.RunFolder = loc.Folder
-		if cwd := recordedCwd(firstLine(found[claudeCwdSentinel])); cwd != "" {
-			loc.RunFolder = cwd
-		}
 	case "codex":
 		if codexFile == "" {
 			break
 		}
-		loc.Transcript, loc.RunFolder = codexFile, loc.Folder
+		loc.Transcript = codexFile
 		if len(codexLines) == 2 {
 			loc.SessionID = codexSessionID(codexLines[1])
 		}
@@ -202,7 +194,6 @@ func transcriptScript(folder, harness string, prefix []string) string {
 		slug := quote(ClaudeSlug(folder))
 		b.WriteString(`dm_claude=$(ls -t "$HOME"/.claude/projects/` + slug + `/*.jsonl "$HOME"/.claude/projects/` + slug + `-*/*.jsonl 2>/dev/null | head -n 1)` + "\n")
 		b.WriteString("echo " + claudeSentinel + "\n" + `printf '%s\n' "$dm_claude"` + "\n")
-		b.WriteString("echo " + claudeCwdSentinel + "\n" + `[ -n "$dm_claude" ] && grep -m 1 -o '"cwd":"[^"]*"' "$dm_claude"` + "\n")
 	}
 	if harness == "" || harness == "codex" {
 		needle := quote(`"cwd":` + jsonString(folder))
@@ -246,16 +237,6 @@ func splitSections(out string) map[string]string {
 func firstLine(s string) string {
 	line, _, _ := strings.Cut(s, "\n")
 	return strings.TrimSpace(line)
-}
-
-func recordedCwd(match string) string {
-	var v struct {
-		Cwd string `json:"cwd"`
-	}
-	if match == "" || json.Unmarshal([]byte("{"+match+"}"), &v) != nil {
-		return ""
-	}
-	return v.Cwd
 }
 
 func codexSessionID(firstLine string) string {

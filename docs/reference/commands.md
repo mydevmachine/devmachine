@@ -1300,7 +1300,9 @@ the tmux session on the workspace. For a session on this computer that is
 not in tmux, `--folder` gives the session's folder. `--harness` names the
 harness when the caller already knows it; otherwise it is read from the
 session. The first call creates an ask (`kind: "ask"`); `--chat` continues
-it.
+it. Every question reads the session's transcript again and runs the harness
+with no tools and nothing saved; see [asking about a
+session](../how-it-works/chats.md#asking-about-a-session).
 
 `send` and `ask` always print NDJSON, one object per line:
 
@@ -1345,9 +1347,11 @@ A record, as `started`, `done`, `list` and `show` print it:
 - `workspace` is `"local"` for this computer.
 - `harness_session_id` is empty until the harness answered once.
 - `title` is the first line of the first message, cut to 60 characters.
-- An ask adds `session`, `source_session_id` (the session's own id),
-  `mode` (`"fork"` for claude, `"transcript"` for codex) and, in transcript
-  mode, `excerpts`.
+- An ask adds `session`, `session_folder` (the session's folder),
+  `source_session_id` (the id of the transcript the last question read),
+  `mode` (`"transcript"`) and `excerpts` (how many pieces of the transcript
+  went into the last question). Its `harness_session_id` stays empty: an
+  ask keeps no harness session.
 
 `list --json` prints `{"chats": [...]}`, the most recently updated first,
 without asks unless `--all`. `show --json` prints `{"chat": {...},

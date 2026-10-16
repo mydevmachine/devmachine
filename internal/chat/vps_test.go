@@ -81,7 +81,7 @@ func TestSendAgainstTheTestMachine(t *testing.T) {
 	}
 }
 
-func TestAskForksASessionOnTheTestMachine(t *testing.T) {
+func TestAskReadsASessionOnTheTestMachine(t *testing.T) {
 	client := vpsClient(t)
 	ctx := context.Background()
 	if _, err := client.Run(ctx, "command -v tmux >/dev/null 2>&1"); err != nil {
@@ -93,7 +93,7 @@ func TestAskForksASessionOnTheTestMachine(t *testing.T) {
 	cleanup := "tmux kill-session -t dm-chat-ask 2>/dev/null; rm -rf /tmp/dm-ask-repo \"$HOME/.claude/projects/" + ClaudeSlug("/tmp/dm-ask-repo") + "\""
 	t.Cleanup(func() { _, _ = client.Run(context.Background(), cleanup+"; true") })
 	setup := "mkdir -p /tmp/dm-ask-repo \"$(dirname " + transcript + ")\" && " +
-		"printf '%s\\n' '{\"type\":\"user\",\"cwd\":\"/tmp/dm-ask-repo\"}' > " + transcript + " && " +
+		"printf '%s\\n' '{\"type\":\"user\",\"cwd\":\"/tmp/dm-ask-repo\",\"message\":{\"content\":\"rename the ChargeService\"}}' > " + transcript + " && " +
 		"{ tmux kill-session -t dm-chat-ask 2>/dev/null; true; } && " +
 		"{ for i in 1 2 3 4 5; do tmux new-session -d -s dm-chat-ask -c /tmp/dm-ask-repo && break; sleep 0.3; done; } && " +
 		"tmux has-session -t dm-chat-ask"
@@ -112,14 +112,23 @@ func TestAskForksASessionOnTheTestMachine(t *testing.T) {
 	if loc.Harness != "claude" || loc.SessionID != sid || loc.Folder != "/tmp/dm-ask-repo" {
 		t.Fatalf("loc = %+v", loc)
 	}
+	body, failure := ReadTranscript(ctx, client, loc.Transcript, TranscriptLimit)
+	if failure != nil {
+		t.Fatalf("ReadTranscript: %+v", failure)
+	}
+	prompt := BuildContext(body, loc.Harness, loc.Folder, "", "why ChargeService?").Prompt
 	out := Run(ctx, client, Request{
-		Harness: Claude, Folder: loc.RunFolder, Message: "why?", Resume: loc.SessionID, Fork: true, PathPrefix: []string{vpsFakeDir},
+		Harness: Claude, Folder: "~/dm-chat-test", Message: prompt, Ask: true, PathPrefix: []string{vpsFakeDir},
 	}, func(Event) {})
-	if out.Failure != nil || out.SessionID == sid {
+	t.Cleanup(func() { _, _ = client.Run(context.Background(), "rm -rf ~/dm-chat-test") })
+	if out.Failure != nil || out.Text != "echo: Question: why ChargeService?" {
 		t.Fatalf("out = %+v", out)
 	}
-	args, _ := client.Run(ctx, "cat "+vpsFakeDir+"/args")
-	if !strings.Contains(args, "--resume\n"+sid+"\n--fork-session\n") {
+	stdin, _ := client.Run(ctx, "cat "+vpsFakeDir+"/stdin")
+	if !strings.Contains(stdin, "[user] rename the ChargeService") {
+		t.Fatalf("stdin = %q", stdin)
+	}
+	if args, _ := client.Run(ctx, "cat "+vpsFakeDir+"/args"); !strings.Contains(args, "--no-session-persistence\n") || strings.Contains(args, "--resume") {
 		t.Fatalf("args = %q", args)
 	}
 	after, err := client.Run(ctx, "sha256sum "+transcript)

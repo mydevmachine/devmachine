@@ -9,9 +9,12 @@ import (
 
 // Harness is a coding CLI a chat talks through.
 type Harness struct {
-	Name   string
-	Args   func(message, resume string, fork bool) []string
-	parser func() parser
+	Name string
+	Args func(message, resume string, fork bool) []string
+	// AskArgs answer one prompt read from stdin, as fast as the harness
+	// starts: no tools, no MCP servers, nothing kept on disk.
+	AskArgs []string
+	parser  func() parser
 }
 
 type parser interface {
@@ -33,6 +36,9 @@ var Claude = Harness{
 		}
 		return append(args, "--", message)
 	},
+	AskArgs: []string{"-p", "--output-format", "stream-json", "--verbose", "--include-partial-messages",
+		"--strict-mcp-config", "--setting-sources", "project", "--disable-slash-commands", "--tools", "",
+		"--no-session-persistence", "--model", "haiku"},
 	parser: func() parser { return &claudeParser{} },
 }
 
@@ -46,7 +52,8 @@ var Codex = Harness{
 		}
 		return append(args, "--", message)
 	},
-	parser: func() parser { return &codexParser{} },
+	AskArgs: []string{"exec", "--json", "--ephemeral", "--ignore-user-config", "--skip-git-repo-check", "--sandbox", "read-only", "-"},
+	parser:  func() parser { return &codexParser{} },
 }
 
 // Lookup is the harness with this name.

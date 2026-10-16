@@ -76,6 +76,32 @@ func TestRunStreamsTheAnswer(t *testing.T) {
 	}
 }
 
+func TestAskScriptSendsThePromptOnStdin(t *testing.T) {
+	prompt := "line one\n'quoted' $HOME `x`\nDM_PROMPT\n"
+	script := Script(Request{Harness: Claude, Folder: "~/chats", Message: prompt, Ask: true})
+	if strings.Contains(script, "--resume") || !strings.Contains(script, "'--no-session-persistence'") {
+		t.Fatalf("script:\n%s", script)
+	}
+	if !strings.Contains(script, "<<'DM_PROMPT_1'\n"+prompt+"DM_PROMPT_1\n") {
+		t.Fatalf("the prompt is not a quoted here-document:\n%s", script)
+	}
+}
+
+func TestRunAskReadsThePromptFromStdin(t *testing.T) {
+	chattest.Isolate(t)
+	fake := chattest.Install(t)
+	prompt := "context with 'quotes' and $HOME\nQuestion: why?"
+	out := Run(context.Background(), localClient(t), Request{
+		Harness: Claude, Folder: t.TempDir(), Message: prompt, Ask: true, PathPrefix: []string{fake.Dir},
+	}, func(Event) {})
+	if out.Failure != nil {
+		t.Fatalf("failure = %+v", out.Failure)
+	}
+	if got := fake.Read(t, "stdin"); got != prompt+"\n" {
+		t.Fatalf("stdin = %q", got)
+	}
+}
+
 func TestRunResumesAndForks(t *testing.T) {
 	chattest.Isolate(t)
 	fake := chattest.Install(t)

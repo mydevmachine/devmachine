@@ -53,7 +53,7 @@ func TestLocateClaudePicksTheNewestTranscript(t *testing.T) {
 	if f != nil {
 		t.Fatal(f)
 	}
-	if loc.SessionID != "new-session" || loc.RunFolder != worktree || loc.Folder != project {
+	if loc.SessionID != "new-session" || loc.Folder != project || filepath.Base(filepath.Dir(loc.Transcript)) != slug+"--claude-worktrees-x" {
 		t.Fatalf("loc = %+v", loc)
 	}
 }

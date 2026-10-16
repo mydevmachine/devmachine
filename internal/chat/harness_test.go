@@ -71,6 +71,19 @@ func TestCodexArgs(t *testing.T) {
 	}
 }
 
+func TestAskArgsAreLeanAndTakeThePromptOnStdin(t *testing.T) {
+	wantClaude := []string{"-p", "--output-format", "stream-json", "--verbose", "--include-partial-messages",
+		"--strict-mcp-config", "--setting-sources", "project", "--disable-slash-commands", "--tools", "",
+		"--no-session-persistence", "--model", "haiku"}
+	if !reflect.DeepEqual(Claude.AskArgs, wantClaude) {
+		t.Errorf("claude = %q", Claude.AskArgs)
+	}
+	wantCodex := []string{"exec", "--json", "--ephemeral", "--ignore-user-config", "--skip-git-repo-check", "--sandbox", "read-only", "-"}
+	if !reflect.DeepEqual(Codex.AskArgs, wantCodex) {
+		t.Errorf("codex = %q", Codex.AskArgs)
+	}
+}
+
 func TestClaudeAnswer(t *testing.T) {
 	p := Claude.parser()
 	events := feedFixture(t, p, "claude-answer.jsonl")

@@ -26,7 +26,6 @@ const (
 
 // The modes of an ask.
 const (
-	ModeFork       = "fork"
 	ModeTranscript = "transcript"
 )
 
@@ -55,7 +54,10 @@ type Record struct {
 	Session          string    `json:"session,omitempty"`
 	SourceSessionID  string    `json:"source_session_id,omitempty"`
 	Mode             string    `json:"mode,omitempty"`
-	Excerpts         int       `json:"excerpts,omitempty"`
+	// SessionFolder is the session's own folder, where its transcript is
+	// looked for again on the next question.
+	SessionFolder string `json:"session_folder,omitempty"`
+	Excerpts      int    `json:"excerpts,omitempty"`
 }
 
 // Tool is one tool line of an answer.

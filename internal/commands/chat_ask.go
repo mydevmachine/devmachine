@@ -19,9 +19,10 @@ func newChatAskCmd(opts *options) *cobra.Command {
 	c := &cobra.Command{
 		Use:   "ask (--workspace W | --local) --session S [--chat ID] -- QUESTION",
 		Short: "Ask about a coding session without writing to it",
-		Long: "On a claude session it asks a fork of the session, so the answer has the session's whole " +
-			"context and the session itself is not changed. On a codex session it sends an excerpt of the " +
-			"session's transcript to a new read-only codex. The output is the same NDJSON as `chat send`.",
+		Long: "Every question reads the session's transcript as it is now and sends its latest turns, the " +
+			"lines that match the question and this ask's earlier questions to the session's harness, run " +
+			"with no tools and nothing kept. The session is never written to. The output is the same NDJSON " +
+			"as `chat send`.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			question, err := messageAfterDash(cmd, args, `devmachine chat ask --workspace alice --session checkout -- "why did it change ChargeService?"`)
 			if err != nil {
@@ -58,6 +59,10 @@ func newChatAskCmd(opts *options) *cobra.Command {
 					return err
 				}
 			}
+			messages, err := store.Messages(rec.ID)
+			if err != nil {
+				return err
+			}
 			s := chatSession{store: store, emit: chat.NewEmitter(cmd.OutOrStdout()), rec: rec}
 			if err := s.start(question); err != nil {
 				return err
@@ -67,23 +72,14 @@ func newChatAskCmd(opts *options) *cobra.Command {
 				return s.finish(chat.Outcome{Failure: failure})
 			}
 			defer client.Close()
-			if rec.HarnessSessionID != "" {
-				harness, err := chat.Lookup(rec.Harness)
-				if err != nil {
-					return s.finish(chat.Outcome{Failure: &chat.Failure{Kind: chat.KindHarnessUnsupported, Message: err.Error()}})
-				}
-				return s.finish(chat.Run(ctx, client, chat.Request{
-					Harness: harness, Folder: rec.Folder, Message: question,
-					Resume: rec.HarnessSessionID, PathPrefix: prefix,
-				}, s.relay))
+			target := chat.Target{Session: rec.Session, Folder: flags.folder, Harness: flags.harness, PathPrefix: prefix}
+			if target.Folder == "" && rec.Workspace == chat.LocalWorkspace {
+				target.Folder = rec.SessionFolder
 			}
-			folder := flags.folder
-			if folder == "" && rec.Workspace == chat.LocalWorkspace && rec.Folder != "" {
-				folder = rec.Folder
+			if target.Harness == "" {
+				target.Harness = rec.Harness
 			}
-			return firstAsk(ctx, &s, client, chat.Target{
-				Session: rec.Session, Folder: folder, Harness: flags.harness, PathPrefix: prefix,
-			}, question)
+			return askSession(ctx, &s, client, target, cfg.ChatFolder(), question, chat.Earlier(messages))
 		},
 	}
 	addChatTargetFlags(c, &flags)
@@ -103,7 +99,7 @@ func newAskRecord(cfg config.Config, flags chatTargetFlags, session, question st
 	}
 	rec := chat.Record{
 		Title: chat.Title(question), Harness: flags.harness, Workspace: chat.LocalWorkspace,
-		Folder: flags.folder, Kind: chat.KindAsk, Session: session,
+		Kind: chat.KindAsk, Session: session, SessionFolder: flags.folder, Mode: chat.ModeTranscript,
 	}
 	if flags.workspace != "" {
 		rec.Workspace = flags.workspace
@@ -114,7 +110,13 @@ func newAskRecord(cfg config.Config, flags chatTargetFlags, session, question st
 	return rec, nil
 }
 
-func firstAsk(ctx context.Context, s *chatSession, client remote.Client, target chat.Target, question string) error {
+// askSession answers from the session's transcript as it is now: it finds
+// the session again, reads its transcript, and sends the latest turns, the
+// lines that match the question and the side conversation so far to a harness
+// with no tools and nothing kept. A fork was tried first; it re-sent the
+// whole session on every question and stopped seeing what the session did
+// after it was made.
+func askSession(ctx context.Context, s *chatSession, client remote.Client, target chat.Target, runFolder, question, earlier string) error {
 	loc, failure := chat.Locate(ctx, client, target)
 	if failure != nil {
 		return s.finishWith(chat.Outcome{Failure: failure}, func(r *chat.Record) {
@@ -123,23 +125,18 @@ func firstAsk(ctx context.Context, s *chatSession, client remote.Client, target 
 			}
 		})
 	}
-	req := chat.Request{Message: question, PathPrefix: target.PathPrefix, Resume: loc.SessionID, Fork: true, Folder: loc.RunFolder}
-	mode, excerpts := chat.ModeFork, 0
-	if loc.Harness == chat.Codex.Name {
-		body, failure := chat.ReadTranscript(ctx, client, loc.Transcript, chat.TranscriptLimit)
-		if failure != nil {
-			return s.finish(chat.Outcome{Failure: failure})
-		}
-		excerpt := chat.BuildExcerpt(body, loc.Folder, question)
-		req = chat.Request{Message: excerpt.Prompt, PathPrefix: target.PathPrefix, Folder: loc.Folder}
-		mode, excerpts = chat.ModeTranscript, excerpt.Count
+	body, failure := chat.ReadTranscript(ctx, client, loc.Transcript, chat.TranscriptLimit)
+	if failure != nil {
+		return s.finish(chat.Outcome{Failure: failure})
 	}
-	req.Harness, _ = chat.Lookup(loc.Harness)
-	update := func(r *chat.Record) {
-		r.Harness, r.Folder, r.Mode, r.SourceSessionID, r.Excerpts = loc.Harness, req.Folder, mode, loc.SessionID, excerpts
-	}
-	if err := s.store.Update(s.rec.ID, update); err != nil {
-		return err
-	}
-	return s.finishWith(chat.Run(ctx, client, req, s.relay), update)
+	built := chat.BuildContext(body, loc.Harness, loc.Folder, earlier, question)
+	harness, _ := chat.Lookup(loc.Harness)
+	out := chat.Run(ctx, client, chat.Request{
+		Harness: harness, Folder: runFolder, Message: built.Prompt, Ask: true, PathPrefix: target.PathPrefix,
+	}, s.relay)
+	out.SessionID = ""
+	return s.finishWith(out, func(r *chat.Record) {
+		r.Harness, r.Folder, r.Mode, r.Excerpts = loc.Harness, runFolder, chat.ModeTranscript, built.Count
+		r.SourceSessionID, r.SessionFolder, r.HarnessSessionID = loc.SessionID, loc.Folder, ""
+	})
 }

@@ -99,6 +99,10 @@ func newChatSendCmd(opts *options) *cobra.Command {
 					return err
 				}
 			}
+			prompt, err := withThread(store, rec, message)
+			if err != nil {
+				return err
+			}
 			s := chatSession{store: store, emit: chat.NewEmitter(cmd.OutOrStdout()), rec: rec}
 			if err := s.start(message); err != nil {
 				return err
@@ -109,7 +113,7 @@ func newChatSendCmd(opts *options) *cobra.Command {
 			}
 			defer client.Close()
 			return s.finish(chat.Run(ctx, client, chat.Request{
-				Harness: harness, Folder: rec.Folder, Message: message,
+				Harness: harness, Folder: rec.Folder, Message: prompt,
 				Resume: rec.HarnessSessionID, PathPrefix: prefix,
 			}, s.relay))
 		},
@@ -119,6 +123,20 @@ func newChatSendCmd(opts *options) *cobra.Command {
 	c.Flags().StringVar(&chatID, "chat", "", "continue this conversation")
 	c.Flags().Bool("json", false, "accepted for symmetry: send always prints NDJSON")
 	return c
+}
+
+// withThread puts a conversation's earlier messages in front of a message
+// that has no harness session to resume: an ask continued as a chat, which
+// kept none.
+func withThread(store *chat.Store, rec chat.Record, message string) (string, error) {
+	if rec.HarnessSessionID != "" {
+		return message, nil
+	}
+	messages, err := store.Messages(rec.ID)
+	if err != nil {
+		return "", err
+	}
+	return chat.Earlier(messages) + message, nil
 }
 
 func addChatTargetFlags(c *cobra.Command, flags *chatTargetFlags) {
