@@ -1,0 +1,23 @@
+internal/scheduled/protocol.go
+  s_be9ca8cef925d9::t_afb59f932bf20f 1-12
+internal/scheduled/task.go
+  s_be9ca8cef925d9::t_2020176af11d79 1-174
+internal/scheduled/task_test.go
+  s_be9ca8cef925d9::t_dacdba8f5c2f22 1-102
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cb8c3390c5a3dc5b978afb20652d414f286edb22",
+  "prompts": {},
+  "sessions": {
+    "s_be9ca8cef925d9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9f277d6-7db0-48b4-8122-c76a3ca3c439",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
