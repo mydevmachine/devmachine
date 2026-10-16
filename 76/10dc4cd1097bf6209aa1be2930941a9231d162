@@ -1,0 +1,30 @@
+internal/commands/sessions_test.go
+  s_dafcbf2f785e6a::t_f4206c1db1ba34 101-122
+  s_dafcbf2f785e6a::t_37078d34555674 10
+internal/remote/mux.go
+  s_dafcbf2f785e6a::t_df570e197aa014 94-97,104-106
+internal/commands/sessions.go
+  s_dafcbf2f785e6a::t_df570e197aa014 20-22
+docs/how-it-works/session-indicators.md
+  s_dafcbf2f785e6a::t_784e0534a5a78d 16-30
+internal/remote/mux_test.go
+  s_dafcbf2f785e6a::t_f4206c1db1ba34 88-90
+docs/troubleshooting.md
+  s_dafcbf2f785e6a::t_784e0534a5a78d 46-56
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7610dc4cd1097bf6209aa1be2930941a9231d162",
+  "prompts": {},
+  "sessions": {
+    "s_dafcbf2f785e6a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f98ade08-d604-455c-8db9-c9e904dc7258",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
