@@ -3,6 +3,7 @@ package chat
 import (
 	"context"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -62,9 +63,13 @@ func TestWarmStopEndsTheTurnAndTheProcess(t *testing.T) {
 		t.Fatal(f)
 	}
 	stop := make(chan struct{})
-	time.AfterFunc(time.Second, func() { close(stop) })
+	var once sync.Once
 	started := time.Now()
-	out := w.Turn("hi", stop, func(Event) {})
+	out := w.Turn("hi", stop, func(e Event) {
+		if e.Type == EventStatus && e.Stage == StageWaiting {
+			once.Do(func() { close(stop) })
+		}
+	})
 	if out.Failure == nil || out.Failure.Kind != KindCancelled || out.SessionID == "" {
 		t.Fatalf("out = %+v", out)
 	}
