@@ -8,6 +8,56 @@ page](https://github.com/mydevmachine/devmachine/releases).
 
 To get the latest version, see [Upgrade](upgrade.md).
 
+## App v0.6.0 — 2026-10-16
+
+Needs CLI v0.14.0 and packages v53 for scheduled tasks. With an older CLI
+the Scheduled page asks you to update it.
+
+### Added
+
+- Scheduled: a page for tasks that run on their own in a workspace, on a
+  schedule, with this Mac off. A task runs a shell command, or a prompt for
+  Claude or Codex with the model and permission mode you pick, in the
+  folder you choose. Create, edit, pause, delete and Run now, with each
+  run's status and output. Open it from the clock in the sidebar, the menu
+  bar or the palette. The first task in a workspace sets it up for you. See
+  [scheduled tasks](how-it-works/scheduled-tasks.md).
+- Settings → Machines and the Packages picker show each machine's system,
+  and a package shows the systems it runs on; one that does not run on a
+  machine's system cannot be added to it.
+- The font size in Settings previews live while you move the slider.
+
+### Fixed
+
+- A workspace that was never synced is not asked for its sessions, and a
+  refused login pauses only that workspace, trying again a little later
+  each time.
+- Dropping files on the Files tree shows the upload card while it runs,
+  not only the notice at the end.
+- The sidebar's refresh button asks a machine that did not answer again,
+  instead of doing nothing.
+
+## v0.14.0 — 2026-10-16
+
+### Added
+
+- `devmachine scheduled`: tasks that run on their own in a workspace — a
+  shell command, or a prompt for Claude or Codex — once, hourly, daily, on
+  weekdays, weekly or monthly, in your timezone. `list`, `add`, `edit`,
+  `pause`, `resume`, `rm`, `run` (run now), `runs`, `log` and `harnesses`,
+  all with `--format json`. Each workspace runs its own tasks from one timer,
+  so they run with your computer off. The first `add` in a workspace sets up
+  the new `scheduled` package. See
+  [scheduled tasks](how-it-works/scheduled-tasks.md).
+
+### Fixed
+
+- `sessions` lists a Mac's tmux sessions when its ssh login sets no UTF-8
+  locale. Before, the list came back empty and the app closed the pane.
+- A shared ssh connection that died while the computer slept is dropped
+  after about 10 seconds, instead of making every command wait for minutes.
+- `sessions` reports a refused login as `login-refused`, not `unreachable`.
+
 ## App v0.5.0 — 2026-10-14
 
 Needs CLI v0.13.0 for the remote session indicators and packages v52 for
