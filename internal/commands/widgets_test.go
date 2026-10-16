@@ -318,7 +318,7 @@ func listCatalog(t *testing.T, dir string) widgets.Catalog {
 
 func TestWidgetsListReadsThePinnedRelease(t *testing.T) {
 	catalog := listCatalog(t, widgetConfig(t))
-	if catalog.Engine != "1.7" || catalog.PackagesRelease != "v40" || len(catalog.Problems) != 0 {
+	if catalog.Engine != "1.8" || catalog.PackagesRelease != "v40" || len(catalog.Problems) != 0 {
 		t.Fatalf("got %+v", catalog)
 	}
 	var names []string
@@ -1105,7 +1105,7 @@ func TestWidgetsAddToAMissingStackStartsFromTheDefaultBoard(t *testing.T) {
 	for _, w := range b.Widgets {
 		ids = append(ids, w.ID)
 	}
-	want := "shortcuts,usage,publish-port,monitors,shells,sub-agents,todo,pull-requests,links"
+	want := "shortcuts,usage,publish-port,monitors,shells,sub-agents,todo,pull-requests,links,ask"
 	if strings.Join(ids, ",") != want {
 		t.Fatalf("got %v", ids)
 	}
@@ -1233,7 +1233,7 @@ func TestWidgetsMoveOnAMissingStackUsesTheDefaultBoard(t *testing.T) {
 		t.Fatalf("%v\n%s", err, out)
 	}
 	b, _, _, err := widgets.ReadBoard(widgets.BoardPath(dir, "context-sidebar"))
-	if err != nil || len(b.Widgets) != 8 || b.Widgets[0].ID != "links" || b.Widgets[1].ID != "shortcuts" {
+	if err != nil || len(b.Widgets) != 9 || b.Widgets[0].ID != "links" || b.Widgets[1].ID != "shortcuts" {
 		t.Fatalf("%v %+v", err, b.Widgets)
 	}
 }
@@ -1317,7 +1317,7 @@ func TestWidgetsRemoveOnAMissingStackUsesTheDefaultBoard(t *testing.T) {
 		t.Fatalf("%v\n%s", err, out)
 	}
 	b, _, _, err := widgets.ReadBoard(widgets.BoardPath(dir, "context-sidebar"))
-	if err != nil || len(b.Widgets) != 7 || b.HasID("publish-port") {
+	if err != nil || len(b.Widgets) != 8 || b.HasID("publish-port") {
 		t.Fatalf("%v %+v", err, b.Widgets)
 	}
 }

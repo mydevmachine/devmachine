@@ -1,5 +1,5 @@
 {
-  "engine": "1.7",
+  "engine": "1.8",
   "layouts": ["canvas", "stack", "slot", "tabs"],
   "unit": 80,
   "snap": 8,
@@ -58,6 +58,7 @@
     "app/session-context": {"args": {}, "min_every": "5s", "context": {"session": "required"}, "returns": {
       "cwd": "path", "harness": "string?", "plan": "plan?", "prs": "list",
       "links": "list", "agents": "list", "monitors": "list", "shells": "list"}},
+    "app/session-ask": {"args": {}, "min_every": "5s", "context": {"session": "required"}, "returns": {"chat": "object?", "messages": "list"}},
     "app/shortcuts": {"args": {}, "min_every": "5s", "context": {"session": "required"}, "returns": {"shortcuts": "list"}},
     "app/publish-port": {"args": {}, "min_every": "5s", "returns": {"available": "bool"}},
     "app/brand": {"args": {}, "min_every": "5s", "returns": {"mark": "string"}},
@@ -91,6 +92,7 @@
     "app.todo": {"accepts": ["app/session-context"], "layouts": ["stack"], "grows": true},
     "app.pull-requests": {"accepts": ["app/session-context"], "layouts": ["stack"], "grows": true},
     "app.links": {"accepts": ["app/session-context"], "layouts": ["stack"], "grows": true},
+    "app.ask": {"accepts": ["app/session-ask"], "layouts": ["stack"], "grows": true},
     "app.brand": {"accepts": ["app/brand"], "layouts": ["slot"]},
     "app.pull-requests-panel": {"accepts": ["app/pull-requests-panel"], "layouts": ["tabs", "canvas", "stack"]},
     "app.usage-panel": {"accepts": ["app/usage-panel"], "layouts": ["tabs"]},

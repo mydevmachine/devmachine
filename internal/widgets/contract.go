@@ -9,7 +9,7 @@ import (
 )
 
 // Engine is the version of the contract this CLI implements.
-const Engine = "1.7"
+const Engine = "1.8"
 
 // LastEngineWithoutPackageProviders is the newest engine that cannot run a
 // package provider, so a widget reading one must refuse it.
@@ -279,7 +279,7 @@ type Contract struct {
 	Formats         map[string]int               `json:"formats"`
 }
 
-// CurrentContract returns engine 1.7, built fresh on every call so no caller
+// CurrentContract returns engine 1.8, built fresh on every call so no caller
 // can change what another one reads.
 func CurrentContract() Contract {
 	appProvider := func(args map[string]Arg, returns map[string]string) Provider {
@@ -378,6 +378,7 @@ func CurrentContract() Contract {
 				"cwd": "path", "harness": "string?", "plan": "plan?", "prs": "list",
 				"links": "list", "agents": "list", "monitors": "list", "shells": "list",
 			}),
+			"app/session-ask":        sessionProvider(map[string]string{"chat": "object?", "messages": "list"}),
 			"app/shortcuts":          sessionProvider(map[string]string{"shortcuts": "list"}),
 			"app/publish-port":       appProvider(map[string]Arg{}, map[string]string{"available": "bool"}),
 			"app/brand":              appProvider(map[string]Arg{}, map[string]string{"mark": "string"}),
@@ -412,6 +413,7 @@ func CurrentContract() Contract {
 			"app.todo":                stackView("app/session-context"),
 			"app.pull-requests":       stackView("app/session-context"),
 			"app.links":               stackView("app/session-context"),
+			"app.ask":                 stackView("app/session-ask"),
 			"app.brand":               {Accepts: []string{"app/brand"}, Layouts: []string{LayoutSlot}},
 			"app.pull-requests-panel": {Accepts: []string{"app/pull-requests-panel"}, Layouts: []string{LayoutTabs, LayoutCanvas, LayoutStack}},
 			"app.usage-panel":         {Accepts: []string{"app/usage-panel"}, Layouts: []string{LayoutTabs}},

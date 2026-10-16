@@ -235,6 +235,9 @@ widgets:
   - id: links
     type: devmachine-app/links
     size: auto
+  - id: ask
+    type: devmachine-app/ask
+    size: auto
 `
 
 const defaultMenubar = `format: 1

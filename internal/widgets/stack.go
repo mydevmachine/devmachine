@@ -80,7 +80,7 @@ const DefaultSidebarWidget = "devmachine-app/workspaces"
 
 // DefaultContextSidebar are the devmachine-app widgets of the default context
 // sidebar board, in the order the Context tab always showed its sections.
-var DefaultContextSidebar = []string{"shortcuts", "publish-port", "monitors", "shells", "sub-agents", "todo", "pull-requests", "links"}
+var DefaultContextSidebar = []string{"shortcuts", "publish-port", "monitors", "shells", "sub-agents", "todo", "pull-requests", "links", "ask"}
 
 // DefaultMenubar are the devmachine-app widgets of the default menu bar
 // title, left to right: the mark and the open pull request count it always

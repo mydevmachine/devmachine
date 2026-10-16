@@ -68,7 +68,9 @@ An area is a place in the app that holds widgets. There are five:
 - **The Context tab**, the first tab of the Context panel (the right-hand
   panel next to a session, with the tabs Context, Preview, Files, Git and
   Chat): a list too. Each of its sections (shortcuts, publish a port, monitors, shells,
-  sub-agents, to-do, pull requests, links) is one widget.
+  sub-agents, to-do, pull requests, links, ask) is one widget. Ask answers a
+  question about the session without typing into it; see
+  [chats](../how-it-works/chats.md#asking-about-a-session).
 - **The menu bar title**, at the top of the screen: up to three short
   widgets in a row, "❯_" and the number of open pull requests unless you
   change it.
