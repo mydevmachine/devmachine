@@ -2776,3 +2776,68 @@ agent is still working.
 **What to do:** Nothing is broken. Wait for the next change on the screen, or
 open the session to see what the agent does. See
 [session indicators](how-it-works/session-indicators.md).
+
+## "scheduled is not set up on …"
+
+**What it means:** The workspace has no `scheduled` package, or it is in your
+configuration but the machine has not been synced since. The timer that runs
+tasks and the devmachine it calls are not there yet.
+
+**What to do:** Add the task again with `--yes`, which sets up the package
+and syncs the machine first. Or do it by hand:
+`devmachine packages add scheduled --workspace <w> --yes`, then
+`devmachine sync --machine <m> --tags scheduled --yes`. See
+[scheduled tasks](how-it-works/scheduled-tasks.md).
+
+## "the devmachine on … is older than this one"
+
+**What it means:** The workspace runs an older devmachine than your computer,
+and it answers in a shape this one does not read. It happens after you update
+the CLI on your computer and before the machine is synced.
+
+**What to do:** `devmachine sync --machine <m> --tags scheduled`. The package
+installs the devmachine of the release your configuration pins.
+
+## A scheduled run ends with "claude is not installed for this account"
+
+**What it means:** The task's agent is not on the workspace's PATH. A
+scheduled prompt runs as the workspace's own account, so that account needs
+the agent, and its login.
+
+**What to do:** Add the agent's package to the workspace, `claude-code` or
+`codex`, sync, and log in once in a session there. Then press Run now, or
+`devmachine scheduled run <id> --workspace <w>`, to try again.
+
+## A scheduled run is `missed`
+
+**What it means:** The machine was off or asleep when the task was due. A run
+found more than two minutes late is recorded, not started. Nothing is wrong
+with the task.
+
+**What to do:** Nothing, or `devmachine scheduled run` to run it now. A task
+on a laptop that sleeps runs only while it is awake.
+
+## A scheduled run is `skipped`
+
+**What it means:** The task's previous run was still going when the next time
+came. Two runs of one task never go at once.
+
+**What to do:** Give the task a longer gap, or a shorter `--timeout` so a
+stuck run ends sooner.
+
+## A scheduled run fails with "folder … does not exist"
+
+**What it means:** The task's folder is not in the workspace any more, or was
+never there. `~` is the workspace's home, not your computer's.
+
+**What to do:** `devmachine scheduled edit <id> --workspace <w> --folder <f>`.
+
+## A scheduled prompt ran, succeeded, and did nothing
+
+**What it means:** The agent needed approval for a tool, and nobody was there
+to give it. With a mode that asks first, such as Claude's `manual`, the agent
+stops at the first tool it needs.
+
+**What to do:** Read what it said with `devmachine scheduled log`. Then pick a
+mode that lets it work, such as `acceptEdits` or `auto`:
+`devmachine scheduled edit <id> --workspace <w> --permission-mode acceptEdits`.

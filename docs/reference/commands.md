@@ -1133,6 +1133,126 @@ reads, and its shape is stable:
 See [session indicators](../how-it-works/session-indicators.md) for how
 `busy` and `attention` are decided.
 
+## scheduled
+
+```
+devmachine scheduled list [--workspace name]...
+devmachine scheduled add --workspace w --name n --folder f
+    (--command c | --harness h --prompt p [--model m] [--permission-mode x])
+    --every once|hourly|daily|weekdays|weekly|monthly
+    [--at HH:MM] [--minute M] [--weekday mon..sun] [--day D] [--date YYYY-MM-DD]
+    [--timezone zone] [--timeout 30m] [--allow-dangerous] [--yes]
+devmachine scheduled edit <id> --workspace w [any flag of add]
+devmachine scheduled pause|resume <id> --workspace w
+devmachine scheduled rm <id> --workspace w [--yes]
+devmachine scheduled run <id> --workspace w
+devmachine scheduled runs <id> --workspace w
+devmachine scheduled log <id> <run-id> --workspace w
+devmachine scheduled harnesses
+```
+
+A scheduled task runs a shell command, or a prompt for a coding agent, in a
+folder of a workspace, on a schedule. The workspace keeps and runs its own
+tasks, so they run with your computer off. See [scheduled
+tasks](../how-it-works/scheduled-tasks.md) for how.
+
+```
+devmachine scheduled add --workspace alice --name "Daily briefing" --folder ~/dev/app \
+  --harness claude --prompt "Summarize yesterday's commits" --every weekdays --at 09:00
+```
+
+- `--every` says how often, and which other flag it needs: `once` needs
+  `--date` and `--at`; `hourly` needs `--minute`; `daily` and `weekdays`
+  (Monday to Friday) need `--at`; `weekly` needs `--weekday` and `--at`;
+  `monthly` needs `--day` (1 to 31, a short month uses its last day) and
+  `--at`.
+- `--timezone` is the zone `--at` is in, such as `America/Sao_Paulo`. It
+  defaults to your computer's.
+- `--harness` is `claude` or `codex`. `--model` is passed to the agent as
+  written; empty means the agent's own default. `--permission-mode` takes the
+  agent's modes, listed by `scheduled harnesses`. A mode that never asks for
+  approval needs `--allow-dangerous`.
+- `--folder` may start with `~`, the workspace's home. It must exist when the
+  task runs.
+- `--timeout` stops a run after that long: 30 minutes by default, at most 6
+  hours.
+- The first task in a workspace without the `scheduled` package asks to set it
+  up: it adds the package to the workspace and runs `sync` for its machine,
+  then creates the task. `--yes` does that without asking.
+- `edit` changes only the flags you give. Changing `--command` or `--prompt`
+  switches what the task runs.
+- `pause` stops a task from running on its schedule; `run` still runs it.
+  `resume` refuses a one-off task that already ran; give it a new `--date`
+  with `edit`.
+- `run` starts the task now and prints the run's id at once. `runs` shows
+  when it ends, and `log` what it printed.
+- `rm` asks first, and deletes the task and the record of its runs.
+
+```
+WORKSPACE  ID        NAME            SCHEDULE           ACTION   NEXT              LAST
+alice      t_7f3a9c  Daily briefing  Weekdays at 09:00  claude   2026-10-16 09:00  succeeded 2026-10-15 09:00
+```
+
+With `--format json`, `list` prints what the macOS app reads:
+
+```json
+{
+  "workspaces": [
+    {
+      "name": "alice",
+      "machine": "main",
+      "installed": true,
+      "tasks": [
+        {
+          "version": 1,
+          "id": "t_7f3a9c",
+          "name": "Daily briefing",
+          "paused": false,
+          "done": false,
+          "folder": "~/dev/app",
+          "timeout": "30m",
+          "schedule": {"every": "weekdays", "at": "09:00", "timezone": "America/Sao_Paulo"},
+          "action": {"kind": "prompt", "harness": "claude", "prompt": "Summarize yesterday's commits"},
+          "created_at": "2026-10-15T12:00:00Z",
+          "updated_at": "2026-10-15T12:00:00Z",
+          "next_run_at": "2026-10-16T12:00:00Z",
+          "last_run": {
+            "id": "20261015T120000Z-ab12",
+            "task_id": "t_7f3a9c",
+            "status": "succeeded",
+            "trigger": "schedule",
+            "started_at": "2026-10-15T12:00:00Z",
+            "ended_at": "2026-10-15T12:01:10Z",
+            "duration_ms": 70000,
+            "exit_code": 0
+          }
+        }
+      ]
+    },
+    {"name": "bob", "machine": "main", "installed": false, "tasks": []}
+  ]
+}
+```
+
+- `installed` is whether the workspace has the `scheduled` package. A
+  workspace without it is not asked, and has no error.
+- `next_run_at` is `null` for a paused task and for a one-off task that is
+  `done`. `last_run` is `null` before the first run.
+- A run's `status` is `running`, `succeeded`, `failed`, `timeout`, `error`,
+  `missed` or `skipped`; `message` says why when it is not `succeeded`.
+- `error` appears only on a workspace that could not answer, and the command
+  still exits 0. `error.kind` is `unreachable`, `host-key-rejected`,
+  `login-refused`, `not-installed` (the package is in the configuration but
+  not on the machine yet), `outdated` (the workspace's devmachine is older
+  than yours), `not-configured` or `other`.
+
+The other commands print, with `--format json`: `add`, `edit`, `pause` and
+`resume` `{"workspace", "task"}`; `rm` `{"workspace", "removed"}`; `run`
+`{"workspace", "task", "run_id"}`; `runs` `{"workspace", "task", "runs"}`,
+newest first; `harnesses` `{"harnesses": [{"name", "package",
+"permission_modes", "dangerous", "models"}]}`. `log` prints the output as it
+is.
+
 ## ssh-proxy
 
 ```
