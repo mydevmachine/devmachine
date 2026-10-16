@@ -2900,3 +2900,11 @@ shows a tab. See [session indicators](how-it-works/session-indicators.md).
   runs in a folder other than the pane's.
 - **`harness-unsupported`** — the session runs a harness Ask cannot answer
   about yet. Ask works on claude and codex sessions.
+
+## The app shows no scroll bar, even with "Show scroll bars: Always"
+
+The macOS app always uses the thin scroll bar that shows only while you
+scroll, whatever System Settings → Appearance → "Show scroll bars" says. Its
+sidebars and panels are narrow, and the "Always" bar's track would take
+their width. Scroll with the trackpad, the mouse wheel or the keyboard; the
+bar appears while the list moves.
