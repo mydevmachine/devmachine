@@ -8,6 +8,7 @@ import (
 	osuser "os/user"
 	"path"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"sort"
 	"strings"
@@ -169,9 +170,11 @@ func hostVars(plan packages.MachinePlan) ([]byte, error) {
 	}
 	vars := struct {
 		Machine           string          `yaml:"devmachine_machine"`
+		CLIVersion        string          `yaml:"devmachine_cli_version,omitempty"`
 		Workspaces        []workspaceVars `yaml:"devmachine_workspaces"`
 		PasswordLoginKeep []string        `yaml:"devmachine_password_login_keep,omitempty"`
-	}{Machine: plan.Machine.Name, Workspaces: []workspaceVars{}, PasswordLoginKeep: plan.Machine.PasswordLoginKeep}
+	}{Machine: plan.Machine.Name, CLIVersion: releasedVersion(plan.CLIVersion),
+		Workspaces: []workspaceVars{}, PasswordLoginKeep: plan.Machine.PasswordLoginKeep}
 
 	for _, workspace := range plan.Workspaces {
 		vars.Workspaces = append(vars.Workspaces, workspaceVars{
@@ -204,6 +207,19 @@ func hostVars(plan packages.MachinePlan) ([]byte, error) {
 		return nil, fmt.Errorf("writing the host variables: %w", err)
 	}
 	return body.Bytes(), nil
+}
+
+var releasePattern = regexp.MustCompile(`^\d+\.\d+\.\d+$`)
+
+// releasedVersion is the CLI's version when it is a release a package can
+// download, such as the devmachine the scheduled package installs; a local
+// build has none, and the package falls back to the release it names.
+func releasedVersion(v string) string {
+	v = strings.TrimPrefix(v, "v")
+	if !releasePattern.MatchString(v) {
+		return ""
+	}
+	return v
 }
 
 // settingNodes names one package's settings the way its recipe already reads

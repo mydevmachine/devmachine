@@ -1180,7 +1180,8 @@ devmachine scheduled add --workspace alice --name "Daily briefing" --folder ~/de
   up: it adds the package to the workspace and runs `sync` for its machine,
   then creates the task. `--yes` does that without asking.
 - `edit` changes only the flags you give. Changing `--command` or `--prompt`
-  switches what the task runs.
+  switches what the task runs. Changing `--harness` drops the old agent's
+  model and permission mode, unless you give new ones.
 - `pause` stops a task from running on its schedule; `run` still runs it.
   `resume` refuses a one-off task that already ran; give it a new `--date`
   with `edit`.
