@@ -194,3 +194,13 @@ func TestScriptSeparatesTmuxFieldsWithTabs(t *testing.T) {
 		t.Error("Script() does not separate tmux fields with a tab")
 	}
 }
+
+func TestScriptAsksTmuxForUTF8WhateverTheLocale(t *testing.T) {
+	body := strings.TrimPrefix(Script(), "sh -c '")
+	for _, line := range strings.Split(body, "\n") {
+		calls := strings.Count(line, "tmux ") - strings.Count(line, "command -v tmux ")
+		if calls != strings.Count(line, "tmux -u ") {
+			t.Errorf("Script() line %q runs tmux without -u, which turns a tab into _ in a C locale", line)
+		}
+	}
+}

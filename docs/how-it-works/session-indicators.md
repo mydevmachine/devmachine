@@ -54,3 +54,10 @@ tmux clears the mark when you open the window.
 Age and busy use the clock of the machine that runs tmux, not the clock of your
 computer. The command reads that clock in the same call as the sessions. A
 computer whose clock is wrong still shows the right ages.
+
+## The list does not depend on the locale
+
+The command reads tmux's list with fields split by tabs. tmux prints a tab as
+`_` when the login has no UTF-8 locale, and an ssh login to a Mac sets none.
+So every tmux call asks for UTF-8 with `tmux -u`, whatever the locale. Without
+it, a Mac's workspace read as having no sessions at all.

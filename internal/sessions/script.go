@@ -21,18 +21,20 @@ var (
 
 // Script runs under sh because the account's login shell can be fish, which
 // reads none of it; the body holds no single quote so it stays one argument.
+// tmux -u: an ssh login with no UTF-8 locale (macOS sets none) makes tmux print
+// each tab as _, and every line then fails to parse.
 func Script() string {
 	body := strings.Join([]string{
 		"command -v tmux >/dev/null 2>&1 || { echo " + noTmuxSentinel + "; exit 0; }",
 		"echo " + nowSentinel + "; date +%s",
 		"echo " + sessionsSentinel,
-		`tmux list-sessions -F "` + sessionFormat + `" 2>/dev/null`,
+		`tmux -u list-sessions -F "` + sessionFormat + `" 2>/dev/null`,
 		"echo " + panesSentinel,
-		`tmux list-panes -a -F "` + paneFormat + `" 2>/dev/null`,
+		`tmux -u list-panes -a -F "` + paneFormat + `" 2>/dev/null`,
 		"echo " + psSentinel,
 		"ps -A -o pid=,ppid=,comm= 2>/dev/null",
 		"echo " + gitSentinel,
-		`tmux list-panes -a -F "#{pane_current_path}" 2>/dev/null | sort -u | while IFS= read -r p; do`,
+		`tmux -u list-panes -a -F "#{pane_current_path}" 2>/dev/null | sort -u | while IFS= read -r p; do`,
 		`  b=$(git -C "$p" symbolic-ref --short -q HEAD 2>/dev/null) || b=$(git -C "$p" rev-parse --short HEAD 2>/dev/null) || b=`,
 		`  printf "%s\t%s\n" "$p" "$b"`,
 		"done",
