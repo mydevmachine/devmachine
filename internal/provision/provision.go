@@ -39,7 +39,10 @@ type Provisioner interface {
 //
 // It is built from the plan rather than at the point of printing, so the table
 // a person reads and the JSON a script reads cannot say different things.
-func Summary(plan packages.MachinePlan) []string {
+//
+// A run narrowed to one workspace shows only that workspace.
+func Summary(full packages.MachinePlan) []string {
+	plan := runPlan(full)
 	var lines []string
 
 	if len(plan.OnMachine.Ordered) > 0 {
@@ -62,6 +65,9 @@ func Summary(plan packages.MachinePlan) []string {
 		}
 	}
 
+	if len(lines) == 0 && plan.OnlyWorkspace != "" {
+		return []string{fmt.Sprintf("workspace %s: nothing to apply", plan.OnlyWorkspace)}
+	}
 	if len(lines) == 0 {
 		return []string{fmt.Sprintf("machine %s: nothing to apply", plan.Machine.Name)}
 	}

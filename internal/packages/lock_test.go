@@ -278,3 +278,74 @@ func TestATaggedRunKeepsTrackingTheExtensionsItDidNotRemove(t *testing.T) {
 		t.Fatalf("extensions %#v, want %#v", got.Extensions["main"], want)
 	}
 }
+
+func TestAOneWorkspaceRunLocksOnlyThatWorkspace(t *testing.T) {
+	previous := Lock{}.WithPlan(planWith("main", []string{"base"}, map[string][]string{"alice": {"zsh"}, "bob": {"zsh"}}),
+		storeStub("v1", "old"), time.Now(), nil)
+	plan := planWith("main", []string{"base", "caddy"}, map[string][]string{
+		"alice": {"zsh", "claude-code"},
+		"bob":   {"zsh", "claude-code"},
+	})
+	plan.OnlyWorkspace = "alice"
+
+	got := previous.WithPlan(plan, storeStub("v2", "new"), time.Now(), nil)
+
+	if names := lockEntryNames(got.Machines["main"]); !reflect.DeepEqual(names, []string{"base"}) || got.Machines["main"][0].Version != "v1" {
+		t.Fatalf("the machine's entries changed although its packages did not run: %#v", got.Machines["main"])
+	}
+	if names := lockEntryNames(got.Workspaces["alice"]); !reflect.DeepEqual(names, []string{"zsh", "claude-code"}) {
+		t.Fatalf("alice entries %v", names)
+	}
+	if got.Workspaces["alice"][1].Version != "v2" {
+		t.Fatalf("alice's claude-code claims %q, want v2", got.Workspaces["alice"][1].Version)
+	}
+	if names := lockEntryNames(got.Workspaces["bob"]); !reflect.DeepEqual(names, []string{"zsh"}) || got.Workspaces["bob"][0].Version != "v1" {
+		t.Fatalf("bob's entries changed although nothing ran for him: %#v", got.Workspaces["bob"])
+	}
+}
+
+func TestAOneWorkspaceRunWithTagsLocksOnlyTheTaggedPackagesOfThatWorkspace(t *testing.T) {
+	previous := Lock{}.WithPlan(planWith("main", nil, map[string][]string{"alice": {"zsh"}, "bob": {"zsh"}}),
+		storeStub("v1", "old"), time.Now(), nil)
+	plan := planWith("main", nil, map[string][]string{"alice": {"zsh", "claude-code"}, "bob": {"zsh", "claude-code"}})
+	plan.OnlyWorkspace = "alice"
+
+	got := previous.WithPlan(plan, storeStub("v2", "new"), time.Now(), []string{"claude-code"})
+
+	if names := lockEntryNames(got.Workspaces["alice"]); !reflect.DeepEqual(names, []string{"zsh", "claude-code"}) || got.Workspaces["alice"][0].Version != "v1" {
+		t.Fatalf("alice entries %#v", got.Workspaces["alice"])
+	}
+	if names := lockEntryNames(got.Workspaces["bob"]); !reflect.DeepEqual(names, []string{"zsh"}) {
+		t.Fatalf("bob entries %v", names)
+	}
+}
+
+func TestAOneWorkspaceRunKeepsEveryOtherExtensionTracked(t *testing.T) {
+	previous := Lock{Extensions: map[string][]string{"main": {"/etc/caddy/sites.d/bob-sharing-sharing.caddy"}}}
+	plan := planWithExtensions("main", []Extension{
+		{From: "sharing", Target: "alice", Into: "/etc/caddy/sites.d", Source: "files/sharing.caddy", Scope: ScopeWorkspace},
+		{From: "sharing", Target: "bob", Into: "/etc/caddy/sites.d", Source: "files/sharing.caddy", Scope: ScopeWorkspace},
+		{From: "other", Target: "main", Into: "/etc/caddy/sites.d", Source: "files/site.caddy", Scope: ScopeMachine},
+	})
+	plan.OnlyWorkspace = "alice"
+
+	got := previous.WithPlan(plan, storeStub("v2", "new"), time.Now(), nil)
+
+	want := []string{"/etc/caddy/sites.d/alice-sharing-sharing.caddy", "/etc/caddy/sites.d/bob-sharing-sharing.caddy"}
+	if !reflect.DeepEqual(got.Extensions["main"], want) {
+		t.Fatalf("extensions %#v, want %#v", got.Extensions["main"], want)
+	}
+}
+
+func TestAOneWorkspaceRunDropsAPackageThatWorkspaceNoLongerHas(t *testing.T) {
+	previous := Lock{}.WithPlan(planWith("main", nil, map[string][]string{"alice": {"zsh", "claude-code"}}),
+		storeStub("v1", "old"), time.Now(), nil)
+	plan := planWith("main", nil, map[string][]string{"alice": {"zsh"}})
+	plan.OnlyWorkspace = "alice"
+
+	got := previous.WithPlan(plan, storeStub("v2", "new"), time.Now(), nil)
+
+	if names := lockEntryNames(got.Workspaces["alice"]); !reflect.DeepEqual(names, []string{"zsh"}) {
+		t.Fatalf("alice entries %v, want only zsh", names)
+	}
+}

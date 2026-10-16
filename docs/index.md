@@ -146,6 +146,8 @@ these when something behaves in a way that surprises you.
   — why `expose` writes to your configuration, not straight to the server.
 - [What sync removes](how-it-works/what-sync-removes.md) — what `sync` cleans
   up, and what it leaves alone.
+- [Syncing one workspace](how-it-works/syncing-one-workspace.md) — what
+  `sync --workspace` runs, what it leaves alone, and why it removes no file.
 - [One sync per machine](how-it-works/one-sync-per-machine.md) — why a
   second `sync` on the same machine stops, and how the lock clears itself.
 - [How an upload lands](how-it-works/uploads.md) — why `upload` renames

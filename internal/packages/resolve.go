@@ -88,6 +88,39 @@ type MachinePlan struct {
 	// CLIVersion is the version of the CLI that resolved the plan, which a
 	// package can install on the machine to match it.
 	CLIVersion string
+	// OnlyWorkspace narrows a run to one workspace: its packages, its
+	// routes and its extensions, and nothing that belongs to the machine or
+	// to another workspace. Empty means the whole machine.
+	OnlyWorkspace string
+}
+
+// RunWorkspaces is the workspaces a run applies to: every one on the
+// machine, or the one OnlyWorkspace names.
+func (p MachinePlan) RunWorkspaces() []Resolved {
+	if p.OnlyWorkspace == "" {
+		return p.Workspaces
+	}
+	for _, w := range p.Workspaces {
+		if w.Target.Name == p.OnlyWorkspace {
+			return []Resolved{w}
+		}
+	}
+	return nil
+}
+
+// RunExtensions is the extensions a run writes: every one, or only those of
+// the workspace OnlyWorkspace names.
+func (p MachinePlan) RunExtensions() []Extension {
+	if p.OnlyWorkspace == "" {
+		return p.Extensions
+	}
+	var out []Extension
+	for _, e := range p.Extensions {
+		if e.Scope == ScopeWorkspace && e.Target == p.OnlyWorkspace {
+			out = append(out, e)
+		}
+	}
+	return out
 }
 
 // Route is a workspace's port answering to a public host.

@@ -32,6 +32,15 @@ the file as `ssh_aliases_path`, empties the block it had left in
 `~/.ssh/config`, and every later change — a new workspace, a new machine —
 is written there.
 
+## "workspace X lives on Y, not Z"
+
+**What it means:** `sync --workspace X --machine Z` names two things that
+do not match: the configuration puts workspace X on machine Y. The sync
+stops before it connects, so nothing changed on either machine.
+
+**What to do:** Drop `--machine`. `sync --workspace` finds the machine
+the workspace lives on by itself.
+
 ## "several machines are configured: say which one with --machine"
 
 **What it means:** You have more than one server configured, and this command

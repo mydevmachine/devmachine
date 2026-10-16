@@ -80,7 +80,8 @@ func LoadLock(configDir string) (Lock, error) {
 //
 // A run narrowed by tags only ran the packages it named, so only those are
 // recorded; every other entry, and every extension it did not write, stays
-// as the last full run left it.
+// as the last full run left it. A run narrowed to one workspace works the
+// same way: the machine and every other workspace keep their entries.
 func (l Lock) WithPlan(plan MachinePlan, store *Store, now time.Time, tags []string) Lock {
 	out := Lock{
 		Release:    store.Version(),
@@ -99,7 +100,7 @@ func (l Lock) WithPlan(plan MachinePlan, store *Store, now time.Time, tags []str
 		out.Extensions = map[string][]string{}
 	}
 
-	if len(tags) == 0 {
+	if len(tags) == 0 && plan.OnlyWorkspace == "" {
 		out.Machines[plan.Machine.Name] = lockEntries(plan.OnMachine.Ordered, store)
 		for _, w := range plan.Workspaces {
 			out.Workspaces[w.Target.Name] = lockEntries(w.Ordered, store)
@@ -108,17 +109,21 @@ func (l Lock) WithPlan(plan MachinePlan, store *Store, now time.Time, tags []str
 		return out
 	}
 
-	tagged := func(name string) bool { return slices.Contains(tags, name) }
-	if entries, ran := taggedEntries(l.Machines[plan.Machine.Name], plan.OnMachine.Ordered, store, tagged); ran {
-		out.Machines[plan.Machine.Name] = entries
+	tagged := func(name string) bool { return len(tags) == 0 || slices.Contains(tags, name) }
+	if plan.OnlyWorkspace == "" {
+		if entries, ran := taggedEntries(l.Machines[plan.Machine.Name], plan.OnMachine.Ordered, store, tagged); ran {
+			out.Machines[plan.Machine.Name] = entries
+		}
 	}
-	for _, w := range plan.Workspaces {
-		if entries, ran := taggedEntries(l.Workspaces[w.Target.Name], w.Ordered, store, tagged); ran {
+	for _, w := range plan.RunWorkspaces() {
+		if len(tags) == 0 {
+			out.Workspaces[w.Target.Name] = lockEntries(w.Ordered, store)
+		} else if entries, ran := taggedEntries(l.Workspaces[w.Target.Name], w.Ordered, store, tagged); ran {
 			out.Workspaces[w.Target.Name] = entries
 		}
 	}
 	var written []Extension
-	for _, e := range plan.Extensions {
+	for _, e := range plan.RunExtensions() {
 		if tagged(e.From) {
 			written = append(written, e)
 		}

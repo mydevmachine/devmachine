@@ -325,7 +325,7 @@ func TestScheduledAddInstallsOnFirstUse(t *testing.T) {
 		order = append(order, fmt.Sprintf("edit %s %s %v %v", name, workspace, add, yes))
 		return nil
 	}
-	runSyncFn = func(_ *cobra.Command, o *options, _, yes bool, tags []string) error {
+	runSyncFn = func(_ *cobra.Command, o *options, _, yes bool, tags []string, _ string) error {
 		order = append(order, fmt.Sprintf("sync %s %v %v", o.machine, yes, tags))
 		return nil
 	}
@@ -444,7 +444,7 @@ func stubScheduledSetup(t *testing.T, order *[]string, syncErr error) {
 		*order = append(*order, fmt.Sprintf("edit %s %s %v %v", name, workspace, add, yes))
 		return nil
 	}
-	runSyncFn = func(_ *cobra.Command, o *options, _, yes bool, tags []string) error {
+	runSyncFn = func(_ *cobra.Command, o *options, _, yes bool, tags []string, _ string) error {
 		*order = append(*order, fmt.Sprintf("sync %s %v %v", o.machine, yes, tags))
 		return syncErr
 	}
