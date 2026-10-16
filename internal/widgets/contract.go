@@ -2,7 +2,11 @@
 // the engine contract, widget.yml files shipped in packages, and boards.
 package widgets
 
-import "slices"
+import (
+	"slices"
+
+	"github.com/mydevmachine/devmachine/internal/harness"
+)
 
 // Engine is the version of the contract this CLI implements.
 const Engine = "1.7"
@@ -483,15 +487,12 @@ func CurrentContract() Contract {
 				"parse":   {Type: FieldEnum, Values: []string{ParseStatus, ParseText, ParseJSON}, Default: ParseStatus},
 			}},
 			SourcePrompt: {MinEvery: "5m", Approval: true, Fields: map[string]Field{
-				"harness": {Type: FieldEnum, Values: []string{"claude", "codex"}, Required: true},
-				"permission_mode": {Type: FieldEnumByHarness, ByHarness: map[string][]string{
-					"claude": {"manual", "dontAsk", "plan", "acceptEdits", "auto", "bypassPermissions"},
-					"codex":  {"read-only", "workspace-write", "danger-full-access", "approve-for-me", "dangerously-bypass-approvals-and-sandbox"},
-				}, Dangerous: []string{"bypassPermissions", "danger-full-access", "dangerously-bypass-approvals-and-sandbox"}},
-				"prompt":  {Type: FieldString, Required: true},
-				"target":  target,
-				"every":   {Type: FieldEvery, Default: EveryManual},
-				"timeout": timeout("5m"),
+				"harness":         {Type: FieldEnum, Values: harness.Names(), Required: true},
+				"permission_mode": {Type: FieldEnumByHarness, ByHarness: harness.ModesByHarness(), Dangerous: harness.AllDangerous()},
+				"prompt":          {Type: FieldString, Required: true},
+				"target":          target,
+				"every":           {Type: FieldEvery, Default: EveryManual},
+				"timeout":         timeout("5m"),
 			}},
 			SourceSession: {MinEvery: "2s", Approval: true, Fields: map[string]Field{
 				"target":  target,
