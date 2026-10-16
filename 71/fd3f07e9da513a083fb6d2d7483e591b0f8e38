@@ -1,0 +1,29 @@
+internal/packages/resolve.go
+  s_be9ca8cef925d9::t_91763fb277a971 88-90,110
+internal/provision/testdata/generate/host_vars/devmachine.yml
+  s_be9ca8cef925d9::t_e8a7059baf2292 4
+docs/reference/commands.md
+  s_be9ca8cef925d9::t_0ed232f73b6daa 1183-1184
+internal/provision/ansible_test.go
+  s_be9ca8cef925d9::t_bd4d2fb687173b 333-348
+internal/provision/ansible.go
+  s_be9ca8cef925d9::t_ca1d1f6eb51540 11
+  s_be9ca8cef925d9::t_ccadd496d7e8b9 173,176-177
+  s_be9ca8cef925d9::t_9cc6de6cfe5688 212-224
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "71fd3f07e9da513a083fb6d2d7483e591b0f8e38",
+  "prompts": {},
+  "sessions": {
+    "s_be9ca8cef925d9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9f277d6-7db0-48b4-8122-c76a3ca3c439",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
