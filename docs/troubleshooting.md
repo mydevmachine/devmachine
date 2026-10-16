@@ -2776,3 +2776,17 @@ agent is still working.
 **What to do:** Nothing is broken. Wait for the next change on the screen, or
 open the session to see what the agent does. See
 [session indicators](how-it-works/session-indicators.md).
+
+## "A session vanishes from the app about 30 seconds after you open it"
+
+**What it means:** `devmachine sessions` read the workspace as having no
+sessions, while tmux still runs them. Up to CLI v0.13.0 this happened on a machine
+whose ssh login sets no UTF-8 locale, which is every Mac: tmux then prints each
+tab in its list as `_`, and no line could be read. The app keeps a new session
+on screen for 30 seconds, then trusts the empty list and closes the pane. The
+session and what runs in it are untouched on the machine.
+
+**What to do:** Update the CLI to the first release after v0.13.0. To check a machine by hand,
+compare `LC_ALL=C tmux list-sessions -F '#{session_name}<Tab>#{session_windows}'`
+with the same command under `tmux -u`; the first shows `_` where the second
+shows a tab. See [session indicators](how-it-works/session-indicators.md).
