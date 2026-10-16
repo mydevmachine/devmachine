@@ -119,6 +119,7 @@ func collectScheduled(ctx context.Context, cfg config.Config, names []string) []
 			}
 			if err := callWorkspace(ctx, cfg, w, scheduledListTimeout, []string{"list"}, nil, &reply); err != nil {
 				found[i].Error = asScheduledError(err)
+				found[i].Installed = found[i].Error.Kind != "setup-incomplete"
 				return
 			}
 			if reply.Tasks != nil {
@@ -343,6 +344,13 @@ func newScheduledAddCmd(opts *options) *cobra.Command {
 				}
 			}
 			created, err := putTask(cmd, cfg, w, t, f.allowDangerous)
+			var se *scheduledError
+			if errors.As(err, &se) && se.Kind == "setup-incomplete" {
+				if cfg, w, err = installScheduled(cmd, opts, cfg, w, f.yes); err != nil {
+					return err
+				}
+				created, err = putTask(cmd, cfg, w, t, f.allowDangerous)
+			}
 			if err != nil {
 				return err
 			}

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -121,7 +122,8 @@ func TestScheduledListErrorKinds(t *testing.T) {
 	}{
 		{"unreachable", context.DeadlineExceeded, nil, "unreachable"},
 		{"login refused", remote.ErrAuthRefused, nil, "login-refused"},
-		{"binary missing", nil, &scheduledFake{reply: func(string) (string, error) { return "", exitCodeErr(127) }}, "not-installed"},
+		{"binary missing", nil, &scheduledFake{reply: func(string) (string, error) { return "", exitCodeErr(127) }}, "setup-incomplete"},
+		{"binary missing, bash's exec", nil, &scheduledFake{reply: func(string) (string, error) { return "", exitCodeErr(126) }}, "setup-incomplete"},
 		{"older binary", nil, &scheduledFake{reply: replyWith(`{"tasks":[]}`)}, "outdated"},
 		{"not json", nil, &scheduledFake{reply: replyWith("unknown command \"scheduled\"")}, "outdated"},
 	}
@@ -391,5 +393,131 @@ func TestScheduledAddWithoutYesOnUninstalledRefuses(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "--yes") {
 		t.Fatalf("no way forward in %q", err)
+	}
+}
+
+func TestScheduledMissingBinaryNamesTheSyncThatFinishesTheSetup(t *testing.T) {
+	dir := configWith(t, scheduledConfig)
+	alice := &scheduledFake{reply: func(string) (string, error) { return "", exitCodeErr(126) }}
+	dialByUser(t, map[string]remote.Client{"alice": alice}, nil)
+
+	r := listScheduled(t, dir)
+
+	got := r.Workspaces[0]
+	if got.Installed || got.Error == nil || got.Error.Kind != "setup-incomplete" {
+		t.Fatalf("alice = %+v", got)
+	}
+	if !strings.Contains(got.Error.Message, "devmachine sync --machine main --tags scheduled") {
+		t.Fatalf("no fix in %q", got.Error.Message)
+	}
+}
+
+func TestScheduledMissingBinaryOnAWorkspaceWithoutThePackage(t *testing.T) {
+	dir := configWith(t, scheduledConfig)
+	bob := &scheduledFake{reply: func(string) (string, error) { return "", exitCodeErr(127) }}
+	dialByUser(t, map[string]remote.Client{"bob": bob}, nil)
+
+	_, err := execute(t, "--config", dir, "scheduled", "pause", "t_000001", "--workspace", "bob")
+	var se *scheduledError
+	if !errors.As(err, &se) || se.Kind != "not-installed" {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestScheduledScriptChecksForTheBinaryFirst(t *testing.T) {
+	script := scheduledScript([]string{"list"}, nil)
+	check, run, ok := strings.Cut(script, "\n")
+	if !ok || !strings.Contains(check, "-x "+scheduledBinary) || !strings.Contains(check, "exit 127") {
+		t.Fatalf("script = %q", script)
+	}
+	if !strings.HasPrefix(run, "exec "+scheduledBinary) {
+		t.Fatalf("script = %q", script)
+	}
+}
+
+// stubScheduledSetup replaces the package edit and the sync, recording each
+// step into order.
+func stubScheduledSetup(t *testing.T, order *[]string, syncErr error) {
+	t.Helper()
+	origEdit, origSync, origAvail := editPackageFn, runSyncFn, scheduledPackageAvailable
+	editPackageFn = func(_ *cobra.Command, _ *options, name, workspace string, add, _, yes bool) error {
+		*order = append(*order, fmt.Sprintf("edit %s %s %v %v", name, workspace, add, yes))
+		return nil
+	}
+	runSyncFn = func(_ *cobra.Command, o *options, _, yes bool, tags []string) error {
+		*order = append(*order, fmt.Sprintf("sync %s %v %v", o.machine, yes, tags))
+		return syncErr
+	}
+	scheduledPackageAvailable = func(context.Context, *options, config.Config) (bool, error) { return true, nil }
+	t.Cleanup(func() { editPackageFn, runSyncFn, scheduledPackageAvailable = origEdit, origSync, origAvail })
+}
+
+func TestScheduledAddFinishesAnIncompleteSetup(t *testing.T) {
+	dir := configWith(t, scheduledConfig)
+	var order []string
+	stubScheduledSetup(t, &order, nil)
+	synced := func() bool { return slices.Contains(order, "sync main true [scheduled]") }
+	alice := &scheduledFake{reply: func(script string) (string, error) {
+		order = append(order, "put")
+		if !synced() {
+			return "", exitCodeErr(126)
+		}
+		task := decodePutBody(t, script)
+		task.ID = "t_000004"
+		body, _ := json.Marshal(map[string]any{"protocol": 1, "task": task})
+		return string(body), nil
+	}}
+	dialByUser(t, map[string]remote.Client{"alice": alice}, nil)
+
+	out, err := execute(t, "--config", dir, "scheduled", "add", "--workspace", "alice", "--name", "x",
+		"--folder", "~", "--command", "date", "--every", "daily", "--at", "09:00", "--yes")
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	want := []string{"put", "edit scheduled alice true true", "sync main true [scheduled]", "put"}
+	if strings.Join(order, "|") != strings.Join(want, "|") {
+		t.Fatalf("order = %q", order)
+	}
+	if !strings.Contains(out, "t_000004") {
+		t.Fatalf("out = %q", out)
+	}
+}
+
+func TestScheduledAddAsksBeforeFinishingAnIncompleteSetup(t *testing.T) {
+	dir := configWith(t, scheduledConfig)
+	var order []string
+	stubScheduledSetup(t, &order, nil)
+	alice := &scheduledFake{reply: func(string) (string, error) { return "", exitCodeErr(127) }}
+	dialByUser(t, map[string]remote.Client{"alice": alice}, nil)
+
+	out, err := executeIn(t, "", "--config", dir, "scheduled", "add", "--workspace", "alice", "--name", "x",
+		"--folder", "~", "--command", "date", "--every", "daily", "--at", "09:00")
+	var se *scheduledError
+	if !errors.As(err, &se) || se.Kind != "setup-incomplete" || len(order) != 0 {
+		t.Fatalf("err = %v order = %q out = %q", err, order, out)
+	}
+}
+
+func TestScheduledAddSaysWhatFailedInTheSetup(t *testing.T) {
+	dir := configWith(t, scheduledConfig)
+	var order []string
+	stubScheduledSetup(t, &order, errors.New(`1 task(s) failed on main, first "scheduled : Unpack the release": `+
+		`Failed to find handler: Process exited with status 2`))
+	dialByUser(t, map[string]remote.Client{}, nil)
+
+	_, err := execute(t, "--config", dir, "scheduled", "add", "--workspace", "bob", "--name", "x",
+		"--folder", "~", "--command", "date", "--every", "daily", "--at", "09:00", "--yes")
+	if err == nil {
+		t.Fatal("a failed setup was reported as success")
+	}
+	for _, want := range []string{"main", `"scheduled : Unpack the release"`, "Failed to find handler",
+		"devmachine sync --machine main --tags scheduled"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("the error leaves out %q: %v", want, err)
+		}
+	}
+	var se *scheduledError
+	if !errors.As(err, &se) || se.Kind != "setup-failed" {
+		t.Fatalf("err = %#v", err)
 	}
 }

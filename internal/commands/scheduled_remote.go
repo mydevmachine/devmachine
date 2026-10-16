@@ -18,6 +18,10 @@ import (
 // shell that has not read the account's profile.
 const scheduledBinary = `"$HOME/.devmachine/scheduled/devmachine"`
 
+// missingBinaryCheck gives a missing binary one exit status on every shell:
+// bash's exec says 126 for it, and dash and zsh say 127.
+const missingBinaryCheck = "[ -x " + scheduledBinary + " ] || exit 127\n"
+
 // taskHeredoc ends the task JSON in the script. json.Marshal escapes every
 // newline, so no line of the JSON can ever equal it.
 const taskHeredoc = "DEVMACHINE_TASK_EOF"
@@ -31,7 +35,7 @@ const (
 // stdin keeps every word away from the account's login shell, which may be
 // fish and quote differently.
 func scheduledScript(args []string, stdin []byte) string {
-	line := "exec " + scheduledBinary + " scheduled local " + shellWords(args)
+	line := missingBinaryCheck + "exec " + scheduledBinary + " scheduled local " + shellWords(args)
 	if stdin == nil {
 		return line + " </dev/null\n"
 	}
@@ -71,8 +75,8 @@ func decodeScheduledReply(cfg config.Config, w config.Workspace, out string, run
 	}
 	if json.Unmarshal([]byte(out), &envelope) != nil || envelope.Protocol == 0 {
 		if runErr != nil {
-			if code, ok := commandExitCode(runErr); ok && code == 127 {
-				return scheduledNotInstalled(cfg, w)
+			if binaryMissing(runErr) {
+				return scheduledMissing(cfg, w)
 			}
 		}
 		return scheduledOutdated(cfg, w)
@@ -93,8 +97,8 @@ func decodeScheduledReply(cfg config.Config, w config.Workspace, out string, run
 }
 
 func classifyScheduledError(cfg config.Config, w config.Workspace, err error) *scheduledError {
-	if code, ok := commandExitCode(err); ok && code == 127 {
-		return scheduledNotInstalled(cfg, w)
+	if binaryMissing(err) {
+		return scheduledMissing(cfg, w)
 	}
 	kind := "other"
 	switch {
@@ -106,6 +110,29 @@ func classifyScheduledError(cfg config.Config, w config.Workspace, err error) *s
 		kind = "unreachable"
 	}
 	return &scheduledError{Kind: kind, Message: err.Error()}
+}
+
+func binaryMissing(err error) bool {
+	code, ok := commandExitCode(err)
+	return ok && (code == 126 || code == 127)
+}
+
+// scheduledMissing is the error for a workspace whose binary is not there.
+// With the package in the configuration, the setup sync was cut short or
+// failed, and syncing again finishes it.
+func scheduledMissing(cfg config.Config, w config.Workspace) *scheduledError {
+	if !isScheduledInstalled(w) {
+		return scheduledNotInstalled(cfg, w)
+	}
+	return scheduledSetupIncomplete(cfg, w)
+}
+
+func scheduledSetupIncomplete(cfg config.Config, w config.Workspace) *scheduledError {
+	machine := machineNameOf(cfg, w)
+	return &scheduledError{Kind: "setup-incomplete", Message: fmt.Sprintf(
+		"scheduled's setup on %s did not finish: the package is on the workspace, but its devmachine is not on %s. "+
+			"Run devmachine sync --machine %s --tags scheduled, or add a task with --yes",
+		w.Name, machine, machine)}
 }
 
 func scheduledNotInstalled(cfg config.Config, w config.Workspace) *scheduledError {

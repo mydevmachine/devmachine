@@ -169,3 +169,21 @@ func TestScheduledWorkspaceSideOnTheTestMachine(t *testing.T) {
 		t.Fatalf("tick = %+v", tick)
 	}
 }
+
+func TestScheduledMissingBinaryOnTheTestMachine(t *testing.T) {
+	m := scheduledTestMachine(t)
+	ctx := context.Background()
+	client, _, err := remote.Dial(ctx, m, "")
+	if err != nil {
+		t.Fatalf("Dial returned %v", err)
+	}
+	defer client.Close()
+
+	for _, shell := range []string{"/bin/sh", "bash"} {
+		script := "export HOME=/tmp/dm-scheduled-missing\n" + scheduledScript([]string{"list"}, nil)
+		out, err := client.RunInput(ctx, shell+" -s", strings.NewReader(script))
+		if !binaryMissing(err) {
+			t.Fatalf("%s: err = %v out = %q", shell, err, out)
+		}
+	}
+}
