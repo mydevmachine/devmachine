@@ -101,3 +101,40 @@ func TestCollectAgainstTheTestMachine(t *testing.T) {
 		t.Errorf("Attention = false, want true after a bell in a background window")
 	}
 }
+
+type cLocaleClient struct{ remote.Client }
+
+func (c cLocaleClient) Run(ctx context.Context, command string) (string, error) {
+	return c.Client.Run(ctx, "LC_ALL=C LANG=C "+command)
+}
+
+func TestCollectListsSessionsInACLocale(t *testing.T) {
+	ctx := context.Background()
+	client, _, err := remote.Dial(ctx, testMachine(t), "")
+	if err != nil {
+		t.Fatalf("Dial returned %v", err)
+	}
+	defer client.Close()
+
+	if _, err := client.Run(ctx, "command -v tmux >/dev/null 2>&1"); err != nil {
+		t.Skip("tmux not on the test machine")
+	}
+	t.Cleanup(func() { _, _ = client.Run(context.Background(), "tmux kill-session -t dm-sess-c 2>/dev/null; true") })
+	setup := "{ tmux kill-session -t dm-sess-c 2>/dev/null; true; } && " +
+		"{ for i in 1 2 3 4 5; do tmux new-session -d -s dm-sess-c && break; sleep 0.3; done; } && " +
+		"tmux has-session -t dm-sess-c"
+	if _, err := client.Run(ctx, setup); err != nil {
+		t.Fatalf("setting up the tmux session: %v", err)
+	}
+
+	all, err := Collect(ctx, cLocaleClient{client})
+	if err != nil {
+		t.Fatalf("Collect returned %v", err)
+	}
+	for _, s := range all {
+		if s.Name == "dm-sess-c" {
+			return
+		}
+	}
+	t.Fatalf("Collect in a C locale listed %v, want dm-sess-c among them", all)
+}
