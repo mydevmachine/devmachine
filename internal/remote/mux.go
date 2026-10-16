@@ -93,7 +93,7 @@ func controlPathDir() (string, error) {
 
 // The keepalive is for a shared connection that outlived a sleep or a
 // network change: its TCP is dead but nothing closes it, so every later call
-// waits on it for minutes. Two missed probes end it, and the next call opens
+// waits on it for minutes. Three missed probes end it, and the next call opens
 // a new one.
 func muxArgs(controlPath string) []string {
 	return []string{
@@ -102,8 +102,8 @@ func muxArgs(controlPath string) []string {
 		"-o", "ControlPersist=" + controlPersist,
 		"-o", "BatchMode=yes",
 		"-o", "ConnectTimeout=5",
-		"-o", "ServerAliveInterval=2",
-		"-o", "ServerAliveCountMax=2",
+		"-o", "ServerAliveInterval=3",
+		"-o", "ServerAliveCountMax=3",
 	}
 }
 

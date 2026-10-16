@@ -115,8 +115,8 @@ func TestSessionsWaitsLongEnoughToApproveTheLogin(t *testing.T) {
 
 	sessionsJSON(t, "--config", dir, "sessions", "--workspace", "alice", "--json")
 
-	if len(budgets) != 1 || budgets[0] < 15*time.Second {
-		t.Fatalf("budgets = %v, want one of at least 15s", budgets)
+	if len(budgets) != 1 || budgets[0] < 25*time.Second {
+		t.Fatalf("budgets = %v, want one of at least 25s", budgets)
 	}
 }
 

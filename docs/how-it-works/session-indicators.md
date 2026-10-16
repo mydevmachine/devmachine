@@ -21,11 +21,12 @@ Before, that wait lasted minutes. A new login, and the SSH agent's prompt
 that comes with it, only happened once the system finally gave up on the
 link.
 
-Now ssh checks the link every 2 seconds and drops it after two missed
-answers. The next command logs in again on a fresh connection. A machine
+Now ssh checks the link every 3 seconds and drops it after three missed
+answers, about 10 seconds. A shorter limit would also cut a long `sync` on
+a network that drops for a few seconds. The next command logs in again on a fresh connection. A machine
 that does not answer at all fails after 5 seconds.
 
-`sessions` waits up to 20 seconds for each workspace. A login that needs your
+`sessions` waits up to 30 seconds for each workspace. A login that needs your
 approval, as 1Password asks after a wake, has time to get it.
 
 ## Busy is a guess

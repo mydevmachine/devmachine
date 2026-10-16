@@ -19,7 +19,7 @@ import (
 
 // A dead host fails sooner, on ssh's ConnectTimeout. The rest is for a login
 // the SSH agent asks someone to approve, as 1Password does after a wake.
-const sessionsTimeout = 20 * time.Second
+const sessionsTimeout = 30 * time.Second
 
 type sessionsWorkspace struct {
 	Name     string             `json:"name"`
