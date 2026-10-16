@@ -63,7 +63,7 @@ func holdMachine(ctx context.Context, client remote.Client, machine, lock string
 	go func() { _, _ = io.Copy(io.Discard, reader) }()
 	release := func() {
 		_ = hold.Close()
-		<-done
+		_ = <-done
 	}
 
 	switch strings.TrimSpace(line) {
