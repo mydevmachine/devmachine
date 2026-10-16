@@ -85,6 +85,9 @@ func TestDialMuxBuildsTheSameHostKeyPinningAsTheSystemSSHBuilder(t *testing.T) {
 		"ControlPath=" + controlSocketPath(controlDir, m.User, m.Hosts[0].Address, m.Port),
 		"ControlPersist=5m",
 		"BatchMode=yes",
+		"ConnectTimeout=5",
+		"ServerAliveInterval=3",
+		"ServerAliveCountMax=3",
 	} {
 		if !strings.Contains(string(body), want+"\n") {
 			t.Fatalf("missing multiplexing option %q in %s", want, body)

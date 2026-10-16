@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/mydevmachine/devmachine/internal/config"
 	"github.com/mydevmachine/devmachine/internal/remote"
@@ -94,6 +95,28 @@ func TestSessionsOneWorkspaceDownOthersAnswer(t *testing.T) {
 	}
 	if !strings.Contains(raw, `"sessions": []`) {
 		t.Fatalf("sessions must print as []:\n%s", raw)
+	}
+}
+
+func TestSessionsWaitsLongEnoughToApproveTheLogin(t *testing.T) {
+	dir := configWith(t, sessionsConfig)
+	var budgets []time.Duration
+	stub := func(ctx context.Context, _ config.Machine, _ string) (remote.Client, string, error) {
+		deadline, ok := ctx.Deadline()
+		if !ok {
+			t.Error("sessions dialled with no deadline")
+		}
+		budgets = append(budgets, time.Until(deadline))
+		return fakeRemote{out: "@@NOW@@\n1000000\n"}, "203.0.113.10", nil
+	}
+	origDial, origMux := dial, dialMux
+	dial, dialMux = stub, stub
+	t.Cleanup(func() { dial, dialMux = origDial, origMux })
+
+	sessionsJSON(t, "--config", dir, "sessions", "--workspace", "alice", "--json")
+
+	if len(budgets) != 1 || budgets[0] < 25*time.Second {
+		t.Fatalf("budgets = %v, want one of at least 25s", budgets)
 	}
 }
 

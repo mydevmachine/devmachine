@@ -43,6 +43,17 @@ says which server it lives on.
 `doctor` never says this: with several machines and no `--machine`, it
 checks every one of them.
 
+## Commands hang for a minute or more right after the computer wakes
+
+**What it means:** An older CLI kept its shared SSH connection open across
+the sleep. The connection was dead, and each command waited on it until the
+system gave up. The SSH agent's prompt, such as 1Password's, only appeared
+after that.
+
+**What to do:** Update the CLI. It now drops a dead connection within a few
+seconds and logs in again. See
+[Session indicators](how-it-works/session-indicators.md#after-the-computer-sleeps).
+
 ## "no address answered"
 
 **What it means:** Nothing answered at the address devmachine tried. The error

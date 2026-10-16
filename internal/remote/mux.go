@@ -91,12 +91,19 @@ func controlPathDir() (string, error) {
 	return dir, nil
 }
 
+// The keepalive is for a shared connection that outlived a sleep or a
+// network change: its TCP is dead but nothing closes it, so every later call
+// waits on it for minutes. Three missed probes end it, and the next call opens
+// a new one.
 func muxArgs(controlPath string) []string {
 	return []string{
 		"-o", "ControlMaster=auto",
 		"-o", "ControlPath=" + controlPath,
 		"-o", "ControlPersist=" + controlPersist,
 		"-o", "BatchMode=yes",
+		"-o", "ConnectTimeout=5",
+		"-o", "ServerAliveInterval=3",
+		"-o", "ServerAliveCountMax=3",
 	}
 }
 

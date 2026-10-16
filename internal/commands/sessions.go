@@ -17,7 +17,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const sessionsTimeout = 5 * time.Second
+// A dead host fails sooner, on ssh's ConnectTimeout. The rest is for a login
+// the SSH agent asks someone to approve, as 1Password does after a wake.
+const sessionsTimeout = 30 * time.Second
 
 type sessionsWorkspace struct {
 	Name     string             `json:"name"`
