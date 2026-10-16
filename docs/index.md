@@ -138,6 +138,9 @@ these when something behaves in a way that surprises you.
   with no location is `external`, and why `create-local` writes `local`.
 - [Versioning your configuration](how-it-works/versioning-your-configuration.md)
   — keeping your setup in git safely.
+- [Chats](how-it-works/chats.md) — why a chat runs the CLI you are logged in
+  to instead of an API, where it runs, and how Ask answers about a session
+  without touching it.
 - [Why a published app lives in the configuration](how-it-works/published-sites.md)
   — why `expose` writes to your configuration, not straight to the server.
 - [What sync removes](how-it-works/what-sync-removes.md) — what `sync` cleans

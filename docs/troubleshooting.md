@@ -2866,3 +2866,37 @@ session and what runs in it are untouched on the machine.
 compare `LC_ALL=C tmux list-sessions -F '#{session_name}<Tab>#{session_windows}'`
 with the same command under `tmux -u`; the first shows `_` where the second
 shows a tab. See [session indicators](how-it-works/session-indicators.md).
+
+## Chat error kinds
+
+`devmachine chat send` and `chat ask` end a failed answer with
+`{"type":"error","kind":"…","message":"…"}`. What each kind really means:
+
+- **`unreachable`** — the workspace's machine did not answer, or the
+  connection dropped mid-answer. Same as in `devmachine sessions`: see
+  ["no address answered"](#no-address-answered).
+- **`login-refused`** — the machine answered but refused the workspace's
+  login. Most often the workspace is not synced yet. See
+  ["answered on … but refused the login"](#answered-on--but-refused-the-login).
+- **`host-key-rejected`** — the machine's key is not the one pinned. See
+  [it used to connect, and now it does not](#it-used-to-connect-and-now-it-does-not).
+- **`harness-missing`** — `claude` or `codex` is not installed for that
+  account, or not on its login shell's `PATH`. Add the `claude-code` or
+  `codex` package to the workspace and run `devmachine sync`.
+- **`harness-logged-out`** — the harness is installed but not logged in for
+  that account. Open a session on the workspace, run `claude` (or `codex
+  login`) once and log in; the next message works.
+- **`harness-failed`** — the harness ran and reported an error. The message
+  is the harness's own, passed through: an overloaded API, a usage limit, a
+  session id it no longer has. Retrying later often works; for a lost
+  session, start a new chat.
+- **`cancelled`** — the answer was stopped (Esc in the app, Ctrl-C, or
+  SIGTERM). What arrived before the stop is kept.
+- **`session-not-found`** — `chat ask` found no tmux session by that name on
+  the workspace, or the `--folder` given does not exist. The session may
+  have ended.
+- **`transcript-not-found`** — the session exists but its harness wrote no
+  transcript for that folder yet: nothing was asked in it so far, or it
+  runs in a folder other than the pane's.
+- **`harness-unsupported`** — the session runs a harness Ask cannot answer
+  about yet. Ask works on claude and codex sessions.

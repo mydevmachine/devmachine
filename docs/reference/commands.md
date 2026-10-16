@@ -297,6 +297,8 @@ mean the machine is broken.
 ```
 devmachine config path      the directory in use, and the rule that chose it
 devmachine config show      machines, workspaces and their effective values
+devmachine config set <key> <value>   change one setting
+devmachine config unset <key>         take it out, so its default applies again
 ```
 
 Shows where your configuration lives and what is in it. `show` validates
@@ -311,6 +313,20 @@ configuration, and `--format json` prints `{"machines": [], "workspaces":
 [workspaces](#workspaces)). `credentials` is the top-level answer per
 login, `machine` or `own`; a workspace's own `credentials` (in `workspaces
 list --format json`) wins over it.
+
+`set` and `unset` take the settings of [`chat`](#chat), written under
+`chat:` in `config.yml`:
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `chat.default_workspace` | the first workspace, else this computer | where a new chat runs; `local` means this computer |
+| `chat.folder` | `~/chats` | the folder a new chat runs in, created on first use |
+| `chat.harness` | `claude` | `claude` or `codex` |
+
+A value that would not load (a harness other than these, a workspace not in
+`config.yml`) is refused and the file is left as it was. `show --format
+json` prints them, with their defaults filled in, as `"chat":
+{"default_workspace", "folder", "harness"}`.
 
 ## machines
 
@@ -1255,6 +1271,85 @@ The other commands print, with `--format json`: `add`, `edit`, `pause` and
 newest first; `harnesses` `{"harnesses": [{"name", "package",
 "permission_modes", "dangerous", "models"}]}`. `log` prints the output as it
 is.
+
+## chat
+
+```
+devmachine chat send [--chat ID] [--workspace W | --local] [--harness claude|codex] [--folder DIR] -- MESSAGE
+devmachine chat ask (--workspace W | --local) --session S [--folder DIR] [--harness claude|codex] [--chat ID] -- QUESTION
+devmachine chat list [--all] [--json]
+devmachine chat show ID [--json]
+devmachine chat rename ID TITLE
+devmachine chat continue ID [--json]
+devmachine chat delete ID
+```
+
+Talks to the `claude` or `codex` you are logged in to, on a workspace or on
+this computer, read only. See [chats](../how-it-works/chats.md) for why it
+runs the CLI and not an API.
+
+`send` without `--chat` starts a conversation. The defaults come from
+`chat.harness` (`claude`), `chat.default_workspace` (else the first
+workspace, else this computer) and `chat.folder` (`~/chats`); set them with
+[`config set`](#config). With `--chat` it continues that conversation, on
+its own harness, workspace and folder. A flag that disagrees with them is
+an error, printed before any output.
+
+`ask` asks about a coding session without writing to it. `--session` names
+the tmux session on the workspace. For a session on this computer that is
+not in tmux, `--folder` gives the session's folder. `--harness` names the
+harness when the caller already knows it; otherwise it is read from the
+session. The first call creates an ask (`kind: "ask"`); `--chat` continues
+it.
+
+`send` and `ask` always print NDJSON, one object per line:
+
+```json
+{"type":"started","chat":{...record...}}
+{"type":"text","delta":"It charges "}
+{"type":"tool","name":"Read","summary":"acme/billing.go"}
+{"type":"text","delta":"in cents."}
+{"type":"done","chat":{...record...}}
+```
+
+- `started` is always the first line, `done` the last on success.
+- On failure the last line is `{"type":"error","kind":"…","message":"…"}`
+  and the exit code is 1. See [the error kinds](../troubleshooting.md#chat-error-kinds).
+- `text` carries the answer as it arrives; claude streams it in small
+  pieces, codex one paragraph at a time.
+- SIGINT or SIGTERM stops the harness (on a workspace, the ssh session) and
+  ends with `cancelled`. The part of the answer that arrived is kept.
+
+A record, as `started`, `done`, `list` and `show` print it:
+
+```json
+{
+  "id": "c_3f9a1b2c4d5e",
+  "title": "why is the build slow?",
+  "harness": "claude",
+  "workspace": "alice",
+  "folder": "~/chats",
+  "harness_session_id": "22222222-aaaa-4bbb-8ccc-000000000001",
+  "created_at": "2026-10-15T12:00:00Z",
+  "updated_at": "2026-10-15T12:00:09Z",
+  "kind": "chat"
+}
+```
+
+- `workspace` is `"local"` for this computer.
+- `harness_session_id` is empty until the harness answered once.
+- `title` is the first line of the first message, cut to 60 characters.
+- An ask adds `session`, `source_session_id` (the session's own id),
+  `mode` (`"fork"` for claude, `"transcript"` for codex) and, in transcript
+  mode, `excerpts`.
+
+`list --json` prints `{"chats": [...]}`, the most recently updated first,
+without asks unless `--all`. `show --json` prints `{"chat": {...},
+"messages": [...]}`, each message `{"role": "user" | "assistant", "text",
+"tools": [{"name", "summary"}], "at"}`, plus `error: {kind, message}` on an
+answer that failed. `continue` turns an ask into a chat listed with the
+others. `delete` forgets the local copy; the harness's own transcript stays
+on the workspace.
 
 ## ssh-proxy
 
