@@ -8,6 +8,30 @@ page](https://github.com/mydevmachine/devmachine/releases).
 
 To get the latest version, see [Upgrade](upgrade.md).
 
+## v0.15.0 — 2026-10-16
+
+### Added
+
+- `devmachine chat`: chat with the Claude or Codex you are already logged
+  in to, on a workspace or on this computer. No API key: it runs your own
+  subscription. Chats are read only. `send`, `list`, `show`, `rename` and
+  `delete`, with answers streamed as JSON lines. A chat without a project
+  runs in `~/chats` on your default workspace. See
+  [chats](how-it-works/chats.md).
+- `devmachine chat session` keeps Claude running between messages, so a
+  follow-up starts answering in about 2 seconds instead of waiting for
+  Claude to start again. The macOS app uses it.
+- `devmachine chat ask --session S`: ask about a running coding session
+  without typing into it. Every question reads the session's current
+  transcript, so it sees what the session just did. `--serve` keeps it warm.
+- Chats start without MCP servers, hooks and plugins, which makes them
+  several seconds faster. `--mcp`, or `config set chat.mcp true`, turns them
+  on.
+- New settings: `chat.default_workspace`, `chat.folder`, `chat.harness` and
+  `chat.mcp`, set with `devmachine config set` and `unset`.
+- Widget engine 1.8: the `ask` widget, after Links in the session's Context
+  tab.
+
 ## App v0.6.0 — 2026-10-16
 
 Needs CLI v0.14.0 and packages v53 for scheduled tasks. With an older CLI
