@@ -41,6 +41,25 @@ Your computer reaches it as `sessions` does: it logs in to the workspace and
 sends a short program to `/bin/sh` on its input, so the account's own shell,
 which may be fish, never reads a task's text.
 
+## A setup that did not finish
+
+The first task in a workspace adds the `scheduled` package to it and syncs
+its machine. If that sync fails, the package stays in the configuration and
+the binary is not in the workspace.
+
+It stays on purpose. Taking it off would undo the one part that worked, and
+the next attempt would add it again anyway. So the CLI never trusts the
+configuration alone. Before each call it checks the binary is there. When it
+is not, but the package is in the configuration, the error says
+`setup-incomplete` and names the sync that finishes it:
+`devmachine sync --machine <m> --tags scheduled`. `scheduled add` runs that
+sync itself, with the same `--yes` rule as the first setup, and then creates
+the task. `scheduled list` shows the workspace as not installed, with the
+same error, so the app can offer to finish the setup.
+
+When the setup sync fails, the error names the Ansible task that failed and
+what it said. "1 task(s) failed" alone leaves you reading the whole run.
+
 ## A task runs as the workspace's account
 
 The task runs in the folder you chose, as that account, through its login

@@ -2789,6 +2789,42 @@ and syncs the machine first. Or do it by hand:
 `devmachine sync --machine <m> --tags scheduled --yes`. See
 [scheduled tasks](how-it-works/scheduled-tasks.md).
 
+## "scheduled's setup on … did not finish"
+
+**What it means:** The `scheduled` package is in the workspace's
+configuration, but the devmachine it installs is not at
+`~/.devmachine/scheduled/devmachine`. The sync that set it up failed or was
+stopped. The error kind is `setup-incomplete`, and the app offers "Finish
+setup".
+
+**What to do:** `devmachine sync --machine <m> --tags scheduled`. Or add the
+task again: `scheduled add` runs that sync first, after asking, or at once
+with `--yes`. If the sync fails again, the error names the task that failed.
+See [a setup that did not finish](how-it-works/scheduled-tasks.md#a-setup-that-did-not-finish).
+
+## "setting up scheduled on … failed"
+
+**What it means:** The sync that sets up the `scheduled` package failed. The
+error names the first Ansible task that failed and what it said, such as
+`"scheduled : Unpack the release": Failed to find handler`. The package stays
+on the workspace, so fixing the cause and syncing again finishes it.
+
+**What to do:** Fix what the task says, then run
+`devmachine sync --machine <m> --tags scheduled`.
+
+## A Mac: "Unpack the release" fails with "GNU tar required"
+
+**What it means:** Packages releases before the fix unpacked the devmachine
+release with Ansible's `unarchive`, which needs GNU tar. macOS ships bsdtar,
+so `unarchive` falls back to unzip, which cannot read a `.tar.gz`:
+`Command "/usr/bin/tar" detected as tar type bsd. GNU tar required.` and
+`Command "/usr/bin/unzip" could not handle archive`. Linux has GNU tar, so it
+only fails on a Mac. The `session-share` package had the same step.
+
+**What to do:** `devmachine update` to a packages release with the fix, then
+`devmachine sync --machine <m> --tags scheduled`. Installing GNU tar is not
+needed.
+
 ## "the scheduled package is not in packages release …"
 
 **What it means:** Your configuration syncs from a packages release that

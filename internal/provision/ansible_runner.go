@@ -85,6 +85,10 @@ func (a *Ansible) Apply(ctx context.Context, plan packages.MachinePlan, opts Opt
 	result := readRecap(seen.String())
 
 	if runErr != nil {
+		if failed, ok := readFailure(seen.String()); ok {
+			return result, fmt.Errorf("%d task(s) failed on %s, first %q: %s: %w",
+				max(result.Failed, 1), plan.Machine.Name, failed.Task, failed.Message, runErr)
+		}
 		if result.Failed > 0 {
 			return result, fmt.Errorf("%d task(s) failed on %s: %w", result.Failed, plan.Machine.Name, runErr)
 		}
