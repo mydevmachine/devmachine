@@ -8,7 +8,7 @@ import (
 func TestGitIgnoreCoversEverySecretPath(t *testing.T) {
 	got := GitIgnore()
 
-	for _, want := range []string{"keys/", "secrets.json", "cache/", "history.log", "*.env", "state/", "packages/.install-*"} {
+	for _, want := range []string{"keys/", "secrets.json", "cache/", "history.log", "*.env", "state/", "packages/.install-*", "logs/"} {
 		if !strings.Contains(got, want) {
 			t.Fatalf(".gitignore does not cover %q:\n%s", want, got)
 		}
@@ -51,6 +51,13 @@ func TestUnsafeCatchesAnEnvFileAnywhere(t *testing.T) {
 	// A package stages /etc/devmachine/<name>/env, and somebody keeps a copy.
 	got := Unsafe([]string{"staging/cloudflare.env"})
 	if len(got) != 1 {
+		t.Fatalf("got %#v", got)
+	}
+}
+
+func TestUnsafeCatchesTheLogs(t *testing.T) {
+	got := Unsafe([]string{"logs/devmachine.log", "logs/devmachine.log.1", "config.yml"})
+	if len(got) != 2 {
 		t.Fatalf("got %#v", got)
 	}
 }

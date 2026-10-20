@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 )
@@ -21,6 +22,9 @@ type options struct {
 	// machine names which machine a machine-level command acts on. Empty
 	// means the only configured one; with several it is an error, not a guess.
 	machine string
+	// invocation is set only when the CLI runs through run, which is what
+	// turns the log on.
+	invocation *invocation
 }
 
 // Execute runs the CLI and turns an error into an exit code.
@@ -29,14 +33,31 @@ type options struct {
 // returning an error, and this is the single place that decides what that
 // costs.
 func Execute() {
-	err := NewRootCmd().Execute()
+	root, opts := newRoot()
+	if code := run(root, opts, os.Args[1:]); code != 0 {
+		os.Exit(code)
+	}
+}
+
+// run executes argv, logs it, prints the error line, and returns the exit
+// code. The pointer to the log comes last on stderr, after the error, so it is
+// the line somebody sees when the output scrolls by.
+func run(root *cobra.Command, opts *options, argv []string) int {
+	opts.invocation = &invocation{argv: argv, started: time.Now()}
+	stderr := root.ErrOrStderr()
+	root.SetArgs(argv)
+	err := root.Execute()
+	logPath := finishLog(opts, err)
 	if err == nil {
-		return
+		return 0
 	}
 	if line, ok := errorLine(err); ok {
-		fmt.Fprintln(os.Stderr, line)
+		fmt.Fprintln(stderr, line)
 	}
-	os.Exit(exitCode(err))
+	if logPath != "" {
+		fmt.Fprintln(stderr, "log: "+logPath)
+	}
+	return exitCode(err)
 }
 
 // exitError is a failure that asks for its own exit code instead of 1. A
@@ -72,6 +93,11 @@ func exitCode(err error) int {
 // NewRootCmd builds the command tree. It takes no global state so a test can
 // build a fresh tree per case.
 func NewRootCmd() *cobra.Command {
+	root, _ := newRoot()
+	return root
+}
+
+func newRoot() (*cobra.Command, *options) {
 	opts := &options{}
 
 	root := &cobra.Command{
@@ -82,7 +108,11 @@ func NewRootCmd() *cobra.Command {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			return validateFormat(opts.format)
+			if err := validateFormat(opts.format); err != nil {
+				return err
+			}
+			startLog(cmd, opts)
+			return nil
 		},
 		PersistentPostRun: func(cmd *cobra.Command, args []string) {
 			showUpdateHint(cmd, opts)
@@ -134,8 +164,9 @@ func NewRootCmd() *cobra.Command {
 		newScheduledCmd(opts),
 		newChatCmd(opts),
 		newSSHProxyCmd(opts),
+		newLogsCmd(opts),
 	)
-	return root
+	return root, opts
 }
 
 func newVersionCmd() *cobra.Command {

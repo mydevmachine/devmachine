@@ -180,6 +180,8 @@ these when something behaves in a way that surprises you.
 - [Updating](how-it-works/updating.md) — why `update` stops before your
   machines, hands over to the new CLI, and goes through Homebrew when
   Homebrew installed it.
+- [The CLI's log](how-it-works/the-cli-log.md) — what `logs/devmachine.log`
+  keeps, what it takes out, and why a read the app polls writes nothing
 - [Session indicators](how-it-works/session-indicators.md) — why the CLI reads
   the tmux sessions, why busy is a guess, and why attention needs the bell.
 

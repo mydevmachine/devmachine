@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"time"
@@ -37,6 +38,9 @@ var hintToTerminal = func(cmd *cobra.Command) bool {
 }
 
 func isTerminal(w any) bool {
+	if tee, ok := w.(interface{ Underlying() io.Writer }); ok {
+		w = tee.Underlying()
+	}
 	f, ok := w.(*os.File)
 	return ok && term.IsTerminal(int(f.Fd()))
 }

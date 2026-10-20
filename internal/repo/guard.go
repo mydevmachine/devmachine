@@ -15,7 +15,7 @@ const IgnoreHeading = "# Written by `devmachine setup git`. Everything here is a
 
 // Ignored is what a configuration directory's .gitignore must hold.
 func Ignored() []string {
-	return []string{"keys/", "secrets.json", "cache/", "history.log", "*.env", "state/", "packages/.install-*", "chats/"}
+	return []string{"keys/", "secrets.json", "cache/", "history.log", "*.env", "state/", "packages/.install-*", "chats/", "logs/"}
 }
 
 // GitIgnore renders the file.
@@ -54,6 +54,8 @@ func isUnsafe(p string) bool {
 	case strings.HasPrefix(p, "cache/"):
 		return true
 	case p == "history.log":
+		return true
+	case strings.HasPrefix(p, "logs/"):
 		return true
 	case strings.HasSuffix(p, ".env"):
 		return true

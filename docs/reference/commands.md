@@ -2325,6 +2325,23 @@ devmachine version
 devmachine help [command] [--json]
 ```
 
+## logs
+
+```
+devmachine logs path [--format json]
+```
+
+Prints where the CLI writes its log: `<config>/logs/devmachine.log`, as
+an absolute path. With `--format json`: `{"path": "…"}`. The path does
+not change: the macOS app relies on it.
+
+A command that changes a machine (`setup`, `machines add`, `sync`,
+`update`, `doctor`, `packages add`, `run`, `login`, `credentials push`
+and the like) writes its whole output there, with secrets taken out, and
+when it fails its last line on stderr is `log: <path>`. Any other command
+writes one line there when it fails, and nothing when it works. See
+[the CLI's log](../how-it-works/the-cli-log.md).
+
 ## The command log
 
 `run`, `upload`, `download` and `sync` each append one line to `<config>/history.log`, mode
