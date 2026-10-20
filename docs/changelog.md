@@ -8,6 +8,64 @@ page](https://github.com/mydevmachine/devmachine/releases).
 
 To get the latest version, see [Upgrade](upgrade.md).
 
+## App v0.8.0 — 2026-10-20
+
+Needs CLI v0.17.0 for the CLI's log in Help → Logs and for the 1Password
+approval prompt after a wake. With CLI v0.16.0 everything else works.
+
+### Added
+
+- Help → Logs opens the app's log, the CLI's log, or saves every log in
+  one zip to attach to a report. The app always keeps a log, with secrets
+  taken out, at `~/Library/Logs/Devmachine/app.log`.
+
+### Changed
+
+- Add machine reads the server's key by itself. It logs in with a password
+  or an SSH key, and asks for the password right there when the key is
+  refused.
+- First setup downloads the packages release and checks the machine before
+  it says all set. A failed download is tried three times. Home is never
+  blank after setup.
+- The window first opens at 1280×800 or larger, so the sidebar and Home
+  fit side by side.
+
+### Fixed
+
+- A server that refuses the login no longer gets this Mac banned. The app
+  stops every automatic login to that machine and says so, until you press
+  Retry or change the machine's settings.
+- After a wake the sidebar waits for the network and shows reconnecting in
+  grey, instead of going red. When 1Password waits for your approval, the
+  app asks you to approve the key.
+- Home widgets stay on the canvas, keep a usable minimum size, and move
+  when dragged by their top strip.
+- The top lines of a terminal select text again, instead of moving the
+  window.
+- Full screen no longer shows a grey band at the top. The sidebar header,
+  workspaces and Context tabs stay at the top of the screen.
+
+## v0.17.0 — 2026-10-20
+
+### Added
+
+- The CLI keeps a log at `<config>/logs/devmachine.log`. A command that
+  changes a machine writes its whole output there, with secrets taken out.
+  When it fails, its last line says where the log is. `devmachine logs
+  path` prints the file's path. See [the CLI's log](how-it-works/the-cli-log.md).
+- `sessions` answers `login-waiting` when the machine accepted the key and
+  1Password, or another SSH agent, waits for your approval, as after a
+  wake. It logs in once per machine and user, and keeps that login open
+  while it waits.
+
+### Fixed
+
+- `setup` writes `config.yml` only once the key logs in. A run that stops
+  before that leaves nothing behind that keeps retrying a refused key.
+- "connection refused" from a machine that answered before now says the
+  server may be blocking your address after failed logins (fail2ban). See
+  [troubleshooting](troubleshooting.md#connection-refused-on-a-machine-that-answered-before).
+
 ## App v0.7.4 — 2026-10-19
 
 ### Fixed
