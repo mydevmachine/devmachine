@@ -40,9 +40,9 @@ does.
 ### 1. Create a Personal Access Token
 
 Go to [developer.godaddy.com](https://developer.godaddy.com), sign in, and
-create a Personal Access Token. Give it a token that may read your domains
-and change their DNS records. Copy the token at once: GoDaddy shows it only
-once. The old key and secret pair does not work here.
+create a Personal Access Token that may read your domains and change their
+DNS records. Copy the token at once: GoDaddy shows it only once. The old
+key and secret pair does not work here.
 
 ### 2. Add the package
 
@@ -124,11 +124,10 @@ for DNS.
 The agent runs `packages add godaddy` and `sync`, then asks you to open
 [developer.godaddy.com](https://developer.godaddy.com) and create a
 Personal Access Token that may read your domains and change their DNS
-records — that page
-needs your own GoDaddy login, so the agent cannot do it. It then runs
-`secrets set godaddy` in a terminal it opens for you to paste the token
-into, runs `credentials push`, and finally `expose add acme 3000 --host
-app.example.com --publish`.
+records — that page needs your own GoDaddy login, so the agent cannot do
+it. It then runs `secrets set godaddy` in a terminal it opens for you to
+paste the token into, runs `credentials push`, and finally `expose add
+acme 3000 --host app.example.com --publish`.
 
 **Check it:** `curl https://app.example.com` returns your app's response
 with a valid certificate, and `devmachine dns status app.example.com`
