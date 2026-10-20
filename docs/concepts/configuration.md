@@ -36,6 +36,7 @@ DEVMACHINE_CONFIG=~/.config/devmachine-test devmachine doctor
 <config>/secrets.json   names of stored secrets, and values the keychain refused
 <config>/keys/          keys the CLI generated, and the public half of a chosen agent key
 <config>/history.log    one line per command that reached a machine
+<config>/logs/          the CLI's own log: what a command printed, and how it ended
 <config>/cache/config.lock   held by whichever command is writing config.yml
 <config>/state/machines/<name>.json   what setup, sync and doctor last read from a machine
 ```
@@ -178,6 +179,10 @@ Every command that reaches a machine appends a line to
 worked, and the command. It's the answer to "what did that session do to
 my machine" — a plain `ssh` session leaves no such trail here. The format
 is in [commands](../reference/commands.md#the-command-log).
+
+`<config>/logs/devmachine.log` keeps more: what a command that changes a
+machine printed, redacted, and how it ended. It is the file to send when
+something went wrong. See [the CLI's log](../how-it-works/the-cli-log.md).
 
 ## Secrets
 

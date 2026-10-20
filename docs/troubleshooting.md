@@ -1,5 +1,43 @@
 # Troubleshooting
 
+## Where the logs are
+
+When something went wrong and you want help, these files say what
+happened. Find the folder with `devmachine config path`.
+
+- **`<config>/logs/devmachine.log`** — the CLI's own log. A command that
+  changes a machine (`setup`, `machines add`, `sync`, `update`, `doctor`,
+  `packages add`, `run`, `login`, `credentials push` and the like) writes
+  a start line with the version, system and command line, every line it
+  printed, Ansible's output included, and an end line with how it ended
+  and how long it took. Any other command writes one line when it fails.
+  `devmachine logs path` prints where it is, and a failed command prints
+  it as its last line: `log: <path>`.
+- **`devmachine.log.1`, `.2`, `.3`**, in the same folder — older runs.
+  At 5 MB the log moves to `.1` and a new one starts; only three old
+  ones are kept.
+- **`<config>/history.log`** — one line per command that reached a
+  machine: when, which machine or workspace, ok or failed, and the
+  command. No output.
+- **`~/Library/Logs/Devmachine/app.log`** — written by the macOS app, not
+  the CLI: what the app did and the errors it met.
+
+**What is taken out:** before a line reaches `devmachine.log`, passwords,
+tokens, API keys, `Authorization` and `Bearer` headers, GitHub and
+Tailscale keys, private keys, `.env` values, values given to `secrets
+set` and any `NAME=value` whose name says token, secret, password, key or
+auth become `***`. A password you type or pipe in is never written: the
+log copies what the CLI prints, not what it reads. Addresses, host names
+and machine, workspace and user names stay, because without them the log
+says nothing. The full list is in [the CLI's
+log](how-it-works/the-cli-log.md#what-is-taken-out).
+
+**How to send them:** read the file first, then attach
+`devmachine.log` (and `.1` if the run you mean is older) to the issue or
+message. To send only the run that failed, copy from its `start` line to
+its `end` line; the number in brackets is the same on each line of one
+run.
+
 ## `ssh <workspace>-devmachine`: "Could not resolve hostname"
 
 **What it means:** That name only exists as a Host entry in

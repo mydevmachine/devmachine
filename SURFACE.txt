@@ -31,6 +31,8 @@ devmachine expose list
 devmachine expose rm
 devmachine help
 devmachine login
+devmachine logs
+devmachine logs path
 devmachine machine
 devmachine machine doctor
 devmachine machine setup

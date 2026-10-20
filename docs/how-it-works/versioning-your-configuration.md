@@ -16,6 +16,7 @@ its own.
 | `secrets.json` | the keyring fallback, in the clear | **never** |
 | `cache/` | downloaded package trees | **never** |
 | `history.log` | what was run, against which host | **never** |
+| `logs/` | what each command printed, and how it ended | **never** |
 | `chats/` | the local copy of your chats | **never** |
 | `*.env` | anything a package staged | **never** |
 | `state/` | what each machine was last seen to run | no: it is read again on the next sync |
@@ -59,7 +60,7 @@ warning nobody reads — refusing before the commit is the only version
 that matters.
 
 The check is a closed list of paths — `keys/`, `secrets.json`, `cache/`,
-`history.log`, `*.env`, `packages/.install-*`, `chats/` — not a scan for things that look like a token,
+`history.log`, `logs/`, `*.env`, `packages/.install-*`, `chats/` — not a scan for things that look like a token,
 because the CLI wrote every one of these paths itself: nothing else
 lands in the configuration folder.
 
