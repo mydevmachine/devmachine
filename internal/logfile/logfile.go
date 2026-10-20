@@ -87,7 +87,7 @@ func (l *Log) Line(kind, text string) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	for line := range strings.SplitSeq(text, "\n") {
-		if kept, ok := r.Line(line); ok {
+		if kept, ok := r.Line(plain(line)); ok {
 			l.write(kind, kept)
 		}
 	}
@@ -200,7 +200,7 @@ func (t *tee) emit(line string) {
 	if i := strings.LastIndexByte(line, '\r'); i >= 0 {
 		line = line[i+1:]
 	}
-	if kept, ok := t.red.Line(line); ok {
+	if kept, ok := t.red.Line(plain(line)); ok {
 		t.log.write(t.kind, kept)
 	}
 }

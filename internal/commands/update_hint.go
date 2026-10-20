@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/mydevmachine/devmachine/internal/release"
+	"github.com/mydevmachine/devmachine/internal/tty"
 	"github.com/spf13/cobra"
-	"golang.org/x/term"
 )
 
 // noUpdateHintEnv turns the update hint off when set to anything but "0".
@@ -37,12 +37,9 @@ var hintToTerminal = func(cmd *cobra.Command) bool {
 	return isTerminal(cmd.OutOrStdout()) && isTerminal(cmd.ErrOrStderr())
 }
 
-func isTerminal(w any) bool {
-	if tee, ok := w.(interface{ Underlying() io.Writer }); ok {
-		w = tee.Underlying()
-	}
-	f, ok := w.(*os.File)
-	return ok && term.IsTerminal(int(f.Fd()))
+func isTerminal(w io.Writer) bool {
+	_, ok := tty.Of(w)
+	return ok
 }
 
 // hintState is what the hint remembers between runs.

@@ -177,3 +177,63 @@ func TestANilLogIsSafe(t *testing.T) {
 		t.Fatalf("screen got %q", screen.String())
 	}
 }
+
+func TestTeeLogsWhatATerminalShowsWithoutItsEscapes(t *testing.T) {
+	dir := t.TempDir()
+	l := Open(dir)
+	var screen bytes.Buffer
+	w := l.Tee(&screen, "out")
+
+	coloured := "\x1b[0;32mok: [main]\x1b[0m\r\n" +
+		"\x1b]8;;https://example.com\x1b\\a link\x1b]8;;\x1b\\\n" +
+		"\x1b]0;a title\x07after the title\n" +
+		"Downloading  10%\r\x1b[KDownloading  50%\r\x1b[2KDownloading 100%\n" +
+		"\x1b(B\x1b[?25lhidden cursor\x1b[?25h\n" +
+		"GH_TOKEN=\x1b[1mfake-value\x1b[0m\n"
+	fmt.Fprint(w, coloured)
+	l.Close()
+
+	if screen.String() != coloured {
+		t.Fatalf("screen got %q", screen.String())
+	}
+	got := readLog(t, Path(dir))
+	for _, want := range []string{
+		"out    ok: [main]\n",
+		"out    a link\n",
+		"out    after the title\n",
+		"out    Downloading 100%\n",
+		"out    hidden cursor\n",
+		"out    GH_TOKEN=***\n",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("log lacks %q:\n%q", want, got)
+		}
+	}
+	for _, junk := range []string{"\x1b", "\r", "\x07", "10%", "50%", "fake-value"} {
+		if strings.Contains(got, junk) {
+			t.Errorf("log holds %q:\n%q", junk, got)
+		}
+	}
+}
+
+func TestPlainRemovesEscapeSequences(t *testing.T) {
+	for in, want := range map[string]string{
+		"plain":                        "plain",
+		"\x1b[1;31mred\x1b[m":          "red",
+		"\x1b[38;5;208morange\x1b[39m": "orange",
+		"\x1b]0;title\x07text":         "text",
+		"\x1b]0;title\x1b\\text":       "text",
+		"\x1bPdevice\x1b\\text":        "text",
+		"\x1b7saved\x1b8":              "saved",
+		"\x1b(0box\x1b(B":              "box",
+		"tab\tkept":                    "tab\tkept",
+		"bell\x07 and back\x08space":   "bell and backspace",
+		"cut at the end \x1b[":         "cut at the end ",
+		"cut in an OSC \x1b]0;ti":      "cut in an OSC ",
+		"accented é kept":              "accented é kept",
+	} {
+		if got := plain(in); got != want {
+			t.Errorf("plain(%q) = %q, want %q", in, got, want)
+		}
+	}
+}

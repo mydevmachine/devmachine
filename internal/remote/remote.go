@@ -31,6 +31,7 @@ import (
 	"github.com/mydevmachine/devmachine/internal/config"
 	"github.com/mydevmachine/devmachine/internal/hostkeys"
 	"github.com/mydevmachine/devmachine/internal/network"
+	"github.com/mydevmachine/devmachine/internal/tty"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/agent"
 	"golang.org/x/crypto/ssh/knownhosts"
@@ -774,7 +775,7 @@ func (c *localClient) StreamInput(ctx context.Context, command string, stdin io.
 	cmd.Stdin = stdin
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
-	if err := runLocal(ctx, cmd, cmd.Run); err != nil {
+	if err := runLocal(ctx, cmd, func() error { return tty.Run(cmd) }); err != nil {
 		return fmt.Errorf("running %q: %w", command, err)
 	}
 	return nil
