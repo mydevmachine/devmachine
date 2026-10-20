@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -180,6 +181,30 @@ func TestLoginEndsAWaitingLoginLeftTooLong(t *testing.T) {
 		t.Fatalf("Login after the old one returned %v", err)
 	}
 	waitGone(t, pid)
+	if n := loginCount(t, logins); n != 2 {
+		t.Fatalf("logins = %d, want 2", n)
+	}
+}
+
+func TestLoginIgnoresAPendingRecordWhoseProcessIsSomethingElse(t *testing.T) {
+	c, logins := fakeLoginSSH(t, 1, "exit 0")
+	other := exec.Command("sleep", "60")
+	if err := other.Start(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = other.Process.Kill(); _ = other.Wait() })
+	state := loginStatePath(c.controlPath(c.addresses[0]))
+	for _, started := range []time.Time{time.Now(), time.Now().Add(-loginLife - time.Minute)} {
+		if err := writePendingLogin(state, other.Process.Pid, started); err != nil {
+			t.Fatal(err)
+		}
+		if err := c.Login(context.Background()); err != nil {
+			t.Fatalf("Login returned %v; the recorded process is not a login", err)
+		}
+		if err := syscall.Kill(other.Process.Pid, 0); err != nil {
+			t.Fatalf("Login ended a process that was not its login: %v", err)
+		}
+	}
 	if n := loginCount(t, logins); n != 2 {
 		t.Fatalf("logins = %d, want 2", n)
 	}

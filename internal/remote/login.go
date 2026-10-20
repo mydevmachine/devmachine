@@ -112,6 +112,10 @@ func (c *muxClient) pendingLogin(address string) (bool, error) {
 		return false, nil
 	}
 	if syscall.Kill(pid, 0) == nil {
+		if !runsLogin(pid, c.controlPath(address)) {
+			clearLoginState(state)
+			return false, nil
+		}
 		if time.Since(started) < loginLife {
 			return true, nil
 		}
@@ -192,6 +196,14 @@ func (c *muxClient) startLogin(ctx context.Context, address string) (string, err
 			return "", ctx.Err()
 		}
 	}
+}
+
+// runsLogin says whether pid is still the login started for controlPath. A
+// record that outlived its ssh, after a crash or a restart, can name a process
+// that took the same number since.
+func runsLogin(pid int, controlPath string) bool {
+	out, err := exec.Command("ps", "-o", "args=", "-p", strconv.Itoa(pid)).Output()
+	return err == nil && strings.Contains(string(out), "ControlPath="+controlPath)
 }
 
 // sshOwnLines drops ssh's debug lines and banner, so what is left can be
