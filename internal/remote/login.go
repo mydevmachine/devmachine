@@ -162,8 +162,13 @@ func (c *muxClient) startLogin(ctx context.Context, address string) (string, err
 		_ = cmd.Wait()
 		return "", err
 	}
-	done := make(chan error, 1)
-	go func() { done <- cmd.Wait() }()
+	// The error is read only after done closes, which orders the two.
+	var waitErr error
+	done := make(chan struct{})
+	go func() {
+		waitErr = cmd.Wait()
+		close(done)
+	}()
 
 	watch := time.NewTimer(loginWatch)
 	defer watch.Stop()
@@ -171,16 +176,16 @@ func (c *muxClient) startLogin(ctx context.Context, address string) (string, err
 	defer tick.Stop()
 	for {
 		select {
-		case runErr := <-done:
+		case <-done:
 			log, _ := os.ReadFile(loginLogPath(state))
 			clearLoginState(state)
-			if runErr == nil {
+			if waitErr == nil {
 				return "", nil
 			}
 			if stderr := sshOwnLines(string(log)); stderr != "" {
 				return stderr, nil
 			}
-			return runErr.Error(), nil
+			return waitErr.Error(), nil
 		case <-tick.C:
 			log, _ := os.ReadFile(loginLogPath(state))
 			if strings.Contains(string(log), acceptedKey) {
