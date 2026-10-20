@@ -73,6 +73,26 @@ func TestLoginWithALiveSharedConnectionStartsNoLogin(t *testing.T) {
 	}
 }
 
+func TestLoginWithALiveSharedConnectionClearsTheRecordOfTheLoginThatOpenedIt(t *testing.T) {
+	c, _ := fakeLoginSSH(t, 0, "exit 0")
+	state := loginStatePath(c.controlPath(c.addresses[0]))
+	if err := writePendingLogin(state, 999999, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(loginLogPath(state), []byte("debug1: Server accepts key: alice\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := c.Login(context.Background()); err != nil {
+		t.Fatalf("Login returned %v", err)
+	}
+	for _, path := range []string{state, loginLogPath(state)} {
+		if _, err := os.Stat(path); !errors.Is(err, os.ErrNotExist) {
+			t.Fatalf("%s is still there: %v", path, err)
+		}
+	}
+}
+
 func TestLoginOpensTheSharedConnection(t *testing.T) {
 	c, logins := fakeLoginSSH(t, 1, "exit 0")
 	if err := c.Login(context.Background()); err != nil {

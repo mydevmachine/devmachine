@@ -45,6 +45,8 @@ const acceptedKey = "debug1: Server accepts key:"
 func (c *muxClient) Login(ctx context.Context) error {
 	for _, address := range c.addresses {
 		if c.masterUp(ctx, address) {
+			// The login that waited became this connection, or ended.
+			clearLoginState(loginStatePath(c.controlPath(address)))
 			return nil
 		}
 	}
