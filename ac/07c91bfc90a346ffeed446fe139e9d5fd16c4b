@@ -1,0 +1,20 @@
+docs/guides/godaddy-dns.md
+  s_08256a181d4c43::t_66f5790e622089 43-44,127-130
+  s_08256a181d4c43::t_734b2e0125f609 45
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ac07c91bfc90a346ffeed446fe139e9d5fd16c4b",
+  "prompts": {},
+  "sessions": {
+    "s_08256a181d4c43": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0abb1ab7-5e13-4a53-ba0a-2b4348618d74",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
