@@ -1,0 +1,27 @@
+README.md
+  s_08256a181d4c43::t_d9e24c26390359 159
+docs/concepts/dns.md
+  s_08256a181d4c43::t_526dab6d885a17 39-42
+docs/guides/godaddy-dns.md
+  s_08256a181d4c43::t_734b2e0125f609 42-45,89,126-127
+docs/how-it-works/dns-providers.md
+  s_08256a181d4c43::t_b3fdb789c4deea 156-158
+docs/reference/commands.md
+  s_08256a181d4c43::t_8c61a482cef2c6 1660-1661
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7a68cf43e06a80b9dfe53e5322c027880d923b55",
+  "prompts": {},
+  "sessions": {
+    "s_08256a181d4c43": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0abb1ab7-5e13-4a53-ba0a-2b4348618d74",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
