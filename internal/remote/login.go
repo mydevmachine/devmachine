@@ -63,6 +63,7 @@ func (c *muxClient) Login(ctx context.Context) error {
 	var (
 		failures []string
 		authErr  error
+		blocked  bool
 	)
 	for _, address := range c.addresses {
 		stderr, err := c.startLogin(ctx, address)
@@ -79,12 +80,14 @@ func (c *muxClient) Login(ctx context.Context) error {
 			authErr = fmt.Errorf("%w: machine %q answered on %s but refused the login for %q: %s",
 				ErrAuthRefused, c.machine, address, c.user, stderr)
 		}
+		blocked = blocked || turnedAwayText(stderr)
 		failures = append(failures, fmt.Sprintf("%s (%s)", address, stderr))
 	}
 	if authErr != nil {
 		return authErr
 	}
-	return fmt.Errorf("machine %q: no address answered: %s", c.machine, strings.Join(failures, "; "))
+	return withBanHint(fmt.Errorf("machine %q: no address answered: %s", c.machine, strings.Join(failures, "; ")),
+		c.known && blocked)
 }
 
 func (c *muxClient) waitingError(address string) error {

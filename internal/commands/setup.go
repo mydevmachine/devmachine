@@ -250,16 +250,23 @@ func runSetup(ctx context.Context, dir string, in io.Reader, out io.Writer, opts
 	if err != nil {
 		return err
 	}
-	if err := recordKey(dir, &m, key); err != nil {
-		return err
-	}
+	recordKey(&m, key)
 
 	release := pinForNewConfig(ctx, out)
 	m.Packages = startingPackages(ctx, dir, release, opts.noEssentials, out)
-	if err := writeNewConfig(dir, m, release, domain, false); err != nil {
-		return err
+	// The configuration is written only once the key logs in. Written first,
+	// a refused key left a machine behind that every later command, and the
+	// macOS app, tried again and again, until the server banned the address.
+	keyLogsIn := func() error {
+		if err := saveAgentKey(dir, m); err != nil {
+			return err
+		}
+		if err := writeNewConfig(dir, m, release, domain, false); err != nil {
+			return err
+		}
+		fmt.Fprintf(out, "\nwrote %s\n\n", path)
+		return nil
 	}
-	fmt.Fprintf(out, "\nwrote %s\n\n", path)
 
 	prep, err := newAnsiblePrep(dir, release, r, in, opts, func(name string) error {
 		m.Packages = append(m.Packages, name)
@@ -273,7 +280,8 @@ func runSetup(ctx context.Context, dir string, in io.Reader, out io.Writer, opts
 		m.Packages = names
 		return setMachinePackages(dir, m.Name, names)
 	}
-	keep, err := bootstrap(ctx, out, dir, m, key, passwordLoginFor(opts, r, out), askingPassword(r, in, out), prep)
+	keep, err := bootstrap(ctx, out, dir, m, key, passwordLoginFor(opts, r, out), askingPassword(r, in, out), prep,
+		keyLogsIn)
 	if err != nil {
 		return err
 	}
@@ -780,23 +788,31 @@ func (k chosenKey) describe() string {
 }
 
 // recordKey puts the chosen key on the machine the way its origin needs: a
-// path when it is a file, or the public half plus the file that lets the
-// system ssh binary find it in the agent when it is not.
-func recordKey(dir string, m *config.Machine, key chosenKey) error {
+// path when it is a file, or the public half when the agent holds it.
+// saveAgentKey writes the file that lets the system ssh binary find the
+// latter, once the key has logged in.
+func recordKey(m *config.Machine, key chosenKey) {
 	if key.Path != "" {
 		m.Key = key.Path
-		return nil
+		return
 	}
 	if key.Public == "" {
 		// No key was chosen (no agent, no file, nothing generated): keep the
 		// pre-existing behaviour of asking the agent for everything it holds.
-		return nil
-	}
-	if _, err := keys.WriteAgent(dir, m.Name, key.Public); err != nil {
-		return err
+		return
 	}
 	m.AgentKey = key.Public
-	return nil
+}
+
+// saveAgentKey writes the public half of the machine's agent key where the
+// system ssh binary looks for it. A machine with a key file has nothing to
+// write.
+func saveAgentKey(dir string, m config.Machine) error {
+	if m.AgentKey == "" {
+		return nil
+	}
+	_, err := keys.WriteAgent(dir, m.Name, m.AgentKey)
+	return err
 }
 
 // agentKeyPrefix is how --key names a key the SSH agent holds, by its SHA256
@@ -944,8 +960,11 @@ func askForKey(r *bufio.Reader, out io.Writer, dir, machine string) (chosenKey, 
 //
 // It returns the accounts that kept password login, for the configuration to
 // record so ssh_hardening keeps the same exceptions on every converge.
+//
+// keyLogsIn, when set, runs once the key is in and before anything on the
+// machine changes, so a caller can record the machine only when the key works.
 func bootstrap(ctx context.Context, out io.Writer, dir string, m config.Machine, key chosenKey, login passwordLogin,
-	password passwordSource, prep ansiblePrep) ([]string, error) {
+	password passwordSource, prep ansiblePrep, keyLogsIn func() error) ([]string, error) {
 	client, address, err := dialWith(ctx, m, m.User, key.auth())
 	unproved := false
 	var system remote.System
@@ -983,6 +1002,12 @@ func bootstrap(ctx context.Context, out io.Writer, dir string, m config.Machine,
 		}
 	}
 	defer func() { _ = client.Close() }()
+
+	if keyLogsIn != nil {
+		if err := keyLogsIn(); err != nil {
+			return nil, err
+		}
+	}
 
 	// Before anything is changed: an admin with no way to root is one clear
 	// sentence here, rather than an apt lock error halfway through.

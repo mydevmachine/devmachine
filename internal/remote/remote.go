@@ -25,6 +25,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/mydevmachine/devmachine/internal/config"
@@ -261,6 +262,7 @@ func dialWithPolicy(ctx context.Context, m config.Machine, user string, a Auth, 
 	var (
 		failures []string
 		authErr  error
+		blocked  bool
 	)
 	for _, address := range addresses {
 		target := net.JoinHostPort(address, fmt.Sprint(m.Port))
@@ -268,6 +270,7 @@ func dialWithPolicy(ctx context.Context, m config.Machine, user string, a Auth, 
 		if err == nil {
 			return &sshClient{conn: conn}, address, nil
 		}
+		blocked = blocked || turnedAway(err)
 		if errors.Is(err, ErrHostKeyUnknown) || errors.Is(err, ErrHostKeyChanged) {
 			return nil, "", err
 		}
@@ -284,7 +287,28 @@ func dialWithPolicy(ctx context.Context, m config.Machine, user string, a Auth, 
 	if authErr != nil {
 		return nil, "", authErr
 	}
-	return nil, "", fmt.Errorf("machine %q: no address answered: %s", m.Name, strings.Join(failures, "; "))
+	return nil, "", withBanHint(fmt.Errorf("machine %q: no address answered: %s", m.Name, strings.Join(failures, "; ")),
+		blocked && knownHostKey(m))
+}
+
+// banHint is what a known machine that turns the connection away most often
+// means: the server banned this address after failed logins.
+const banHint = "this machine answered SSH before, so the server may be blocking this address after " +
+	"failed logins (fail2ban, for example): wait about 10 minutes or unban it from the provider's console, " +
+	"and check `sudo fail2ban-client status sshd` there"
+
+// turnedAway reports whether the machine refused or dropped the connection
+// before any login was tried.
+func turnedAway(err error) bool {
+	return errors.Is(err, syscall.ECONNREFUSED) || errors.Is(err, syscall.ECONNRESET) || errors.Is(err, io.EOF)
+}
+
+// withBanHint adds banHint to err when the machine turned the connection away.
+func withBanHint(err error, blocked bool) error {
+	if !blocked {
+		return err
+	}
+	return fmt.Errorf("%w; %s", err, banHint)
 }
 
 func hostKeyPolicy(m config.Machine) (ssh.HostKeyCallback, []string, error) {
@@ -345,10 +369,15 @@ func ScanHostKey(ctx context.Context, m config.Machine) (ssh.PublicKey, string, 
 	if user == "" {
 		user = config.DefaultAdminUser
 	}
-	var failures []string
+	var (
+		failures []string
+		blocked  bool
+	)
+	known := len(algorithms) > 0
 	for _, address := range addresses {
 		target := net.JoinHostPort(address, strconv.Itoa(m.Port))
 		presented, answered, handshakeErr := scanPresentedHostKey(ctx, target, user, algorithms)
+		blocked = blocked || known && handshakeErr != nil && turnedAway(handshakeErr)
 		if !answered {
 			failures = append(failures, fmt.Sprintf("%s (%v)", address, handshakeErr))
 			continue
@@ -367,9 +396,11 @@ func ScanHostKey(ctx context.Context, m config.Machine) (ssh.PublicKey, string, 
 		if presented != nil {
 			return presented, address, nil
 		}
-		return nil, "", fmt.Errorf("machine %q answered on %s but did not present an SSH host key: %w", m.Name, address, handshakeErr)
+		return nil, "", withBanHint(fmt.Errorf("machine %q answered on %s but did not present an SSH host key: %w",
+			m.Name, address, handshakeErr), blocked)
 	}
-	return nil, "", fmt.Errorf("machine %q: no address answered while scanning its SSH host key: %s", m.Name, strings.Join(failures, "; "))
+	return nil, "", withBanHint(fmt.Errorf("machine %q: no address answered while scanning its SSH host key: %s",
+		m.Name, strings.Join(failures, "; ")), blocked)
 }
 
 func scanHostKeyAlgorithms(m config.Machine) ([]string, error) {

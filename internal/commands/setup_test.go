@@ -1316,3 +1316,88 @@ func TestSetupSaysADerivativeIsNotTested(t *testing.T) {
 		t.Fatalf("got %q, want %q", out.String(), want)
 	}
 }
+
+// A machine written before its key logs in is one every later command, and
+// the macOS app, keeps knocking on with a key the server refuses, until the
+// server bans the address.
+func TestSetupWritesNoConfigurationUntilTheKeyLogsIn(t *testing.T) {
+	agent := []keys.Offered{{Fingerprint: "SHA256:aaaa", Comment: "alice laptop",
+		PublicKey: "ssh-ed25519 AAAAagent alice laptop"}}
+	for _, tc := range []struct {
+		name   string
+		stubs  bootstrapStubs
+		answer []string
+	}{
+		{"no password", bootstrapStubs{agent: agent}, []string{""}},
+		{"key installed and not proved", bootstrapStubs{agent: agent, proofFails: true}, []string{"devmachine"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			stubBootstrap(t, tc.stubs)
+
+			lines := append([]string{"main", "203.0.113.10", "root", "22", "", "3"}, tc.answer...)
+			if _, err := runSetupIn(t, dir, answers(lines...), setupOptions{}); err == nil {
+				t.Fatal("a key that does not log in was accepted")
+			}
+			for _, path := range []string{
+				filepath.Join(dir, config.FileName),
+				filepath.Join(dir, agentsFileName),
+				keys.AgentFile(dir, "main"),
+			} {
+				if _, err := os.Stat(path); !errors.Is(err, os.ErrNotExist) {
+					t.Fatalf("a failed setup left %s behind", path)
+				}
+			}
+		})
+	}
+}
+
+func TestSetupWritesNoConfigurationWhenNothingAnswers(t *testing.T) {
+	dir := t.TempDir()
+	stubBootstrap(t, bootstrapStubs{})
+	t.Cleanup(swap(&dialWith, func(context.Context, config.Machine, string, remote.Auth) (remote.Client, string, error) {
+		return nil, "", errors.New("machine \"main\": no address answered")
+	}))
+
+	if _, err := runSetupIn(t, dir, answers("main", "203.0.113.10", "root", "22", "", "1"), setupOptions{}); err == nil {
+		t.Fatal("an unreachable machine was reported as set up")
+	}
+	if _, err := os.Stat(filepath.Join(dir, config.FileName)); !errors.Is(err, os.ErrNotExist) {
+		t.Fatal("a failed setup left config.yml behind")
+	}
+}
+
+func TestSetupWithForceKeepsTheOldConfigurationWhenTheKeyDoesNotLogIn(t *testing.T) {
+	dir := t.TempDir()
+	existing := "machines:\n  - name: old\n    hosts: [203.0.113.99]\n"
+	if err := os.WriteFile(filepath.Join(dir, config.FileName), []byte(existing), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	stubBootstrap(t, bootstrapStubs{})
+
+	if _, err := runSetupIn(t, dir, answers("new", "203.0.113.10", "root", "22", "", "1", ""),
+		setupOptions{force: true}); err == nil {
+		t.Fatal("a key that does not log in was accepted")
+	}
+	if after := readConfigFile(t, dir); after != existing {
+		t.Fatalf("a failed setup rewrote config.yml:\n%s", after)
+	}
+}
+
+// Once the key logs in, a later step that fails leaves the machine written:
+// the key works, so running setup again only finishes the job.
+func TestSetupKeepsTheMachineWhenAStepAfterTheKeyFails(t *testing.T) {
+	dir := t.TempDir()
+	stubBootstrap(t, bootstrapStubs{keyWorks: true, noRoot: true})
+
+	if _, err := runSetupIn(t, dir, answers("main", "203.0.113.10", "root", "22", "", "1"), setupOptions{}); err == nil {
+		t.Fatal("an admin with no way to root was accepted")
+	}
+	cfg, err := config.Load(dir)
+	if err != nil {
+		t.Fatalf("the machine whose key logs in was not written: %v", err)
+	}
+	if len(cfg.Machines) != 1 || cfg.Machines[0].Name != "main" {
+		t.Fatalf("machines = %#v", cfg.Machines)
+	}
+}
