@@ -85,7 +85,7 @@ coding agent and let it do the work.
   own. Keep it private or share it.
 - **Put your site online.** Your app at app.example.com, with HTTPS, in one
   command: `devmachine expose add acme 3000 --host app.example.com`.
-  devmachine points the name for you through Cloudflare or Hostinger.
+  devmachine points the name for you through Cloudflare, GoDaddy or Hostinger.
 - **Private until you publish.** Reach apps through `devmachine tunnel` or
   Tailscale. Only what you publish is public.
 - **Locked down from the start.** No passwords, and no workspace runs as
@@ -156,6 +156,7 @@ Real setups, done in a few steps, by hand or as one request to your agent.
 | [Keep your sessions running](https://mydevmachine.sh/guides/keep-sessions-running/) | [Express site with TLS](https://mydevmachine.sh/guides/express-site-with-tls/) | [One consultant, three startups](https://mydevmachine.sh/guides/one-consultant-three-startups/) |
 | [Claude Code from your phone](https://mydevmachine.sh/guides/claude-code-remote-control/) | [Docker site on 8080](https://mydevmachine.sh/guides/docker-site-on-8080/) | [Try it on your computer with Lima](https://mydevmachine.sh/guides/a-local-vm-with-lima/) |
 | [Claude 24/7 in Telegram](https://mydevmachine.sh/guides/claude-24-7-in-telegram/) | [Home server without port forwarding](https://mydevmachine.sh/guides/expose-home-server-without-port-forwarding/) | [Point your domain with Cloudflare](https://mydevmachine.sh/guides/cloudflare-dns/) |
+| | | [Point your domain with GoDaddy](https://mydevmachine.sh/guides/godaddy-dns/) |
 | [OpenClaw in its own sandbox](https://mydevmachine.sh/guides/openclaw-in-its-own-sandbox/) | [wuzapi as your own package](https://mydevmachine.sh/guides/wuzapi-as-your-own-package/) | [Your own Tailscale with Headscale](https://mydevmachine.sh/guides/headscale/) |
 | [Hermes Agent in its own sandbox](https://mydevmachine.sh/guides/hermes-agent-in-its-own-sandbox/) | [Agno AgentOS with a control plane](https://mydevmachine.sh/guides/agno-agentos-with-control-plane/) | [Logins and secrets](https://mydevmachine.sh/guides/logins-and-secrets/) |
 

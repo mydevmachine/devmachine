@@ -1024,6 +1024,23 @@ record by hand.
 permission also needs the zones listed: `devmachine machines edit main
 --set hostinger.zones=[example.com]`.
 
+## GoDaddy answers 403 ACCESS_DENIED to every command
+
+**What it means:** GoDaddy does not allow the account on its Domains API.
+It is not the token. GoDaddy lets only accounts that hold a domain, or a
+plan with management access, call it, and answers every other call with
+`403 ACCESS_DENIED`.
+
+**What to do:** Ask GoDaddy directly:
+
+```
+curl -H "Authorization: Bearer $PAT" https://api.godaddy.com/v1/domains
+```
+
+A `403` there is GoDaddy's account rule, and a new token will not change
+it. A `200` with an empty list means the account has no `ACTIVE` domain,
+so `devmachine dns providers` shows no zone.
+
 ## `expose add` said "the DNS record for … was not written"
 
 **What it means:** The site is on Caddy, but the DNS provider refused the

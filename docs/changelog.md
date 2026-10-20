@@ -8,6 +8,13 @@ page](https://github.com/mydevmachine/devmachine/releases).
 
 To get the latest version, see [Upgrade](upgrade.md).
 
+## v0.16.1 — 2026-10-20
+
+### Added
+
+- GoDaddy as a DNS provider: `packages add godaddy` (packages v56). A
+  Personal Access Token with the DNS scopes is enough.
+
 ## App v0.8.0 — 2026-10-20
 
 Needs CLI v0.17.0 for the CLI's log in Help → Logs and for the 1Password

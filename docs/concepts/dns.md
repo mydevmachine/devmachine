@@ -36,7 +36,7 @@ value, and `dns add` only ever sets one.
 
 ## A provider is a package
 
-Talking to your domain provider — Hostinger, Cloudflare, or another — is
+Talking to your domain provider — Hostinger, Cloudflare, GoDaddy, or another — is
 a package, installed with `devmachine packages add` like any other. Until
 one is installed, `dns add` can't write anywhere, and prints the record
 for you to create by hand instead. See

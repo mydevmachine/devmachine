@@ -1657,7 +1657,7 @@ devmachine dns rm  <name> <type> [value] [--dns-provider p] [--zone z] [--check]
 ```
 
 Manages DNS records through an installed provider package (Hostinger,
-Cloudflare). See [DNS providers](../how-it-works/dns-providers.md) for
+Cloudflare, GoDaddy). See [DNS providers](../how-it-works/dns-providers.md) for
 what differs between them.
 
 `status` checks a name from the outside — resolves, certificate accepted,

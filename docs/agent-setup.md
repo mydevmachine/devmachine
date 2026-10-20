@@ -88,7 +88,7 @@ For a server:
 4. Where the server is, for example `hostinger`, `home` or `office`. If they
    do not say, use `external`.
 5. Only if they want an app visible at a URL: a domain, and whether it is at
-   Hostinger or Cloudflare. Otherwise skip this.
+   Hostinger, Cloudflare or GoDaddy. Otherwise skip this.
 6. Only for a Mac: Homebrew or MacPorts, and whether devmachine may install
    what the Mac lacks (the Command Line Tools take 5 to 10 minutes). See
    [what a machine needs](how-it-works/what-a-machine-needs.md).

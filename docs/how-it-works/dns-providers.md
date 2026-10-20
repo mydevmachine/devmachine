@@ -5,7 +5,7 @@ zone. Read it before you touch a real one.
 
 ## A provider is a package, not a built-in vendor
 
-Talking to Hostinger or Cloudflare is an ordinary package: `devmachine
+Talking to Hostinger, Cloudflare or GoDaddy is an ordinary package: `devmachine
 packages add hostinger`, run on the machine, never on your computer.
 There is no vendor list inside the CLI binary.
 
@@ -124,7 +124,41 @@ Certificates on this machine renew through a challenge that needs the
 request to reach the machine directly. A proxied record answers from
 Cloudflare's edge instead, and the challenge fails.
 
-## Neither provider retries a rate limit
+## GoDaddy
+
+### A Personal Access Token, not a key and secret
+
+The provider sends the token as `Authorization: Bearer`. GoDaddy's older
+key and secret pair (`sso-key`) is deprecated for domains, and the
+provider does not support it.
+
+### `PUT` on a type and name replaces that set
+
+`PUT /v1/domains/{zone}/records/{type}/{name}` swaps every value at that
+type and name for the ones you send. That is exactly what `upsert`
+means, so it is one call. Deleting one value among several reads the set
+and sends the rest with a `PUT`. Deleting the last value, or the whole
+set, is a `DELETE`.
+
+### `list` shows A, AAAA, CNAME and TXT only
+
+Other types in the zone are left out of `list`. `zones` lists only the
+account's `ACTIVE` domains.
+
+### An account GoDaddy refuses answers 403 `ACCESS_DENIED`
+
+GoDaddy lets only some accounts call the Domains API: those that hold a
+domain, or a plan with management access. Any other account gets `403
+ACCESS_DENIED` on every call, whatever the token. The provider reports it
+as `forbidden`, with GoDaddy's `code` and `message`. See
+[troubleshooting](../troubleshooting.md).
+
+### 60 requests a minute per credential
+
+A `429` is `rate_limited`, and the provider does not retry it. The
+package has no switch for GoDaddy's test (OTE) environment.
+
+## No provider retries a rate limit
 
 A `429` is reported as `rate_limited` and the provider stops. Retrying
 inside the entrypoint would hide how throttled the registrar really is,
