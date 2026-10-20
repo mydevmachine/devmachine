@@ -66,6 +66,29 @@ What stays is what makes the log useful: addresses, host names, machine,
 workspace and user names, and the commands that ran. Read the file
 before you send it if any of those are private to you.
 
+## What it looks like
+
+The file holds plain text. Colours, cursor moves and window titles are
+taken out, and a line that redraws itself, like a download's progress
+bar, keeps only the state it ended in: `Downloading 100%`, not every
+step on the way.
+
+## Why the programs it runs still see your terminal
+
+To copy what a command prints, the CLI has to read it on its way to
+your terminal. A program like Homebrew, or a command `run` starts on a
+`self: true` machine, would then find itself writing into the CLI
+instead of a terminal, and print plain: no colours, no progress bars,
+the wrong width. So when your output is a terminal, the CLI gives such
+a program a terminal of its own, the same size as yours, and passes
+everything it prints to yours unchanged while the log keeps a plain
+copy. What you see is what you saw before the log existed.
+
+When the output is not a terminal, as in the macOS app, a pipe or a
+file, the program gets a pipe and prints plain, as it always did.
+Questions the CLI asks you are not affected either way: the log copies
+what the CLI prints, never what you type.
+
 ## Size
 
 When the file passes 5 MB, it becomes `devmachine.log.1`, the old `.1`

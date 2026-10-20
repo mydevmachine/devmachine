@@ -8,6 +8,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -15,6 +16,9 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/creack/pty"
+	"github.com/mydevmachine/devmachine/internal/logfile"
 )
 
 func TestHomebrewPrefix(t *testing.T) {
@@ -337,5 +341,28 @@ func assertOnlyFile(t *testing.T, dir, name string) {
 			names = append(names, e.Name())
 		}
 		t.Fatalf("%s holds %q; want only %s", dir, names, name)
+	}
+}
+
+func TestBrewUpgradeShowsBrewATerminalThroughTheLog(t *testing.T) {
+	master, terminal, err := pty.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer master.Close()
+	defer terminal.Close()
+	go func() { _, _ = io.Copy(io.Discard, master) }()
+
+	brew, callLog := fakeBrew(t, "[ -t 1 ] && [ -t 2 ] && echo \"tty $*\" >> \"$BREW_LOG\"\nexit 0\n")
+	log := logfile.Open(t.TempDir())
+	defer log.Close()
+	brew.Stdout, brew.Stderr = log.Tee(terminal, "out"), log.Tee(terminal, "err")
+	if err := brew.Upgrade(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"tty update", "tty trust --formula " + Formula, "tty upgrade " + Formula} {
+		if !slices.Contains(calls(t, callLog), want) {
+			t.Errorf("brew did not see a terminal for %q: %q", want, calls(t, callLog))
+		}
 	}
 }

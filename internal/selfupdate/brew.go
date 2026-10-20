@@ -6,6 +6,8 @@ import (
 	"io"
 	"os/exec"
 	"strings"
+
+	"github.com/mydevmachine/devmachine/internal/tty"
 )
 
 // Brew runs Homebrew. Path is the brew binary; Env, when set, is the whole
@@ -57,5 +59,5 @@ func (b Brew) run(ctx context.Context, stdout io.Writer, args ...string) error {
 	if cmd.Stderr == nil {
 		cmd.Stderr = io.Discard
 	}
-	return cmd.Run()
+	return tty.Run(cmd)
 }
