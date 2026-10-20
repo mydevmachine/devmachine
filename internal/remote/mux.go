@@ -63,6 +63,7 @@ func DialMux(ctx context.Context, m config.Machine, user string) (Client, string
 		addresses:  addresses,
 		user:       user,
 		machine:    m.Name,
+		known:      knownHostKey(m),
 	}
 	return client, addresses[0], nil
 }
@@ -118,6 +119,9 @@ type muxClient struct {
 	addresses  []string
 	user       string
 	machine    string
+	// known says the machine's host key is trusted, so it answered SSH
+	// before.
+	known bool
 }
 
 func (c *muxClient) Run(ctx context.Context, command string) (string, error) {
@@ -162,6 +166,7 @@ func (c *muxClient) exec(ctx context.Context, command string, stdin io.Reader, s
 	var (
 		failures []string
 		authErr  error
+		blocked  bool
 	)
 	var sent countingReader
 	if stdin != nil {
@@ -220,6 +225,7 @@ func (c *muxClient) exec(ctx context.Context, command string, stdin io.Reader, s
 					authErr = fmt.Errorf("%w: machine %q answered on %s but refused the login for %q: %s",
 						ErrAuthRefused, c.machine, address, c.user, strings.TrimSpace(errBuf.String()))
 				}
+				blocked = blocked || turnedAwayText(errBuf.String())
 				failures = append(failures, fmt.Sprintf("%s (%s)", address, strings.TrimSpace(errBuf.String())))
 				continue
 			}
@@ -232,7 +238,21 @@ func (c *muxClient) exec(ctx context.Context, command string, stdin io.Reader, s
 	if authErr != nil {
 		return authErr
 	}
-	return fmt.Errorf("machine %q: no address answered: %s", c.machine, strings.Join(failures, "; "))
+	return withBanHint(fmt.Errorf("machine %q: no address answered: %s", c.machine, strings.Join(failures, "; ")),
+		c.known && blocked)
+}
+
+// turnedAwayLine is ssh's own line for a server that refused or dropped the
+// connection before any login.
+var turnedAwayLine = regexp.MustCompile(`Connection refused|Connection (closed|reset) by`)
+
+func turnedAwayText(stderr string) bool { return turnedAwayLine.MatchString(stderr) }
+
+// knownHostKey says whether the machine's host key is trusted, so it answered
+// SSH before.
+func knownHostKey(m config.Machine) bool {
+	algorithms, err := scanHostKeyAlgorithms(m)
+	return err == nil && len(algorithms) > 0
 }
 
 // preSessionLines are the whole lines ssh writes when it never reached a

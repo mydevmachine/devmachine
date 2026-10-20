@@ -326,3 +326,48 @@ func TestMachinesAddIntoAConfigurationWrittenMeanwhileAddsToIt(t *testing.T) {
 		t.Fatalf("domain %q, and the output does not say --domain was not written: %s", cfg.Domain, out)
 	}
 }
+
+func TestMachinesAddWithARefusedAgentKeyRecordsNothingForTheMachine(t *testing.T) {
+	dir := writeConfigDir(t, oneMachine)
+	before := readConfigFile(t, dir)
+	steps := stubBootstrap(t, bootstrapStubs{keyWorks: false, agent: []keys.Offered{
+		{Fingerprint: "SHA256:aaaa", Comment: "alice laptop", PublicKey: "ssh-ed25519 AAAAagent alice laptop"},
+	}})
+
+	_, err := executeWithInput(t, "",
+		unattendedAdd(dir, hostkeys.Fingerprint(steps.hostKey), "--key", "agent:SHA256:aaaa")...)
+	if err == nil || !strings.Contains(err.Error(), "no password was given") {
+		t.Fatalf("got %v", err)
+	}
+	if after := readConfigFile(t, dir); after != before {
+		t.Fatalf("a failed add changed config.yml:\n%s", after)
+	}
+	for _, path := range []string{
+		keys.AgentFile(dir, "sandbox"),
+		filepath.Join(dir, config.KnownHostsFileName),
+		filepath.Join(dir, agentsFileName),
+	} {
+		if _, err := os.Stat(path); !os.IsNotExist(err) {
+			t.Fatalf("a failed add left %s behind", path)
+		}
+	}
+}
+
+func TestMachinesAddWithAnAgentKeyRecordsItOnceTheKeyLogsIn(t *testing.T) {
+	dir := writeConfigDir(t, oneMachine)
+	steps := stubBootstrap(t, bootstrapStubs{keyWorks: true, agent: []keys.Offered{
+		{Fingerprint: "SHA256:aaaa", Comment: "alice laptop", PublicKey: "ssh-ed25519 AAAAagent alice laptop"},
+	}})
+
+	if out, err := executeWithInput(t, "",
+		unattendedAdd(dir, hostkeys.Fingerprint(steps.hostKey), "--key", "agent:SHA256:aaaa")...); err != nil {
+		t.Fatalf("machines add returned %v (%s)", err, out)
+	}
+	body, err := os.ReadFile(keys.AgentFile(dir, "sandbox"))
+	if err != nil {
+		t.Fatalf("the agent key's public file was not written: %v", err)
+	}
+	if strings.TrimSpace(string(body)) != "ssh-ed25519 AAAAagent alice laptop" {
+		t.Fatalf("got %q", body)
+	}
+}

@@ -87,6 +87,43 @@ lists every address it tried and what happened for each.
 - Check for a second address — see
   [Addresses and fallback](how-it-works/addresses-and-fallback.md).
 
+## "connection refused" on a machine that answered before
+
+The error ends with:
+
+```
+machine "main": no address answered: 203.0.113.10 (dial tcp 203.0.113.10:22: connect: connection refused); this machine answered SSH before, so the server may be blocking this address after failed logins (fail2ban, for example): …
+```
+
+**What it means:** devmachine has talked to this server before — its host
+key is trusted — and now the server turns the connection away before any
+login: refused, or closed during the handshake. SSH is most likely still
+running. The usual cause is fail2ban, or another firewall rule, that banned
+your address after several failed logins in a short time. A key the server
+refuses, tried again and again by `doctor`, `sessions` or the macOS app, is
+enough. The port can still look open from another network, because the ban
+is for your address only.
+
+devmachine adds this sentence only for a server it has reached before. For
+an address it has never seen, "connection refused" means the usual: wrong
+address or port, or SSH not running.
+
+**What to do:**
+
+- Stop whatever keeps logging in with the wrong key — a machine left in
+  `config.yml` with a key that does not work, or the macOS app polling it.
+- Wait about 10 minutes: fail2ban lifts a ban on its own (`bantime`, 10
+  minutes by default).
+- Or open the provider's web console, which does not go through SSH, and
+  run `sudo fail2ban-client status sshd` to see the banned addresses, then
+  `sudo fail2ban-client set sshd unbanip <your address>`.
+- Then fix the key — see ["answered on … but refused the
+  login"](#answered-on--but-refused-the-login).
+
+`setup` and `machines add` never write a machine whose key has not logged
+in, so they do not start this loop — see [nothing is written before the key
+logs in](how-it-works/trust-bootstrap.md#nothing-is-written-before-the-key-logs-in).
+
 ## "answered on … but refused the login"
 
 **What it means:** The server is there, so the network is fine. The account
@@ -125,7 +162,8 @@ SSH agent and load one.
 **What it means:** `machines add --address …` asks nothing, so it had no
 way to get the server's password, and the key it chose is not in the
 admin's `authorized_keys` yet. A server just bought usually takes only a
-password. Nothing was changed, and nothing was written to `config.yml`.
+password. Nothing was changed, and nothing was written to `config.yml`, so
+nothing keeps retrying the key until the server bans your address.
 
 **What to do:** Give the password on stdin, so it never appears in the
 command line or the shell history:

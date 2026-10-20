@@ -531,9 +531,7 @@ func runMachinesAdd(ctx context.Context, dir string, in io.Reader, out io.Writer
 	if err != nil {
 		return err
 	}
-	if err := recordKey(dir, &m, key); err != nil {
-		return err
-	}
+	recordKey(&m, key)
 	release := current.Packages
 	if fresh {
 		release = pinForNewConfig(ctx, out)
@@ -558,7 +556,10 @@ func runMachinesAdd(ctx context.Context, dir string, in io.Reader, out io.Writer
 	if opts.unattended() {
 		login.ask = nil
 	}
-	if m.PasswordLoginKeep, err = bootstrap(ctx, out, dir, m, key, login, password, prep); err != nil {
+	if m.PasswordLoginKeep, err = bootstrap(ctx, out, dir, m, key, login, password, prep, nil); err != nil {
+		return err
+	}
+	if err := saveAgentKey(dir, m); err != nil {
 		return err
 	}
 	if err := keepHostKey(m, trusted); err != nil {

@@ -84,6 +84,14 @@ networks](../concepts/private-networks.md)). A Mac is not asked about
 Tailscale, since the `tailscale` package runs only on Linux, and
 `machines add --tailscale` says so and adds nothing.
 
+It writes `config.yml` once the key logs in, before it changes anything
+on the server. A run that stops earlier — the key refused and no password,
+the proof failed, nothing answered, the fingerprint declined — writes no
+`config.yml`, and with `--force` leaves the old one as it was. A run that
+stops later, at root or Ansible, keeps the machine, and running `setup`
+again finishes the job. See [nothing is written before the key logs
+in](../how-it-works/trust-bootstrap.md#nothing-is-written-before-the-key-logs-in).
+
 With no `config.yml` yet, it also writes `AGENTS.md` if none exists, telling
 a coding agent how to work in this folder — it never overwrites one already
 there.

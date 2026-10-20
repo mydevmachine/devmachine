@@ -94,8 +94,29 @@ What a failed run leaves is harmless to the next one: the key it made is
 reused, and a key it already installed now logs in, so no password is
 asked for.
 
-`setup` is different on purpose: it writes `config.yml` first, and
-running it again resumes from that file instead of starting over.
+`setup` writes `config.yml` earlier, once the key logs in, and running
+it again resumes from that file instead of starting over.
+
+## Nothing is written before the key logs in
+
+Neither `setup` nor `machines add` writes a machine whose key has not
+logged in. A refused key with no password, a failed proof, an address
+that does not answer, a declined fingerprint: each leaves `config.yml`
+as it was, or absent if there was none, and records no agent key for
+the machine.
+
+Why: a machine in `config.yml` is one every command reaches for —
+`doctor`, `sessions`, the macOS app every minute or two. With a key the
+server refuses, each of those is a failed login in the server's SSH log.
+With fail2ban on, a few of them ban your address, and from then on the
+server refuses the connection outright, even after the key is fixed.
+See [the connection is refused on a machine that answered
+before](../troubleshooting.md#connection-refused-on-a-machine-that-answered-before).
+
+Once the key logs in, there is no such risk, so `setup` writes the
+machine before it changes anything else. A later failure — no way to
+root, Ansible not installing — keeps it, and running `setup` again
+finishes from there.
 
 ## A fingerprint of any key type
 
