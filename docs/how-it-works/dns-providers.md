@@ -153,6 +153,9 @@ ACCESS_DENIED` on every call, whatever the token. The provider reports it
 as `forbidden`, with GoDaddy's `code` and `message`. See
 [troubleshooting](../troubleshooting.md).
 
+A `404` on a domain path means the account does not hold that zone. The
+provider reports it as `zone_not_found`.
+
 ### 60 requests a minute per credential
 
 A `429` is `rate_limited`, and the provider does not retry it. The
