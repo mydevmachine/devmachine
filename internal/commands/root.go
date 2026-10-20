@@ -47,7 +47,7 @@ func run(root *cobra.Command, opts *options, argv []string) int {
 	stderr := root.ErrOrStderr()
 	root.SetArgs(argv)
 	err := root.Execute()
-	logPath := finishLog(opts.invocation, err)
+	logPath := finishLog(opts, err)
 	if err == nil {
 		return 0
 	}

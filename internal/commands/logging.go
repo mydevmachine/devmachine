@@ -101,12 +101,9 @@ func startLog(cmd *cobra.Command, opts *options) {
 	if inv == nil {
 		return
 	}
-	dir, _, err := config.Dir(opts.configDir)
-	if err != nil {
+	dir := logDir(opts)
+	if dir == "" {
 		return
-	}
-	if abs, err := filepath.Abs(dir); err == nil {
-		dir = abs
 	}
 	inv.dir = dir
 	inv.mode = logModeFor(cmd)
@@ -121,11 +118,37 @@ func startLog(cmd *cobra.Command, opts *options) {
 	root.SetErr(inv.log.Tee(root.ErrOrStderr(), "err"))
 }
 
+// logDir is the absolute configuration directory the log goes under, or ""
+// when there is none.
+func logDir(opts *options) string {
+	dir, _, err := config.Dir(opts.configDir)
+	if err != nil {
+		return ""
+	}
+	if abs, err := filepath.Abs(dir); err == nil {
+		dir = abs
+	}
+	return dir
+}
+
 // finishLog writes how the run ended, and returns the log's path when the
 // person should be pointed at it.
-func finishLog(inv *invocation, err error) string {
-	if inv == nil || inv.dir == "" {
+//
+// A run refused before startLog, for a flag it does not know or a command
+// that does not exist, still leaves its one failed line.
+func finishLog(opts *options, err error) string {
+	inv := opts.invocation
+	if inv == nil {
 		return ""
+	}
+	if inv.dir == "" {
+		if err == nil {
+			return ""
+		}
+		inv.dir, inv.mode = logDir(opts), logFailures
+		if inv.dir == "" {
+			return ""
+		}
 	}
 	took := time.Since(inv.started).Round(time.Millisecond)
 	switch inv.mode {
@@ -170,14 +193,10 @@ func newLogsCmd(opts *options) *cobra.Command {
 		Short: "Print where the CLI writes its log",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			dir, _, err := config.Dir(opts.configDir)
-			if err != nil {
+			if _, _, err := config.Dir(opts.configDir); err != nil {
 				return err
 			}
-			if abs, err := filepath.Abs(dir); err == nil {
-				dir = abs
-			}
-			path := logfile.Path(dir)
+			path := logfile.Path(logDir(opts))
 			if opts.format == formatJSON {
 				return writeJSON(cmd.OutOrStdout(), struct {
 					Path string `json:"path"`

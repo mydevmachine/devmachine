@@ -240,3 +240,20 @@ func TestALoggedCommandStillCommitsInARepositoryWhoseIgnoreFileLacksTheLogs(t *t
 		t.Fatal("the run was not logged")
 	}
 }
+
+func TestAFailureBeforeTheCommandRunsWritesOneLine(t *testing.T) {
+	dir := t.TempDir()
+
+	_, stderr, code := runLogged(t, "--config", dir, "sync", "--no-such-flag", "--token=fake-token")
+	if code == 0 {
+		t.Fatal("an unknown flag worked")
+	}
+	if strings.Contains(stderr, "log: ") {
+		t.Fatalf("points at a log that holds one line: %q", stderr)
+	}
+
+	lines := logLines(t, dir)
+	if len(lines) != 1 || !strings.Contains(lines[0], " failed --config "+dir+" sync --no-such-flag --token=*** (exit 1)") {
+		t.Fatalf("got:\n%s", strings.Join(lines, "\n"))
+	}
+}
