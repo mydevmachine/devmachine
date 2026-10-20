@@ -1,0 +1,39 @@
+docs/how-it-works/trust-bootstrap.md
+  s_70e932a9e81148::t_a08e6c2365acac 97-119
+docs/reference/commands.md
+  s_70e932a9e81148::t_aec21f5716d6a2 87-94
+docs/troubleshooting.md
+  s_70e932a9e81148::t_75b109b859f3c1 90-126,165-166
+internal/commands/machines.go
+  s_70e932a9e81148::t_ed519459830c17 534,559-562
+internal/commands/machines_add_test.go
+  s_70e932a9e81148::t_88cd6e66d3ff70 329-373
+internal/commands/setup.go
+  s_70e932a9e81148::t_29eff61d2ac5af 253,257-268,283-284,791-794,797,802,805-815,963-965,967,1006-1011
+internal/commands/setup_test.go
+  s_70e932a9e81148::t_fd3ebc8a441d18 1319-1403
+internal/remote/blocked_test.go
+  s_70e932a9e81148::t_20359c1bb4e420 1-173
+internal/remote/login.go
+  s_70e932a9e81148::t_99acd77aa0e3f0 66,83,89-90
+internal/remote/mux.go
+  s_70e932a9e81148::t_adc6c5b4d5b2de 66,122-124,169,228,241-255
+internal/remote/remote.go
+  s_70e932a9e81148::t_ff76c2d77ad59c 28,265,273,290-313,374-378,382,401-402,404-405
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "df7992f8574e633539c3697c6c1b13bebdc3cd9a",
+  "prompts": {},
+  "sessions": {
+    "s_70e932a9e81148": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d778f438-4d84-4cdd-9b5b-0bfbc5cc6fc3",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
