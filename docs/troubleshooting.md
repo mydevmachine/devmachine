@@ -63,6 +63,18 @@ after that.
 seconds and logs in again. See
 [Session indicators](how-it-works/session-indicators.md#after-the-computer-sleeps).
 
+## `login-waiting` from `sessions`
+
+**What it means:** The machine is fine and accepted your key. Your SSH agent
+has not signed with it yet: 1Password waits for Touch ID or to be unlocked,
+as it does after a wake. The login stays open, so nothing is asked of the
+machine again while it waits.
+
+**What to do:** Approve the prompt in 1Password (or unlock your agent). The
+next `sessions` lists the sessions. If no prompt shows, open 1Password: a
+locked app may be waiting behind other windows. See
+[Session indicators](how-it-works/session-indicators.md#a-login-waiting-for-your-approval).
+
 ## "no address answered"
 
 **What it means:** Nothing answered at the address devmachine tried. The error

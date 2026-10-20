@@ -26,8 +26,30 @@ answers, about 10 seconds. A shorter limit would also cut a long `sync` on
 a network that drops for a few seconds. The next command logs in again on a fresh connection. A machine
 that does not answer at all fails after 5 seconds.
 
-`sessions` waits up to 30 seconds for each workspace. A login that needs your
-approval, as 1Password asks after a wake, has time to get it.
+## A login waiting for your approval
+
+After a wake, 1Password asks for Touch ID (or to be unlocked) before its SSH
+agent signs with your key. `sessions` used to wait 30 seconds for that, then
+kill the login and call the machine `unreachable`. Killing it closed the
+prompt, counted as a failed login in the machine's SSH log, and the next poll
+knocked again.
+
+Now `sessions` opens the shared connection first, once per machine and Linux
+user, not once per workspace. When the machine has accepted the key and only
+the agent's signature is missing, it answers `login-waiting` within a few
+seconds and leaves that login running on its own, with the prompt still up.
+Every `sessions` call while it waits answers `login-waiting` without touching
+the network. Once you approve, the connection is up and the next call lists
+the sessions through it.
+
+The machine ends a login nobody approves after its `LoginGraceTime`, two
+minutes by default; the CLI ends one left longer than three. If you refuse the
+prompt, the next call answers `login-refused` once, and does not ask again on
+its own.
+
+The CLI tells the two waits apart from ssh's own log: the line `Server
+accepts key` comes after the machine answered and before the agent signs.
+`sessions` still waits up to 30 seconds for a slow machine.
 
 ## Busy is a guess
 

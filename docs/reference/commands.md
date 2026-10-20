@@ -1142,7 +1142,9 @@ reads, and its shape is stable:
   ran out), `host-key-rejected` (the machine's key is not the one pinned),
   `login-refused` (the machine answered but refused the workspace's login,
   most often because the workspace is not synced yet, so its account does not
-  exist), `tmux-missing` (tmux is not installed there), `not-configured` (the name
+  exist), `login-waiting` (the machine accepted the key and the SSH agent has
+  not approved it yet, as 1Password asks after a wake; the login stays open
+  until you approve), `tmux-missing` (tmux is not installed there), `not-configured` (the name
   given to `--workspace` is not in the configuration) or `other`.
 - The table shows `busy`, `attention` or nothing under `STATE`, and the
   folder's name when a session has no branch.
