@@ -8,6 +8,14 @@ page](https://github.com/mydevmachine/devmachine/releases).
 
 To get the latest version, see [Upgrade](upgrade.md).
 
+## App v0.7.4 — 2026-10-19
+
+### Fixed
+
+- The app no longer crashes after you send a message from the quick chat
+  panel (⌃⌥Space). The panel no longer shows tooltips; the main window
+  keeps them.
+
 ## App v0.7.3 — 2026-10-16
 
 Needs CLI v0.16.0 and packages v55 for Finish setup. v0.7.1 and v0.7.2
