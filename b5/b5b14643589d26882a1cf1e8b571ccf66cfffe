@@ -1,0 +1,51 @@
+internal/tty/tty.go
+  s_70e932a9e81148::t_18f478c2a74abc 1-193
+  s_70e932a9e81148::t_64d2a3ba7a4357 194-209
+internal/tty/tty_test.go
+  s_70e932a9e81148::t_88c1c87d2764e4 1-169
+  s_70e932a9e81148::t_fd382895324cfd 170-173
+docs/how-it-works/the-cli-log.md
+  s_70e932a9e81148::t_49aa514ae7e83a 69-91
+go.mod
+  s_70e932a9e81148::t_ecd43b5ffd673c 6
+go.sum
+  s_70e932a9e81148::t_b5cdb1ef2ed866 2-3
+internal/commands/update_hint.go
+  s_70e932a9e81148::t_381f5e1c3492d4 13,40-42
+internal/logfile/logfile.go
+  s_70e932a9e81148::t_9f75373d127b49 90,203
+internal/logfile/logfile_test.go
+  s_70e932a9e81148::t_c4cd4a42cc9c7c 180-239
+internal/logfile/plain.go
+  s_70e932a9e81148::t_f4beeea92d97d5 1-66
+internal/remote/local_tty_test.go
+  s_70e932a9e81148::t_a2de1b1a2c7c44 1-39
+internal/remote/remote.go
+  s_70e932a9e81148::t_1d659fd88f4e23 34,778
+internal/selfupdate/brew.go
+  s_70e932a9e81148::t_5915d1dadef585 9-10,62
+internal/selfupdate/selfupdate_test.go
+  s_70e932a9e81148::t_6372b8f843f63a 11,19-21,346-368
+internal/tty/log_test.go
+  s_70e932a9e81148::t_519a35eb1b3c11 1-63
+internal/tty/termios_darwin.go
+  s_70e932a9e81148::t_7e2f9da0868316 1-8
+internal/tty/termios_linux.go
+  s_70e932a9e81148::t_ffa5c7ad78b66c 1-8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b5b5b14643589d26882a1cf1e8b571ccf66cfffe",
+  "prompts": {},
+  "sessions": {
+    "s_70e932a9e81148": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d778f438-4d84-4cdd-9b5b-0bfbc5cc6fc3",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
