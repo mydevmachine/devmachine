@@ -17,8 +17,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// A dead host fails sooner, on ssh's ConnectTimeout. The rest is for a login
-// the SSH agent asks someone to approve, as 1Password does after a wake.
+// A dead host fails sooner, on ssh's ConnectTimeout, and a login the SSH agent
+// has not approved answers login-waiting within seconds (remote.Login). The
+// rest is for a slow machine.
 const sessionsTimeout = 30 * time.Second
 
 type sessionsWorkspace struct {
@@ -42,6 +43,8 @@ func classifySessionsError(err error) sessionsError {
 		kind = "host-key-rejected"
 	case errors.Is(err, remote.ErrAuthRefused):
 		kind = "login-refused"
+	case errors.Is(err, remote.ErrLoginWaiting):
+		kind = "login-waiting"
 	case errors.Is(err, context.DeadlineExceeded), strings.Contains(err.Error(), "no address answered"):
 		kind = "unreachable"
 	}
@@ -105,19 +108,55 @@ func chooseSessionWorkspaces(cfg config.Config, names []string) ([]config.Worksp
 	return chosen, unknown
 }
 
+// loginOnce is one login per machine and Linux user, shared by every
+// workspace that logs in as that user: workspaces asked all at once would
+// otherwise each log in, each prompt the SSH agent and each count on the
+// machine.
+type loginOnce struct {
+	mu     sync.Mutex
+	logins map[string]*onceLogin
+}
+
+type onceLogin struct {
+	once sync.Once
+	err  error
+}
+
+// loginer is a client that opens its connection before the commands that use it.
+type loginer interface {
+	Login(ctx context.Context) error
+}
+
+func (l *loginOnce) login(ctx context.Context, key string, client remote.Client) error {
+	c, ok := client.(loginer)
+	if !ok {
+		return nil
+	}
+	l.mu.Lock()
+	o, found := l.logins[key]
+	if !found {
+		o = &onceLogin{}
+		l.logins[key] = o
+	}
+	l.mu.Unlock()
+	o.once.Do(func() { o.err = c.Login(ctx) })
+	return o.err
+}
+
 func collectSessions(ctx context.Context, cfg config.Config, chosen []config.Workspace) []sessionsWorkspace {
 	results := make([]sessionsWorkspace, len(chosen))
+	logins := &loginOnce{logins: map[string]*onceLogin{}}
 	var wg sync.WaitGroup
 	for i, w := range chosen {
 		wg.Go(func() {
-			results[i] = collectWorkspaceSessions(ctx, cfg, w)
+			results[i] = collectWorkspaceSessions(ctx, cfg, w, logins)
 		})
 	}
 	wg.Wait()
 	return results
 }
 
-func collectWorkspaceSessions(ctx context.Context, cfg config.Config, w config.Workspace) sessionsWorkspace {
+func collectWorkspaceSessions(ctx context.Context, cfg config.Config, w config.Workspace, logins *loginOnce) sessionsWorkspace {
 	result := sessionsWorkspace{Name: w.Name, Machine: machineNameOf(cfg, w), Sessions: []sessions.Session{}}
 	fail := func(err error) sessionsWorkspace {
 		e := classifySessionsError(err)
@@ -135,6 +174,9 @@ func collectWorkspaceSessions(ctx context.Context, cfg config.Config, w config.W
 		return fail(err)
 	}
 	defer client.Close()
+	if err := logins.login(ctx, m.Name+"\x00"+w.LinuxUser(), client); err != nil {
+		return fail(err)
+	}
 	found, err := sessions.Collect(ctx, client)
 	if err != nil {
 		return fail(err)
