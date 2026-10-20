@@ -1,0 +1,37 @@
+README.md
+  s_08256a181d4c43::t_bf5a50b205f27a 88,159
+docs/agent-setup.md
+  s_08256a181d4c43::t_7592703801d7e4 91
+docs/changelog.md
+  s_08256a181d4c43::t_53c7a7e4181aa5 11-17
+docs/concepts/dns.md
+  s_08256a181d4c43::t_8a042742687712 39
+docs/guides/godaddy-dns.md
+  s_08256a181d4c43::t_9d6000f41e9694 1-138
+docs/guides/index.md
+  s_08256a181d4c43::t_d96d86f29c725a 102-103
+docs/how-it-works/dns-providers.md
+  s_08256a181d4c43::t_208b7a823617a1 8,127-161
+docs/index.md
+  s_08256a181d4c43::t_b9106cdb251bb9 72
+docs/reference/commands.md
+  s_08256a181d4c43::t_7492fe5c39c661 1660
+docs/troubleshooting.md
+  s_08256a181d4c43::t_77bb9411bc710e 1027-1043
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "dbc340be6a871d2786cc8d56800f789eb15d923a",
+  "prompts": {},
+  "sessions": {
+    "s_08256a181d4c43": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0abb1ab7-5e13-4a53-ba0a-2b4348618d74",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
