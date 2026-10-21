@@ -8,12 +8,41 @@ page](https://github.com/mydevmachine/devmachine/releases).
 
 To get the latest version, see [Upgrade](upgrade.md).
 
-## v0.17.1 — 2026-10-20
+## App v0.9.0 — 2026-10-21
+
+Needs packages v57 to offer GoDaddy. Every other change works with CLI
+v0.17.0.
 
 ### Added
 
-- GoDaddy as a DNS provider: `packages add godaddy` (packages v56). A
-  Personal Access Token with the DNS scopes is enough.
+- Publish shows a full page to pick a DNS provider when a machine has none
+  and nothing is published yet: Cloudflare, GoDaddy, Hostinger, and any
+  provider a later packages release adds. Pick one, paste its token, and the
+  app installs it, syncs it and delivers the token.
+- Settings → DNS providers: every provider on each machine with its state.
+  Replace a token, set Hostinger's zones, push again, or remove a provider.
+  Publish has a DNS providers button once one is ready.
+
+### Changed
+
+- The Published apps page is now called Publish.
+- With apps already published and no DNS provider, Publish keeps the list
+  and shows a Set up DNS bar above it.
+- Saving a provider's token asks before it syncs the machine.
+- Removing a provider keeps its token when another machine still uses it.
+
+### Fixed
+
+- Setup finishes before Home opens, and Home asks to finish setup when the
+  CLI is missing.
+
+## v0.17.1 — 2026-10-21
+
+### Added
+
+- GoDaddy as a DNS provider: `packages add godaddy` (packages v57). A
+  Personal Access Token that may read your domains and change their DNS
+  records is enough.
 
 ## App v0.8.0 — 2026-10-20
 
