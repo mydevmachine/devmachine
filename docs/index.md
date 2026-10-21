@@ -69,6 +69,7 @@ list](guides/index.md).
 - [A simple agent with LangChain and OpenAI](guides/langchain-agent-with-openai.md)
 - [Logins and secrets](guides/logins-and-secrets.md)
 - [Point your domain with Cloudflare](guides/cloudflare-dns.md)
+- [Point your domain with GoDaddy](guides/godaddy-dns.md)
 - [Contribute to a Ruby on Rails project](guides/ruby-on-rails.md)
 - [Your own Tailscale with Headscale](guides/headscale.md)
 - [One set of skills for every workspace](guides/shared-skills-for-every-workspace.md)

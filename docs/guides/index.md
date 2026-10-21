@@ -99,6 +99,8 @@ session. Only a reboot stops it.
   where.
 - [Point your domain with Cloudflare](cloudflare-dns.md) — a scoped API token,
   and devmachine points your names for you.
+- [Point your domain with GoDaddy](godaddy-dns.md) — a Personal Access Token,
+  and devmachine points your names for you.
 - [Your own Tailscale with Headscale](headscale.md) — a private network with a
   control server you host yourself.
 
