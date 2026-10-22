@@ -8,6 +8,18 @@ page](https://github.com/mydevmachine/devmachine/releases).
 
 To get the latest version, see [Upgrade](upgrade.md).
 
+## App v0.9.1 — 2026-10-21
+
+### Changed
+
+- Update and Relaunch now updates the CLI, the packages pin and the skills
+  first, then installs the app and relaunches, all in one dialog. A new app
+  never starts against a CLI that is too old for it. If the CLI update
+  fails, the app is left as it is, and the dialog shows the error and an
+  "Update only the app" button.
+- While an app update waits, the CLI and packages cards hide, and the app
+  card says what else it will update.
+
 ## App v0.9.0 — 2026-10-21
 
 Needs packages v57 to offer GoDaddy. Every other change works with CLI
