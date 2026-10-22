@@ -8,6 +8,19 @@ page](https://github.com/mydevmachine/devmachine/releases).
 
 To get the latest version, see [Upgrade](upgrade.md).
 
+## App v0.10.1 — 2026-10-22
+
+### Fixed
+
+- After the Mac wakes, 1Password's SSH agent is locked and every login fails
+  with "agent refused operation" or "communication with agent failed". The
+  app read that as the machine refusing the login, stopped asking until
+  Retry, and filled the sidebar with "The server refused the login" cards
+  while the sessions were running fine. It is now one quiet card for the
+  whole sidebar: nothing turns red, the sessions you had stay listed, and
+  the machines are asked again on their own when you come back to the app,
+  when the network returns, or after three minutes.
+
 ## App v0.10.0 — 2026-10-22
 
 ### Added
