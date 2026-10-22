@@ -8,6 +8,34 @@ page](https://github.com/mydevmachine/devmachine/releases).
 
 To get the latest version, see [Upgrade](upgrade.md).
 
+## App v0.10.0 — 2026-10-22
+
+### Added
+
+- Settings → Appearance → Tabs: "Show open sessions and files as tabs". A
+  strip above the terminal lists every session you opened this run, with
+  its coding agent's icon, and every file you looked at from one, plus a +
+  for a new session. Closing a tab only takes it off the strip; the session
+  keeps running.
+- A click on a workspace's name in the sidebar folds its sessions away and
+  shows how many there are; right-click has Collapse and Expand. The choice
+  survives a relaunch.
+
+### Changed
+
+- The sidebar starts with Workspaces, Chats and Schedule as three rows,
+  always on screen, the current one lit. The dropdown is gone; ⌘1, ⌘2 and
+  ⌘3 still switch. The section label under them carries Refresh and +: New
+  session (with New workspace… in its menu), New chat, or New task.
+- A session's coding agent icon is smaller and sits on the name line, so the
+  branch or folder under the name has the room to itself.
+
+### Fixed
+
+- The tabs at the top of the context panel (Context, Preview, Files, Git)
+  and its close button take clicks again. They never did: the panel's list
+  sat over them.
+
 ## App v0.9.1 — 2026-10-21
 
 ### Changed
