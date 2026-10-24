@@ -8,6 +8,18 @@ page](https://github.com/mydevmachine/devmachine/releases).
 
 To get the latest version, see [Upgrade](upgrade.md).
 
+## App v0.10.2 — 2026-10-24
+
+### Fixed
+
+- ⌘ and a click on a web address in a terminal often did nothing. The app
+  only opened addresses a program had marked as links, and a multiplexer
+  loses that mark as soon as it repaints the screen, so the same address
+  worked one moment and not the next. A firm press on a trackpad swallowed
+  the click too. Now ⌘ or ⌥ and a click opens any address on screen, in a
+  local session and on a server, and a plain click still reaches the
+  program under it.
+
 ## App v0.10.1 — 2026-10-22
 
 ### Fixed
