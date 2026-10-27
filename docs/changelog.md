@@ -8,6 +8,19 @@ page](https://github.com/mydevmachine/devmachine/releases).
 
 To get the latest version, see [Upgrade](upgrade.md).
 
+## App v0.11.0 — 2026-10-27
+
+### Changed
+
+- The tab strip above the terminal shows only the tabs of the workspace you
+  are in. A session of another workspace brings that workspace's tabs; Home
+  shows none. The other tabs stay open and come back with their workspace.
+- ⌘W closes the tab on screen and nothing else: the session keeps running,
+  the same as the tab's ×. With a file open beside the terminal, ⌘W closes
+  that file's tab first. Ending the session is now ⇧⌘W, or End Session… in
+  the Session menu, the sidebar and ⌘K. Before, ⌘W asked to end the session
+  while × only hid the tab, which read as two different closes.
+
 ## App v0.10.2 — 2026-10-24
 
 ### Fixed
