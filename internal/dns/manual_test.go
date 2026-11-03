@@ -50,3 +50,17 @@ func TestManualPrintsTheFullNameToRemove(t *testing.T) {
 		t.Fatalf("with no provider the zone is a guess, so the full name is printed:\n%s", out.String())
 	}
 }
+
+func TestManualPrintsTheRecordToAddNextToTheOthers(t *testing.T) {
+	var out bytes.Buffer
+	err := NewManual(&out).Append(context.Background(), "example.com",
+		Record{Name: "@", Type: "MX", Value: "20 mail2.example.com", TTL: 3600})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"example.com\tMX\t20 mail2.example.com\t3600", "keep", "dns status"} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("the instructions leave out %q:\n%s", want, out.String())
+		}
+	}
+}

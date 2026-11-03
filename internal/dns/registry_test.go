@@ -25,6 +25,10 @@ func (s *stubZoner) Upsert(context.Context, string, Record) error {
 	return errors.New("not used in these tests")
 }
 
+func (s *stubZoner) Append(context.Context, string, Record) error {
+	return errors.New("not used in these tests")
+}
+
 func (s *stubZoner) Delete(context.Context, string, Record) error {
 	return errors.New("not used in these tests")
 }

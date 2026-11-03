@@ -4,15 +4,15 @@ import "context"
 
 // Record is one value at one name.
 //
-// One Record is one value, never an RRset. No provider can express a
-// multi-value set through this type, which is a deliberate limit: a CLI that
-// points a subdomain at a host wants exactly one answer.
+// One Record is one value, never an RRset. A name that holds several values
+// is several Records, and Append is how one more joins them.
 type Record struct {
 	// Name is the label, not the full name: "www", or "@" for the apex.
 	Name string `json:"name"`
 	// Type is one of the types SupportedType accepts.
 	Type string `json:"type"`
-	// Value is the record's content.
+	// Value is the record's content, written the way CanonicalValue writes
+	// it: a priority, weight or port is inside this string, never a field.
 	Value string `json:"value"`
 	// TTL of zero means "let the provider choose".
 	TTL int `json:"ttl,omitempty"`
@@ -35,6 +35,10 @@ type Provider interface {
 	// An existing value for that name and type is replaced, not added to.
 	// A record that already holds exactly this value is left alone.
 	Upsert(ctx context.Context, zone string, r Record) error
+
+	// Append adds this Value next to whatever the name and type already hold.
+	// A value already there is left alone, so appending twice is one record.
+	Append(ctx context.Context, zone string, r Record) error
 
 	// Delete removes the record with this exact Name, Type and Value. Other
 	// values for the same name and type are left in place. An empty Value

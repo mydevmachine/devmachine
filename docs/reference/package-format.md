@@ -275,7 +275,7 @@ A package can ship an executable the CLI calls on the machine:
 ```yaml
 kind: dns
 entrypoint: bin/provider
-commands: [zones, list, upsert, delete, help]
+commands: [zones, list, upsert, append, delete, help]
 ```
 
 - `entrypoint` is a path inside the package. It must exist, be
@@ -284,7 +284,9 @@ commands: [zones, list, upsert, delete, help]
 - `commands` lists what it accepts: names, or `["*"]` for anything.
   Mixing `"*"` with named commands is refused.
 - `kind` is a contract. The only one so far is `dns`, which must accept
-  `zones`, `list`, `upsert`, `delete` and `help`.
+  `zones`, `list`, `upsert`, `delete` and `help`; `append` is what lets
+  `dns add --append` work through it. See [the DNS provider
+  contract](dns-provider-contract.md).
 
 `devmachine run --package <name> -- <command>` calls the entrypoint on a
 machine, and refuses a command that is not in `commands`. A widget reads

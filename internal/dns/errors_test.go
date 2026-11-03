@@ -16,12 +16,20 @@ func TestSupportedTypeNormalisesToUpperCase(t *testing.T) {
 	}
 }
 
-func TestSupportedTypeRefusesMXByName(t *testing.T) {
-	_, err := SupportedType("MX")
+func TestSupportedTypeAcceptsEveryTypeTheProvidersCarry(t *testing.T) {
+	for _, typ := range []string{"A", "AAAA", "CNAME", "TXT", "MX", "SRV", "NS", "CAA"} {
+		if _, err := SupportedType(typ); err != nil {
+			t.Errorf("%s: %v", typ, err)
+		}
+	}
+}
+
+func TestSupportedTypeRefusesSOAByName(t *testing.T) {
+	_, err := SupportedType("SOA")
 	if !errors.Is(err, ErrUnsupportedType) {
 		t.Fatalf("got %v, want ErrUnsupportedType", err)
 	}
-	for _, want := range []string{"MX", "A", "AAAA", "CNAME", "TXT"} {
+	for _, want := range []string{"SOA", "A", "AAAA", "CNAME", "TXT", "MX", "SRV", "NS", "CAA"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Fatalf("the error does not mention %q: %v", want, err)
 		}

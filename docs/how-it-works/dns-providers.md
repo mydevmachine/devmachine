@@ -26,6 +26,29 @@ The token never appears in a command argument, where `ps` would show it
 to every account on the machine. Only the credential's name does, and
 that name is not a secret.
 
+## One value string, whatever the registrar keeps
+
+An MX record is a priority and a host. Hostinger stores them as one
+string, `10 mail.example.com.`; Cloudflare keeps the priority in a field
+of its own; GoDaddy keeps an SRV's service, protocol, priority, weight
+and port in five fields. The CLI's contract has one `value` string, so
+the same `dns add` works on all three and `dns list` prints the same
+thing everywhere: the zone-file spelling, `10 mail.example.com`. The
+provider is where the split and the join happen, because the provider is
+the only part that knows its registrar's shape. The CLI checks the
+grammar first (see [DNS](../concepts/dns.md)), so a provider never has
+to guess at a value that does not fit.
+
+## `append` is a separate command, not a flag on `upsert`
+
+`upsert` means "exactly this one value". A flag that quietly changed it
+to "this one too" would make the safe command and the additive one
+differ by one word nobody reads. `append` is its own entry in the
+provider's `commands`, so a package from before it exists simply does not
+list it — and the CLI refuses `--append` for that provider before running
+anything, instead of replacing the other values or failing on the
+machine with "unknown command".
+
 ## Hostinger
 
 ### RRsets, not records
@@ -44,6 +67,20 @@ round-robin nobody asked for. Leave the field out and Hostinger's own
 default is `overwrite: true`, the destructive mode, so the provider
 always sends it explicitly, decided by the code, never left to
 Hostinger's default.
+
+### `append` is one `PUT` with `overwrite: false`
+
+Adding a value is the one write Hostinger makes easy: `overwrite: false`
+appends the request's values to the RRset and sets its TTL. The provider
+sends the RRset's own TTL back when none was asked for, so appending a
+value never changes how long the others are cached.
+
+### Every host comes back with a trailing dot
+
+Hostinger stores `mail.example.com.` for the `mail.example.com` it was
+given, in CNAME, NS, MX and SRV content alike. The provider drops the dot
+and lower-cases the host in `list` and in every comparison, so a record
+is seen as already right instead of rewritten on every `dns add`.
 
 ### Replacing a value: delete, then append — not one call
 
@@ -118,6 +155,22 @@ Ask Cloudflare for a zone the token cannot see, and the answer is `200`
 with an empty `result` array, not an error. The provider treats an empty
 result as `zone_not_found` itself.
 
+### MX, SRV and CAA are fields, not strings
+
+Cloudflare's record has `priority` beside `content` for MX, and a `data`
+object (`priority`, `weight`, `port`, `target` for SRV; `flags`, `tag`,
+`value` for CAA) in place of `content`. The provider builds the value
+`list` prints from those fields and splits the value `upsert` receives
+back into them; the quotes around a CAA value belong to the zone-file
+spelling and are not sent.
+
+### `append` is a create
+
+Every value at a Cloudflare name is its own record with its own id, so
+adding one is a `POST` and the others are never touched. A value that
+is already there is found by comparing the joined value, not the raw
+`content`, so `10 Mail.Example.com.` matches the record Cloudflare holds.
+
 ### `proxied` is always `false`
 
 Certificates on this machine renew through a challenge that needs the
@@ -140,10 +193,28 @@ means, so it is one call. Deleting one value among several reads the set
 and sends the rest with a `PUT`. Deleting the last value, or the whole
 set, is a `DELETE`.
 
-### `list` shows A, AAAA, CNAME and TXT only
+### An SRV is five fields and a split name
 
-Other types in the zone are left out of `list`. `zones` lists only the
-account's `ACTIVE` domains.
+GoDaddy stores an SRV's `service`, `protocol`, `priority`, `weight` and
+`port` apart from `data` (the target) and `name` (the host under the
+zone, `@` for the apex). The CLI writes the owner the way a zone file
+does, `_sip._tcp.voice`, and the provider splits it into `_sip`, `_tcp`
+and `voice`. The `PUT` on `records/SRV/voice` replaces **every** SRV at
+`voice`, whatever its service, so the provider writes the other
+services back untouched on every `upsert`, `append` and `delete`.
+
+An MX is `data` plus a `priority` field. The provider keeps every field
+of the values it writes back — a set written back without its priorities
+would turn each mail server into an unreachable one.
+
+### `append` writes the set back whole
+
+GoDaddy has no "add one value": the set at a type and name is written
+whole. `append` reads it, adds the new value and `PUT`s all of them. A
+value already there is a no-op.
+
+`list` shows A, AAAA, CNAME, TXT, MX, SRV, NS and CAA; `zones` lists only
+the account's `ACTIVE` domains.
 
 ### An account GoDaddy refuses answers 403 `ACCESS_DENIED`
 

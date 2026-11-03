@@ -990,7 +990,9 @@ words:
 | `the token cannot change this zone` | Your token can read the domain but not write to it. |
 | `the record was rejected` | The registrar refused the value — a bad type, a bad value, or a name it will not accept. |
 | `rate limited` | The registrar's API is temporarily blocking this token from making more requests. devmachine never retries this on its own; wait and run the command again. |
-| `this record type is not supported yet` | Only `A`, `AAAA`, `CNAME` and `TXT` work the same way across every provider. `MX` and `SRV` are refused by name rather than guessed at. |
+| `this record type is not supported yet` | The types are `A`, `AAAA`, `CNAME`, `TXT`, `MX`, `SRV`, `NS` and `CAA`. `SOA` belongs to the registrar. |
+| `the value does not fit the type` | The value was refused before any provider was asked: an MX is `<priority> <host>`, an SRV `<priority> <weight> <port> <target>`, a CAA `<flags> <tag> <value>`, an `A` an IPv4 address. The message says which part is wrong. |
+| `the installed provider cannot add a value next to the ones a name holds` | The provider package on the machine predates `dns add --append`. Run `devmachine update` to get one that accepts `append`, or leave out `--append` to make the name hold just this value. |
 | `the name holds several values` | Two installed providers both claim this domain. Say which one with `--dns-provider`. |
 
 Two more lines that are not errors, but change what a command does:
