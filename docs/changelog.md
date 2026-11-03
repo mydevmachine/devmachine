@@ -8,7 +8,7 @@ page](https://github.com/mydevmachine/devmachine/releases).
 
 To get the latest version, see [Upgrade](upgrade.md).
 
-## Unreleased
+## v0.18.0 — 2026-11-03
 
 ### Added
 
