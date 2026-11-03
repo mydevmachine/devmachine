@@ -1,0 +1,19 @@
+docs/changelog.md
+  s_e0ef29f97b1588::t_6bebf9283a0e4e 11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "04762d1d2a6946d4593dafbaae40d6ca40eda4ac",
+  "prompts": {},
+  "sessions": {
+    "s_e0ef29f97b1588": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1306a0c1-6a9e-4294-800b-62379d06ccf9",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
