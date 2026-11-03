@@ -1,0 +1,68 @@
+internal/dns/manual.go
+  s_e0ef29f97b1588::t_6731f66d71d4da 71-82
+internal/dns/errors_test.go
+  s_e0ef29f97b1588::t_39875596512978 19-28,32
+docs/how-it-works/dns-providers.md
+  s_e0ef29f97b1588::t_6c4d8807bb6640 29-51,71-84,158-173,196-214,216-217
+internal/commands/dns.go
+  s_cab674f14f5e3f::t_d83fa032fa1b2e 350
+  s_e0ef29f97b1588::t_c4da1d2347fee6 341-347,351,355-379,383-384,388-396,405-408,416-417,433-439,451-452,484-488
+internal/dns/external_test.go
+  s_e0ef29f97b1588::t_63ff83691bb407 186,282-318
+docs/troubleshooting.md
+  s_e0ef29f97b1588::t_aa8abf0d99041f 993-995
+internal/packages/skeleton.go
+  s_e0ef29f97b1588::t_4aba44a38dc940 89,93-94,110,118,137
+docs/changelog.md
+  s_e0ef29f97b1588::t_55d20b82ac3b4b 11-30
+docs/concepts/dns.md
+  s_e0ef29f97b1588::t_dd862c1146333d 16-27,43-57
+internal/dns/provider.go
+  s_e0ef29f97b1588::t_1ed34e88db91b0 7-8,14-15,39-42
+internal/dns/value_test.go
+  s_e0ef29f97b1588::t_7a358962f992b2 1-77
+internal/packages/skeleton_test.go
+  s_e0ef29f97b1588::t_24d04cec99af14 155
+internal/dns/value.go
+  s_e0ef29f97b1588::t_4802acf4f82a99 1-135
+docs/reference/package-format.md
+  s_e0ef29f97b1588::t_d0a90f6df6b623 278,287-289
+docs/reference/dns-provider-contract.md
+  s_e0ef29f97b1588::t_3308761c1d05d4 14,44,57,66-86,93,135-139,142-144
+internal/dns/manual_test.go
+  s_e0ef29f97b1588::t_538d7334eaebcf 53-66
+internal/commands/dns_test.go
+  s_e0ef29f97b1588::t_3e24dcbb4c1851 118,133-138,362,368-501
+internal/dns/registry_test.go
+  s_e0ef29f97b1588::t_ab86e3cfbe6788 28-31
+internal/dns/errors.go
+  s_e0ef29f97b1588::t_dae514b02ee30b 43-46
+internal/dns/external.go
+  s_e0ef29f97b1588::t_317343e76c7b62 6,75-93
+docs/reference/commands.md
+  s_e0ef29f97b1588::t_2ff6aa89bf3007 1655,1676-1684
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f78f39ae7e437f09a9018ae84a8f05ce4ea3d524",
+  "prompts": {},
+  "sessions": {
+    "s_cab674f14f5e3f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "dd5021d0-4808-4af3-adb9-b4a4809bf18c",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    },
+    "s_e0ef29f97b1588": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1306a0c1-6a9e-4294-800b-62379d06ccf9",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "Djalma Araujo <djalma@nossomos.cc>"
+    }
+  }
+}
