@@ -183,7 +183,7 @@ func TestExternalRefusesAnUnsupportedTypeBeforeConnecting(t *testing.T) {
 	c := &recordingClient{}
 
 	err := newExternalWith(c).Upsert(context.Background(), "example.com",
-		Record{Name: "@", Type: "MX", Value: "10 mail"})
+		Record{Name: "@", Type: "SOA", Value: "ns1 hostmaster 1 2 3 4 5"})
 	if !errors.Is(err, ErrUnsupportedType) {
 		t.Fatalf("got %v", err)
 	}
@@ -277,5 +277,42 @@ func TestExternalNeverPutsTheCredentialValueInACommandArgument(t *testing.T) {
 	}
 	if !strings.Contains(c.commands[0], "/etc/devmachine/"+secret+"/env") {
 		t.Fatalf("the credential name is only ever a path, never a value: %q", c.commands[0])
+	}
+}
+
+func TestExternalAppendRunsThePackagesAppendCommand(t *testing.T) {
+	c := &recordingClient{out: `{}`}
+
+	err := newExternalWith(c).Append(context.Background(), "example.com",
+		Record{Name: "@", Type: "MX", Value: "20 mail2.example.com", TTL: 3600})
+	if err != nil {
+		t.Fatal(err)
+	}
+	command := c.commands[0]
+	if !strings.Contains(command, "provider append example.com") {
+		t.Fatalf("append was not run: %q", command)
+	}
+	if !strings.Contains(command, `"value":"20 mail2.example.com"`) || !strings.Contains(command, `"ttl":3600`) {
+		t.Fatalf("the record did not reach stdin whole: %q", command)
+	}
+}
+
+func TestExternalAppendRefusesAPackageThatDoesNotDeclareIt(t *testing.T) {
+	c := &recordingClient{out: `{}`}
+	old := NewExternal("hostinger", c, "/opt/devmachine/roles/hostinger/bin/provider",
+		"hostinger", []string{"zones", "list", "upsert", "delete", "help"})
+
+	err := old.Append(context.Background(), "example.com",
+		Record{Name: "@", Type: "MX", Value: "20 mail2.example.com"})
+	if !errors.Is(err, ErrNoAppend) {
+		t.Fatalf("got %v", err)
+	}
+	// An older package would answer "unknown command" from the machine. The
+	// refusal has to come before that, and say what to do about it.
+	if len(c.commands) != 0 {
+		t.Fatalf("it ran the package anyway: %#v", c.commands)
+	}
+	if !strings.Contains(err.Error(), "devmachine update") {
+		t.Fatalf("the error does not say how to get a package that can: %v", err)
 	}
 }

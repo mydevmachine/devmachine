@@ -3,6 +3,7 @@ package dns
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"regexp"
@@ -69,6 +70,25 @@ func (e *External) Help(ctx context.Context) ([]Command, error) {
 // Upsert runs the package's `upsert` command.
 func (e *External) Upsert(ctx context.Context, zone string, r Record) error {
 	return e.write(ctx, "upsert", zone, r)
+}
+
+// ErrNoAppend means the installed package predates the `append` command, so
+// the name can only be made to hold one value.
+var ErrNoAppend = errors.New("the installed provider cannot add a value next to the ones a name holds")
+
+// Append runs the package's `append` command.
+//
+// A package from before the command exists is refused here, with the way out,
+// rather than on the machine with "unknown command": the person asked for
+// one more value, and silently replacing the others instead is the one thing
+// this must never do.
+func (e *External) Append(ctx context.Context, zone string, r Record) error {
+	if !e.accepts("append") {
+		return fmt.Errorf("%w: the %s package on this machine does not accept `append`. "+
+			"Run `devmachine update` to get one that does, or leave out --append to make the name hold just this value",
+			ErrNoAppend, e.name)
+	}
+	return e.write(ctx, "append", zone, r)
 }
 
 // Delete runs the package's `delete` command.

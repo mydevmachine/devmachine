@@ -86,12 +86,12 @@ scope: {{.Scope}}
 summary: Replace this line with what {{.Name}} installs.
 kind: dns
 entrypoint: bin/provider
-commands: [zones, list, upsert, delete, help]
+commands: [zones, list, upsert, append, delete, help]
 `
 
 // skeletonDNSProvider already answers docs/reference/dns-provider-contract.md:
-// `list` returns an empty set rather than failing, and `upsert`/`delete`
-// report a clear "not implemented yet" in the shape the contract defines,
+// `list` returns an empty set rather than failing, and `upsert`, `append` and
+// `delete` report a clear "not implemented yet" in the shape the contract defines,
 // rather than a file of comments nobody runs.
 const skeletonDNSProvider = `#!/usr/bin/env python3
 import json
@@ -107,6 +107,7 @@ COMMANDS = [
     {"name": "zones", "summary": "The zones this token can see."},
     {"name": "list", "summary": "Every record in a zone.", "args": "<zone>"},
     {"name": "upsert", "summary": "Make a name hold exactly one value.", "args": "<zone>"},
+    {"name": "append", "summary": "Add one value next to the ones a name holds.", "args": "<zone>"},
     {"name": "delete", "summary": "Remove one value from a name.", "args": "<zone>"},
     {"name": "help", "summary": "This list."},
 ]
@@ -114,7 +115,7 @@ COMMANDS = [
 
 def main(argv):
     if len(argv) < 2:
-        fail("invalid_record", "usage: provider zones|list|upsert|delete|help [<zone>]")
+        fail("invalid_record", "usage: provider zones|list|upsert|append|delete|help [<zone>]")
 
     command = argv[1]
 
@@ -133,7 +134,7 @@ def main(argv):
         print(json.dumps({"records": []}))
         return
 
-    if command in ("upsert", "delete"):
+    if command in ("upsert", "append", "delete"):
         fail("invalid_record", command + " is not implemented yet: edit bin/provider")
 
     fail("invalid_record", "unknown command " + repr(command))

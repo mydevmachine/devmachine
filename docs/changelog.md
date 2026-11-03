@@ -8,6 +8,26 @@ page](https://github.com/mydevmachine/devmachine/releases).
 
 To get the latest version, see [Upgrade](upgrade.md).
 
+## v0.18.0 — 2026-11-03
+
+### Added
+
+- `dns add` takes every record type a site needs: `MX`, `SRV`, `NS` and
+  `CAA` join `A`, `AAAA`, `CNAME` and `TXT`. A value is written the way a
+  zone file writes it, `10 mail.example.com` for MX or
+  `10 5 5060 sip.example.com` for SRV, and is checked before any provider
+  is asked.
+- `dns add --append` adds a value next to the ones a name already holds,
+  for two mail servers or a round-robin, and says what it sits next to.
+  Without it `dns add` still makes the name hold exactly the one value,
+  and says what it replaces.
+- `dns add --ttl` sets how long a resolver may cache the record.
+- `dns list` shows every record type in the zone, not only the four the
+  CLI could write.
+- The Hostinger, Cloudflare and GoDaddy provider packages carry all of
+  this; a provider from before `--append` is refused for it with a note to
+  run `devmachine update`.
+
 ## App v0.11.0 — 2026-10-27
 
 ### Changed

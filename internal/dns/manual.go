@@ -68,6 +68,18 @@ func (m *Manual) Upsert(_ context.Context, zone string, r Record) error {
 	return nil
 }
 
+// Append prints the record to add by hand, next to the values already there.
+func (m *Manual) Append(_ context.Context, zone string, r Record) error {
+	fmt.Fprintf(m.out, "%s Add this record by hand, and keep the values the name already holds:\n\n", m.reason(zone))
+	fmt.Fprintf(m.out, "  %s\t%s\t%s", fullName(r.Name, zone), r.Type, r.Value)
+	if r.TTL > 0 {
+		fmt.Fprintf(m.out, "\t%d", r.TTL)
+	}
+	fmt.Fprintln(m.out)
+	fmt.Fprintf(m.out, "\nCheck it with `devmachine dns status %s`.\n", fullName(r.Name, zone))
+	return nil
+}
+
 // Delete prints the record to remove by hand.
 func (m *Manual) Delete(_ context.Context, zone string, r Record) error {
 	fmt.Fprintf(m.out, "%s Remove this record by hand:\n\n", m.reason(zone))

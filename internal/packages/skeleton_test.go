@@ -152,7 +152,7 @@ func TestEverySchemaFieldExplainsItself(t *testing.T) {
 }
 
 func TestSkeletonDNSProviderAnswersZonesAndHelp(t *testing.T) {
-	// The manifest it writes declares five commands. An entrypoint that
+	// The manifest it writes declares six commands. An entrypoint that
 	// refuses two of them makes `devmachine packages help` fail on a package
 	// the CLI itself generated, which is the worst possible first impression.
 	dir := t.TempDir()

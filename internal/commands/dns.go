@@ -338,41 +338,71 @@ func newDNSCheckCmd(opts *options, providerFlag, zoneFlag *string) *cobra.Comman
 	}
 }
 
-// describeUpsert says what `dns add` would do: the label, the zone, the
-// provider and whatever value is about to be replaced. Naming what is lost is
-// the last chance to catch the record going into the wrong account.
-func describeUpsert(ctx context.Context, choice dns.Choice, rec dns.Record) string {
-	replacing := ""
+// describeWrite says what `dns add` would do: the label, the zone, the
+// provider and, without --append, whatever value is about to be replaced.
+// Naming what is lost is the last chance to catch the record going into the
+// wrong account; naming what stays, with --append, shows the name ends up
+// holding both.
+func describeWrite(ctx context.Context, choice dns.Choice, rec dns.Record, appending bool) string {
+	var others []string
 	if existing, err := choice.Provider.List(ctx, choice.Zone); err == nil {
-		var values []string
 		for _, r := range existing {
-			if r.Name == rec.Name && r.Type == rec.Type && r.Value != rec.Value {
-				values = append(values, r.Value)
+			if r.Name == rec.Name && r.Type == rec.Type && holdsAnotherValue(r, rec.Value) {
+				others = append(others, r.Value)
 			}
 		}
-		if len(values) > 0 {
-			replacing = fmt.Sprintf(", replacing %s", strings.Join(values, ", "))
-		}
 	}
-	return fmt.Sprintf("set %s %s %s in %s (provider %s)%s",
-		rec.Name, rec.Type, rec.Value, choice.Zone, choice.Name, replacing)
+	verb, tail := "set", ", replacing %s"
+	if appending {
+		verb, tail = "add", ", next to %s"
+	}
+	line := fmt.Sprintf("%s %s %s %s in %s (provider %s)",
+		verb, rec.Name, rec.Type, rec.Value, choice.Zone, choice.Name)
+	if rec.TTL > 0 {
+		line += fmt.Sprintf(" ttl %d", rec.TTL)
+	}
+	if len(others) > 0 {
+		line += fmt.Sprintf(tail, strings.Join(others, ", "))
+	}
+	return line
+}
+
+// holdsAnotherValue says whether a listed record holds something other than
+// value, spelt either way: a registrar may list `10 Mail.example.com.` for the
+// `10 mail.example.com` that is about to be written, and that is the same
+// record, not one about to be replaced.
+func holdsAnotherValue(r dns.Record, value string) bool {
+	listed, err := dns.CanonicalValue(r.Type, r.Value)
+	if err != nil {
+		listed = r.Value
+	}
+	return listed != value
 }
 
 func newDNSAddCmd(opts *options, providerFlag, zoneFlag *string) *cobra.Command {
-	var check, yes, publish bool
+	var check, yes, publish, appending bool
+	var ttl int
 
 	c := &cobra.Command{
 		Use:   "add <name> <type> <value>",
-		Short: "Make a name hold exactly this one value",
-		Long: "upsert replaces whatever is already at this name and type — it " +
-			"does not add to it. The question names the zone, the provider and " +
-			"whatever value it is about to replace, because writing the right " +
-			"record into the wrong account is the mistake this command can make.",
+		Short: "Make a name hold this value, alone or next to the values it has",
+		Long: "Without --append it replaces whatever is already at this name and " +
+			"type — it does not add to it. The question names the zone, the " +
+			"provider and whatever value it is about to replace, because writing " +
+			"the right record into the wrong account is the mistake this command " +
+			"can make.\n\n" +
+			"A value is written the way a zone file writes it: `10 mail.example.com` " +
+			"for MX, `10 5 5060 sip.example.com` for SRV, `0 issue \"ca.example.net\"` " +
+			"for CAA. Types: A, AAAA, CNAME, TXT, MX, SRV, NS, CAA.",
 		Args: cobra.ExactArgs(3),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name, typ, value := args[0], args[1], args[2]
 
 			normalised, err := dns.SupportedType(typ)
+			if err != nil {
+				return err
+			}
+			canonical, err := dns.CanonicalValue(normalised, value)
 			if err != nil {
 				return err
 			}
@@ -383,8 +413,8 @@ func newDNSAddCmd(opts *options, providerFlag, zoneFlag *string) *cobra.Command 
 			}
 			announce(cmd.ErrOrStderr(), choice)
 
-			rec := dns.Record{Name: labelFor(name, choice.Zone), Type: normalised, Value: value}
-			line := describeUpsert(cmd.Context(), choice, rec)
+			rec := dns.Record{Name: labelFor(name, choice.Zone), Type: normalised, Value: canonical, TTL: ttl}
+			line := describeWrite(cmd.Context(), choice, rec, appending)
 
 			if check {
 				cmd.Printf("would %s\n", line)
@@ -400,8 +430,13 @@ func newDNSAddCmd(opts *options, providerFlag, zoneFlag *string) *cobra.Command 
 				}
 			}
 
-			logged := fmt.Sprintf("dns add %s %s %s", name, normalised, value)
-			if err := choice.Provider.Upsert(cmd.Context(), choice.Zone, rec); err != nil {
+			logged := fmt.Sprintf("dns add %s %s %s", name, normalised, canonical)
+			write := choice.Provider.Upsert
+			if appending {
+				logged += " --append"
+				write = choice.Provider.Append
+			}
+			if err := write(cmd.Context(), choice.Zone, rec); err != nil {
 				record(opts, tgt, logged, false)
 				return err
 			}
@@ -413,6 +448,8 @@ func newDNSAddCmd(opts *options, providerFlag, zoneFlag *string) *cobra.Command 
 	c.Flags().BoolVar(&check, "check", false, "say what would change, and change nothing")
 	c.Flags().BoolVar(&yes, "yes", false, "skip local-write questions; never publish")
 	c.Flags().BoolVar(&publish, "publish", false, "publish the record without asking")
+	c.Flags().BoolVar(&appending, "append", false, "keep the values the name already holds and add this one")
+	c.Flags().IntVar(&ttl, "ttl", 0, "seconds a resolver may cache the record; 0 lets the registrar choose")
 	return c
 }
 
@@ -443,6 +480,11 @@ func newDNSRmCmd(opts *options, providerFlag, zoneFlag *string) *cobra.Command {
 			normalised, err := dns.SupportedType(typ)
 			if err != nil {
 				return err
+			}
+			if value != "" {
+				if value, err = dns.CanonicalValue(normalised, value); err != nil {
+					return err
+				}
 			}
 
 			choice, tgt, err := chooseDNS(cmd.Context(), opts, name, *providerFlag, *zoneFlag, cmd.ErrOrStderr())

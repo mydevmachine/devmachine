@@ -13,9 +13,18 @@ A **zone** is a domain: `example.com`. A **record** is one name, one
 type, and one value: `www.example.com A 198.51.100.10`.
 
 `dns add` makes a name hold **exactly** the one value you give it — it
-replaces whatever was there. A name that needs several values on purpose
-is out of scope for `dns add`; use `dns list` to see what's there, and
-your provider's own tools for that case.
+replaces whatever was there, and says what it is about to replace before
+it does. A name that needs several values on purpose — two mail servers,
+a round-robin of addresses — gets them with `--append`, which keeps what
+is there and adds one more:
+
+```
+devmachine dns add example.com MX "10 mail.example.com"
+devmachine dns add example.com MX "20 mail2.example.com" --append
+```
+
+`--ttl <seconds>` says how long a resolver may cache the record. Without
+it the registrar chooses.
 
 ## `@` is the apex
 
@@ -31,8 +40,21 @@ Most of the time you type the full name, like `example.com` or
 
 ## Supported record types
 
-`A`, `AAAA`, `CNAME`, `TXT`. Not `MX` or `SRV` — those need more than one
-value, and `dns add` only ever sets one.
+`A`, `AAAA`, `CNAME`, `TXT`, `MX`, `SRV`, `NS` and `CAA`. A value is
+written the way a zone file or `dig` writes it, with the numbers inside
+it:
+
+| Type | Value | Example |
+| --- | --- | --- |
+| `MX` | `<priority> <host>` | `10 mail.example.com` |
+| `SRV` | `<priority> <weight> <port> <target>` | `10 5 5060 sip.example.com` |
+| `CAA` | `<flags> <tag> <value>` | `0 issue ca.example.net` |
+
+The CLI checks the value fits its type before it asks anyone — a
+priority above 65535, a CAA tag that is not `issue`, `issuewild` or
+`iodef`, an `A` that is not an IPv4 address — and spells host names one
+way (lower case, no trailing dot) so the same record typed twice compares
+equal. `SOA` stays with the registrar.
 
 ## A provider is a package
 

@@ -115,6 +115,7 @@ type fake struct {
 	records    []dns.Record
 	listErr    error
 	upserts    int
+	appends    int
 	lastRecord dns.Record
 	lastZone   string
 }
@@ -125,6 +126,12 @@ func (f *fake) List(context.Context, string) ([]dns.Record, error) { return f.re
 
 func (f *fake) Upsert(_ context.Context, zone string, r dns.Record) error {
 	f.upserts++
+	f.lastRecord, f.lastZone = r, zone
+	return nil
+}
+
+func (f *fake) Append(_ context.Context, zone string, r dns.Record) error {
+	f.appends++
 	f.lastRecord, f.lastZone = r, zone
 	return nil
 }
@@ -352,9 +359,143 @@ func TestDNSAddRefusesAnUnsupportedTypeBeforeChoosing(t *testing.T) {
 	defer stubChoose("hostinger", "example.com", p)()
 
 	_, err := execute(t, "--config", configDir(t),
-		"dns", "add", "example.com", "MX", "10 mail.example.com", "--yes")
+		"dns", "add", "example.com", "SOA", "ns1 hostmaster 1 2 3 4 5", "--yes")
 	if !errors.Is(err, dns.ErrUnsupportedType) {
 		t.Fatalf("got %v", err)
+	}
+}
+
+func TestDNSAddWritesAnMXInZoneFileForm(t *testing.T) {
+	p := &fake{}
+	defer stubChoose("hostinger", "example.com", p)()
+
+	if _, err := execute(t, "--config", configDir(t),
+		"dns", "add", "example.com", "mx", "10 Mail.Example.com.", "--publish"); err != nil {
+		t.Fatal(err)
+	}
+	if p.lastRecord.Type != "MX" || p.lastRecord.Value != "10 mail.example.com" {
+		t.Fatalf("wrote %#v", p.lastRecord)
+	}
+}
+
+func TestDNSAddRefusesAValueThatDoesNotFitItsTypeBeforeWriting(t *testing.T) {
+	p := &fake{}
+	defer stubChoose("hostinger", "example.com", p)()
+
+	_, err := execute(t, "--config", configDir(t),
+		"dns", "add", "example.com", "MX", "mail.example.com", "--publish")
+	if !errors.Is(err, dns.ErrBadValue) {
+		t.Fatalf("got %v", err)
+	}
+	if p.upserts != 0 {
+		t.Fatal("it wrote a value that does not fit")
+	}
+}
+
+func TestDNSAddTTLReachesTheProvider(t *testing.T) {
+	p := &fake{}
+	defer stubChoose("hostinger", "example.com", p)()
+
+	if _, err := execute(t, "--config", configDir(t),
+		"dns", "add", "www.example.com", "A", "198.51.100.10", "--ttl", "300", "--publish"); err != nil {
+		t.Fatal(err)
+	}
+	if p.lastRecord.TTL != 300 {
+		t.Fatalf("wrote ttl %d, want 300", p.lastRecord.TTL)
+	}
+}
+
+func TestDNSAddAppendKeepsTheValuesTheNameHolds(t *testing.T) {
+	p := &fake{records: []dns.Record{{Name: "@", Type: "MX", Value: "10 mail.example.com"}}}
+	defer stubChoose("hostinger", "example.com", p)()
+
+	out, err := execute(t, "--config", configDir(t),
+		"dns", "add", "example.com", "MX", "20 mail2.example.com", "--append", "--publish")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.appends != 1 || p.upserts != 0 {
+		t.Fatalf("appends %d, upserts %d; want one append and no upsert", p.appends, p.upserts)
+	}
+	// The line says what stays, so a person can see the name ends up with
+	// both values rather than wondering whether the first one survived.
+	if !strings.Contains(out, "next to 10 mail.example.com") {
+		t.Fatalf("it does not say what it keeps: %q", out)
+	}
+}
+
+func TestDNSAddAppendUnderCheckWritesNothing(t *testing.T) {
+	p := &fake{records: []dns.Record{{Name: "@", Type: "MX", Value: "10 mail.example.com"}}}
+	defer stubChoose("hostinger", "example.com", p)()
+
+	out, err := execute(t, "--config", configDir(t),
+		"dns", "add", "example.com", "MX", "20 mail2.example.com", "--append", "--check")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.appends+p.upserts != 0 {
+		t.Fatal("--check wrote")
+	}
+	if !strings.Contains(out, "would add") {
+		t.Fatalf("got %q", out)
+	}
+}
+
+func TestDNSAddSaysWhatItReplacesWithoutAppend(t *testing.T) {
+	p := &fake{records: []dns.Record{{Name: "@", Type: "MX", Value: "10 mail.example.com"}}}
+	defer stubChoose("hostinger", "example.com", p)()
+
+	out, err := execute(t, "--config", configDir(t),
+		"dns", "add", "example.com", "MX", "20 mail2.example.com", "--check")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "replacing 10 mail.example.com") {
+		t.Fatalf("it does not name the value about to be lost: %q", out)
+	}
+}
+
+func TestDNSAddSeesAValueSpeltDifferentlyAsTheSameRecord(t *testing.T) {
+	p := &fake{records: []dns.Record{{Name: "@", Type: "MX", Value: "10 Mail.Example.com."}}}
+	defer stubChoose("hostinger", "example.com", p)()
+
+	out, err := execute(t, "--config", configDir(t),
+		"dns", "add", "example.com", "MX", "10 mail.example.com", "--check")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(out, "replacing") {
+		t.Fatalf("the registrar's spelling of the same value was taken for another one: %q", out)
+	}
+}
+
+func TestDNSListShowsEveryType(t *testing.T) {
+	defer stubChoose("hostinger", "example.com", &fake{records: []dns.Record{
+		{Name: "@", Type: "MX", Value: "10 mail.example.com", TTL: 3600},
+		{Name: "_sip._tcp", Type: "SRV", Value: "10 5 5060 sip.example.com", TTL: 3600},
+	}})()
+
+	out, err := execute(t, "--config", configDir(t), "dns", "list", "example.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"MX", "10 mail.example.com", "SRV", "10 5 5060 sip.example.com"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("the list leaves out %q: %q", want, out)
+		}
+	}
+}
+
+func TestDNSRmRemovesAValueSpeltDifferently(t *testing.T) {
+	p := &fake{records: []dns.Record{{Name: "@", Type: "MX", Value: "10 mail.example.com"}}}
+	defer stubChoose("hostinger", "example.com", p)()
+
+	if _, err := execute(t, "--config", configDir(t),
+		"dns", "rm", "example.com", "MX", "10 Mail.Example.com.", "--yes"); err != nil {
+		t.Fatal(err)
+	}
+	if p.lastRecord.Value != "10 mail.example.com" {
+		t.Fatalf("removed %q, want the canonical spelling", p.lastRecord.Value)
 	}
 }
 

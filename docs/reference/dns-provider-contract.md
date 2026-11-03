@@ -11,7 +11,7 @@ replace rather than writing one from nothing.
 ## How it is called
 
 ```
-<entrypoint> list|upsert|delete <zone>
+<entrypoint> list|upsert|append|delete <zone>
 ```
 
 `<entrypoint>` is the package's `entrypoint`, for example `bin/provider`.
@@ -41,6 +41,7 @@ none.
   {"name": "zones",  "summary": "The zones this token can see."},
   {"name": "list",   "summary": "Every record in a zone.", "args": "<zone>"},
   {"name": "upsert", "summary": "Make a name hold exactly one value.", "args": "<zone>"},
+  {"name": "append", "summary": "Add one value next to the ones a name holds.", "args": "<zone>"},
   {"name": "delete", "summary": "Remove one value from a name.", "args": "<zone>"},
   {"name": "help",   "summary": "This list."}
 ]}
@@ -53,7 +54,7 @@ entrypoint actually refuses is a lie no validator can catch.
 
 `list` takes nothing beyond the zone.
 
-`upsert` and `delete` take one record as JSON **on stdin**:
+`upsert`, `append` and `delete` take one record as JSON **on stdin**:
 
 ```json
 {"name": "www", "type": "A", "value": "198.51.100.10", "ttl": 300}
@@ -62,13 +63,34 @@ entrypoint actually refuses is a lie no validator can catch.
 - `name` is a **label**, never a full name: `www`, or `@` for the apex
   (the root domain of your server). The provider adds the zone itself.
 - `ttl` of `0` means "choose": use whatever the registrar defaults to.
+- `type` is one of `A`, `AAAA`, `CNAME`, `TXT`, `MX`, `SRV`, `NS`, `CAA`.
+- `value` is written the way a zone file writes it, and the CLI has
+  already checked and normalised it:
+
+  | Type | Value | Example |
+  | --- | --- | --- |
+  | `MX` | `<priority> <host>` | `10 mail.example.com` |
+  | `SRV` | `<priority> <weight> <port> <target>` | `10 5 5060 sip.example.com` |
+  | `CAA` | `<flags> <tag> "<value>"` | `0 issue "ca.example.net"` |
+  | the rest | the content itself | `198.51.100.10` |
+
+  Host names arrive in lower case with no trailing dot. A registrar that
+  keeps a priority, a port or a CAA tag in a field of its own splits the
+  value on the way in and joins it on the way out, so `list` prints the
+  same spelling `upsert` was given. Comparing a value the registrar
+  stores (`10 mail.example.com.`) with one the CLI sends is the
+  provider's job too.
+
+An SRV `name` is the whole owner label, `_sip._tcp` or `_sip._tcp.voice`.
+A registrar that stores the service and protocol apart from the name
+splits it.
 
 ## What it must print
 
 On success, one JSON document on stdout:
 
 - `list` → `{"records": [{"name": "...", "type": "...", "value": "...", "ttl": 300}, ...]}`
-- `upsert` and `delete` → `{}`
+- `upsert`, `append` and `delete` → `{}`
 
 ## What a failure looks like
 
@@ -110,8 +132,16 @@ relative to the entrypoint's location.
 - `upsert` makes the name hold **exactly** that one value — adding to
   what is already there is wrong, even if the registrar's API makes that
   the easy path.
+- `append` adds that one value next to whatever the name and type
+  already hold, and never removes or changes the others. A value that is
+  already there is left alone, so the call is safe to repeat. With a
+  `ttl`, the set's TTL becomes that value where the registrar keeps one
+  TTL per set; without one, the set keeps its own.
 - `delete` removes exactly that one value, leaving every other value at
   that name untouched.
+- A package that predates `append` leaves it out of `commands`. The CLI
+  then refuses `dns add --append` for that provider before running
+  anything, and says to update the package.
 - An empty `value` on either call means the whole set, not a value that
   happens to be an empty string.
 

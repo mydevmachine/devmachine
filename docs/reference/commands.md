@@ -1652,7 +1652,7 @@ devmachine dns status [host]
 devmachine dns providers
 devmachine dns list [zone] [--dns-provider p] [--zone z]
 devmachine dns check <name> [--dns-provider p] [--zone z]
-devmachine dns add <name> <type> <value> [--dns-provider p] [--zone z] [--check] [--publish]
+devmachine dns add <name> <type> <value> [--ttl s] [--append] [--dns-provider p] [--zone z] [--check] [--publish]
 devmachine dns rm  <name> <type> [value] [--dns-provider p] [--zone z] [--check] [--yes]
 ```
 
@@ -1673,9 +1673,15 @@ public internet. `check` exits non-zero when a name is not set.
 that cannot list its own zones. Which provider answered goes to stderr.
 
 `add` makes a name hold **exactly** one value, replacing what was there,
-after showing the zone, provider and value it replaces. `--check`
-previews; `--publish` is the non-interactive consent (`--yes` alone never
-grants it).
+after showing the zone, provider and value it replaces. `--append` keeps
+the values the name holds and adds this one, showing what it sits next
+to. `--ttl` sets the seconds a resolver may cache it; without it the
+registrar chooses. Types: `A`, `AAAA`, `CNAME`, `TXT`, `MX`, `SRV`, `NS`,
+`CAA`, with the value written the way a zone file writes it
+(`10 mail.example.com`, `10 5 5060 sip.example.com`,
+`0 issue "ca.example.net"`); a value that does not fit its type is
+refused before any provider is asked. `--check` previews; `--publish` is
+the non-interactive consent (`--yes` alone never grants it).
 
 `rm` removes one value, or every value at that name and type with none
 given — not always one atomic step on the registrar's side, so it warns

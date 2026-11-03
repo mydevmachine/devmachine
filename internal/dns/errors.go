@@ -40,13 +40,10 @@ func ErrorForKind(kind, message string) error {
 	return fmt.Errorf("the provider failed with %q: %s", kind, message)
 }
 
-// supportedTypes are the types a single Value string can carry on every
-// provider without loss.
-//
-// MX and SRV are left out on purpose: one registrar puts the priority inside
-// the content string and another keeps it in its own field, so one Value cannot
-// round-trip on both. Refusing them by name is honest; guessing is not.
-var supportedTypes = []string{"A", "AAAA", "CNAME", "TXT"}
+// supportedTypes are the types every provider carries. Each has a written
+// form CanonicalValue checks, so one Value string round-trips on every
+// registrar; SOA is left out because a registrar owns it.
+var supportedTypes = []string{"A", "AAAA", "CNAME", "TXT", "MX", "SRV", "NS", "CAA"}
 
 // SupportedType normalises t to upper case and rejects anything this version
 // cannot carry.
