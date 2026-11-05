@@ -8,6 +8,30 @@ page](https://github.com/mydevmachine/devmachine/releases).
 
 To get the latest version, see [Upgrade](upgrade.md).
 
+## App v0.12.0 — 2026-11-05
+
+### Changed
+
+- A file opened from ⌘P or the Files tree is a tab in the strip above the
+  terminal, and shows in the terminal's place, the way a session tab shows
+  its terminal. Before, it opened in a pane beside the terminal with a tab
+  strip of its own. The session tab brings the terminal back as it was;
+  another session, or Home, puts the file away and its tab waits. Closing
+  the file tab on screen moves to its neighbour, as closing a session tab
+  does. The pane beside the terminal keeps the preview tabs only.
+- The viewer keeps what the last 8 tabs read, so coming back to a file is
+  instant; Reload reads it again.
+
+### Fixed
+
+- Opening a large markdown file froze the app for seconds; the same for
+  large text and code. The viewer now lays a file out in pieces as they
+  come on screen: 130 KB of markdown opens in about 100 ms, and 1 MB the
+  same.
+- Copying from a terminal brought text nobody could see, from when the
+  pane had been wider. Lines are cut to the pane's width when it changes
+  and before a copy.
+
 ## v0.18.0 — 2026-11-03
 
 ### Added
